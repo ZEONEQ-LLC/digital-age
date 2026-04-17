@@ -1,4 +1,5 @@
 "use client";
+import NewsletterSignup from "./NewsletterSignup";
 
 export default function Footer() {
   return (
@@ -11,6 +12,16 @@ export default function Footer() {
       `}</style>
       <footer style={{ backgroundColor: "#111113", borderTop: "1px solid #2a2a2e", marginTop: "0" }}>
         <div className="footer-wrapper" style={{ maxWidth: "1200px", margin: "0 auto", padding: "64px 32px 32px" }}>
+          <div style={{ backgroundColor: "#2a2a2e", border: "1px solid #3a3a3e", borderRadius: "8px", padding: "32px", marginBottom: "48px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "24px" }}>
+            <div style={{ flex: "1 1 300px" }}>
+              <p style={{ color: "#32ff7e", fontSize: "12px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "8px" }}>📬 Newsletter</p>
+              <h3 style={{ color: "#ffffff", fontSize: "20px", fontWeight: 600, marginBottom: "4px", fontFamily: "Space Grotesk, sans-serif" }}>Die Woche in KI — direkt in deine Inbox</h3>
+              <p style={{ color: "#b0b0b0", fontSize: "13px" }}>1× pro Woche, 5 min Lesezeit, jederzeit kündbar.</p>
+            </div>
+            <div style={{ flex: "1 1 320px" }}>
+              <NewsletterSignup variant="compact" />
+            </div>
+          </div>
           <div className="footer-grid" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "48px", marginBottom: "48px" }}>
             {/* Logo + Description */}
             <div>

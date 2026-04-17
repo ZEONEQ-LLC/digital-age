@@ -5,6 +5,7 @@ import ShareButtons from "@/components/ShareButtons";
 import AuthorBox from "@/components/AuthorBox";
 import ArticleBody from "@/components/ArticleBody";
 import ArticleSection from "@/components/ArticleSection";
+import NewsletterSignup from "@/components/NewsletterSignup";
 
 // Dummy article data - will be replaced with Supabase later
 const article = {
@@ -96,6 +97,11 @@ export default function ArticlePage() {
 
         <AuthorBox {...article.author} />
       </article>
+
+      {/* Newsletter */}
+      <div style={{ maxWidth: "720px", margin: "0 auto", padding: "0 32px" }}>
+        <NewsletterSignup variant="inline" />
+      </div>
 
       {/* Related Articles */}
       <ArticleSection title="Das könnte dich auch interessieren" href="/ki-im-business" articles={relatedArticles} />

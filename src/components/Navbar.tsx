@@ -62,6 +62,7 @@ export default function Navbar() {
             </div>
           </div>
           <div className="nav-right">
+            <Link href="/newsletter" style={{ color: "#e0e0e0", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>📬 Newsletter</Link>
             <Link href="/login" style={{ color: "#e0e0e0", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>Login</Link>
             <button className="nav-lang">DE / EN</button>
             <Link href="/kontakt" className="nav-cta">Publizieren</Link>
@@ -96,6 +97,7 @@ export default function Navbar() {
           <Link href="/future-tech" style={{ color: "#ffffff", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid #2a2a2e", display: "block" }} onClick={() => setMenuOpen(false)}>Future Tech</Link>
           <Link href="/swiss-ai" style={{ color: "#32ff7e", textDecoration: "none", fontSize: "16px", fontWeight: 600, padding: "14px 0", borderBottom: "1px solid #2a2a2e", display: "block" }} onClick={() => setMenuOpen(false)}>🇨🇭 Swiss AI</Link>
           <Link href="/login" style={{ color: "#ffffff", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid #2a2a2e", display: "block" }} onClick={() => setMenuOpen(false)}>Login</Link>
+          <Link href="/newsletter" style={{ color: "#ffffff", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid #2a2a2e", display: "block" }} onClick={() => setMenuOpen(false)}>📬 Newsletter</Link>
           <span style={{ color: "#b0b0b0", fontSize: "14px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid #2a2a2e", display: "block" }}>Tools & Ressources</span>
           <Link href="/ki-plattformen" style={{ color: "#b0b0b0", fontSize: "13px", padding: "8px 0 8px 12px", display: "block", textDecoration: "none" }} onClick={() => setMenuOpen(false)}>KI-Plattformen</Link>
           <Link href="/ai-prompts" style={{ color: "#b0b0b0", fontSize: "13px", padding: "8px 0 8px 12px", display: "block", textDecoration: "none" }} onClick={() => setMenuOpen(false)}>GenAI Prompts</Link>
