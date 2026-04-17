@@ -1,0 +1,94 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500;700&family=Space+Grotesk:wght@700&display=swap");
+
+@import "tailwindcss";
+
+@theme {
+  /* Colors */
+  --color-brand-dark:   #1c1c1e;
+  --color-brand-green:  #32ff7e;
+  --color-brand-orange: #ff8c42;
+  --color-brand-purple: #dcd6f7;
+  --color-brand-gray:   #b0b0b0;
+  --color-brand-card:   #2a2a2e;
+  --color-brand-border: #2a2a2e;
+  --color-brand-text:   #ffffff;
+  --color-brand-muted:  #b0b0b0;
+
+  /* Fonts */
+  --font-family-sans:    "Inter", sans-serif;
+  --font-family-mono:    "Roboto Mono", monospace;
+  --font-family-display: "Space Grotesk", sans-serif;
+}
+
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+@layer base {
+  body {
+    @apply bg-brand-dark text-brand-text antialiased;
+  }
+
+  ::selection {
+    @apply bg-brand-green text-brand-dark;
+  }
+
+  /* Typography */
+  h1 { font-family: var(--font-family-display); font-size: 48px; font-weight: 700; line-height: 1.2; }
+  h2 { font-family: Inter, sans-serif; font-size: 36px; font-weight: 600; line-height: 1.3; }
+  h3 { font-family: Inter, sans-serif; font-size: 28px; font-weight: 500; line-height: 1.4; }
+  h4 { font-family: Inter, sans-serif; font-size: 24px; font-weight: 500; }
+  h5 { font-family: Inter, sans-serif; font-size: 20px; font-weight: 400; }
+  h6 { font-family: Inter, sans-serif; font-size: 18px; font-weight: 400; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar       { width: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-brand-dark; }
+  ::-webkit-scrollbar-thumb { @apply bg-brand-green rounded-full; }
+}
+
+
+@layer components {
+  .btn-primary {
+    background-color: #32ff7e;
+    color: #1c1c1e;
+    font-size: 24px;
+    font-weight: 500;
+    padding: 10px 20px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+
+  .btn-secondary {
+    background-color: transparent;
+    color: #ff8c42;
+    font-size: 16px;
+    font-weight: 500;
+    padding: 13px 30px;
+    border-radius: 0px;
+    border: 2px solid #ff8c42;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+  }
+  .btn-secondary:hover { background-color: #ff8c42; color: #1c1c1e; }
+
+  .ticker-animation {
+    display: inline-flex;
+    gap: 3rem;
+    white-space: nowrap;
+    animation: ticker 40s linear infinite;
+  }
+
+  .ticker-pause:hover .ticker-animation {
+    animation-play-state: paused;
+  }
+}
