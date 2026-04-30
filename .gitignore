@@ -138,3 +138,9 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .DS_Store
+
+# Next.js auto-generated
+next-env.d.ts
+
+# Vercel CLI
+.vercel
