@@ -144,3 +144,6 @@ next-env.d.ts
 
 # Vercel CLI
 .vercel
+
+# Design handoff (Phase 0)
+_design-handoff/
