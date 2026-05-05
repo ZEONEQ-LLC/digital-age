@@ -23,7 +23,7 @@ const futureTech = [
 
 export default function Home() {
   return (
-    <main style={{ paddingTop: "64px", backgroundColor: "#1c1c1e", minHeight: "100vh" }}>
+    <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <NewsTicker />
       <Hero />
       <ArticleSection title="Featured" href="/featured" articles={featured} featured={true} />

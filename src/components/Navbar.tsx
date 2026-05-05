@@ -10,26 +10,26 @@ export default function Navbar() {
   return (
     <>
       <style>{`
-        .nav-root { position: fixed; top: 0; left: 0; right: 0; z-index: 200; background: #1c1c1e; border-bottom: 1px solid #2a2a2e; }
+        .nav-root { position: fixed; top: 0; left: 0; right: 0; z-index: 200; background: var(--da-dark); border-bottom: 1px solid var(--da-card); }
         .nav-inner { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 64px; }
         .nav-logo img { height: 40px; width: auto; display: block; }
         .nav-desktop { display: flex; align-items: center; gap: 32px; }
-        .nav-desktop a { color: #e0e0e0; text-decoration: none; font-size: 15px; }
-        .nav-desktop a:hover { color: #32ff7e; }
+        .nav-desktop a { color: var(--da-text-strong); text-decoration: none; font-size: 15px; }
+        .nav-desktop a:hover { color: var(--da-green); }
         .nav-right { display: flex; align-items: center; gap: 16px; }
-        .nav-lang { color: #b0b0b0; font-size: 14px; cursor: pointer; background: none; border: none; }
-        .nav-cta { background: #32ff7e; color: #1c1c1e; font-size: 15px; font-weight: 700; padding: 10px 20px; border-radius: 4px; text-decoration: none; }
-        .nav-hamburger { display: none; background: none; border: none; color: #ffffff; cursor: pointer; padding: 4px; }
+        .nav-lang { color: var(--da-muted); font-size: 14px; cursor: pointer; background: none; border: none; }
+        .nav-cta { background: var(--da-green); color: var(--da-dark); font-size: 15px; font-weight: 700; padding: 10px 20px; border-radius: 4px; text-decoration: none; }
+        .nav-hamburger { display: none; background: none; border: none; color: var(--da-text); cursor: pointer; padding: 4px; }
         .nav-dropdown { position: relative; }
-        .nav-dropdown-btn { color: #e0e0e0; font-size: 15px; background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; }
-        .nav-dropdown-btn:hover { color: #32ff7e; }
-        .nav-dropdown-menu { position: absolute; top: calc(100% + 12px); left: 0; background: #2a2a2e; border: 1px solid #3a3a3e; border-radius: 8px; min-width: 180px; overflow: hidden; }
-        .nav-dropdown-menu a { display: block; padding: 12px 16px; color: #e0e0e0; text-decoration: none; font-size: 14px; }
-        .nav-dropdown-menu a:hover { background: #3a3a3e; color: #32ff7e; }
-        .mobile-menu { display: none; flex-direction: column; background: #1c1c1e; border-top: 1px solid #2a2a2e; padding: 16px 24px 24px; gap: 0; }
+        .nav-dropdown-btn { color: var(--da-text-strong); font-size: 15px; background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+        .nav-dropdown-btn:hover { color: var(--da-green); }
+        .nav-dropdown-menu { position: absolute; top: calc(100% + 12px); left: 0; background: var(--da-card); border: 1px solid var(--da-border); border-radius: 8px; min-width: 180px; overflow: hidden; }
+        .nav-dropdown-menu a { display: block; padding: 12px 16px; color: var(--da-text-strong); text-decoration: none; font-size: 14px; }
+        .nav-dropdown-menu a:hover { background: var(--da-border); color: var(--da-green); }
+        .mobile-menu { display: none; flex-direction: column; background: var(--da-dark); border-top: 1px solid var(--da-card); padding: 16px 24px 24px; gap: 0; }
         .mobile-menu.open { display: flex; }
-        .mobile-link { color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 500; padding: 14px 0; border-bottom: 1px solid #2a2a2e; display: block; }
-        .mobile-sublabel { color: #b0b0b0; font-size: 13px; padding: 8px 0 8px 12px; display: block; text-decoration: none; }
+        .mobile-link { color: var(--da-text); text-decoration: none; font-size: 16px; font-weight: 500; padding: 14px 0; border-bottom: 1px solid var(--da-card); display: block; }
+        .mobile-sublabel { color: var(--da-muted); font-size: 13px; padding: 8px 0 8px 12px; display: block; text-decoration: none; }
         .mobile-bottom { display: flex; align-items: center; justify-content: space-between; padding-top: 16px; margin-top: 8px; }
         @media (max-width: 768px) {
           .nav-desktop { display: none; }
@@ -46,7 +46,7 @@ export default function Navbar() {
           <div className="nav-desktop">
             <Link href="/ki-im-business">KI & Business</Link>
             <Link href="/future-tech">Future Tech</Link>
-            <Link href="/swiss-ai" style={{ color: "#32ff7e", fontWeight: 600 }}>🇨🇭 Swiss AI</Link>
+            <Link href="/swiss-ai" style={{ color: "var(--da-green)", fontWeight: 600 }}>🇨🇭 Swiss AI</Link>
             <div className="nav-dropdown">
               <button className="nav-dropdown-btn" onClick={() => setToolsOpen(!toolsOpen)}>
                 Tools & Ressources
@@ -62,8 +62,8 @@ export default function Navbar() {
             </div>
           </div>
           <div className="nav-right">
-            <Link href="/newsletter" style={{ color: "#e0e0e0", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>📬 Newsletter</Link>
-            <Link href="/login" style={{ color: "#e0e0e0", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>Login</Link>
+            <Link href="/newsletter" style={{ color: "var(--da-text-strong)", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>📬 Newsletter</Link>
+            <Link href="/login" style={{ color: "var(--da-text-strong)", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>Login</Link>
             <button className="nav-lang">DE / EN</button>
             <Link href="/kontakt" className="nav-cta">Publizieren</Link>
           </div>
@@ -87,21 +87,21 @@ export default function Navbar() {
           left: 0,
           right: 0,
           zIndex: 199,
-          backgroundColor: "#1c1c1e",
-          borderTop: "1px solid #2a2a2e",
+          backgroundColor: "var(--da-dark)",
+          borderTop: "1px solid var(--da-card)",
           padding: "16px 24px 24px",
           display: "flex",
           flexDirection: "column",
         }}>
-          <Link href="/ki-im-business" style={{ color: "#ffffff", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid #2a2a2e", display: "block" }} onClick={() => setMenuOpen(false)}>KI & Business</Link>
-          <Link href="/future-tech" style={{ color: "#ffffff", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid #2a2a2e", display: "block" }} onClick={() => setMenuOpen(false)}>Future Tech</Link>
-          <Link href="/swiss-ai" style={{ color: "#32ff7e", textDecoration: "none", fontSize: "16px", fontWeight: 600, padding: "14px 0", borderBottom: "1px solid #2a2a2e", display: "block" }} onClick={() => setMenuOpen(false)}>🇨🇭 Swiss AI</Link>
-          <Link href="/login" style={{ color: "#ffffff", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid #2a2a2e", display: "block" }} onClick={() => setMenuOpen(false)}>Login</Link>
-          <Link href="/newsletter" style={{ color: "#ffffff", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid #2a2a2e", display: "block" }} onClick={() => setMenuOpen(false)}>📬 Newsletter</Link>
-          <span style={{ color: "#b0b0b0", fontSize: "14px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid #2a2a2e", display: "block" }}>Tools & Ressources</span>
-          <Link href="/ki-plattformen" style={{ color: "#b0b0b0", fontSize: "13px", padding: "8px 0 8px 12px", display: "block", textDecoration: "none" }} onClick={() => setMenuOpen(false)}>KI-Plattformen</Link>
-          <Link href="/ai-prompts" style={{ color: "#b0b0b0", fontSize: "13px", padding: "8px 0 8px 12px", display: "block", textDecoration: "none" }} onClick={() => setMenuOpen(false)}>GenAI Prompts</Link>
-          <Link href="/podcasts" style={{ color: "#b0b0b0", fontSize: "13px", padding: "8px 0 8px 12px", display: "block", textDecoration: "none" }} onClick={() => setMenuOpen(false)}>Podcasts</Link>
+          <Link href="/ki-im-business" style={{ color: "var(--da-text)", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>KI & Business</Link>
+          <Link href="/future-tech" style={{ color: "var(--da-text)", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>Future Tech</Link>
+          <Link href="/swiss-ai" style={{ color: "var(--da-green)", textDecoration: "none", fontSize: "16px", fontWeight: 600, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>🇨🇭 Swiss AI</Link>
+          <Link href="/login" style={{ color: "var(--da-text)", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>Login</Link>
+          <Link href="/newsletter" style={{ color: "var(--da-text)", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>📬 Newsletter</Link>
+          <span style={{ color: "var(--da-muted)", fontSize: "14px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }}>Tools & Ressources</span>
+          <Link href="/ki-plattformen" style={{ color: "var(--da-muted)", fontSize: "13px", padding: "8px 0 8px 12px", display: "block", textDecoration: "none" }} onClick={() => setMenuOpen(false)}>KI-Plattformen</Link>
+          <Link href="/ai-prompts" style={{ color: "var(--da-muted)", fontSize: "13px", padding: "8px 0 8px 12px", display: "block", textDecoration: "none" }} onClick={() => setMenuOpen(false)}>GenAI Prompts</Link>
+          <Link href="/podcasts" style={{ color: "var(--da-muted)", fontSize: "13px", padding: "8px 0 8px 12px", display: "block", textDecoration: "none" }} onClick={() => setMenuOpen(false)}>Podcasts</Link>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "16px", marginTop: "8px" }}>
             <button className="nav-lang">DE / EN</button>
             <Link href="/kontakt" className="nav-cta" onClick={() => setMenuOpen(false)}>Publizieren</Link>

@@ -35,26 +35,26 @@ const relatedArticles = [
 
 export default function ArticlePage() {
   return (
-    <main style={{ paddingTop: "64px", backgroundColor: "#1c1c1e", minHeight: "100vh" }}>
+    <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <NewsTicker />
 
       {/* Article Hero */}
       <section style={{ maxWidth: "900px", margin: "0 auto", padding: "48px 32px 24px" }}>
-        <a href="/ki-im-business" style={{ color: "#32ff7e", fontSize: "13px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none", marginBottom: "20px", display: "inline-block" }}>
+        <a href="/ki-im-business" style={{ color: "var(--da-green)", fontSize: "13px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none", marginBottom: "20px", display: "inline-block" }}>
           {article.category}
         </a>
-        <h1 style={{ color: "#ffffff", fontSize: "clamp(32px, 4.5vw, 48px)", fontWeight: 700, lineHeight: 1.2, marginBottom: "24px", fontFamily: "Space Grotesk, sans-serif" }}>
+        <h1 style={{ color: "var(--da-text)", fontSize: "clamp(32px, 4.5vw, 48px)", fontWeight: 700, lineHeight: 1.2, marginBottom: "24px", fontFamily: "Space Grotesk, sans-serif" }}>
           {article.title}
         </h1>
-        <p style={{ color: "#b0b0b0", fontSize: "19px", lineHeight: 1.6, marginBottom: "32px", fontWeight: 300 }}>
+        <p style={{ color: "var(--da-muted)", fontSize: "19px", lineHeight: 1.6, marginBottom: "32px", fontWeight: 300 }}>
           {article.lead}
         </p>
         <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap", marginBottom: "8px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <img src={article.author.avatar} alt={article.author.name} style={{ width: "40px", height: "40px", borderRadius: "50%", objectFit: "cover" }} />
             <div>
-              <a href={`/autor/${article.author.slug}`} style={{ color: "#ffffff", fontSize: "14px", fontWeight: 600, textDecoration: "none", display: "block" }}>{article.author.name}</a>
-              <p style={{ color: "#b0b0b0", fontSize: "13px" }}>{article.date} · {article.readTime}</p>
+              <a href={`/autor/${article.author.slug}`} style={{ color: "var(--da-text)", fontSize: "14px", fontWeight: 600, textDecoration: "none", display: "block" }}>{article.author.name}</a>
+              <p style={{ color: "var(--da-muted)", fontSize: "13px" }}>{article.date} · {article.readTime}</p>
             </div>
           </div>
           <div style={{ marginLeft: "auto" }}>
@@ -71,7 +71,7 @@ export default function ArticlePage() {
       {/* Article Body */}
       <article style={{ maxWidth: "720px", margin: "0 auto", padding: "0 32px" }}>
         <ArticleBody>
-          <p style={{ fontSize: "20px", fontWeight: 400, color: "#ffffff", marginBottom: "32px", lineHeight: 1.6 }}>{bodyText}</p>
+          <p style={{ fontSize: "20px", fontWeight: 400, color: "var(--da-text)", marginBottom: "32px", lineHeight: 1.6 }}>{bodyText}</p>
 
           <h2>Das eigentliche Problem: Datenqualität</h2>
           <p>Die meisten Banken kämpfen mit historisch gewachsenen IT-Landschaften. Kundendaten liegen in Dutzenden von Systemen, Produktdaten in anderen, und Transaktionsdaten wieder in eigenen Silos. Jede Abteilung hat eigene Definitionen: Was ist ein "aktiver Kunde"? Ab wann gilt ein Konto als "überzogen"?</p>

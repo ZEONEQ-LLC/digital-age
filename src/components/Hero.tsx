@@ -6,13 +6,13 @@ export default function Hero() {
         .hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center center; }
         .hero-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(28,28,30,0.1) 0%, rgba(28,28,30,0.3) 40%, rgba(28,28,30,0.85) 75%, rgba(28,28,30,1) 100%); }
         .hero-content { position: absolute; bottom: 72px; left: 0; right: 0; max-width: 800px; margin: 0 auto; padding: 0 32px; }
-        .hero-label { color: #32ff7e; font-size: 12px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 16px; }
-        .hero-title { color: #ffffff; font-size: clamp(32px, 4.5vw, 60px); font-weight: 700; line-height: 1.15; margin-bottom: 20px; }
-        .hero-title span { color: #32ff7e; }
-        .hero-sub { color: #b0b0b0; font-size: 17px; line-height: 1.65; max-width: 560px; margin-bottom: 32px; }
+        .hero-label { color: var(--da-green); font-size: 12px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 16px; }
+        .hero-title { color: var(--da-text); font-size: clamp(32px, 4.5vw, 60px); font-weight: 700; line-height: 1.15; margin-bottom: 20px; }
+        .hero-title span { color: var(--da-green); }
+        .hero-sub { color: var(--da-muted); font-size: 17px; line-height: 1.65; max-width: 560px; margin-bottom: 32px; }
         .hero-btns { display: flex; gap: 16px; flex-wrap: wrap; }
-        .hero-btn-primary { background: #32ff7e; color: #1c1c1e; font-size: 16px; font-weight: 700; padding: 14px 28px; border-radius: 4px; text-decoration: none; }
-        .hero-btn-secondary { background: transparent; color: #ff8c42; font-size: 16px; font-weight: 600; padding: 12px 28px; border: 2px solid #ff8c42; text-decoration: none; }
+        .hero-btn-primary { background: var(--da-green); color: var(--da-dark); font-size: 16px; font-weight: 700; padding: 14px 28px; border-radius: 4px; text-decoration: none; }
+        .hero-btn-secondary { background: transparent; color: var(--da-orange); font-size: 16px; font-weight: 600; padding: 12px 28px; border: 2px solid var(--da-orange); text-decoration: none; }
         @media (max-width: 768px) {
           .hero { height: 85svh; min-height: 620px; }
           .hero-img { object-position: 15% top; }

@@ -5,7 +5,7 @@ import Footer from "@/components/Footer";
 
 export default function Page() {
   return (
-    <main style={{ paddingTop: "64px", backgroundColor: "#1c1c1e", minHeight: "100vh" }}>
+    <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <NewsTicker />
       <PageHero category="Team" title="Redaktion" description="Die Menschen hinter digital age – Autorinnen, Autoren und Expertinnen, die das Magazin mit Leben füllen." />
       <PagePlaceholder message="Redaktionsteam folgt hier." />

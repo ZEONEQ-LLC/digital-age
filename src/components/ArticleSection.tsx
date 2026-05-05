@@ -31,9 +31,9 @@ export default function ArticleSection({ title, href, articles, featured = false
         }
       `}</style>
       <section className="section-wrapper" style={{ maxWidth: "1200px", margin: "0 auto", padding: "64px 32px 0" }}>
-        <div className="section-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "32px", borderBottom: "1px solid #3a3a3e", paddingBottom: "16px" }}>
-          <h2 style={{ color: "#ffffff", fontSize: "24px", fontWeight: 700 }}>{title}</h2>
-          <a href={href} style={{ color: "#32ff7e", fontSize: "13px", fontWeight: 600, textDecoration: "none", letterSpacing: "0.05em" }}>
+        <div className="section-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "32px", borderBottom: "1px solid var(--da-border)", paddingBottom: "16px" }}>
+          <h2 style={{ color: "var(--da-text)", fontSize: "24px", fontWeight: 700 }}>{title}</h2>
+          <a href={href} style={{ color: "var(--da-green)", fontSize: "13px", fontWeight: 600, textDecoration: "none", letterSpacing: "0.05em" }}>
             mehr →
           </a>
         </div>
