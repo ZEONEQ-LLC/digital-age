@@ -1,23 +1,113 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500;700&family=Space+Grotesk:wght@700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap");
 
 @import "tailwindcss";
 
 @theme {
-  /* Colors */
-  --color-brand-dark:   #1c1c1e;
-  --color-brand-green:  #32ff7e;
-  --color-brand-orange: #ff8c42;
-  --color-brand-purple: #dcd6f7;
-  --color-brand-gray:   #b0b0b0;
-  --color-brand-card:   #2a2a2e;
-  --color-brand-border: #2a2a2e;
-  --color-brand-text:   #ffffff;
-  --color-brand-muted:  #b0b0b0;
+  /* ── Brand Colors ──────────────────────────────────────────────── */
+  --color-da-green:       #32ff7e;
+  --color-da-orange:      #ff8c42;
+  --color-da-purple:      #dcd6f7;
+  --color-da-red:         #ff5c5c;
 
-  /* Fonts */
-  --font-family-sans:    "Inter", sans-serif;
-  --font-family-mono:    "Roboto Mono", monospace;
-  --font-family-display: "Space Grotesk", sans-serif;
+  /* ── Surface ───────────────────────────────────────────────────── */
+  --color-da-dark:        #1c1c1e;
+  --color-da-darker:      #161618;
+  --color-da-card:        #2a2a2e;
+  --color-da-footer:      #111113;
+  --color-da-border:      #3a3a3e;
+  --color-da-border-soft: #2a2a2e;
+
+  /* ── Text ──────────────────────────────────────────────────────── */
+  --color-da-text:        #ffffff;
+  --color-da-text-strong: #e0e0e0;
+  --color-da-muted:       #b0b0b0;
+  --color-da-muted-soft:  #888888;
+  --color-da-faint:       #555555;
+
+  /* ── Fonts (Tailwind v4 derives font-display, font-sans, font-mono) ── */
+  --font-family-display:  "Space Grotesk", sans-serif;
+  --font-family-sans:     "Inter", sans-serif;
+  --font-family-mono:     "Roboto Mono", monospace;
+}
+
+:root {
+  /* Mirror brand colors as plain custom properties for var(--da-*) usage */
+  --da-green:        #32ff7e;
+  --da-orange:       #ff8c42;
+  --da-purple:       #dcd6f7;
+  --da-red:          #ff5c5c;
+
+  --da-dark:         #1c1c1e;
+  --da-darker:       #161618;
+  --da-card:         #2a2a2e;
+  --da-footer:       #111113;
+  --da-border:       #3a3a3e;
+  --da-border-soft:  #2a2a2e;
+
+  --da-text:         #ffffff;
+  --da-text-strong:  #e0e0e0;
+  --da-muted:        #b0b0b0;
+  --da-muted-soft:   #888888;
+  --da-faint:        #555555;
+
+  --da-font-display: "Space Grotesk", sans-serif;
+  --da-font-body:    "Inter", sans-serif;
+  --da-font-mono:    "Roboto Mono", monospace;
+
+  /* ── Type Scale ────────────────────────────────────────────────── */
+  --fs-overline:     10px;
+  --fs-caption:      11px;
+  --fs-meta:         12px;
+  --fs-body-sm:      13px;
+  --fs-body:         14px;
+  --fs-body-lg:      15px;
+  --fs-lead:         16px;
+  --fs-h4:           18px;
+  --fs-h3:           20px;
+  --fs-h2:           22px;
+  --fs-h1:           28px;
+  --fs-display:      34px;
+  --fs-hero:         48px;
+
+  /* ── Line-height ───────────────────────────────────────────────── */
+  --lh-tight:        1.1;
+  --lh-snug:         1.3;
+  --lh-normal:       1.5;
+  --lh-relaxed:      1.7;
+
+  /* ── Spacing (4px base) ────────────────────────────────────────── */
+  --sp-1:  4px;   --sp-2:  8px;   --sp-3: 12px;  --sp-4: 16px;
+  --sp-5: 20px;   --sp-6: 24px;   --sp-7: 28px;  --sp-8: 32px;
+  --sp-10: 40px;  --sp-12: 48px;  --sp-16: 64px; --sp-20: 80px;
+
+  /* ── Radius ────────────────────────────────────────────────────── */
+  --r-xs:   3px;
+  --r-sm:   4px;
+  --r-md:   6px;
+  --r-lg:   8px;
+  --r-pill: 999px;
+
+  /* ── Borders ───────────────────────────────────────────────────── */
+  --bw:        1px;
+  --bw-accent: 2px;
+
+  /* ── Layout ────────────────────────────────────────────────────── */
+  --max-content: 1200px;
+  --max-narrow:  720px;
+  --max-dash:    1280px;
+  --nav-h:       64px;
+  --sidebar-w:   240px;
+
+  /* ── Transitions ───────────────────────────────────────────────── */
+  --t-fast: 120ms ease;
+  --t-base: 200ms ease;
+  --t-slow: 300ms ease;
+
+  /* ── Status (semantic) ─────────────────────────────────────────── */
+  --st-success-fg: var(--da-green);   --st-success-bg: rgba(50, 255, 126, 0.12);
+  --st-warning-fg: var(--da-orange);  --st-warning-bg: rgba(255, 140, 66, 0.12);
+  --st-info-fg:    var(--da-purple);  --st-info-bg:    rgba(220, 214, 247, 0.10);
+  --st-error-fg:   var(--da-red);     --st-error-bg:   rgba(255, 92, 92, 0.10);
 }
 
 @keyframes ticker {
@@ -27,68 +117,168 @@
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50%       { opacity: 0.3; }
+  50%      { opacity: 0.3; }
+}
+
+@keyframes da-fadein {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
 }
 
 @layer base {
   body {
-    @apply bg-brand-dark text-brand-text antialiased;
+    background: var(--da-dark);
+    color: var(--da-text);
+    font-family: var(--da-font-body);
+    -webkit-font-smoothing: antialiased;
   }
 
   ::selection {
-    @apply bg-brand-green text-brand-dark;
+    background: var(--da-green);
+    color: var(--da-dark);
   }
 
-  /* Typography */
-  h1 { font-family: var(--font-family-display); font-size: 48px; font-weight: 700; line-height: 1.2; }
-  h2 { font-family: Inter, sans-serif; font-size: 36px; font-weight: 600; line-height: 1.3; }
-  h3 { font-family: Inter, sans-serif; font-size: 28px; font-weight: 500; line-height: 1.4; }
-  h4 { font-family: Inter, sans-serif; font-size: 24px; font-weight: 500; }
-  h5 { font-family: Inter, sans-serif; font-size: 20px; font-weight: 400; }
-  h6 { font-family: Inter, sans-serif; font-size: 18px; font-weight: 400; }
+  ::-webkit-scrollbar       { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--da-dark); }
+  ::-webkit-scrollbar-thumb { background: var(--da-green); border-radius: var(--r-pill); }
 
-  /* Scrollbar */
-  ::-webkit-scrollbar       { width: 6px; }
-  ::-webkit-scrollbar-track { @apply bg-brand-dark; }
-  ::-webkit-scrollbar-thumb { @apply bg-brand-green rounded-full; }
+  /* Headings — display family for h1/h2/h3, body family for h4-h6 */
+  h1 {
+    font-family: var(--da-font-display);
+    font-size: var(--fs-display);
+    font-weight: 700;
+    line-height: var(--lh-tight);
+    letter-spacing: -0.01em;
+  }
+  h2 {
+    font-family: var(--da-font-display);
+    font-size: var(--fs-h1);
+    font-weight: 700;
+    line-height: var(--lh-snug);
+    letter-spacing: -0.01em;
+  }
+  h3 {
+    font-family: var(--da-font-display);
+    font-size: var(--fs-h2);
+    font-weight: 700;
+    line-height: var(--lh-snug);
+  }
+  h4 { font-family: var(--da-font-body); font-size: var(--fs-h3); font-weight: 600; }
+  h5 { font-family: var(--da-font-body); font-size: var(--fs-h4); font-weight: 600; }
+  h6 { font-family: var(--da-font-body); font-size: var(--fs-lead); font-weight: 600; }
+
+  /* Form defaults */
+  input, textarea, select, button { font-family: inherit; }
+  input::placeholder, textarea::placeholder { color: var(--da-faint); }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--da-green); }
+
+  /* Link default */
+  a { color: inherit; text-decoration: none; }
 }
 
-
 @layer components {
-  .btn-primary {
-    background-color: #32ff7e;
-    color: #1c1c1e;
-    font-size: 24px;
-    font-weight: 500;
-    padding: 10px 20px;
-    border-radius: 4px;
-    border: none;
-    cursor: pointer;
-    transition: opacity 0.2s;
-  }
-  .btn-primary:hover { opacity: 0.85; }
+  /* ── Typography Utilities ─────────────────────────────────────── */
+  .da-display  { font-family: var(--da-font-display); font-weight: 700; letter-spacing: -0.01em; line-height: var(--lh-tight); }
+  .da-mono     { font-family: var(--da-font-mono); }
+  .da-overline { font-family: var(--da-font-mono); font-size: var(--fs-overline); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--da-faint); }
+  .da-h1       { font-family: var(--da-font-display); font-size: var(--fs-display); font-weight: 700; line-height: var(--lh-tight); letter-spacing: -0.01em; }
+  .da-h2       { font-family: var(--da-font-display); font-size: var(--fs-h1); font-weight: 700; line-height: var(--lh-snug); }
+  .da-h3       { font-family: var(--da-font-display); font-size: var(--fs-h2); font-weight: 700; }
+  .da-lead     { font-size: var(--fs-lead); line-height: var(--lh-relaxed); color: var(--da-text-strong); }
+  .da-body     { font-size: var(--fs-body); line-height: var(--lh-relaxed); color: var(--da-text-strong); }
+  .da-meta     { font-family: var(--da-font-mono); font-size: var(--fs-meta); color: var(--da-muted); }
+  .da-muted    { color: var(--da-muted); }
 
-  .btn-secondary {
-    background-color: transparent;
-    color: #ff8c42;
-    font-size: 16px;
-    font-weight: 500;
-    padding: 13px 30px;
-    border-radius: 0px;
-    border: 2px solid #ff8c42;
-    cursor: pointer;
-    transition: background-color 0.2s, color 0.2s;
-  }
-  .btn-secondary:hover { background-color: #ff8c42; color: #1c1c1e; }
+  /* ── Layout Utilities ─────────────────────────────────────────── */
+  .da-container        { max-width: var(--max-content); margin: 0 auto; padding: 0 var(--sp-8); }
+  .da-container-narrow { max-width: var(--max-narrow);  margin: 0 auto; padding: 0 var(--sp-8); }
+  .da-stack > * + *    { margin-top: var(--sp-4); }
 
-  .ticker-animation {
-    display: inline-flex;
-    gap: 3rem;
-    white-space: nowrap;
-    animation: ticker 40s linear infinite;
+  /* ── Card ─────────────────────────────────────────────────────── */
+  .da-card {
+    background: var(--da-card);
+    border: var(--bw) solid var(--da-border);
+    border-radius: var(--r-lg);
+    padding: var(--sp-6);
+  }
+  .da-card--accent        { border-color: var(--da-green); }
+  .da-card--accent-orange { border-color: var(--da-orange); }
+  .da-card--accent-purple { border-color: var(--da-purple); }
+
+  /* ── Button ───────────────────────────────────────────────────── */
+  .da-btn {
+    display: inline-flex; align-items: center; gap: var(--sp-2);
+    border: none; cursor: pointer;
+    padding: 11px 18px;
+    border-radius: var(--r-sm);
+    font-family: var(--da-font-body);
+    font-size: var(--fs-body-sm);
+    font-weight: 700;
+    transition: filter var(--t-fast);
+  }
+  .da-btn:hover     { filter: brightness(1.08); }
+  .da-btn--primary  { background: var(--da-green);    color: var(--da-dark); }
+  .da-btn--secondary{ background: transparent;        color: var(--da-text);   border: var(--bw) solid var(--da-border); }
+  .da-btn--ai       { background: var(--st-info-bg);  color: var(--da-purple); border: var(--bw) solid var(--da-purple); }
+  .da-btn--ghost    { background: transparent;        color: var(--da-muted); }
+  .da-btn--sm       { padding: 7px 13px; font-size: var(--fs-meta); }
+
+  /* ── Input ────────────────────────────────────────────────────── */
+  .da-input {
+    width: 100%;
+    background: var(--da-dark);
+    color: var(--da-text);
+    border: var(--bw) solid var(--da-border);
+    border-radius: var(--r-sm);
+    padding: 11px 14px;
+    font-size: var(--fs-body);
+    transition: border-color var(--t-fast);
   }
 
-  .ticker-pause:hover .ticker-animation {
-    animation-play-state: paused;
+  /* ── Badge / Tag ──────────────────────────────────────────────── */
+  .da-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    border-radius: var(--r-pill);
+    font-family: var(--da-font-body);
+    font-size: var(--fs-caption);
+    font-weight: 700;
+    letter-spacing: 0.04em;
   }
+  .da-badge::before {
+    content: "";
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .da-badge--success { background: var(--st-success-bg); color: var(--st-success-fg); }
+  .da-badge--warning { background: var(--st-warning-bg); color: var(--st-warning-fg); }
+  .da-badge--info    { background: var(--st-info-bg);    color: var(--st-info-fg); }
+  .da-badge--error   { background: var(--st-error-bg);   color: var(--st-error-fg); }
+  .da-badge--neutral { background: var(--da-card);       color: var(--da-muted); }
+
+  .da-tag {
+    display: inline-block;
+    background: var(--da-dark);
+    border: var(--bw) solid var(--da-border);
+    color: var(--da-muted);
+    font-size: var(--fs-caption);
+    padding: 3px 8px;
+    border-radius: var(--r-pill);
+  }
+
+  /* ── Section Header ───────────────────────────────────────────── */
+  .da-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--sp-8);
+    padding-bottom: var(--sp-4);
+    border-bottom: var(--bw) solid var(--da-border);
+  }
+  .da-section-header__title { display: flex; align-items: center; gap: var(--sp-3); }
+  .da-section-header__bar   { width: 3px; height: 24px; background: var(--da-green); border-radius: 2px; }
+
+  /* ── Animation ────────────────────────────────────────────────── */
+  .da-fadein { animation: da-fadein var(--t-slow) ease; }
 }

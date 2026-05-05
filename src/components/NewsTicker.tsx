@@ -28,17 +28,17 @@ export default function NewsTicker() {
           animation-play-state: paused;
         }
       `}</style>
-      <div style={{ backgroundColor: "#2a2a2e", borderBottom: "1px solid #3a3a3e", display: "flex", alignItems: "center", height: "40px", overflow: "hidden", position: "relative", zIndex: 10 }}>
-        <div style={{ flexShrink: 0, backgroundColor: "#32ff7e", color: "#1c1c1e", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", padding: "0 16px", height: "100%", display: "flex", alignItems: "center", gap: "6px", textTransform: "uppercase", zIndex: 10 }}>
-          <span style={{ width: "7px", height: "7px", borderRadius: "50%", backgroundColor: "#1c1c1e", display: "inline-block" }} />
+      <div style={{ backgroundColor: "var(--da-card)", borderBottom: "1px solid var(--da-border)", display: "flex", alignItems: "center", height: "40px", overflow: "hidden", position: "relative", zIndex: 10 }}>
+        <div style={{ flexShrink: 0, backgroundColor: "var(--da-green)", color: "var(--da-dark)", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", padding: "0 16px", height: "100%", display: "flex", alignItems: "center", gap: "6px", textTransform: "uppercase", zIndex: 10 }}>
+          <span style={{ width: "7px", height: "7px", borderRadius: "50%", backgroundColor: "var(--da-dark)", display: "inline-block" }} />
           Live
         </div>
         <div style={{ overflow: "hidden", flex: 1, height: "100%", display: "flex", alignItems: "center" }}>
           <div className="ticker-scroll">
             {repeated.map((item, i) => (
-              <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer", color: "#e0e0e0" }}>
-                <span style={{ color: "#32ff7e", fontWeight: 600, fontSize: "11px", letterSpacing: "0.08em", textTransform: "uppercase" }}>{item.label}</span>
-                <span style={{ color: "#555" }}>—</span>
+              <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer", color: "var(--da-text-strong)" }}>
+                <span style={{ color: "var(--da-green)", fontWeight: 600, fontSize: "11px", letterSpacing: "0.08em", textTransform: "uppercase" }}>{item.label}</span>
+                <span style={{ color: "var(--da-faint)" }}>—</span>
                 {item.text}
               </span>
             ))}

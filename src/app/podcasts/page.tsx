@@ -13,27 +13,27 @@ const episodes = [
 
 export default function Page() {
   return (
-    <main style={{ paddingTop: "64px", backgroundColor: "#1c1c1e", minHeight: "100vh" }}>
+    <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <NewsTicker />
       <PageHero category="Media" title="digital age Podcast" description="Gespräche mit Expertinnen und Experten aus der KI- und Tech-Szene der DACH-Region." />
 
       <section style={{ maxWidth: "1000px", margin: "0 auto", padding: "48px 32px 80px" }}>
         {episodes.map((e, i) => (
-          <div key={i} style={{ display: "flex", gap: "24px", padding: "24px", backgroundColor: "#2a2a2e", border: "1px solid #3a3a3e", borderRadius: "8px", marginBottom: "16px", alignItems: "center" }}>
+          <div key={i} style={{ display: "flex", gap: "24px", padding: "24px", backgroundColor: "var(--da-card)", border: "1px solid var(--da-border)", borderRadius: "8px", marginBottom: "16px", alignItems: "center" }}>
             <img src={e.cover} alt={e.title} style={{ width: "120px", height: "120px", borderRadius: "8px", objectFit: "cover", flexShrink: 0 }} />
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
-                <span style={{ color: "#32ff7e", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>Folge {e.num}</span>
-                <span style={{ color: "#666" }}>·</span>
-                <span style={{ color: "#b0b0b0", fontSize: "12px" }}>{e.date}</span>
-                <span style={{ color: "#666" }}>·</span>
-                <span style={{ color: "#b0b0b0", fontSize: "12px" }}>⏱ {e.duration}</span>
+                <span style={{ color: "var(--da-green)", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>Folge {e.num}</span>
+                <span style={{ color: "var(--da-muted-soft)" }}>·</span>
+                <span style={{ color: "var(--da-muted)", fontSize: "12px" }}>{e.date}</span>
+                <span style={{ color: "var(--da-muted-soft)" }}>·</span>
+                <span style={{ color: "var(--da-muted)", fontSize: "12px" }}>⏱ {e.duration}</span>
               </div>
-              <h3 style={{ color: "#ffffff", fontSize: "20px", fontWeight: 600, marginBottom: "6px", lineHeight: 1.3 }}>{e.title}</h3>
-              <p style={{ color: "#b0b0b0", fontSize: "14px" }}>mit {e.guest}</p>
+              <h3 style={{ color: "var(--da-text)", fontSize: "20px", fontWeight: 600, marginBottom: "6px", lineHeight: 1.3 }}>{e.title}</h3>
+              <p style={{ color: "var(--da-muted)", fontSize: "14px" }}>mit {e.guest}</p>
             </div>
-            <button style={{ flexShrink: 0, width: "56px", height: "56px", borderRadius: "50%", backgroundColor: "#32ff7e", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="Abspielen">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="#1c1c1e"><path d="M8 5v14l11-7z"/></svg>
+            <button style={{ flexShrink: 0, width: "56px", height: "56px", borderRadius: "50%", backgroundColor: "var(--da-green)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} aria-label="Abspielen">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--da-dark)"><path d="M8 5v14l11-7z"/></svg>
             </button>
           </div>
         ))}

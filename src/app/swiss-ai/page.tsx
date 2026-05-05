@@ -19,22 +19,22 @@ const startups = [
   { name: "Sherpany", tagline: "AI-powered Meeting Management für Boards.", city: "Zürich", industry: "Enterprise", status: "Swiss Based", employees: "51–200" },
 ];
 
-const statusColor = (s: string) => s === "Swiss Based" ? "#32ff7e" : s === "Swiss Founded" ? "#ff8c42" : "#dcd6f7";
+const statusColor = (s: string) => s === "Swiss Based" ? "var(--da-green)" : s === "Swiss Founded" ? "var(--da-orange)" : "var(--da-purple)";
 
 function StartupCard({ s, featured = false }: { s: any; featured?: boolean }) {
   return (
-    <div style={{ backgroundColor: "#2a2a2e", border: featured ? "1px solid #32ff7e" : "1px solid #3a3a3e", borderRadius: "8px", padding: "24px", position: "relative" }}>
-      {featured && <span style={{ position: "absolute", top: "12px", right: "12px", backgroundColor: "#32ff7e", color: "#1c1c1e", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "3px 8px", borderRadius: "4px" }}>Featured</span>}
-      <h3 style={{ color: "#ffffff", fontSize: "20px", fontWeight: 600, marginBottom: "8px" }}>{s.name}</h3>
-      <p style={{ color: "#b0b0b0", fontSize: "14px", lineHeight: 1.5, marginBottom: "16px", minHeight: "42px" }}>{s.tagline}</p>
+    <div style={{ backgroundColor: "var(--da-card)", border: featured ? "1px solid var(--da-green)" : "1px solid var(--da-border)", borderRadius: "8px", padding: "24px", position: "relative" }}>
+      {featured && <span style={{ position: "absolute", top: "12px", right: "12px", backgroundColor: "var(--da-green)", color: "var(--da-dark)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "3px 8px", borderRadius: "4px" }}>Featured</span>}
+      <h3 style={{ color: "var(--da-text)", fontSize: "20px", fontWeight: 600, marginBottom: "8px" }}>{s.name}</h3>
+      <p style={{ color: "var(--da-muted)", fontSize: "14px", lineHeight: 1.5, marginBottom: "16px", minHeight: "42px" }}>{s.tagline}</p>
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "12px" }}>
-        <span style={{ backgroundColor: "#1c1c1e", color: statusColor(s.status), border: `1px solid ${statusColor(s.status)}`, fontSize: "11px", fontWeight: 600, padding: "3px 8px", borderRadius: "4px" }}>🇨🇭 {s.status}</span>
-        <span style={{ backgroundColor: "#1c1c1e", color: "#b0b0b0", border: "1px solid #3a3a3e", fontSize: "11px", fontWeight: 600, padding: "3px 8px", borderRadius: "4px" }}>📍 {s.city}</span>
+        <span style={{ backgroundColor: "var(--da-dark)", color: statusColor(s.status), border: `1px solid ${statusColor(s.status)}`, fontSize: "11px", fontWeight: 600, padding: "3px 8px", borderRadius: "4px" }}>🇨🇭 {s.status}</span>
+        <span style={{ backgroundColor: "var(--da-dark)", color: "var(--da-muted)", border: "1px solid var(--da-border)", fontSize: "11px", fontWeight: 600, padding: "3px 8px", borderRadius: "4px" }}>📍 {s.city}</span>
       </div>
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-        <span style={{ color: "#32ff7e", fontSize: "11px", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>{s.industry}</span>
-        <span style={{ color: "#666" }}>·</span>
-        <span style={{ color: "#b0b0b0", fontSize: "11px", fontWeight: 500 }}>{s.employees} MA</span>
+        <span style={{ color: "var(--da-green)", fontSize: "11px", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>{s.industry}</span>
+        <span style={{ color: "var(--da-muted-soft)" }}>·</span>
+        <span style={{ color: "var(--da-muted)", fontSize: "11px", fontWeight: 500 }}>{s.employees} MA</span>
       </div>
     </div>
   );
@@ -42,20 +42,20 @@ function StartupCard({ s, featured = false }: { s: any; featured?: boolean }) {
 
 export default function Page() {
   return (
-    <main style={{ paddingTop: "64px", backgroundColor: "#1c1c1e", minHeight: "100vh" }}>
+    <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <NewsTicker />
 
       {/* Hero */}
-      <section style={{ padding: "64px 32px", borderBottom: "1px solid #2a2a2e", background: "linear-gradient(135deg, #1c1c1e 0%, #2a2a2e 100%)" }}>
+      <section style={{ padding: "64px 32px", borderBottom: "1px solid var(--da-card)", background: "linear-gradient(135deg, var(--da-dark) 0%, var(--da-card) 100%)" }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-          <p style={{ color: "#32ff7e", fontSize: "13px", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "16px" }}>🇨🇭 Swiss AI Landscape</p>
-          <h1 style={{ color: "#ffffff", fontSize: "clamp(32px, 5vw, 56px)", fontWeight: 700, lineHeight: 1.15, marginBottom: "20px", fontFamily: "Space Grotesk, sans-serif", maxWidth: "900px" }}>
-            Die Schweizer KI-Landschaft – <span style={{ color: "#32ff7e" }}>an einem Ort.</span>
+          <p style={{ color: "var(--da-green)", fontSize: "13px", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "16px" }}>🇨🇭 Swiss AI Landscape</p>
+          <h1 style={{ color: "var(--da-text)", fontSize: "clamp(32px, 5vw, 56px)", fontWeight: 700, lineHeight: 1.15, marginBottom: "20px", fontFamily: "Space Grotesk, sans-serif", maxWidth: "900px" }}>
+            Die Schweizer KI-Landschaft – <span style={{ color: "var(--da-green)" }}>an einem Ort.</span>
           </h1>
-          <p style={{ color: "#b0b0b0", fontSize: "18px", lineHeight: 1.6, maxWidth: "720px", marginBottom: "32px" }}>
+          <p style={{ color: "var(--da-muted)", fontSize: "18px", lineHeight: 1.6, maxWidth: "720px", marginBottom: "32px" }}>
             Kuratierte Übersicht von KI-Unternehmen und Startups mit Sitz oder Präsenz in der Schweiz. Finde die passende Lösung für dein Unternehmen – mit Fokus auf Datenschutz und Schweizer Werte.
           </p>
-          <a href="/swiss-ai/einreichen" style={{ display: "inline-block", backgroundColor: "#32ff7e", color: "#1c1c1e", padding: "14px 28px", borderRadius: "4px", fontWeight: 700, fontSize: "15px", textDecoration: "none" }}>
+          <a href="/swiss-ai/einreichen" style={{ display: "inline-block", backgroundColor: "var(--da-green)", color: "var(--da-dark)", padding: "14px 28px", borderRadius: "4px", fontWeight: 700, fontSize: "15px", textDecoration: "none" }}>
             Dein Unternehmen listen →
           </a>
         </div>
@@ -64,11 +64,11 @@ export default function Page() {
       {/* Filter */}
       <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "32px 32px 0" }}>
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
-          <span style={{ color: "#b0b0b0", fontSize: "13px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>Filter:</span>
+          <span style={{ color: "var(--da-muted)", fontSize: "13px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>Filter:</span>
           {["Alle Branchen", "FinTech", "HealthTech", "LegalTech", "Retail", "Enterprise"].map((f, i) => (
-            <button key={f} style={{ backgroundColor: i === 0 ? "#32ff7e" : "#2a2a2e", color: i === 0 ? "#1c1c1e" : "#e0e0e0", border: "1px solid #3a3a3e", padding: "8px 16px", borderRadius: "4px", fontSize: "13px", fontWeight: 500, cursor: "pointer" }}>{f}</button>
+            <button key={f} style={{ backgroundColor: i === 0 ? "var(--da-green)" : "var(--da-card)", color: i === 0 ? "var(--da-dark)" : "var(--da-text-strong)", border: "1px solid var(--da-border)", padding: "8px 16px", borderRadius: "4px", fontSize: "13px", fontWeight: 500, cursor: "pointer" }}>{f}</button>
           ))}
-          <select style={{ backgroundColor: "#2a2a2e", color: "#e0e0e0", border: "1px solid #3a3a3e", padding: "8px 16px", borderRadius: "4px", fontSize: "13px", marginLeft: "auto" }}>
+          <select style={{ backgroundColor: "var(--da-card)", color: "var(--da-text-strong)", border: "1px solid var(--da-border)", padding: "8px 16px", borderRadius: "4px", fontSize: "13px", marginLeft: "auto" }}>
             <option>Alle Standorte</option><option>Zürich</option><option>Genf</option><option>Lausanne</option><option>Basel</option>
           </select>
         </div>
@@ -76,7 +76,7 @@ export default function Page() {
 
       {/* Featured */}
       <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "48px 32px 0" }}>
-        <h2 style={{ color: "#ffffff", fontSize: "22px", fontWeight: 700, marginBottom: "24px" }}>⭐ Featured Startups</h2>
+        <h2 style={{ color: "var(--da-text)", fontSize: "22px", fontWeight: 700, marginBottom: "24px" }}>⭐ Featured Startups</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
           {featured.map((s, i) => <StartupCard key={i} s={s} featured />)}
         </div>
@@ -84,7 +84,7 @@ export default function Page() {
 
       {/* All */}
       <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "48px 32px 80px" }}>
-        <h2 style={{ color: "#ffffff", fontSize: "22px", fontWeight: 700, marginBottom: "24px" }}>Alle Schweizer KI-Unternehmen</h2>
+        <h2 style={{ color: "var(--da-text)", fontSize: "22px", fontWeight: 700, marginBottom: "24px" }}>Alle Schweizer KI-Unternehmen</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
           {startups.map((s, i) => <StartupCard key={i} s={s} />)}
         </div>
