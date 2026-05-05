@@ -23,35 +23,55 @@ export default function ListenButton({ text }: { text: string }) {
   };
 
   return (
-    <button
-      onClick={handlePlay}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "8px",
-        backgroundColor: playing ? "var(--da-green)" : "transparent",
-        color: playing ? "var(--da-dark)" : "var(--da-green)",
-        border: "2px solid var(--da-green)",
-        borderRadius: "4px",
-        padding: "8px 16px",
-        fontSize: "14px",
-        fontWeight: 600,
-        cursor: "pointer",
-        transition: "background-color 0.2s, color 0.2s",
-      }}
-      aria-label={playing ? "Artikel stoppen" : "Artikel anhören"}
-    >
-      {playing ? (
-        <>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
-          Stoppen
-        </>
-      ) : (
-        <>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-          Artikel anhören
-        </>
-      )}
-    </button>
+    <>
+      <style>{`
+        .listen-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          height: 40px;
+          padding: 0 14px;
+          border-radius: var(--r-pill);
+          font-family: var(--da-font-body);
+          font-size: var(--fs-meta);
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          cursor: pointer;
+          background: transparent;
+          color: var(--da-green);
+          border: 1px solid var(--da-border);
+          transition: background-color var(--t-base), color var(--t-base), border-color var(--t-base);
+        }
+        .listen-btn:hover {
+          background: var(--da-green);
+          color: var(--da-dark);
+          border-color: var(--da-green);
+        }
+        .listen-btn--playing {
+          background: var(--da-green);
+          color: var(--da-dark);
+          border-color: var(--da-green);
+        }
+      `}</style>
+      <button
+        type="button"
+        onClick={handlePlay}
+        className={`listen-btn${playing ? " listen-btn--playing" : ""}`}
+        aria-label={playing ? "Artikel stoppen" : "Artikel anhören"}
+      >
+        {playing ? (
+          <>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" /><rect x="14" y="5" width="4" height="14" /></svg>
+            Stoppen
+          </>
+        ) : (
+          <>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+            Anhören
+          </>
+        )}
+      </button>
+    </>
   );
 }
