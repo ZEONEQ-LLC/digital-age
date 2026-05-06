@@ -65,6 +65,7 @@ export default function Footer() {
                   { label: "Redaktion", href: "/redaktion" },
                   { label: "Kontakt", href: "/kontakt" },
                   { label: "KI-Transparenz", href: "/ki-transparenz" },
+                  { label: "Community-Richtlinien", href: "/community-richtlinien" },
                   { label: "Impressum", href: "/impressum" },
                   { label: "Datenschutzerklärung", href: "/datenschutzerklaerung" },
                 ].map(({ label, href }) => (
