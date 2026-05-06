@@ -1,64 +1,419 @@
-import NewsTicker from "@/components/NewsTicker";
-import PageHero from "@/components/PageHero";
-import Footer from "@/components/Footer";
+"use client";
 
-const prompts = [
-  { category: "Business", title: "ChatGPT SEO-Bot", preview: "Du bist ein SEO-Experte mit 10 Jahren Erfahrung. Analysiere folgende Webseite und gib mir...", tool: "ChatGPT", author: "Ali Soy", difficulty: "Fortgeschritten" },
-  { category: "Kreativ", title: "Pizzastück als Superheld", preview: "Stelle dir ein Pizzastück als Marvel-Superheld vor. Beschreibe Charakter, Herkunft, Superkräfte...", tool: "Claude", author: "Ali Soy", difficulty: "Anfänger" },
-  { category: "Business", title: "Meeting-Protokoll automatisieren", preview: "Du bekommst ein Transkript eines Business-Meetings. Erstelle ein strukturiertes Protokoll mit...", tool: "Claude", author: "Matthias Zwingli", difficulty: "Fortgeschritten" },
-  { category: "Code", title: "Code Review Assistant", preview: "Reviewe folgenden Code auf Performance, Security und Best Practices. Gib konkrete Verbesserungsvorschläge...", tool: "ChatGPT", author: "Andreas Kamm", difficulty: "Expert" },
-  { category: "Lernen", title: "Feynman-Technik Tutor", preview: "Erkläre mir das Konzept [X] so einfach, dass ein 12-Jähriger es versteht. Verwende Analogien aus dem Alltag...", tool: "Gemini", author: "Ali Soy", difficulty: "Anfänger" },
-  { category: "Strategie", title: "Vom Feuer zur KI", preview: "Welche fundamentalen Prinzipien haben wir seit der Entdeckung des Feuers noch nicht vollständig entschlüsselt?", tool: "Claude", author: "Ali Soy", difficulty: "Expert" },
-  { category: "Marketing", title: "LinkedIn Post Generator", preview: "Schreibe einen LinkedIn-Post über [Thema]. Struktur: Hook in Zeile 1, Kontext in 2-3, Insight in 4-6...", tool: "ChatGPT", author: "Matthias Zwingli", difficulty: "Fortgeschritten" },
-  { category: "Business", title: "Kunden-Email Refinement", preview: "Verbessere folgende Kunden-Email: behalte den Kern, aber mache sie professioneller und klarer...", tool: "Claude", author: "Andreas Kamm", difficulty: "Anfänger" },
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import NewsTicker from "@/components/NewsTicker";
+import Footer from "@/components/Footer";
+import PromptCard, { catColor, diffColor, toolColor, type AiTool, type Difficulty, type Prompt } from "@/components/PromptCard";
+
+const allPrompts: Prompt[] = [
+  {
+    id: 1, isTop: true, uses: 14, author: "Ali Soy",         tool: "ChatGPT",
+    category: "Business",  difficulty: "Fortgeschritten",
+    title: "ChatGPT SEO-Bot",
+    body: `Du bist ein SEO-Experte mit 10 Jahren Erfahrung. Analysiere folgende Webseite und gib mir eine detaillierte SEO-Analyse: Meta-Tags, H-Struktur, interne Links, Page-Speed, Content-Qualität, Keyword-Dichte.
+
+Format: Markdown-Tabelle mit Score (0-100), Issue, Fix.
+
+URL: {{url}}`,
+  },
+  {
+    id: 2, isTop: true, uses: 12, author: "Ali Soy",         tool: "Claude",
+    category: "Kreativ",   difficulty: "Anfänger",
+    title: "Pizzastück als Superheld",
+    body: `Stelle dir ein Pizzastück als Marvel-Superheld vor. Beschreibe Charakter, Herkunft, Superkräfte, Erzfeind und einen ikonischen Catchphrase. Schreibe es als Origin-Story (300 Wörter).`,
+  },
+  {
+    id: 3, isTop: true, uses: 9, author: "Matthias Zwingli", tool: "Claude",
+    category: "Business",  difficulty: "Fortgeschritten",
+    title: "Meeting-Protokoll automatisieren",
+    body: `Du bekommst ein Transkript eines Business-Meetings. Erstelle ein strukturiertes Protokoll mit:
+1) Teilnehmer
+2) Agenda
+3) Entscheidungen
+4) Action Items mit Owner & Deadline
+5) Open Questions
+
+Format: Markdown.`,
+  },
+  {
+    id: 4, isTop: false, uses: 7, author: "Andreas Kamm",    tool: "ChatGPT",
+    category: "Code",      difficulty: "Expert",
+    title: "Code Review Assistant",
+    body: `Reviewe folgenden Code auf Performance, Security und Best Practices. Gib konkrete Verbesserungsvorschläge mit Codebeispielen. Priorisiere nach Severity: Critical → High → Medium → Low.`,
+  },
+  {
+    id: 5, isTop: false, uses: 5, author: "Ali Soy",         tool: "Gemini",
+    category: "Lernen",    difficulty: "Anfänger",
+    title: "Feynman-Technik Tutor",
+    body: `Erkläre mir das Konzept {{thema}} so einfach, dass ein 12-Jähriger es versteht. Verwende Analogien aus dem Alltag, vermeide Fachjargon und teste mein Verständnis mit einer Frage am Ende.`,
+  },
+  {
+    id: 6, isTop: false, uses: 4, author: "Ali Soy",         tool: "Claude",
+    category: "Strategie", difficulty: "Expert",
+    title: "Vom Feuer zur KI",
+    body: `Welche fundamentalen Prinzipien haben wir seit der Entdeckung des Feuers noch nicht vollständig entschlüsselt und wie könnten KI-Modelle diese Lücken schliessen? Argumentiere mit konkreten Beispielen aus Physik, Biologie und Soziologie.`,
+  },
+  {
+    id: 7, isTop: false, uses: 6, author: "Matthias Zwingli", tool: "ChatGPT",
+    category: "Marketing", difficulty: "Fortgeschritten",
+    title: "LinkedIn Post Generator",
+    body: `Schreibe einen LinkedIn-Post über {{thema}}.
+
+Struktur:
+- Hook in Zeile 1
+- Kontext in 2-3
+- Insight in 4-6
+- Story in 7-10
+- Takeaway am Ende
+
+Constraints: Max. 1300 Zeichen, kein Hashtag-Spam.`,
+  },
+  {
+    id: 8, isTop: false, uses: 3, author: "Andreas Kamm",    tool: "Claude",
+    category: "Business",  difficulty: "Anfänger",
+    title: "Kunden-Email Refinement",
+    body: `Verbessere folgende Kunden-Email: behalte den Kern, aber mache sie professioneller und klarer. Tonalität: warm aber direkt. Vermeide Floskeln und Konjunktive.`,
+  },
+  {
+    id: 9, isTop: false, uses: 2, author: "Andreas Kamm",    tool: "Claude",
+    category: "Code",      difficulty: "Expert",
+    title: "Bug-Hunter Pattern",
+    body: `Analysiere folgenden Stacktrace und Code. Identifiziere die Root-Cause (nicht nur Symptom). Erkläre warum der Bug auftritt, schlage Fix vor und skizziere einen Test, der das Problem reproduziert.`,
+  },
 ];
 
-const toolColor = (t: string) => t === "Claude" ? "var(--da-orange)" : t === "ChatGPT" ? "var(--da-green)" : "var(--da-purple)";
-const diffColor = (d: string) => d === "Anfänger" ? "var(--da-green)" : d === "Fortgeschritten" ? "var(--da-orange)" : "var(--da-purple)";
+const categories = ["Alle", "Business", "Kreativ", "Code", "Marketing", "Strategie", "Lernen"] as const;
+const tools: Array<"Alle Tools" | AiTool> = ["Alle Tools", "ChatGPT", "Claude", "Gemini", "Mehrere"];
+const difficulties: Array<"Alle" | Difficulty> = ["Alle", "Anfänger", "Fortgeschritten", "Expert"];
 
-export default function Page() {
+type SortMode = "popular" | "title";
+
+export default function AiPromptsPage() {
+  const [cat, setCat]       = useState<(typeof categories)[number]>("Alle");
+  const [tool, setTool]     = useState<"Alle Tools" | AiTool>("Alle Tools");
+  const [diff, setDiff]     = useState<"Alle" | Difficulty>("Alle");
+  const [search, setSearch] = useState("");
+  const [sort, setSort]     = useState<SortMode>("popular");
+
+  const accent = "var(--da-green)";
+
+  const filtered = useMemo(() => allPrompts.filter((p) => {
+    if (cat !== "Alle" && p.category !== cat) return false;
+    if (tool !== "Alle Tools" && p.tool !== tool) return false;
+    if (diff !== "Alle" && p.difficulty !== diff) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!p.title.toLowerCase().includes(q) && !p.body.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }), [cat, tool, diff, search]);
+
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    if (sort === "popular") arr.sort((a, b) => b.uses - a.uses);
+    else                     arr.sort((a, b) => a.title.localeCompare(b.title, "de"));
+    return arr;
+  }, [filtered, sort]);
+
+  const featured = allPrompts.filter((p) => p.isTop);
+  const hasFilter = cat !== "Alle" || tool !== "Alle Tools" || diff !== "Alle" || search.length > 0;
+  const reset = () => { setCat("Alle"); setTool("Alle Tools"); setDiff("Alle"); setSearch(""); };
+
   return (
-    <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
+    <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <NewsTicker />
-      <PageHero category="Tools" title="GenAI Prompts" description="Getestete Prompts für ChatGPT, Claude und Gemini. Kuratiert und von der Community eingereicht." />
 
-      {/* CTA + Filter */}
-      <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "32px 32px 0" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px", marginBottom: "24px" }}>
-          <p style={{ color: "var(--da-muted)", fontSize: "15px" }}>Hast du einen grossartigen Prompt?</p>
-          <a href="/ai-prompts/einreichen" style={{ backgroundColor: "var(--da-green)", color: "var(--da-dark)", padding: "10px 20px", borderRadius: "4px", fontSize: "14px", fontWeight: 700, textDecoration: "none" }}>
-            Prompt einreichen →
-          </a>
-        </div>
-        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
-          <span style={{ color: "var(--da-muted)", fontSize: "13px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>Filter:</span>
-          {["Alle", "Business", "Kreativ", "Code", "Marketing", "Strategie", "Lernen"].map((f, i) => (
-            <button key={f} style={{ backgroundColor: i === 0 ? "var(--da-green)" : "var(--da-card)", color: i === 0 ? "var(--da-dark)" : "var(--da-text-strong)", border: "1px solid var(--da-border)", padding: "8px 16px", borderRadius: "4px", fontSize: "13px", fontWeight: 500, cursor: "pointer" }}>{f}</button>
-          ))}
-        </div>
-      </section>
+      <style>{`
+        .ap-shell { max-width: var(--max-content); margin: 0 auto; }
+        .ap-hero {
+          position: relative; overflow: hidden;
+          border-bottom: 1px solid var(--da-border);
+          padding: 56px var(--sp-8) 48px;
+        }
+        .ap-hero__grid {
+          position: absolute; inset: 0; opacity: 0.05;
+          background-image:
+            linear-gradient(var(--da-green) 1px, transparent 1px),
+            linear-gradient(90deg, var(--da-green) 1px, transparent 1px);
+          background-size: 40px 40px;
+          pointer-events: none;
+        }
+        .ap-hero__inner { position: relative; }
+        .ap-hero__overline {
+          color: var(--da-green);
+          font-family: var(--da-font-mono);
+          font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
+          margin-bottom: 14px;
+        }
+        .ap-hero__row {
+          display: flex; align-items: flex-end; justify-content: space-between;
+          flex-wrap: wrap; gap: var(--sp-6);
+        }
+        .ap-hero__title {
+          color: var(--da-text); font-family: var(--da-font-display);
+          font-size: clamp(36px, 5vw, 56px); font-weight: 700;
+          line-height: 1.0; letter-spacing: -0.02em;
+          margin-bottom: var(--sp-4);
+        }
+        .ap-hero__title em { font-style: normal; color: var(--da-green); }
+        .ap-hero__lead {
+          color: var(--da-muted); font-size: 17px; line-height: 1.65; max-width: 560px;
+        }
+        .ap-hero__cta {
+          background: var(--da-green); color: var(--da-dark);
+          font-size: 14px; font-weight: 700;
+          padding: 13px 26px; border-radius: var(--r-sm);
+          text-decoration: none; white-space: nowrap;
+        }
 
-      {/* Grid */}
-      <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "32px 32px 80px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "20px" }}>
-          {prompts.map((p, i) => (
-            <div key={i} style={{ backgroundColor: "var(--da-card)", border: "1px solid var(--da-border)", borderRadius: "8px", padding: "24px", cursor: "pointer" }}>
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "12px" }}>
-                <span style={{ color: "var(--da-green)", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>{p.category}</span>
-                <span style={{ color: "var(--da-muted-soft)" }}>·</span>
-                <span style={{ color: diffColor(p.difficulty), fontSize: "11px", fontWeight: 600 }}>{p.difficulty}</span>
-              </div>
-              <h3 style={{ color: "var(--da-text)", fontSize: "17px", fontWeight: 600, marginBottom: "12px", lineHeight: 1.3 }}>{p.title}</h3>
-              <p style={{ color: "var(--da-muted)", fontSize: "13px", lineHeight: 1.55, marginBottom: "16px", fontFamily: "Roboto Mono, monospace", backgroundColor: "var(--da-dark)", padding: "10px", borderRadius: "4px" }}>{p.preview}</p>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ color: toolColor(p.tool), fontSize: "12px", fontWeight: 600 }}>✦ {p.tool}</span>
-                <span style={{ color: "var(--da-muted-soft)", fontSize: "12px" }}>von {p.author}</span>
-              </div>
+        .ap-section { padding: 48px var(--sp-8) 0; }
+        .ap-section-tight { padding: 56px var(--sp-8) 0; }
+
+        .ap-section-h { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-6); }
+        .ap-section-h__bar { width: 3px; height: 22px; background: var(--da-green); border-radius: 2px; }
+        .ap-section-h__title {
+          color: var(--da-text);
+          font-family: var(--da-font-display);
+          font-size: 22px; font-weight: 700;
+        }
+
+        .ap-feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); }
+
+        .ap-grid-wrap { display: grid; grid-template-columns: 220px 1fr; gap: 48px; align-items: start; }
+        .ap-aside { position: sticky; top: 84px; display: flex; flex-direction: column; gap: var(--sp-6); }
+
+        .ap-flabel {
+          color: var(--da-faint);
+          font-family: var(--da-font-mono);
+          font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+          margin-bottom: var(--sp-3);
+        }
+        .ap-search {
+          width: 100%; background: var(--da-card); color: var(--da-text);
+          border: 1px solid var(--da-border); border-radius: var(--r-sm);
+          padding: 10px 14px; font-size: 13px;
+        }
+        .ap-search:focus { border-color: var(--da-green); outline: none; }
+        .ap-fbtn {
+          display: flex; align-items: center; justify-content: space-between;
+          width: 100%; background: none; border: none; cursor: pointer;
+          padding: 9px 0; border-bottom: 1px solid var(--da-border);
+          font-size: 13px; text-align: left;
+          color: var(--da-text-strong); font-weight: 400;
+        }
+        .ap-fbtn--active { color: var(--da-text); font-weight: 700; }
+        .ap-fbtn__l { display: flex; align-items: center; gap: var(--sp-2); }
+        .ap-fbtn__dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+        .ap-fbtn__count { font-family: var(--da-font-mono); font-size: 11px; color: var(--da-border); }
+        .ap-fbtn--active .ap-fbtn__count { color: var(--da-green); }
+
+        .ap-cta-card {
+          display: block;
+          background: var(--da-card); border: 1px solid var(--da-orange);
+          border-radius: var(--r-lg); padding: 18px;
+          text-decoration: none;
+        }
+        .ap-cta-card__overline {
+          color: var(--da-orange);
+          font-family: var(--da-font-mono);
+          font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+          margin-bottom: 8px;
+        }
+        .ap-cta-card__title { color: var(--da-text); font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+        .ap-cta-card__btn { color: var(--da-orange); font-size: 12px; font-weight: 700; }
+
+        .ap-toolbar {
+          display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-5);
+        }
+        .ap-toolbar__count { color: var(--da-muted); font-size: 12px; font-family: var(--da-font-mono); }
+        .ap-toolbar__reset {
+          background: none; border: none; color: var(--da-orange);
+          font-size: 12px; cursor: pointer; margin-left: var(--sp-3);
+          font-family: var(--da-font-mono);
+        }
+        .ap-sort {
+          background: var(--da-card); color: var(--da-text);
+          border: 1px solid var(--da-border); border-radius: var(--r-sm);
+          padding: 7px 12px; font-size: 12px;
+          font-family: var(--da-font-mono);
+          cursor: pointer; outline: none;
+        }
+        .ap-sort:focus { border-color: var(--da-green); }
+
+        .ap-main-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-4); }
+
+        .ap-empty { text-align: center; padding: 80px 0; }
+        .ap-empty__msg { color: var(--da-muted); font-size: 16px; }
+        .ap-empty__btn {
+          background: none; border: 1px solid var(--da-green); color: var(--da-green);
+          padding: 10px 24px; border-radius: var(--r-sm); font-size: 13px; cursor: pointer;
+          margin-top: var(--sp-4);
+        }
+
+        @media (max-width: 1024px) {
+          .ap-grid-wrap { grid-template-columns: 1fr; gap: var(--sp-8); }
+          .ap-aside { position: static; }
+          .ap-feat-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 720px) {
+          .ap-feat-grid { grid-template-columns: 1fr; }
+          .ap-main-grid { grid-template-columns: 1fr; }
+          .ap-hero { padding: 40px var(--sp-6) 32px; }
+        }
+      `}</style>
+
+      {/* Hero */}
+      <section className="ap-hero">
+        <div className="ap-hero__grid" aria-hidden />
+        <div className="ap-shell ap-hero__inner">
+          <p className="ap-hero__overline">&gt; Tools</p>
+          <div className="ap-hero__row">
+            <div>
+              <h1 className="ap-hero__title">GenAI <em>Prompts</em></h1>
+              <p className="ap-hero__lead">
+                Getestete Prompts für ChatGPT, Claude und Gemini — kuratiert und von der Community eingereicht.
+              </p>
             </div>
-          ))}
+            <Link href="/ai-prompts/einreichen" className="ap-hero__cta">+ Prompt einreichen</Link>
+          </div>
         </div>
       </section>
 
+      {/* Featured */}
+      <section className="ap-shell ap-section">
+        <div className="ap-section-h">
+          <span className="ap-section-h__bar" />
+          <h2 className="ap-section-h__title">Top Prompts diese Woche</h2>
+        </div>
+        <div className="ap-feat-grid">
+          {featured.map((p) => <PromptCard key={p.id} prompt={p} accent={accent} />)}
+        </div>
+      </section>
+
+      {/* Directory */}
+      <section className="ap-shell ap-section-tight">
+        <div className="ap-grid-wrap">
+          <aside className="ap-aside">
+            <div>
+              <p className="ap-flabel">Suche</p>
+              <input
+                type="text"
+                placeholder="Prompt suchen..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="ap-search"
+              />
+            </div>
+
+            <div>
+              <p className="ap-flabel">Kategorie</p>
+              {categories.map((c) => {
+                const count = c === "Alle" ? allPrompts.length : allPrompts.filter((p) => p.category === c).length;
+                const dot = c === "Alle" ? null : catColor(c);
+                const active = c === cat;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    className={`ap-fbtn${active ? " ap-fbtn--active" : ""}`}
+                    onClick={() => setCat(c)}
+                  >
+                    <span className="ap-fbtn__l">
+                      {dot && <span className="ap-fbtn__dot" style={{ background: dot, opacity: active ? 1 : 0.45 }} />}
+                      {c}
+                    </span>
+                    <span className="ap-fbtn__count">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div>
+              <p className="ap-flabel">Tool</p>
+              {tools.map((t) => {
+                const active = t === tool;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    className={`ap-fbtn${active ? " ap-fbtn--active" : ""}`}
+                    onClick={() => setTool(t)}
+                  >
+                    <span className="ap-fbtn__l">
+                      {t !== "Alle Tools" && <span className="ap-fbtn__dot" style={{ background: toolColor(t) }} />}
+                      {t}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div>
+              <p className="ap-flabel">Schwierigkeit</p>
+              {difficulties.map((d) => {
+                const active = d === diff;
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    className={`ap-fbtn${active ? " ap-fbtn--active" : ""}`}
+                    onClick={() => setDiff(d)}
+                  >
+                    <span className="ap-fbtn__l">
+                      {d !== "Alle" && <span className="ap-fbtn__dot" style={{ background: diffColor(d) }} />}
+                      {d}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <Link href="/ai-prompts/einreichen" className="ap-cta-card">
+              <p className="ap-cta-card__overline">Mitmachen</p>
+              <p className="ap-cta-card__title">Hast du einen guten Prompt?</p>
+              <span className="ap-cta-card__btn">Einreichen →</span>
+            </Link>
+          </aside>
+
+          <div>
+            <div className="ap-toolbar">
+              <p className="ap-toolbar__count">
+                {sorted.length} {sorted.length === 1 ? "Prompt" : "Prompts"}
+                {hasFilter && (
+                  <button type="button" className="ap-toolbar__reset" onClick={reset}>
+                    Filter zurücksetzen ×
+                  </button>
+                )}
+              </p>
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortMode)}
+                className="ap-sort"
+                aria-label="Sortierung"
+              >
+                <option value="popular">Beliebteste</option>
+                <option value="title">A–Z</option>
+              </select>
+            </div>
+
+            {sorted.length === 0 ? (
+              <div className="ap-empty">
+                <p className="ap-empty__msg">Keine Prompts gefunden.</p>
+                <button type="button" className="ap-empty__btn" onClick={reset}>
+                  Filter zurücksetzen
+                </button>
+              </div>
+            ) : (
+              <div className="ap-main-grid">
+                {sorted.map((p) => <PromptCard key={p.id} prompt={p} accent={accent} />)}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <div style={{ height: "var(--sp-20)" }} />
       <Footer />
     </main>
   );
