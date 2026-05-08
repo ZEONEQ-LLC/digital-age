@@ -2,10 +2,23 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+const AUTHOR_SUITE_PATHS = [
+  "/autor/dashboard",
+  "/autor/artikel",
+  "/autor/statistiken",
+  "/autor/profil",
+];
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const pathname = usePathname() ?? "";
+  const isAuthorSuite = AUTHOR_SUITE_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(p + "/")
+  );
+  if (isAuthorSuite) return null;
 
   return (
     <>
