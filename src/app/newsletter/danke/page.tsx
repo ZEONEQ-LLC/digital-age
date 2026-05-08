@@ -1,3 +1,4 @@
+import Link from "next/link";
 import NewsTicker from "@/components/NewsTicker";
 import Footer from "@/components/Footer";
 
@@ -22,8 +23,8 @@ export default function Page() {
         </div>
 
         <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
-          <a href="/" style={{ backgroundColor: "var(--da-green)", color: "var(--da-dark)", padding: "12px 24px", borderRadius: "4px", textDecoration: "none", fontSize: "14px", fontWeight: 700 }}>Zur Startseite</a>
-          <a href="/ki-im-business" style={{ backgroundColor: "transparent", color: "var(--da-green)", border: "1px solid var(--da-green)", padding: "12px 24px", borderRadius: "4px", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>Artikel entdecken</a>
+          <Link href="/" style={{ backgroundColor: "var(--da-green)", color: "var(--da-dark)", padding: "12px 24px", borderRadius: "4px", textDecoration: "none", fontSize: "14px", fontWeight: 700 }}>Zur Startseite</Link>
+          <Link href="/ki-im-business" style={{ backgroundColor: "transparent", color: "var(--da-green)", border: "1px solid var(--da-green)", padding: "12px 24px", borderRadius: "4px", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>Artikel entdecken</Link>
         </div>
 
         <p style={{ color: "var(--da-muted-soft)", fontSize: "12px", lineHeight: 1.5, marginTop: "48px" }}>
