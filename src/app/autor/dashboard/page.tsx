@@ -1,90 +1,201 @@
-import NewsTicker from "@/components/NewsTicker";
-import Footer from "@/components/Footer";
+"use client";
 
-const stats = [
-  { label: "Veröffentlicht", value: "12", color: "var(--da-green)" },
-  { label: "In Bearbeitung", value: "3", color: "var(--da-orange)" },
-  { label: "Gesamt-Views", value: "8.4k", color: "var(--da-purple)" },
-  { label: "Ø Lesezeit", value: "5:32", color: "var(--da-muted)" },
-];
+import Image from "next/image";
+import Link from "next/link";
+import { useMemo } from "react";
+import AuthorShell from "@/components/author/AuthorShell";
+import AuthorCard from "@/components/author/AuthorCard";
+import AuthorStatusBadge from "@/components/author/AuthorStatusBadge";
+import MonoCaption from "@/components/author/MonoCaption";
+import PageTitle from "@/components/author/PageTitle";
+import Sparkline from "@/components/author/Sparkline";
+import StatCell from "@/components/author/StatCell";
+import { getCurrentAuthor, getMyArticles } from "@/lib/mockAuthorApi";
 
-const articles = [
-  { title: "Data-Driven Banking: Warum KI allein nicht reicht", status: "Veröffentlicht", date: "07.04.2026", views: "2.1k" },
-  { title: "Der EU AI Act – Ein Reality Check", status: "In Review", date: "15.04.2026", views: "–" },
-  { title: "Swiss Hosted GPT: Zukunft oder Nische?", status: "Entwurf", date: "–", views: "–" },
-];
+export default function AuthorDashboardPage() {
+  const author = useMemo(() => getCurrentAuthor(), []);
+  const articles = useMemo(() => getMyArticles(), []);
 
-const statusColor = (s: string) => s === "Veröffentlicht" ? "var(--da-green)" : s === "In Review" ? "var(--da-orange)" : "var(--da-muted-soft)";
+  const totalViews = articles.reduce((a, b) => a + b.views, 0);
+  const totalReads = articles.reduce((a, b) => a + b.reads, 0);
+  const published = articles.filter((a) => a.status === "published");
+  const inFlight = articles.filter((a) => a.status !== "published");
+  const avgCompletion = published.length
+    ? Math.round(published.reduce((a, b) => a + b.completion, 0) / published.length)
+    : 0;
+  const top = [...published].sort((a, b) => b.views - a.views)[0];
+  const readRate = totalViews > 0 ? Math.round((totalReads / totalViews) * 100) : 0;
 
-export default function Page() {
   return (
-    <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <NewsTicker />
+    <AuthorShell>
+      <PageTitle
+        title={`Willkommen zurück, ${author.name.split(" ")[0]}`}
+        subtitle="Hier ist, was bei deinen Artikeln läuft."
+        right={
+          <Link
+            href="/autor/artikel/neu"
+            style={{
+              background: "var(--da-green)",
+              color: "var(--da-dark)",
+              border: "none",
+              padding: "11px 18px",
+              borderRadius: 4,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+              textDecoration: "none",
+              display: "inline-block",
+            }}
+          >
+            + Neuer Artikel
+          </Link>
+        }
+      />
 
-      <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "48px 32px" }}>
+      <style>{`
+        .a-dash-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+        .a-dash-cols { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; align-items: start; }
+        .a-dash-row {
+          display: grid; grid-template-columns: 60px 1fr auto;
+          gap: 14px; padding: 12px; border-radius: 6px;
+          background: var(--da-dark); border: 1px solid var(--da-border);
+          align-items: center; cursor: pointer; text-decoration: none;
+          transition: border-color var(--t-fast);
+        }
+        .a-dash-row:hover { border-color: var(--da-green); }
+        .a-dash-row__cover {
+          width: 60px; height: 60px; border-radius: 4px; object-fit: cover; display: block;
+        }
+        .a-dash-row__title {
+          color: var(--da-text); font-size: 13px; font-weight: 600; margin-bottom: 4px;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .a-dash-row__meta { display: flex; gap: 10px; font-size: 11px; color: var(--da-muted-soft); }
+        @media (max-width: 1024px) {
+          .a-dash-stats { grid-template-columns: repeat(2, 1fr); }
+          .a-dash-cols { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 540px) {
+          .a-dash-stats { grid-template-columns: 1fr; }
+        }
+      `}</style>
 
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px", marginBottom: "40px" }}>
-          <div>
-            <p style={{ color: "var(--da-green)", fontSize: "12px", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "8px" }}>Autoren-Dashboard</p>
-            <h1 style={{ color: "var(--da-text)", fontSize: "32px", fontWeight: 700, fontFamily: "Space Grotesk, sans-serif" }}>Willkommen, Andreas 👋</h1>
+      <div className="a-dash-stats">
+        <StatCell
+          label="Total Views"
+          value={totalViews.toLocaleString("de-CH")}
+          sub="↑ 12% vs. letzten Monat"
+        />
+        <StatCell
+          label="Reads (Completed)"
+          value={totalReads.toLocaleString("de-CH")}
+          sub={`${readRate}% Read-Rate`}
+        />
+        <StatCell
+          label="Avg. Completion"
+          value={`${avgCompletion}%`}
+          sub="Wie weit Leser kommen"
+          accent="var(--da-green)"
+        />
+        <StatCell
+          label="Veröffentlicht"
+          value={published.length}
+          sub={`${inFlight.length} in Bearbeitung`}
+          accent="var(--da-orange)"
+        />
+      </div>
+
+      <div className="a-dash-cols">
+        <AuthorCard padding={24}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+            <h3 style={{ color: "var(--da-text)", fontSize: 16, fontWeight: 700, fontFamily: "var(--da-font-display)" }}>In Arbeit</h3>
+            <span style={{ color: "var(--da-muted)", fontSize: 12 }}>{inFlight.length} Artikel</span>
           </div>
-          <button style={{ backgroundColor: "var(--da-green)", color: "var(--da-dark)", border: "none", padding: "14px 24px", borderRadius: "4px", fontSize: "15px", fontWeight: 700, cursor: "pointer" }}>+ Neuer Artikel</button>
-        </div>
-
-        {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "48px" }}>
-          {stats.map((s, i) => (
-            <div key={i} style={{ backgroundColor: "var(--da-card)", border: "1px solid var(--da-border)", borderRadius: "8px", padding: "24px" }}>
-              <p style={{ color: s.color, fontSize: "32px", fontWeight: 700, fontFamily: "Space Grotesk, sans-serif", lineHeight: 1, marginBottom: "8px" }}>{s.value}</p>
-              <p style={{ color: "var(--da-muted)", fontSize: "13px", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.05em" }}>{s.label}</p>
+          {inFlight.length === 0 ? (
+            <p style={{ color: "var(--da-muted)", fontSize: 13 }}>Alles veröffentlicht. Zeit für den nächsten Pitch?</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {inFlight.map((a) => (
+                <Link key={a.id} href={`/autor/artikel/${a.id}`} className="a-dash-row">
+                  <Image
+                    src={a.cover}
+                    alt=""
+                    width={60}
+                    height={60}
+                    className="a-dash-row__cover"
+                    unoptimized
+                  />
+                  <div style={{ minWidth: 0 }}>
+                    <p className="a-dash-row__title">{a.title}</p>
+                    <div className="a-dash-row__meta">
+                      <span>{a.wordCount} Wörter</span>
+                      <span>·</span>
+                      <span>{relativeFromIso(a.updatedAt)}</span>
+                    </div>
+                  </div>
+                  <AuthorStatusBadge status={a.status} size="sm" />
+                </Link>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+        </AuthorCard>
 
-        {/* Articles */}
-        <div style={{ marginBottom: "32px" }}>
-          <h2 style={{ color: "var(--da-text)", fontSize: "22px", fontWeight: 700, marginBottom: "20px" }}>Deine Artikel</h2>
-          <div style={{ backgroundColor: "var(--da-card)", border: "1px solid var(--da-border)", borderRadius: "8px", overflow: "hidden" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: "16px", padding: "16px 24px", borderBottom: "1px solid var(--da-border)", color: "var(--da-muted)", fontSize: "12px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              <div>Titel</div>
-              <div>Status</div>
-              <div>Datum</div>
-              <div>Views</div>
-              <div></div>
-            </div>
-            {articles.map((a, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: "16px", padding: "20px 24px", borderBottom: i < articles.length - 1 ? "1px solid var(--da-border)" : "none", alignItems: "center" }}>
-                <div style={{ color: "var(--da-text)", fontSize: "15px", fontWeight: 500 }}>{a.title}</div>
-                <div style={{ color: statusColor(a.status), fontSize: "13px", fontWeight: 600 }}>● {a.status}</div>
-                <div style={{ color: "var(--da-muted)", fontSize: "13px" }}>{a.date}</div>
-                <div style={{ color: "var(--da-muted)", fontSize: "13px" }}>{a.views}</div>
-                <button style={{ backgroundColor: "transparent", color: "var(--da-green)", border: "1px solid var(--da-green)", padding: "6px 14px", borderRadius: "4px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>Bearbeiten</button>
+        <AuthorCard padding={24} accent="var(--da-green)">
+          <MonoCaption color="var(--da-green)">Top Performer</MonoCaption>
+          {top ? (
+            <>
+              <h3
+                style={{
+                  color: "var(--da-text)",
+                  fontSize: 17,
+                  fontWeight: 700,
+                  fontFamily: "var(--da-font-display)",
+                  lineHeight: 1.3,
+                  marginBottom: 16,
+                }}
+              >
+                {top.title}
+              </h3>
+              <Sparkline
+                data={[120, 180, 240, 410, 380, 520, 690, 880, 720, 920, 1100, 1240]}
+                color="var(--da-green)"
+                height={50}
+              />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 18 }}>
+                <div>
+                  <div style={{ color: "var(--da-text)", fontSize: 22, fontWeight: 700, fontFamily: "var(--da-font-display)", lineHeight: 1 }}>
+                    {top.views.toLocaleString("de-CH")}
+                  </div>
+                  <div style={{ color: "var(--da-muted)", fontSize: 11, marginTop: 4 }}>Views</div>
+                </div>
+                <div>
+                  <div style={{ color: "var(--da-green)", fontSize: 22, fontWeight: 700, fontFamily: "var(--da-font-display)", lineHeight: 1 }}>
+                    {top.completion}%
+                  </div>
+                  <div style={{ color: "var(--da-muted)", fontSize: 11, marginTop: 4 }}>Completion</div>
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
-          {[
-            { icon: "📝", title: "Neuer Artikel", desc: "Schreibe deinen nächsten Beitrag" },
-            { icon: "👤", title: "Profil bearbeiten", desc: "Bio, Foto, Social Links aktualisieren" },
-            { icon: "📊", title: "Analytics", desc: "Views, Lesezeit, Engagement" },
-            { icon: "⚙️", title: "Einstellungen", desc: "E-Mail-Benachrichtigungen, Passwort" },
-          ].map((a, i) => (
-            <a key={i} href="#" style={{ backgroundColor: "var(--da-card)", border: "1px solid var(--da-border)", borderRadius: "8px", padding: "20px", textDecoration: "none", display: "block" }}>
-              <div style={{ fontSize: "24px", marginBottom: "8px" }}>{a.icon}</div>
-              <h4 style={{ color: "var(--da-text)", fontSize: "15px", fontWeight: 600, marginBottom: "4px" }}>{a.title}</h4>
-              <p style={{ color: "var(--da-muted)", fontSize: "13px" }}>{a.desc}</p>
-            </a>
-          ))}
-        </div>
-
-        <p style={{ color: "var(--da-muted-soft)", fontSize: "12px", lineHeight: 1.5, textAlign: "center", marginTop: "48px" }}>Platzhalter – Dashboard-Funktionen folgen mit Supabase</p>
-      </section>
-
-      <Footer />
-    </main>
+            </>
+          ) : (
+            <p style={{ color: "var(--da-muted)", fontSize: 13 }}>
+              Noch kein veröffentlichter Artikel.
+            </p>
+          )}
+        </AuthorCard>
+      </div>
+    </AuthorShell>
   );
+}
+
+function relativeFromIso(iso: string): string {
+  const then = new Date(iso).getTime();
+  const now = Date.now();
+  const diffMin = Math.max(1, Math.round((now - then) / 60000));
+  if (diffMin < 60) return `vor ${diffMin} min`;
+  const diffH = Math.round(diffMin / 60);
+  if (diffH < 24) return `vor ${diffH} Std.`;
+  const diffD = Math.round(diffH / 24);
+  if (diffD < 14) return `vor ${diffD} Tag${diffD === 1 ? "" : "en"}`;
+  const diffW = Math.round(diffD / 7);
+  return `vor ${diffW} Wo.`;
 }
