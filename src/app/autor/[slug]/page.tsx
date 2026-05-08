@@ -1,3 +1,4 @@
+import Image from "next/image";
 import NewsTicker from "@/components/NewsTicker";
 import Footer from "@/components/Footer";
 import ArticleCard from "@/components/ArticleCard";
@@ -40,7 +41,7 @@ export default function AuthorPage() {
       <section style={{ borderBottom: "1px solid var(--da-card)", padding: "64px 32px" }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
           <div className="author-hero">
-            <img src={author.avatar} alt={author.name} style={{ width: "200px", height: "200px", borderRadius: "50%", objectFit: "cover", border: "3px solid var(--da-green)" }} />
+            <Image src={author.avatar} alt={author.name} width={200} height={200} priority style={{ borderRadius: "50%", objectFit: "cover", border: "3px solid var(--da-green)" }} />
             <div>
               <p style={{ color: "var(--da-green)", fontSize: "13px", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "12px" }}>Autor</p>
               <h1 style={{ color: "var(--da-text)", fontSize: "clamp(32px, 4.5vw, 48px)", fontWeight: 700, lineHeight: 1.2, marginBottom: "8px", fontFamily: "Space Grotesk, sans-serif" }}>

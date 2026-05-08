@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import NewsletterSignup from "./NewsletterSignup";
 
 export default function Footer() {
@@ -25,7 +26,7 @@ export default function Footer() {
           <div className="footer-grid" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "48px", marginBottom: "48px" }}>
             {/* Logo + Description */}
             <div>
-              <img src="/images/digital age Logo green.png" alt="digital age" style={{ height: "48px", width: "auto", marginBottom: "20px" }} />
+              <Image src="/images/digital age Logo green.png" alt="digital age" width={420} height={260} priority style={{ height: "48px", width: "auto", marginBottom: "20px" }} />
               <p style={{ color: "var(--da-muted)", fontSize: "14px", lineHeight: 1.7, maxWidth: "320px" }}>
                 KI & Future Tech für die DACH-Region. Verstehe Technologie, erkenne Chancen, sei der Wandel.
               </p>
