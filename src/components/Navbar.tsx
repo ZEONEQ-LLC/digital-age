@@ -65,7 +65,7 @@ export default function Navbar() {
             <Link href="/newsletter" style={{ color: "var(--da-text-strong)", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>📬 Newsletter</Link>
             <Link href="/login" style={{ color: "var(--da-text-strong)", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>Login</Link>
             <button className="nav-lang">DE / EN</button>
-            <Link href="/kontakt" className="nav-cta">Publizieren</Link>
+            <Link href="/artikel-pitchen" className="nav-cta">Publizieren</Link>
           </div>
           <button
             className="nav-hamburger"
@@ -104,7 +104,7 @@ export default function Navbar() {
           <Link href="/podcasts" style={{ color: "var(--da-muted)", fontSize: "13px", padding: "8px 0 8px 12px", display: "block", textDecoration: "none" }} onClick={() => setMenuOpen(false)}>Podcasts</Link>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "16px", marginTop: "8px" }}>
             <button className="nav-lang">DE / EN</button>
-            <Link href="/kontakt" className="nav-cta" onClick={() => setMenuOpen(false)}>Publizieren</Link>
+            <Link href="/artikel-pitchen" className="nav-cta" onClick={() => setMenuOpen(false)}>Publizieren</Link>
           </div>
         </div>
       )}
