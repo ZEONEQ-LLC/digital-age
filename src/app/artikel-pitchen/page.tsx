@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import NewsTicker from "@/components/NewsTicker";
@@ -77,6 +77,10 @@ export default function PitchPage() {
   const [data, setData] = useState<FormState>(empty);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (submitted) window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [submitted]);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setData((p) => ({ ...p, [k]: v }));
