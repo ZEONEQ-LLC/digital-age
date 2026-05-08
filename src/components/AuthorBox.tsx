@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import ExternalBadge from "./ExternalBadge";
 
 type AuthorBoxProps = {
   name: string;
@@ -7,9 +8,10 @@ type AuthorBoxProps = {
   avatar: string;
   bio: string;
   role?: string;
+  external?: boolean;
 };
 
-export default function AuthorBox({ name, slug, avatar, bio, role }: AuthorBoxProps) {
+export default function AuthorBox({ name, slug, avatar, bio, role, external = false }: AuthorBoxProps) {
   return (
     <div
       style={{
@@ -17,7 +19,7 @@ export default function AuthorBox({ name, slug, avatar, bio, role }: AuthorBoxPr
         gap: "var(--sp-5)",
         alignItems: "flex-start",
         background: "var(--da-card)",
-        border: "1px solid var(--da-border)",
+        border: `1px solid ${external ? "var(--da-orange)" : "var(--da-border)"}`,
         borderRadius: "var(--r-lg)",
         padding: "var(--sp-7)",
         margin: "var(--sp-12) 0",
@@ -29,7 +31,7 @@ export default function AuthorBox({ name, slug, avatar, bio, role }: AuthorBoxPr
       <div>
         <p
           style={{
-            color: "var(--da-green)",
+            color: external ? "var(--da-orange)" : "var(--da-green)",
             fontFamily: "var(--da-font-mono)",
             fontSize: "var(--fs-caption)",
             fontWeight: 700,
@@ -38,21 +40,22 @@ export default function AuthorBox({ name, slug, avatar, bio, role }: AuthorBoxPr
             marginBottom: "4px",
           }}
         >
-          Autor
+          {external ? "Gastautor" : "Autor"}
         </p>
-        <Link
-          href={`/autor/${slug}`}
-          style={{
-            color: "var(--da-text)",
-            fontFamily: "var(--da-font-display)",
-            fontSize: "19px",
-            fontWeight: 700,
-            display: "block",
-            marginBottom: role ? 3 : 10,
-          }}
-        >
-          {name}
-        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: role ? 3 : 10, flexWrap: "wrap" }}>
+          <Link
+            href={`/autor/${slug}`}
+            style={{
+              color: "var(--da-text)",
+              fontFamily: "var(--da-font-display)",
+              fontSize: "19px",
+              fontWeight: 700,
+            }}
+          >
+            {name}
+          </Link>
+          {external && <ExternalBadge size="sm" label="External Contributor" />}
+        </div>
         {role && (
           <p style={{ color: "var(--da-muted)", fontSize: "var(--fs-body-sm)", marginBottom: 10 }}>{role}</p>
         )}

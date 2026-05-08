@@ -9,7 +9,7 @@ import Footer from "@/components/Footer";
 const bentoArticles = [
   { category: "Swiss Hosted GPT", title: "Fünf versteckte Risiken bei der Nutzung der falschen KI für Unternehmen", author: "Matthias Zwingli", date: "16.04.2025", image: "https://picsum.photos/seed/ki1/1200/700", href: "/artikel/swiss-hosted-gpt" },
   { category: "AI in Banking",    title: "Data-Driven Banking: Why AI Alone Won't Fix the Real Problem",          author: "Andreas Kamm",     date: "07.04.2026", image: "https://picsum.photos/seed/bank1/700/500", href: "/artikel/data-driven-banking" },
-  { category: "GenAI",            title: "IoT-Geräte vernetzen mit AI – aber richtig",                            author: "Ali Soy",          date: "10.02.2025", image: "https://picsum.photos/seed/iot1/700/500", href: "/artikel/iot-genai" },
+  { category: "KI im Business",   title: "Edge-AI im Mittelstand: Ein Praxisbericht aus drei Pilotprojekten",     author: "Marc Keller",      date: "02.04.2026", image: "https://picsum.photos/seed/extguest1/700/500", href: "/artikel/gastbeitrag-edge-ai-mittelstand", external: true },
   { category: "EU AI Act",        title: "EU AI-Act: Was Schweizer Unternehmen unbedingt wissen und tun müssen",    author: "Ali Soy",          date: "03.04.2025", image: "https://picsum.photos/seed/ki2/700/500", href: "/artikel/eu-ai-act" },
   { category: "Blockchain",       title: "Blockchain of Things",                                                   author: "Ali Soy",          date: "23.01.2025", image: "https://picsum.photos/seed/block1/700/500", href: "/artikel/blockchain-of-things" },
 ];
@@ -24,7 +24,7 @@ const swissAI = [
 
 const futureTech = [
   { category: "GenAI",      title: "IoT-Geräte vernetzen mit AI – aber richtig: Warum OpenAI API nicht die Lösung ist",  author: "Ali Soy", date: "10.02.2025", image: "https://picsum.photos/seed/iot1/600/400" },
-  { category: "GenAI",      title: "Interoperabilität für IoT – Wie AI die Sprachbarrieren zwischen Maschinen überwindet", author: "Ali Soy", date: "07.02.2025", image: "https://picsum.photos/seed/iot2/600/400" },
+  { category: "Robotics",   title: "Autonome Lagerroboter: Was im Schweizer KMU funktioniert",                            author: "Lena Vogt", date: "20.02.2026", image: "https://picsum.photos/seed/extguest2/600/400", href: "/artikel/gastbeitrag-autonome-lagerroboter", external: true },
   { category: "Blockchain", title: "Blockchain of Things",                                                                  author: "Ali Soy", date: "23.01.2021", image: "https://picsum.photos/seed/block1/600/400" },
 ];
 

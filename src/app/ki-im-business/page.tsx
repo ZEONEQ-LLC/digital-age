@@ -5,6 +5,7 @@ import type { ListArticle } from "@/components/ArticleListRow";
 
 const articles: ListArticle[] = [
   { id: 1, category: "AI in Banking",     title: "Data-Driven Banking: Warum KI allein das eigentliche Problem nicht löst",         author: "Andreas Kamm",     date: "07.04.2026", image: "https://picsum.photos/seed/bank1/800/500",  readTime: "6 min", href: "/artikel/data-driven-banking" },
+  { id: 10, category: "AI in Banking",    title: "Edge-AI im Mittelstand: Ein Praxisbericht aus drei Pilotprojekten",                author: "Marc Keller",      date: "02.04.2026", image: "https://picsum.photos/seed/extguest1/800/500", readTime: "7 min", href: "/artikel/gastbeitrag-edge-ai-mittelstand", external: true },
   { id: 2, category: "Swiss Hosted GPT",  title: "Fünf versteckte Risiken bei der Nutzung der falschen KI für Unternehmen",          author: "Matthias Zwingli", date: "16.04.2025", image: "https://picsum.photos/seed/ki1/800/500",    readTime: "5 min" },
   { id: 3, category: "EU AI Act",         title: "EU AI-Act: Was Schweizer Unternehmen unbedingt wissen und tun müssen",            author: "Ali Soy",          date: "03.04.2025", image: "https://picsum.photos/seed/ki2/800/500",    readTime: "8 min" },
   { id: 4, category: "AI in Banking",     title: "AI in Banking: Why AI won't transform Banking",                                    author: "Andreas Kamm",     date: "01.04.2026", image: "https://picsum.photos/seed/bank2/800/500",  readTime: "4 min" },
