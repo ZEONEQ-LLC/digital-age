@@ -1,5 +1,7 @@
 "use client";
 
+import AuthorLine from "./AuthorLine";
+
 type ArticleCardProps = {
   category: string;
   title: string;
@@ -8,9 +10,10 @@ type ArticleCardProps = {
   image: string;
   href?: string;
   featured?: boolean;
+  external?: boolean;
 };
 
-export default function ArticleCard({ category, title, author, date, image, href = "#", featured = false }: ArticleCardProps) {
+export default function ArticleCard({ category, title, author, date, image, href = "#", featured = false, external = false }: ArticleCardProps) {
   return (
     <a href={href} style={{ textDecoration: "none", display: "block" }}>
       <div style={{
@@ -33,10 +36,8 @@ export default function ArticleCard({ category, title, author, date, image, href
         </div>
         <div style={{ padding: "20px" }}>
           <h3 style={{ color: "var(--da-text)", fontSize: featured ? "20px" : "16px", fontWeight: 600, lineHeight: 1.4, marginBottom: "12px" }}>{title}</h3>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--da-muted)", fontSize: "12px" }}>
-            <span>{author}</span>
-            <span style={{ color: "var(--da-border)" }}>•</span>
-            <span>{date}</span>
+          <div style={{ color: "var(--da-muted)", fontSize: "12px" }}>
+            <AuthorLine name={author} external={external} date={date} />
           </div>
         </div>
       </div>

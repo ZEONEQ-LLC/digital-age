@@ -7,6 +7,7 @@ type Article = {
   date: string;
   image: string;
   href?: string;
+  external?: boolean;
 };
 
 type ArticleSectionProps = {

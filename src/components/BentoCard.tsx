@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import AuthorLine from "./AuthorLine";
 
 export type BentoArticle = {
   category: string;
@@ -8,6 +9,7 @@ export type BentoArticle = {
   date: string;
   image: string;
   href?: string;
+  external?: boolean;
 };
 
 type BentoCardProps = {
@@ -86,7 +88,7 @@ export default function BentoCard({ article, size = "sm", accent = "green" }: Be
             {article.title}
           </h3>
           <div className="bento-card__meta">
-            {article.author} · {article.date}
+            <AuthorLine name={article.author} external={article.external} date={article.date} separator="·" />
           </div>
         </div>
       </Link>

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import ExternalBadge from "./ExternalBadge";
 
 export type ListArticle = {
   id: number | string;
@@ -10,6 +11,7 @@ export type ListArticle = {
   image: string;
   readTime: string;
   href?: string;
+  external?: boolean;
 };
 
 type ArticleListRowProps = {
@@ -117,6 +119,7 @@ export default function ArticleListRow({ article, dotColor }: ArticleListRowProp
             <h3 className="alr__title">{article.title}</h3>
             <div className="alr__meta">
               <span className="alr__meta-name">{article.author}</span>
+              {article.external && <ExternalBadge size="xs" />}
               <span>·</span>
               <span style={{ whiteSpace: "nowrap" }}>{article.date}</span>
             </div>
