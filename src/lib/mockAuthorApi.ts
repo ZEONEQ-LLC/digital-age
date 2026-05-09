@@ -13,6 +13,7 @@ import type {
 
 const ALI_ID = "auth-editor-ali";
 const ANDREAS_ID = "auth-author-andreas";
+const MATTHIAS_ID = "auth-author-matthias";
 const MARC_ID = "auth-external-marc";
 
 const aliSoy: Author = {
@@ -44,6 +45,19 @@ const andreasKamm: Author = {
   joinedAt: "2024-06-01T00:00:00Z",
 };
 
+const matthiasZwingli: Author = {
+  id: MATTHIAS_ID,
+  type: "author",
+  name: "Matthias Zwingli",
+  handle: "matthias-zwingli",
+  email: "matthias@digital-age.ch",
+  role: "Founder & CEO, Connect AI",
+  location: "Zürich",
+  bio: "Matthias Zwingli ist CEO und Gründer von Connect AI, einem Unternehmen mit Sitz in Zürich, das sich auf hochwertige, massgeschneiderte KI-Assistenten für Unternehmen spezialisiert hat. Mit einem Hintergrund in Betriebswirtschaft von der Universität St. Gallen bringt er fundiertes Wissen in Unternehmensführung und Technologie mit. Matthias ist ein leidenschaftlicher Kitesurfer und engagierter Business Angel, der sich für die Förderung von Start-ups einsetzt.",
+  avatar: "https://i.pravatar.cc/200?img=33",
+  joinedAt: "2025-03-01T00:00:00Z",
+};
+
 const marcKeller: Author = {
   id: MARC_ID,
   type: "external",
@@ -53,12 +67,12 @@ const marcKeller: Author = {
   role: "Founder, Helvetia AI",
   location: "Bern, CH",
   bio: "Gründer von Helvetia AI. Beschäftigt sich mit Edge-AI-Anwendungen im Schweizer Mittelstand.",
-  avatar: "https://i.pravatar.cc/200?img=12",
+  avatar: "https://i.pravatar.cc/200?img=14",
   website: "https://helvetia-ai.ch",
   joinedAt: "2026-03-12",
 };
 
-const seedAuthors: Author[] = [aliSoy, andreasKamm, marcKeller];
+const seedAuthors: Author[] = [aliSoy, andreasKamm, matthiasZwingli, marcKeller];
 
 const sampleBlocks = (): Block[] => [
   { id: "b1", type: "heading", level: 2, content: "Die Banken haben einen Joker — sie nutzen ihn nur leise" },
