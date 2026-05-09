@@ -11,27 +11,38 @@ import type {
   Revision,
 } from "@/types/author";
 
-const SARAH_ID = "auth-internal-sarah";
+const ALI_ID = "auth-editor-ali";
+const ANDREAS_ID = "auth-author-andreas";
 const MARC_ID = "auth-external-marc";
 const LENA_ID = "auth-external-lena";
 
-const internalAuthor: Author = {
-  id: SARAH_ID,
-  type: "internal",
-  name: "Sarah Berger",
-  handle: "sarah-berger",
-  email: "sarah.berger@digital-age.ch",
-  role: "Senior Tech Reporter",
-  location: "Zürich, CH",
-  bio: "Schreibt über die Schnittstelle von KI und Schweizer Wirtschaft. Davor 8 Jahre bei der NZZ.",
-  avatar: "https://i.pravatar.cc/200?img=47",
-  website: "https://sarahberger.ch",
-  joinedAt: "2024-09-01",
+const aliSoy: Author = {
+  id: ALI_ID,
+  type: "editor",
+  name: "Ali Soy",
+  handle: "ali-soy",
+  email: "ali@digital-age.ch",
+  role: "Founder & Editor in Chief",
+  location: "Zürich",
+  bio: "Heute haben wir die technischen Werkzeuge und das Wissen (nun ja, gilt nicht für alle), um die Produktivität zu steigern, mehr Transparenz zu schaffen und die Dinge einfacher zu gestalten. Es ist an der Zeit für grosse Veränderungen. Digital aus Überzeugung. Co-Founder & Managing Director von Digital Republic und Dozent an der Hochschule für Wirtschaft Zürich (HWZ).",
+  avatar: "https://i.pravatar.cc/200?img=68",
+  joinedAt: "2024-01-15T00:00:00Z",
   social: {
-    linkedin: "linkedin.com/in/sarahberger",
-    x: "@sarahberger_ch",
-    mastodon: "@sarah@digitalch.social",
+    linkedin: "linkedin.com/in/ali-soy",
   },
+};
+
+const andreasKamm: Author = {
+  id: ANDREAS_ID,
+  type: "author",
+  name: "Andreas Kamm",
+  handle: "andreas-kamm",
+  email: "andreas@digital-age.ch",
+  role: "Senior Banking Reporter",
+  location: "Zürich",
+  bio: "As a Journey Strategist and Business Innovation Lead at a leading Swiss bank, I draw on nearly four decades of banking experience and advanced expertise in artificial intelligence. With a postgraduate degree in AI in Finance from HWZ Zurich, I specialize in driving AI-powered transformation and digital innovation in the financial sector. My advisory work centers on designing AI-driven business models and forward-looking digitalization strategies that seamlessly integrate traditional banking with disruptive technologies.",
+  avatar: "https://i.pravatar.cc/200?img=12",
+  joinedAt: "2024-06-01T00:00:00Z",
 };
 
 const marcKeller: Author = {
@@ -62,7 +73,7 @@ const lenaVogt: Author = {
   joinedAt: "2026-02-04",
 };
 
-const seedAuthors: Author[] = [internalAuthor, marcKeller, lenaVogt];
+const seedAuthors: Author[] = [aliSoy, andreasKamm, marcKeller, lenaVogt];
 
 const sampleBlocks = (): Block[] => [
   { id: "b1", type: "heading", level: 2, content: "Die Banken haben einen Joker — sie nutzen ihn nur leise" },
@@ -199,7 +210,7 @@ const seedArticles = (): Article[] => {
   return [
     {
       id: "art-1",
-      authorId: SARAH_ID,
+      authorId: ALI_ID,
       title: "Wie Schweizer KMU bei Edge-AI vorne dabei sind",
       slug: "schweizer-kmu-edge-ai",
       blocks,
@@ -225,7 +236,7 @@ const seedArticles = (): Article[] => {
     },
     {
       id: "art-2",
-      authorId: SARAH_ID,
+      authorId: ALI_ID,
       title: "EU AI Act: Was Schweizer Unternehmen jetzt tun müssen",
       slug: "eu-ai-act-schweiz-leitfaden",
       blocks: blocks2,
@@ -251,7 +262,7 @@ const seedArticles = (): Article[] => {
     },
     {
       id: "art-3",
-      authorId: SARAH_ID,
+      authorId: ALI_ID,
       title: "Swiss Hosted GPT — Die Realität hinter dem Versprechen",
       slug: "swiss-hosted-gpt-realitaet",
       blocks: blocks3,
@@ -278,7 +289,7 @@ const seedArticles = (): Article[] => {
     },
     {
       id: "art-4",
-      authorId: SARAH_ID,
+      authorId: ALI_ID,
       title: "Predictive Maintenance: Wer sich rechnet — und wer nicht",
       slug: null,
       blocks: blocks4,
@@ -304,7 +315,7 @@ const seedArticles = (): Article[] => {
     },
     {
       id: "art-5",
-      authorId: SARAH_ID,
+      authorId: ALI_ID,
       title: "Die Zukunft der Arbeit: Augmentation statt Automation",
       slug: "zukunft-arbeit-augmentation",
       blocks: blocks5,
@@ -384,11 +395,11 @@ const seedArticles = (): Article[] => {
 };
 
 const seedRevisions = (): Revision[] => [
-  { id: "rev-1", articleId: "art-1", authorId: SARAH_ID, type: "edit",   summary: "+24 / -8 Zeilen · Abschnitt &lsquo;Quotes&rsquo; erweitert",     diffStats: { added: 24, removed: 8 }, createdAt: "2026-04-26T14:32:00Z" },
-  { id: "rev-2", articleId: "art-1", authorId: SARAH_ID, type: "edit",   summary: "+12 / -3 · SEO-Titel angepasst",                   diffStats: { added: 12, removed: 3 }, createdAt: "2026-04-26T11:18:00Z" },
-  { id: "rev-3", articleId: "art-1", authorId: SARAH_ID, type: "review", summary: "Annahme der Pitch-Phase",                          createdAt: "2026-04-25T16:45:00Z" },
-  { id: "rev-4", articleId: "art-1", authorId: SARAH_ID, type: "edit",   summary: "+187 / -0 · Erstentwurf veröffentlicht",          diffStats: { added: 187, removed: 0 }, createdAt: "2026-04-23T09:12:00Z" },
-  { id: "rev-5", articleId: "art-1", authorId: SARAH_ID, type: "create", summary: "Artikel erstellt",                                 createdAt: "2026-04-23T09:00:00Z" },
+  { id: "rev-1", articleId: "art-1", authorId: ALI_ID, type: "edit",   summary: "+24 / -8 Zeilen · Abschnitt &lsquo;Quotes&rsquo; erweitert",     diffStats: { added: 24, removed: 8 }, createdAt: "2026-04-26T14:32:00Z" },
+  { id: "rev-2", articleId: "art-1", authorId: ALI_ID, type: "edit",   summary: "+12 / -3 · SEO-Titel angepasst",                   diffStats: { added: 12, removed: 3 }, createdAt: "2026-04-26T11:18:00Z" },
+  { id: "rev-3", articleId: "art-1", authorId: ALI_ID, type: "review", summary: "Annahme der Pitch-Phase",                          createdAt: "2026-04-25T16:45:00Z" },
+  { id: "rev-4", articleId: "art-1", authorId: ALI_ID, type: "edit",   summary: "+187 / -0 · Erstentwurf veröffentlicht",          diffStats: { added: 187, removed: 0 }, createdAt: "2026-04-23T09:12:00Z" },
+  { id: "rev-5", articleId: "art-1", authorId: ALI_ID, type: "create", summary: "Artikel erstellt",                                 createdAt: "2026-04-23T09:00:00Z" },
 ];
 
 let articles: Article[] = seedArticles();
@@ -399,7 +410,7 @@ const cloneArticle = (a: Article): Article => ({ ...a, blocks: a.blocks.map((b) 
 const cloneAuthor = (a: Author): Author => ({ ...a, social: a.social ? { ...a.social } : undefined });
 
 export function getCurrentAuthor(): Author {
-  return cloneAuthor(internalAuthor);
+  return cloneAuthor(aliSoy);
 }
 
 export function getAuthor(id: string): Author | null {
@@ -412,7 +423,7 @@ export function getAuthors(): Author[] {
 }
 
 export function getMyArticles(): Article[] {
-  return articles.filter((a) => a.authorId === SARAH_ID).map(cloneArticle);
+  return articles.filter((a) => a.authorId === ALI_ID).map(cloneArticle);
 }
 
 export function getArticle(id: string): Article | null {
@@ -438,7 +449,7 @@ export function createDraft(): Article {
   const now = new Date().toISOString();
   const draft: Article = {
     id,
-    authorId: SARAH_ID,
+    authorId: ALI_ID,
     title: "Unbenannter Artikel",
     slug: null,
     blocks,
@@ -467,7 +478,7 @@ export function createDraft(): Article {
     {
       id: `rev-${Date.now()}`,
       articleId: id,
-      authorId: SARAH_ID,
+      authorId: ALI_ID,
       type: "create",
       summary: "Artikel erstellt",
       createdAt: now,
@@ -507,7 +518,7 @@ export function submitForReview(id: string): Article | null {
     {
       id: `rev-${Date.now()}`,
       articleId: id,
-      authorId: SARAH_ID,
+      authorId: ALI_ID,
       type: "submit",
       summary: "Zur Review eingereicht",
       createdAt: next.updatedAt,
