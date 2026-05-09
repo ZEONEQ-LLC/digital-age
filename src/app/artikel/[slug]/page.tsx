@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import NewsTicker from "@/components/NewsTicker";
 import Footer from "@/components/Footer";
 import ListenButton from "@/components/ListenButton";
@@ -111,7 +112,8 @@ type PageProps = { params: Promise<{ slug: string }> };
 
 export default async function ArticlePage({ params }: PageProps) {
   const { slug } = await params;
-  const article = ARTICLES[slug] ?? BANKING;
+  const article = ARTICLES[slug];
+  if (!article) notFound();
   const isExternal = article.author.external === true;
 
   return (
