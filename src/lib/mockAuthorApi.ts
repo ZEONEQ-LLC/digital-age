@@ -403,6 +403,17 @@ export function getArticle(id: string): Article | null {
   return a ? cloneArticle(a) : null;
 }
 
+export function getPublishedArticlesByAuthor(authorId: string): Article[] {
+  return articles
+    .filter((a) => a.authorId === authorId && a.status === "published")
+    .sort((x, y) => {
+      const xd = x.publishedAt ?? "";
+      const yd = y.publishedAt ?? "";
+      return xd < yd ? 1 : xd > yd ? -1 : 0;
+    })
+    .map(cloneArticle);
+}
+
 export function getPublishedExternalArticles(): Article[] {
   return articles
     .filter((a) => a.status === "published")
