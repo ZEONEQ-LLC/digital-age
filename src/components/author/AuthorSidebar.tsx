@@ -11,6 +11,7 @@ const items: NavItem[] = [
   { id: "dashboard",    label: "Dashboard",     href: "/autor/dashboard",     icon: "◆" },
   { id: "articles",     label: "Meine Artikel", href: "/autor/artikel",       icon: "▤" },
   { id: "stats",        label: "Statistiken",   href: "/autor/statistiken",   icon: "▴" },
+  { id: "podcasts",     label: "Podcasts",      href: "/autor/podcasts",      icon: "♫" },
   { id: "profile",      label: "Profil",        href: "/autor/profil",        icon: "◉" },
 ];
 

@@ -9,6 +9,7 @@ const AUTHOR_SUITE_PATHS = [
   "/autor/dashboard",
   "/autor/artikel",
   "/autor/statistiken",
+  "/autor/podcasts",
   "/autor/profil",
 ];
 
