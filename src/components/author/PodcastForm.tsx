@@ -5,6 +5,7 @@ import AuthorCard from "./AuthorCard";
 import MonoCaption from "./MonoCaption";
 import { getArticleTitleBySlug } from "@/lib/articleSlugRegistry";
 import { cleanListenLinks } from "@/lib/mockPodcastApi";
+import type { Author } from "@/types/author";
 import {
   PODCAST_CATEGORIES,
   PODCAST_LANGUAGES,
@@ -123,11 +124,12 @@ const LISTEN_FIELDS: { key: keyof PodcastListenLinks; label: string }[] = [
 
 type FieldKey =
   | "title" | "cover" | "description" | "category"
-  | "listenLinks" | "publishedAt";
+  | "listenLinks" | "publishedAt" | "recommendedByAuthorId";
 
 type PodcastFormProps = {
   initial?: Podcast;
-  authorId: string;
+  currentAuthor: Author;
+  selectableRecommenders: Author[];
   onSubmit: (input: PodcastInput) => void;
   onCancel: () => void;
   submitLabel?: string;
@@ -135,12 +137,17 @@ type PodcastFormProps = {
 
 export default function PodcastForm({
   initial,
-  authorId,
+  currentAuthor,
+  selectableRecommenders,
   onSubmit,
   onCancel,
   submitLabel,
 }: PodcastFormProps) {
+  const isEditor = currentAuthor.type === "editor";
   const [data, setData] = useState<FormState>(initial ? fromPodcast(initial) : blank());
+  const [recommenderId, setRecommenderId] = useState<string>(
+    initial?.recommendedByAuthorId ?? currentAuthor.id
+  );
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => {
@@ -174,6 +181,7 @@ export default function PodcastForm({
     if (!data.category) out.category = "Bitte Kategorie wählen.";
     if (Object.keys(buildLinks()).length === 0) out.listenLinks = "Mindestens eine Hör-Plattform angeben.";
     if (!data.publishedAt) out.publishedAt = "Datum fehlt.";
+    if (isEditor && !recommenderId) out.recommendedByAuthorId = "Bitte Empfehler wählen.";
     return out;
   };
 
@@ -196,7 +204,7 @@ export default function PodcastForm({
       language: data.language,
       category: data.category as PodcastCategory,
       tags: tags.length ? tags : undefined,
-      recommendedByAuthorId: authorId,
+      recommendedByAuthorId: isEditor ? recommenderId : currentAuthor.id,
       recommendedByNote: data.recommendedByNote.trim() || undefined,
       listenLinks: buildLinks(),
       relatedArticleSlug: data.relatedArticleSlug.trim() || undefined,
@@ -435,6 +443,35 @@ export default function PodcastForm({
             style={{ ...inputStyle, resize: "vertical" }}
           />
         </div>
+
+        {isEditor && (
+          <div style={{ marginBottom: 16 }}>
+            <label htmlFor="pf-recommender" style={labelStyle}>
+              <span>Empfehler <span style={{ color: "var(--da-green)" }}>*</span></span>
+              <span style={{ color: "var(--da-faint)", fontSize: 11, fontFamily: "var(--da-font-mono)" }}>
+                Editor-only
+              </span>
+            </label>
+            <select
+              id="pf-recommender"
+              value={recommenderId}
+              onChange={(e) => setRecommenderId(e.target.value)}
+              style={errors.recommendedByAuthorId ? inputErrorStyle : inputStyle}
+              aria-invalid={!!errors.recommendedByAuthorId}
+            >
+              {selectableRecommenders.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                  {a.role ? ` — ${a.role}` : ""}
+                </option>
+              ))}
+            </select>
+            {errors.recommendedByAuthorId && <p style={errorStyle}>{errors.recommendedByAuthorId}</p>}
+            <p style={helperStyle}>
+              Auswahl aus allen internen Autoren und Editoren — externe Autoren können keine Empfehler sein.
+            </p>
+          </div>
+        )}
 
         <div style={{ marginBottom: 22 }}>
           <label htmlFor="pf-published" style={labelStyle}>

@@ -30,11 +30,16 @@ export default function AutorPodcastsPage() {
   // `tick` is a cache-buster — bumped by `refresh()` after mutations to re-read mock state.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const podcasts = useMemo(() => getPodcasts(), [tick]);
+  const allAuthors = useMemo(() => getAuthors(), []);
   const authorsById = useMemo<Record<string, Author>>(() => {
     const out: Record<string, Author> = {};
-    for (const a of getAuthors()) out[a.id] = a;
+    for (const a of allAuthors) out[a.id] = a;
     return out;
-  }, []);
+  }, [allAuthors]);
+  const selectableRecommenders = useMemo(
+    () => allAuthors.filter((a) => a.type !== "external"),
+    [allAuthors]
+  );
 
   useEffect(() => {
     if (!toast) return;
@@ -266,7 +271,8 @@ export default function AutorPodcastsPage() {
 
       {mode === "create" && (
         <PodcastForm
-          authorId={currentAuthor.id}
+          currentAuthor={currentAuthor}
+          selectableRecommenders={selectableRecommenders}
           onSubmit={handleCreate}
           onCancel={() => setMode("list")}
         />
@@ -275,7 +281,8 @@ export default function AutorPodcastsPage() {
       {typeof mode === "object" && mode.type === "edit" && editing && (
         <PodcastForm
           initial={editing}
-          authorId={currentAuthor.id}
+          currentAuthor={currentAuthor}
+          selectableRecommenders={selectableRecommenders}
           onSubmit={handleUpdate(editing.id)}
           onCancel={() => setMode("list")}
         />
