@@ -11,8 +11,8 @@ import type {
   PodcastListenLinks,
 } from "@/types/podcast";
 
-const SARAH_ID = "auth-internal-sarah";
-const MARC_ID = "auth-external-marc";
+const ALI_ID = "auth-editor-ali";
+const ANDREAS_ID = "auth-author-andreas";
 
 /**
  * Strip empty / whitespace-only listen-link entries.
@@ -39,7 +39,7 @@ const seedPodcasts = (): Podcast[] => {
       language: "de",
       category: "Tech & Society",
       tags: ["KI", "Wissenschaft", "Gesellschaft"],
-      recommendedByAuthorId: SARAH_ID,
+      recommendedByAuthorId: ALI_ID,
       listenLinks: {
         spotify: "https://open.spotify.com/show/0WIWmpfdimHmhVXJpc56sC",
         applePodcasts: "https://podcasts.apple.com/de/podcast/ki-verstehen/id1701430245",
@@ -57,7 +57,7 @@ const seedPodcasts = (): Podcast[] => {
       language: "de",
       category: "News & Updates",
       tags: ["News", "heise", "Daily"],
-      recommendedByAuthorId: SARAH_ID,
+      recommendedByAuthorId: ALI_ID,
       listenLinks: {
         spotify: "https://open.spotify.com/show/3KZTI0VeXCJtGvDVHhsTdz",
         applePodcasts: "https://podcasts.apple.com/de/podcast/ki-update/id1641029931",
@@ -75,7 +75,7 @@ const seedPodcasts = (): Podcast[] => {
       language: "en",
       category: "KI & Forschung",
       tags: ["TED", "Research", "Interviews"],
-      recommendedByAuthorId: SARAH_ID,
+      recommendedByAuthorId: ALI_ID,
       listenLinks: {
         spotify: "https://open.spotify.com/show/7ipYIkF1RLqujGVXjWS3w8",
         applePodcasts: "https://podcasts.apple.com/us/podcast/the-ted-ai-show/id1742887382",
@@ -93,7 +93,7 @@ const seedPodcasts = (): Podcast[] => {
       language: "en",
       category: "KI & Forschung",
       tags: ["Data Science", "ML", "Research"],
-      recommendedByAuthorId: SARAH_ID,
+      recommendedByAuthorId: ALI_ID,
       listenLinks: {
         spotify: "https://open.spotify.com/show/1BZN7H3ikovSejhwQTzNm4",
         applePodcasts: "https://podcasts.apple.com/us/podcast/data-skeptic/id890348705",
@@ -111,7 +111,7 @@ const seedPodcasts = (): Podcast[] => {
       language: "en",
       category: "Tech & Society",
       tags: ["Long-Form", "AI Strategy", "Geopolitics"],
-      recommendedByAuthorId: SARAH_ID,
+      recommendedByAuthorId: ALI_ID,
       recommendedByNote:
         "Eric Schmidt über AI, Future of Warfare und Meaning of Life — eine der substantiellsten Folgen 2024.",
       listenLinks: {
@@ -131,8 +131,9 @@ const seedPodcasts = (): Podcast[] => {
       language: "de",
       category: "KI im Business",
       tags: ["Edge AI", "Mittelstand", "Praxis"],
-      recommendedByAuthorId: MARC_ID,
-      recommendedByNote: "Audio-Vertiefung zum Beitrag.",
+      recommendedByAuthorId: ANDREAS_ID,
+      recommendedByNote:
+        "Vertieft die Themen rund um KMU-Edge-AI, die ich in meinen Banking-Beiträgen diskutiere.",
       listenLinks: {
         soundcloud: "https://soundcloud.com/digital-age/edge-ai-mittelstand",
       },
