@@ -1,6 +1,6 @@
 // TODO Phase 7+: Replace with Supabase row types
 
-export type AuthorType = "internal" | "external";
+export type AuthorType = "external" | "author" | "editor";
 
 export type ArticleStatus =
   | "draft"
