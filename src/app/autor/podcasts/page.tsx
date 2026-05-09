@@ -7,7 +7,6 @@ import AuthorShell from "@/components/author/AuthorShell";
 import PageTitle from "@/components/author/PageTitle";
 import PodcastForm from "@/components/author/PodcastForm";
 import DemoBanner from "@/components/DemoBanner";
-import ExternalBadge from "@/components/ExternalBadge";
 import { getArticleTitleBySlug } from "@/lib/articleSlugRegistry";
 import { getAuthors, getCurrentAuthor } from "@/lib/mockAuthorApi";
 import {
@@ -23,6 +22,7 @@ type Mode = "list" | "create" | { type: "edit"; id: string };
 
 export default function AutorPodcastsPage() {
   const currentAuthor = useMemo(() => getCurrentAuthor(), []);
+  const isEditor = currentAuthor.type === "editor";
   const [tick, setTick] = useState(0);
   const [mode, setMode] = useState<Mode>("list");
   const [toast, setToast] = useState<string | null>(null);
@@ -68,6 +68,11 @@ export default function AutorPodcastsPage() {
   const editing = typeof mode === "object" && mode.type === "edit"
     ? podcasts.find((p) => p.id === mode.id) ?? null
     : null;
+
+  const canManage = (podcast: Podcast): boolean => {
+    if (isEditor) return true;
+    return podcast.recommendedByAuthorId === currentAuthor.id;
+  };
 
   return (
     <AuthorShell>
@@ -198,8 +203,8 @@ export default function AutorPodcastsPage() {
             </AuthorCard>
           ) : (
             podcasts.map((p) => {
-              const isOwn = p.recommendedByAuthorId === currentAuthor.id;
               const author = authorsById[p.recommendedByAuthorId];
+              const manageable = canManage(p);
               const langShort = PODCAST_LANGUAGES.find((l) => l.code === p.language)?.short ?? p.language.toUpperCase();
               const articleTitle = p.relatedArticleSlug ? getArticleTitleBySlug(p.relatedArticleSlug) : null;
               return (
@@ -222,7 +227,6 @@ export default function AutorPodcastsPage() {
                       <span>
                         Empfohlen von <strong>{author?.name ?? "Unbekannt"}</strong>
                       </span>
-                      {author?.type === "external" && <ExternalBadge size="xs" />}
                       {articleTitle && (
                         <>
                           <span style={{ color: "var(--da-faint)" }}>·</span>
@@ -232,7 +236,7 @@ export default function AutorPodcastsPage() {
                     </div>
                   </div>
                   <div className="ap-actions">
-                    {isOwn ? (
+                    {manageable ? (
                       <>
                         <button
                           type="button"
