@@ -1,3 +1,4 @@
+import Link from "next/link";
 import NewsTicker from "@/components/NewsTicker";
 import Footer from "@/components/Footer";
 
@@ -29,8 +30,8 @@ export default function Page() {
         </div>
 
         <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
-          <a href="/autor/profil-erstellen" style={{ backgroundColor: "var(--da-card)", color: "var(--da-text-strong)", border: "1px solid var(--da-border)", padding: "12px 24px", borderRadius: "4px", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>Profil bearbeiten</a>
-          <a href="/" style={{ backgroundColor: "transparent", color: "var(--da-green)", border: "1px solid var(--da-green)", padding: "12px 24px", borderRadius: "4px", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>Zur Startseite</a>
+          <Link href="/autor/profil-erstellen" style={{ backgroundColor: "var(--da-card)", color: "var(--da-text-strong)", border: "1px solid var(--da-border)", padding: "12px 24px", borderRadius: "4px", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>Profil bearbeiten</Link>
+          <Link href="/" style={{ backgroundColor: "transparent", color: "var(--da-green)", border: "1px solid var(--da-green)", padding: "12px 24px", borderRadius: "4px", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>Zur Startseite</Link>
         </div>
       </section>
       <Footer />

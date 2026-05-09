@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Mockup files from Anthropic design handoff — visual reference only, not part of the app build.
+    "_design-handoff/**",
   ]),
 ]);
 

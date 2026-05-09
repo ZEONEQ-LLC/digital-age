@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import AuthorLine from "./AuthorLine";
 
 type ArticleCardProps = {
@@ -29,8 +30,8 @@ export default function ArticleCard({ category, title, author, date, image, href
         onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--da-border)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; }}
       >
         <div style={{ position: "relative", width: "100%", paddingTop: featured ? "56%" : "52%", overflow: "hidden" }}>
-          <img src={image} alt={title} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-          <span style={{ position: "absolute", top: "12px", left: "12px", backgroundColor: "var(--da-green)", color: "var(--da-dark)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "4px 10px", borderRadius: "4px" }}>
+          <Image src={image} alt={title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" style={{ objectFit: "cover" }} />
+          <span style={{ position: "absolute", top: "12px", left: "12px", backgroundColor: "var(--da-green)", color: "var(--da-dark)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "4px 10px", borderRadius: "4px", zIndex: 1 }}>
             {category}
           </span>
         </div>

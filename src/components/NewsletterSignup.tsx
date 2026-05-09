@@ -5,13 +5,12 @@ type Variant = "compact" | "inline" | "full";
 
 export default function NewsletterSignup({ variant = "compact" }: { variant?: Variant }) {
   const [email, setEmail] = useState("");
-  const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-    // Placeholder - will connect to Resend via Supabase later
-    setSubmitted(true);
+    // Placeholder - will connect to Resend via Supabase later.
+    // The /newsletter/danke page is the success view, so we redirect there directly.
     setTimeout(() => { window.location.href = "/newsletter/danke"; }, 300);
   };
 

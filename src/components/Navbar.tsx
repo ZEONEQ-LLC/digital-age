@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -54,7 +55,7 @@ export default function Navbar() {
       <nav className="nav-root">
         <div className="nav-inner">
           <Link href="/" className="nav-logo">
-            <img src="/images/digital age Logo green dark bg.png" alt="digital age" />
+            <Image src="/images/digital age Logo green dark bg.png" alt="digital age" width={420} height={260} priority />
           </Link>
           <div className="nav-desktop">
             <Link href="/ki-im-business">KI & Business</Link>
