@@ -236,7 +236,7 @@ const seedArticles = (): Article[] => {
     },
     {
       id: "art-2",
-      authorId: ALI_ID,
+      authorId: ANDREAS_ID,
       title: "EU AI Act: Was Schweizer Unternehmen jetzt tun müssen",
       slug: "eu-ai-act-schweiz-leitfaden",
       blocks: blocks2,
@@ -262,7 +262,7 @@ const seedArticles = (): Article[] => {
     },
     {
       id: "art-3",
-      authorId: ALI_ID,
+      authorId: ANDREAS_ID,
       title: "Swiss Hosted GPT — Die Realität hinter dem Versprechen",
       slug: "swiss-hosted-gpt-realitaet",
       blocks: blocks3,
