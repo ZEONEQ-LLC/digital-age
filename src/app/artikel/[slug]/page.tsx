@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import NewsTicker from "@/components/NewsTicker";
 import Footer from "@/components/Footer";
 import ListenButton from "@/components/ListenButton";
@@ -98,8 +99,7 @@ const GUEST_EDGE: ArticleData = {
   body: "guest-edge-ai",
   related: [
     { category: "AI in Banking", title: "Data-Driven Banking: Warum KI allein das eigentliche Problem nicht löst", author: "Andreas Kamm", date: "07.04.2026", image: "https://picsum.photos/seed/bank1/600/400", href: "/artikel/data-driven-banking" },
-    { category: "Robotics", title: "Autonome Lagerroboter: Was im Schweizer KMU funktioniert", author: "Lena Vogt", date: "20.02.2026", image: "https://picsum.photos/seed/extguest2/600/400", href: "/artikel/gastbeitrag-autonome-lagerroboter", external: true },
-    { category: "Future of Work", title: "Augmentation statt Automation", author: "Sarah Berger", date: "15.04.2026", image: "https://picsum.photos/seed/article5/600/400" },
+    { category: "Future of Work", title: "Augmentation statt Automation", author: "Ali Soy", date: "15.04.2026", image: "https://picsum.photos/seed/article5/600/400" },
   ],
 };
 
@@ -112,7 +112,8 @@ type PageProps = { params: Promise<{ slug: string }> };
 
 export default async function ArticlePage({ params }: PageProps) {
   const { slug } = await params;
-  const article = ARTICLES[slug] ?? BANKING;
+  const article = ARTICLES[slug];
+  if (!article) notFound();
   const isExternal = article.author.external === true;
 
   return (

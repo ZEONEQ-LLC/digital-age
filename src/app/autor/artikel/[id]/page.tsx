@@ -306,7 +306,7 @@ function EditorClient({ initial, authorsById, revisions, onAfterSubmit }: Editor
       </div>
 
       {status === "changes" && feedback && (
-        <FeedbackBanner feedback={feedback} reviewerName="Marc Keller, Chefredakteur · vor 1 Tag" />
+        <FeedbackBanner feedback={feedback} reviewerName="Ali Soy, Editor in Chief · vor 1 Tag" />
       )}
 
       <div className="a-edit-tabs">

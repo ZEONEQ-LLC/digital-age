@@ -1,160 +1,41 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import NewsTicker from "@/components/NewsTicker";
 import Footer from "@/components/Footer";
-import ListenLinks, { type ListenLinksMap } from "@/components/ListenLinks";
-import EpisodeFeatured from "@/components/EpisodeFeatured";
-import EpisodeCard from "@/components/EpisodeCard";
-import type { Episode } from "@/types/episode";
+import NewsTicker from "@/components/NewsTicker";
+import PodcastCard from "@/components/PodcastCard";
+import { getPodcasts } from "@/lib/mockPodcastApi";
+import {
+  PODCAST_CATEGORIES,
+  PODCAST_LANGUAGES,
+  type PodcastCategory,
+  type PodcastLanguage,
+} from "@/types/podcast";
 
-const globalListenLinks: ListenLinksMap = {
-  spotify:       "https://open.spotify.com/show/digital-age",
-  applePodcasts: "https://podcasts.apple.com/show/digital-age",
-  youtubeMusic:  "https://music.youtube.com/channel/digital-age",
-  audible:       "https://www.audible.de/podcast/digital-age",
-  soundcloud:    "https://soundcloud.com/digital-age",
-};
-
-const episodes: Episode[] = [
-  {
-    id: "ep-12",
-    number: 12,
-    title: "Wie Schweizer Banken KI wirklich einsetzen",
-    description: "Andreas Kamm gibt einen seltenen Einblick in den AI-Stack einer Schweizer Grossbank: vom On-Premise-LLM für sensitive Daten bis zum agentischen Workflow im Kreditprozess. Ohne PR-Sprech.",
-    cover: "https://picsum.photos/seed/podcast12/600",
-    duration: 47,
-    publishDate: "2026-04-10",
-    category: "Banking & Finance",
-    guest: { name: "Andreas Kamm", role: "Head of AI, Beispielbank" },
-    listenLinks: {
-      spotify:       "https://open.spotify.com/episode/12",
-      applePodcasts: "https://podcasts.apple.com/episode/12",
-      youtubeMusic:  "https://music.youtube.com/watch?v=ep12",
-      audible:       "https://www.audible.de/podcast/digital-age/12",
-    },
-    showNotesUrl: "/podcasts/wie-schweizer-banken-ki-einsetzen",
-    isLatest: true,
-  },
-  {
-    id: "ep-11",
-    number: 11,
-    title: "EU AI Act — Was kommt auf uns zu?",
-    description: "Der EU AI Act tritt schrittweise in Kraft. Was bedeutet das konkret für Schweizer Unternehmen mit EU-Bezug? Ali Soy entwirrt die Risk-Tiers und zeigt, was bereits jetzt zu tun ist.",
-    cover: "https://picsum.photos/seed/podcast11/600",
-    duration: 52,
-    publishDate: "2026-04-03",
-    category: "Regulierung",
-    guest: { name: "Ali Soy", role: "Founder & CEO, digital age" },
-    listenLinks: {
-      spotify:       "https://open.spotify.com/episode/11",
-      applePodcasts: "https://podcasts.apple.com/episode/11",
-      youtubeMusic:  "https://music.youtube.com/watch?v=ep11",
-    },
-    showNotesUrl: "/podcasts/eu-ai-act-2026",
-  },
-  {
-    id: "ep-10",
-    number: 10,
-    title: "Von OpenAI zu Swiss Hosted GPT",
-    description: "Was kostet es, einen LLM-Stack in der Schweiz zu hosten — und wann lohnt es sich? Matthias Zwingli teilt Zahlen aus dem Aufbau einer Swiss-Hosted-Lösung.",
-    cover: "https://picsum.photos/seed/podcast10/600",
-    duration: 38,
-    publishDate: "2026-03-27",
-    category: "Swiss AI",
-    guest: { name: "Matthias Zwingli", role: "CTO, Swisscom AI" },
-    listenLinks: {
-      spotify:       "https://open.spotify.com/episode/10",
-      applePodcasts: "https://podcasts.apple.com/episode/10",
-      youtubeMusic:  "https://music.youtube.com/watch?v=ep10",
-      audible:       "https://www.audible.de/podcast/digital-age/10",
-      soundcloud:    "https://soundcloud.com/digital-age/ep10",
-    },
-  },
-  {
-    id: "ep-09",
-    number: 9,
-    title: "Die Zukunft der Arbeit mit KI",
-    description: "Welche Jobs verändert KI als Erstes — und welche neuen entstehen? Sarah Müller bringt Forschungsdaten statt Buzzwords.",
-    cover: "https://picsum.photos/seed/podcast9/600",
-    duration: 44,
-    publishDate: "2026-03-20",
-    category: "Future of Work",
-    guest: { name: "Sarah Müller", role: "Future-of-Work Researcher, ETH Zürich" },
-    listenLinks: {
-      spotify:       "https://open.spotify.com/episode/9",
-      applePodcasts: "https://podcasts.apple.com/episode/9",
-      youtubeMusic:  "https://music.youtube.com/watch?v=ep9",
-    },
-    showNotesUrl: "/podcasts/zukunft-arbeit-mit-ki",
-  },
-  {
-    id: "ep-08",
-    number: 8,
-    title: "IoT + AI — Die industrielle Revolution 4.0",
-    description: "Predictive Maintenance, Smart Factories, Edge AI — wie Schweizer Industriebetriebe die nächste Welle bereits live haben.",
-    cover: "https://picsum.photos/seed/podcast8/600",
-    duration: 56,
-    publishDate: "2026-03-13",
-    category: "Industrie 4.0",
-    guest: { name: "Ali Soy", role: "Founder & CEO, digital age" },
-    listenLinks: {
-      spotify:       "https://open.spotify.com/episode/8",
-      applePodcasts: "https://podcasts.apple.com/episode/8",
-      youtubeMusic:  "https://music.youtube.com/watch?v=ep8",
-      audible:       "https://www.audible.de/podcast/digital-age/8",
-    },
-  },
-  {
-    id: "ep-07",
-    number: 7,
-    title: "KI-Regulierung aus Schweizer Sicht",
-    description: "Die Schweiz wartet ab — bewusst. Dr. Peter Kaufmann erklärt, warum das ein Vorteil sein könnte und welche Pflichten trotzdem schon gelten.",
-    cover: "https://picsum.photos/seed/podcast7/600",
-    duration: 41,
-    publishDate: "2026-03-06",
-    category: "Regulierung",
-    guest: { name: "Dr. Peter Kaufmann", role: "Rechtsanwalt, Tech & Regulation" },
-    listenLinks: {
-      spotify:       "https://open.spotify.com/episode/7",
-      applePodcasts: "https://podcasts.apple.com/episode/7",
-      youtubeMusic:  "https://music.youtube.com/watch?v=ep7",
-    },
-  },
-];
-
-const TAGS = ["Alle", "Banking & Finance", "Regulierung", "Industrie 4.0", "Future of Work", "Swiss AI", "Strategie"] as const;
+type LangFilter = "all" | PodcastLanguage;
+type CategoryFilter = "all" | PodcastCategory;
 
 export default function PodcastsPage() {
-  const [tag, setTag]       = useState<(typeof TAGS)[number]>("Alle");
-  const [search, setSearch] = useState("");
+  const [lang, setLang] = useState<LangFilter>("all");
+  const [category, setCategory] = useState<CategoryFilter>("all");
 
-  const featured = episodes.find((e) => e.isLatest) ?? episodes[0];
-  const rest = episodes.filter((e) => e.id !== featured.id);
+  const all = useMemo(() => getPodcasts(), []);
 
-  const filtered = useMemo(() => rest.filter((e) => {
-    if (tag !== "Alle" && e.category !== tag) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      if (
-        !e.title.toLowerCase().includes(q) &&
-        !(e.guest?.name.toLowerCase().includes(q) ?? false) &&
-        !e.description.toLowerCase().includes(q)
-      ) return false;
-    }
-    return true;
-  }), [tag, search, rest]);
+  const filtered = useMemo(() => {
+    return all.filter((p) => {
+      if (lang !== "all" && p.language !== lang) return false;
+      if (category !== "all" && p.category !== category) return false;
+      return true;
+    });
+  }, [all, lang, category]);
 
-  const totalMinutes = episodes.reduce((acc, e) => acc + e.duration, 0);
-  const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
+  const usedLanguages = new Set(all.map((p) => p.language));
+  const usedCategories = new Set(all.map((p) => p.category));
 
-  const stats: Array<[string | number, string]> = [
-    [episodes.length, "Folgen"],
-    [`${totalHours}h`, "Content"],
-    ["Wöchentlich", "Neue Folge"],
-  ];
-
-  const reset = () => { setTag("Alle"); setSearch(""); };
+  const reset = () => {
+    setLang("all");
+    setCategory("all");
+  };
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
@@ -162,10 +43,11 @@ export default function PodcastsPage() {
 
       <style>{`
         .pc-shell { max-width: var(--max-content); margin: 0 auto; }
+
         .pc-hero {
           position: relative; overflow: hidden;
           border-bottom: 1px solid var(--da-border);
-          padding: 56px var(--sp-8) 48px;
+          padding: 56px var(--sp-8) 40px;
         }
         .pc-hero__grid {
           position: absolute; inset: 0; opacity: 0.05;
@@ -188,55 +70,55 @@ export default function PodcastsPage() {
           line-height: 1.0; letter-spacing: -0.02em;
           margin-bottom: var(--sp-4);
         }
-        .pc-hero__title em { font-style: normal; color: var(--da-green); }
         .pc-hero__lead {
           color: var(--da-muted); font-size: 17px; line-height: 1.65;
-          max-width: 600px; margin-bottom: 32px;
+          max-width: 640px;
         }
-
-        .pc-stats {
-          display: flex; gap: 32px; margin-bottom: 32px; flex-wrap: wrap;
-        }
-        .pc-stat__v {
-          color: var(--da-text);
-          font-family: var(--da-font-display);
-          font-size: 24px; font-weight: 700;
-        }
-        .pc-stat__l {
+        .pc-hero__stats {
+          display: flex; gap: 14px; flex-wrap: wrap;
           color: var(--da-muted-soft);
           font-family: var(--da-font-mono);
-          font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+          font-size: 12px; font-weight: 600;
+          margin-top: 20px;
         }
+        .pc-hero__stats strong { color: var(--da-text); font-weight: 700; }
 
-        .pc-sub-label {
+        .pc-filterbar {
+          position: sticky;
+          top: var(--nav-h);
+          z-index: 50;
+          background: rgba(28,28,30,0.85);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          border-bottom: 1px solid var(--da-border);
+        }
+        .pc-filterbar__inner {
+          padding: 14px var(--sp-8);
+          display: flex; flex-direction: column; gap: 10px;
+        }
+        .pc-filter-row {
+          display: flex; align-items: center; gap: 12px;
+        }
+        .pc-filter-label {
           color: var(--da-faint);
           font-family: var(--da-font-mono);
-          font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
-          margin-bottom: 12px;
+          font-size: 10px; font-weight: 700;
+          letter-spacing: 0.12em; text-transform: uppercase;
+          min-width: 84px;
+          flex-shrink: 0;
         }
-
-        .pc-section { padding: 48px var(--sp-8) 0; }
-        .pc-section-tight { padding: 56px var(--sp-8) 0; }
-
-        .pc-section-h { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-6); }
-        .pc-section-h__bar { width: 3px; height: 22px; background: var(--da-green); border-radius: 2px; }
-        .pc-section-h__title {
-          color: var(--da-text);
-          font-family: var(--da-font-display);
-          font-size: 22px; font-weight: 700;
+        .pc-filter-pills {
+          display: flex; gap: 6px; flex-wrap: wrap;
+          flex: 1; min-width: 0;
         }
-
-        .pc-toolbar {
-          display: flex; justify-content: space-between; align-items: center; gap: var(--sp-4);
-          margin-bottom: var(--sp-6); flex-wrap: wrap;
-        }
-        .pc-pills { display: flex; gap: 6px; flex-wrap: wrap; }
         .pc-pill {
           background: var(--da-card); color: var(--da-muted);
-          border: 1px solid var(--da-border); border-radius: var(--r-pill);
-          padding: 7px 13px;
+          border: 1px solid var(--da-border);
+          border-radius: var(--r-pill);
+          padding: 6px 12px;
           font-size: 12px; font-weight: 600;
-          cursor: pointer;
+          cursor: pointer; white-space: nowrap;
+          font-family: inherit;
           transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
         }
         .pc-pill:hover { color: var(--da-text); border-color: var(--da-muted-soft); }
@@ -245,113 +127,120 @@ export default function PodcastsPage() {
           color: var(--da-dark);
           border-color: var(--da-green);
         }
-        .pc-pill__count {
-          color: var(--da-faint);
+        .pc-pill--lang {
           font-family: var(--da-font-mono);
-          margin-left: 4px;
+          letter-spacing: 0.05em;
         }
-        .pc-pill--active .pc-pill__count { color: var(--da-dark); opacity: 0.65; }
 
-        .pc-search {
-          background: var(--da-card); color: var(--da-text);
-          border: 1px solid var(--da-border); border-radius: var(--r-sm);
-          padding: 9px 14px; font-size: 13px; width: 220px;
-        }
-        .pc-search:focus { border-color: var(--da-green); outline: none; }
-
-        .pc-list { display: flex; flex-direction: column; gap: 10px; }
-
+        .pc-list-section { padding: 32px var(--sp-8) 0; }
+        .pc-list { display: flex; flex-direction: column; gap: 14px; }
         .pc-empty { text-align: center; padding: 60px 0; }
-        .pc-empty__msg { color: var(--da-muted); font-size: 15px; }
+        .pc-empty__msg { color: var(--da-muted); font-size: 15px; margin-bottom: 16px; }
         .pc-empty__btn {
-          display: block; margin: 16px auto 0;
           background: none; border: 1px solid var(--da-green);
           color: var(--da-green); padding: 9px 20px;
-          border-radius: var(--r-sm); font-size: 13px; cursor: pointer;
+          border-radius: var(--r-sm); font-size: 13px; font-weight: 600;
+          cursor: pointer;
+          font-family: inherit;
         }
+        .pc-empty__btn:hover { background: rgba(50,255,126,0.08); }
 
         @media (max-width: 720px) {
-          .pc-hero { padding: 40px var(--sp-6) 32px; }
-          .pc-search { width: 100%; }
-          .pc-toolbar { flex-direction: column; align-items: stretch; }
+          .pc-hero { padding: 40px var(--sp-6) 28px; }
+          .pc-filterbar__inner { padding: 12px var(--sp-6); }
+          .pc-filter-row { flex-direction: row; align-items: flex-start; }
+          .pc-filter-label { min-width: 70px; padding-top: 6px; }
+          .pc-filter-pills { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+          .pc-list-section { padding: 24px var(--sp-6) 0; }
         }
       `}</style>
 
-      {/* Hero */}
       <section className="pc-hero">
         <div className="pc-hero__grid" aria-hidden />
         <div className="pc-shell pc-hero__inner">
-          <p className="pc-hero__overline">&gt; Media</p>
-          <h1 className="pc-hero__title">digital age <em>Podcast</em></h1>
+          <p className="pc-hero__overline">&gt; Empfohlene Hör-Erlebnisse</p>
+          <h1 className="pc-hero__title">Podcasts</h1>
           <p className="pc-hero__lead">
-            Gespräche mit Expertinnen und Experten aus der KI- und Tech-Szene der DACH-Region. Ohne PR-Sprech.
+            Empfehlungen aus unserer Redaktion und von unseren Autoren — handverlesen und kommentiert.
           </p>
-
-          <div className="pc-stats">
-            {stats.map(([v, l]) => (
-              <div key={l}>
-                <div className="pc-stat__v">{v}</div>
-                <div className="pc-stat__l">{l}</div>
-              </div>
-            ))}
-          </div>
-
-          <div>
-            <p className="pc-sub-label">Abonnieren auf</p>
-            <ListenLinks links={globalListenLinks} size="md" />
+          <div className="pc-hero__stats">
+            <span><strong>{all.length}</strong> {all.length === 1 ? "Folge" : "Folgen"}</span>
+            <span>·</span>
+            <span><strong>{usedLanguages.size}</strong> {usedLanguages.size === 1 ? "Sprache" : "Sprachen"}</span>
+            <span>·</span>
+            <span><strong>{usedCategories.size}</strong> {usedCategories.size === 1 ? "Kategorie" : "Kategorien"}</span>
           </div>
         </div>
       </section>
 
-      {/* Featured */}
-      <section className="pc-shell pc-section">
-        <EpisodeFeatured episode={featured} />
-      </section>
-
-      {/* All episodes */}
-      <section className="pc-shell pc-section-tight">
-        <div className="pc-section-h">
-          <span className="pc-section-h__bar" />
-          <h2 className="pc-section-h__title">Alle Folgen</h2>
-        </div>
-
-        <div className="pc-toolbar">
-          <div className="pc-pills">
-            {TAGS.map((t) => {
-              const count = t === "Alle" ? rest.length : rest.filter((e) => e.category === t).length;
-              if (t !== "Alle" && count === 0) return null;
-              const active = t === tag;
-              return (
-                <button
-                  key={t}
-                  type="button"
-                  className={`pc-pill${active ? " pc-pill--active" : ""}`}
-                  onClick={() => setTag(t)}
-                >
-                  {t}
-                  <span className="pc-pill__count">{count}</span>
-                </button>
-              );
-            })}
+      <div className="pc-filterbar">
+        <div className="pc-shell pc-filterbar__inner">
+          <div className="pc-filter-row">
+            <span className="pc-filter-label">Sprache</span>
+            <div className="pc-filter-pills">
+              <button
+                type="button"
+                className={`pc-pill${lang === "all" ? " pc-pill--active" : ""}`}
+                onClick={() => setLang("all")}
+              >
+                Alle
+              </button>
+              {PODCAST_LANGUAGES.map((l) => {
+                const active = lang === l.code;
+                return (
+                  <button
+                    key={l.code}
+                    type="button"
+                    className={`pc-pill pc-pill--lang${active ? " pc-pill--active" : ""}`}
+                    onClick={() => setLang(l.code)}
+                  >
+                    {l.short} · {l.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <input
-            type="text"
-            placeholder="Suchen..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pc-search"
-            aria-label="Folgen durchsuchen"
-          />
+          <div className="pc-filter-row">
+            <span className="pc-filter-label">Kategorie</span>
+            <div className="pc-filter-pills">
+              <button
+                type="button"
+                className={`pc-pill${category === "all" ? " pc-pill--active" : ""}`}
+                onClick={() => setCategory("all")}
+              >
+                Alle
+              </button>
+              {PODCAST_CATEGORIES.map((c) => {
+                const active = category === c;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    className={`pc-pill${active ? " pc-pill--active" : ""}`}
+                    onClick={() => setCategory(c)}
+                  >
+                    {c}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
+      </div>
 
+      <section className="pc-shell pc-list-section">
         {filtered.length === 0 ? (
           <div className="pc-empty">
-            <p className="pc-empty__msg">Keine Folgen gefunden.</p>
-            <button type="button" className="pc-empty__btn" onClick={reset}>Filter zurücksetzen</button>
+            <p className="pc-empty__msg">Keine Folgen mit diesen Filtern.</p>
+            <button type="button" className="pc-empty__btn" onClick={reset}>
+              Filter zurücksetzen →
+            </button>
           </div>
         ) : (
           <div className="pc-list">
-            {filtered.map((ep) => <EpisodeCard key={ep.id} episode={ep} />)}
+            {filtered.map((p) => (
+              <PodcastCard key={p.id} podcast={p} />
+            ))}
           </div>
         )}
       </section>
