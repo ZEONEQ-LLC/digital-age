@@ -4,6 +4,7 @@
 // to make this explicit.
 // TODO Phase 7+: Replace with Supabase queries (podcasts table).
 
+import { getAuthor } from "@/lib/mockAuthorApi";
 import type {
   Podcast,
   PodcastInput,
@@ -164,7 +165,16 @@ export function getPodcast(id: string): Podcast | null {
   return p ? clone(p) : null;
 }
 
+function assertRecommenderEligible(authorId: string): void {
+  const author = getAuthor(authorId);
+  if (!author) throw new Error("Recommender not found.");
+  if (author.type === "external") {
+    throw new Error("External authors cannot be podcast recommenders.");
+  }
+}
+
 export function createPodcast(input: PodcastInput): Podcast {
+  assertRecommenderEligible(input.recommendedByAuthorId);
   const now = new Date().toISOString();
   const created: Podcast = {
     id: `pod-${Date.now()}`,
@@ -189,6 +199,9 @@ export function createPodcast(input: PodcastInput): Podcast {
 export function updatePodcast(id: string, patch: Partial<PodcastInput>): Podcast | null {
   const idx = podcasts.findIndex((x) => x.id === id);
   if (idx < 0) return null;
+  if (patch.recommendedByAuthorId) {
+    assertRecommenderEligible(patch.recommendedByAuthorId);
+  }
   const existing = podcasts[idx];
   const next: Podcast = {
     ...existing,
