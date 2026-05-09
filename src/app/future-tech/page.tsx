@@ -5,7 +5,6 @@ import type { ListArticle } from "@/components/ArticleListRow";
 
 const articles: ListArticle[] = [
   { id: 1, category: "GenAI",            title: "IoT-Geräte vernetzen mit AI – aber richtig: Warum OpenAI API nicht die Lösung ist",     author: "Ali Soy",          date: "10.02.2025", image: "https://picsum.photos/seed/iot1/800/500",   readTime: "6 min" },
-  { id: 10, category: "Robotics",        title: "Autonome Lagerroboter: Was im Schweizer KMU funktioniert",                              author: "Lena Vogt",        date: "20.02.2026", image: "https://picsum.photos/seed/extguest2/800/500", readTime: "7 min", href: "/artikel/gastbeitrag-autonome-lagerroboter", external: true },
   { id: 2, category: "GenAI",            title: "Interoperabilität für IoT – Wie AI die Sprachbarrieren zwischen Maschinen überwindet",  author: "Ali Soy",          date: "07.02.2025", image: "https://picsum.photos/seed/iot2/800/500",   readTime: "5 min" },
   { id: 3, category: "Blockchain",       title: "Blockchain of Things – Dezentralisierung trifft auf intelligente Maschinen",            author: "Ali Soy",          date: "23.01.2025", image: "https://picsum.photos/seed/block1/800/500", readTime: "8 min" },
   { id: 4, category: "Robotics",         title: "Autonome Drohnen in der Industrie: Wie AI Lagerhaltung neu definiert",                  author: "Matthias Zwingli", date: "15.03.2026", image: "https://picsum.photos/seed/drone1/800/500", readTime: "7 min" },

@@ -10,8 +10,6 @@ const REGISTRY: Record<string, string> = {
     "Data-Driven Banking: Warum KI allein das eigentliche Problem nicht löst",
   "gastbeitrag-edge-ai-mittelstand":
     "Edge-AI im Mittelstand: Ein Praxisbericht aus drei Pilotprojekten",
-  "gastbeitrag-autonome-lagerroboter":
-    "Autonome Lagerroboter: Was im Schweizer KMU funktioniert",
 };
 
 export function getArticleTitleBySlug(slug: string): string | null {

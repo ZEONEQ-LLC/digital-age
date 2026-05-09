@@ -14,7 +14,6 @@ import type {
 const ALI_ID = "auth-editor-ali";
 const ANDREAS_ID = "auth-author-andreas";
 const MARC_ID = "auth-external-marc";
-const LENA_ID = "auth-external-lena";
 
 const aliSoy: Author = {
   id: ALI_ID,
@@ -59,21 +58,7 @@ const marcKeller: Author = {
   joinedAt: "2026-03-12",
 };
 
-const lenaVogt: Author = {
-  id: LENA_ID,
-  type: "external",
-  name: "Lena Vogt",
-  handle: "lena-vogt-gast",
-  email: "lena@zh-robotics.ch",
-  role: "CTO, Zürich Robotics",
-  location: "Zürich, CH",
-  bio: "CTO bei Zürich Robotics. Forscht an autonomen Robotern für die Lagerlogistik.",
-  avatar: "https://i.pravatar.cc/200?img=23",
-  website: "https://zh-robotics.ch",
-  joinedAt: "2026-02-04",
-};
-
-const seedAuthors: Author[] = [aliSoy, andreasKamm, marcKeller, lenaVogt];
+const seedAuthors: Author[] = [aliSoy, andreasKamm, marcKeller];
 
 const sampleBlocks = (): Block[] => [
   { id: "b1", type: "heading", level: 2, content: "Die Banken haben einen Joker — sie nutzen ihn nur leise" },
@@ -205,7 +190,6 @@ const seedArticles = (): Article[] => {
   const blocks4 = draftBlocks();
   const blocks5 = sampleBlocks();
   const blocks6 = sampleBlocks();
-  const blocks7 = sampleBlocks();
 
   return [
     {
@@ -364,32 +348,6 @@ const seedArticles = (): Article[] => {
       seoTitle: "Edge-AI im Mittelstand — Praxisbericht",
       seoDescription: "Drei Mittelstands-Pilotprojekte: Was Edge-AI in der Wartung wirklich bringt.",
       seoKeyword: "Edge AI Mittelstand",
-    },
-    {
-      id: "art-ext-2",
-      authorId: LENA_ID,
-      title: "Autonome Lagerroboter: Was im Schweizer KMU funktioniert",
-      slug: "gastbeitrag-autonome-lagerroboter",
-      blocks: blocks7,
-      contentMd: blocksToMarkdown(blocks7),
-      excerpt: "Aus der Praxis bei einem Schweizer Mittelständler: Welche Roboter wirklich produktiv werden — und welche im Setup steckenbleiben.",
-      cover: "https://picsum.photos/seed/extguest2/1200/700",
-      category: "Robotics",
-      tags: ["Robotik", "Logistik", "KMU"],
-      status: "published",
-      createdAt: "2026-02-10T09:00:00Z",
-      updatedAt: "2026-02-20T11:00:00Z",
-      publishedAt: "2026-02-20",
-      wordCount: wordCountOf(blocks7),
-      readMinutes: 7,
-      views: 3140,
-      reads: 2110,
-      completion: 67,
-      avgTime: "4:34",
-      seoScore: 75,
-      seoTitle: "Autonome Lagerroboter im KMU",
-      seoDescription: "Erfahrungsbericht: Welche Lagerroboter sich für Schweizer KMU rechnen.",
-      seoKeyword: "Lagerroboter KMU",
     },
   ];
 };

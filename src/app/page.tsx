@@ -24,7 +24,6 @@ const swissAI = [
 
 const futureTech = [
   { category: "GenAI",      title: "IoT-Geräte vernetzen mit AI – aber richtig: Warum OpenAI API nicht die Lösung ist",  author: "Ali Soy", date: "10.02.2025", image: "https://picsum.photos/seed/iot1/600/400" },
-  { category: "Robotics",   title: "Autonome Lagerroboter: Was im Schweizer KMU funktioniert",                            author: "Lena Vogt", date: "20.02.2026", image: "https://picsum.photos/seed/extguest2/600/400", href: "/artikel/gastbeitrag-autonome-lagerroboter", external: true },
   { category: "Blockchain", title: "Blockchain of Things",                                                                  author: "Ali Soy", date: "23.01.2021", image: "https://picsum.photos/seed/block1/600/400" },
 ];
 
