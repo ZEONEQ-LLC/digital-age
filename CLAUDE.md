@@ -146,13 +146,46 @@ Frontend-only Features mit Mock-Persistenz tragen einen
 `<DemoBanner />` (siehe `src/components/DemoBanner.tsx`). Bei
 Supabase-Migration entfällt der Banner.
 
-## Supabase (sobald aktiv)
+## Supabase
 
-- Migrations lokal gegen `supabase start` testen, dann `supabase db push`
-- TypeScript-Types nach Schema-Änderung regenerieren:
-  `supabase gen types typescript --local > src/types/supabase.ts`
+**Workflow: Cloud-Only** — kein lokales Postgres, kein `supabase start`,
+kein Docker. Begründung: `claude-box` ist ein OrbStack-Linux-VM-Container,
+Docker-in-Container hätte Reibung gebracht; Free-Tier-Cloud reicht für
+Phase 7 vollständig aus.
+
+- **Projekt:** `digital-age db` · Region `eu-central-1` · Free-Tier
+- **Project Ref:** `dkmvadaypxiaxwfkbghz`
+- **Dashboard:** https://supabase.com/dashboard/project/dkmvadaypxiaxwfkbghz
+
+### Befehle (Cloud-Only)
+
+```bash
+npx supabase migration new <name>      # neue SQL-Migration anlegen
+npx supabase db push                   # alle pending Migrations auf Cloud deployen
+npx supabase gen types typescript --project-id dkmvadaypxiaxwfkbghz > src/lib/database.types.ts
+```
+
+- Migrations sind versioniert in `supabase/migrations/`, sind Source-of-Truth
+- Vor `db push` lokal das SQL nochmal lesen — Rollback ist teurer als Vorsicht
+- Nach Schema-Änderung Types regenerieren, sonst läuft TypeScript schief
 - RLS auf allen Tabellen aktiv — keine Ausnahmen
-- Bei jeder Migration: Rollback-Strategie mitdenken
+
+### Free-Tier-Hinweis
+
+Projekt pausiert nach 7 Tagen Inaktivität. Bei aktiver Arbeit unkritisch;
+sonst im Dashboard "Restore" klicken (~30s).
+
+### Auth gegen Cloud
+
+Login einmalig pro Container-Session via Access-Token aus
+https://supabase.com/dashboard/account/tokens:
+
+```bash
+export SUPABASE_ACCESS_TOKEN=sbp_...
+```
+
+CLI findet das Token automatisch. Token nicht ins Repo committen, nicht im
+`.bashrc` persistieren.
 
 ## Sicherheit
 
