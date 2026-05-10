@@ -208,7 +208,7 @@ function MockArticleView({ article, author }: { article: MockArticle; author: Mo
         </article>
 
         {tocItems.length > 0 && (
-          <aside>
+          <aside style={{ position: "sticky", top: "calc(var(--nav-h) + 24px)", alignSelf: "start" }}>
             <TableOfContents items={tocItems} />
           </aside>
         )}
