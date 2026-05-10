@@ -115,6 +115,37 @@ Bestätigungspflichtig: `git push`, `git commit` (Message vorab zeigen),
 - Versehentlich committete Dateien: `git rm --cached <file>` und neu committen
 - `.env.local` NIEMALS committen — auch nicht "nur als Template"
 
+## Mock-API & Datenmodell (Phase 7+ Migration-Targets)
+
+Alle In-Memory-Mock-APIs in `src/lib/` sind als TODO-Phase-7+-markiert
+und werden mit der Supabase-Integration ersetzt:
+
+- `mockAuthorApi.ts` → Tabellen `authors` + `articles` + `revisions`
+- `mockPodcastApi.ts` → Tabelle `podcasts` mit FK zu `authors` und `articles`
+- `articleSlugRegistry.ts` → Lookup via `select title from articles where slug = ?`
+
+### Three-Role Author-Modell
+
+`Author.type` ist eine von drei Rollen:
+
+- `external` — Pitcher ohne Login. Kein Dashboard, keine CRUD-Rechte.
+  Reichen einmalig über `/artikel-pitchen` ein.
+- `author` — Stammautor mit Login. CRUD nur auf eigene Articles und
+  Podcast-Empfehlungen.
+- `editor` — Redaktion/Admin mit Login. CRUD auf alles, plus
+  Reassignment von Empfehlern (Podcast-Empfehlungen können auf andere
+  interne Authors umgehängt werden).
+
+Externe Authors können niemals Podcast-Empfehler sein — wird in
+`mockPodcastApi.assertRecommenderEligible` validiert und später per
+RLS-Policy enforced.
+
+### Demo-Mode-Marker
+
+Frontend-only Features mit Mock-Persistenz tragen einen
+`<DemoBanner />` (siehe `src/components/DemoBanner.tsx`). Bei
+Supabase-Migration entfällt der Banner.
+
 ## Supabase (sobald aktiv)
 
 - Migrations lokal gegen `supabase start` testen, dann `supabase db push`
