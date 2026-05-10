@@ -37,7 +37,7 @@ export default function SwissAIStrip({ items, href = "/swiss-ai" }: SwissAIStrip
         }
         .swiss-strip {
           display: flex; gap: var(--sp-3);
-          overflow-x: auto; padding-bottom: var(--sp-2);
+          overflow-x: auto; padding: 4px 0 var(--sp-2);
           scrollbar-width: thin;
           -webkit-overflow-scrolling: touch;
         }
