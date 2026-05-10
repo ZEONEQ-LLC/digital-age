@@ -43,9 +43,11 @@ function formatDateDE(iso: string | null): string {
 }
 
 function deriveTocItems(article: MockArticle): TocItem[] {
-  const isH2 = (b: Block): b is Extract<Block, { type: "heading" }> =>
-    b.type === "heading" && b.level === 2;
-  return article.blocks.filter(isH2).map((b) => ({ id: b.id, label: b.content }));
+  const isHeadingBlock = (b: Block): b is Extract<Block, { type: "heading" }> =>
+    b.type === "heading" && (b.level === 2 || b.level === 3);
+  return article.blocks
+    .filter(isHeadingBlock)
+    .map((b) => ({ id: b.id, label: b.content, level: b.level }));
 }
 
 function MockArticleView({ article, author }: { article: MockArticle; author: MockAuthor }) {
