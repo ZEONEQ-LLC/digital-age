@@ -408,6 +408,13 @@ let revisions: Revision[] = seedRevisions();
 const cloneArticle = (a: Article): Article => ({ ...a, blocks: a.blocks.map((b) => ({ ...b })), tags: [...a.tags] });
 const cloneAuthor = (a: Author): Author => ({ ...a, social: a.social ? { ...a.social } : undefined });
 
+/**
+ * @deprecated Phase 7 Session B: für Auth-Checks `getCurrentAuthor()` aus
+ * `@/lib/authorApi` verwenden (Supabase-backed). Diese Mock-Variante liefert
+ * weiterhin die rich-Author-Shape für die Author-Suite-Konsumenten und wird
+ * in Session C entfernt, sobald das DB-Schema die fehlenden Felder
+ * (handle, social, location, joinedAt) bekommen hat.
+ */
 export function getCurrentAuthor(): Author {
   return cloneAuthor(aliSoy);
 }
