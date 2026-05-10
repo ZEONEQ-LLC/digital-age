@@ -16,7 +16,3 @@ export function getArticleTitleBySlug(slug: string): string | null {
   if (!slug) return null;
   return REGISTRY[slug] ?? null;
 }
-
-export function listKnownSlugs(): string[] {
-  return Object.keys(REGISTRY);
-}
