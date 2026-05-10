@@ -7,11 +7,10 @@ import CTAInverted from "@/components/CTAInverted";
 import Footer from "@/components/Footer";
 
 const bentoArticles = [
-  { category: "Swiss Hosted GPT", title: "Fünf versteckte Risiken bei der Nutzung der falschen KI für Unternehmen", author: "Matthias Zwingli", date: "16.04.2025", image: "https://picsum.photos/seed/ki1/1200/700", href: "/artikel/swiss-hosted-gpt" },
-  { category: "AI in Banking",    title: "Data-Driven Banking: Why AI Alone Won't Fix the Real Problem",          author: "Andreas Kamm",     date: "07.04.2026", image: "https://picsum.photos/seed/bank1/700/500", href: "/artikel/data-driven-banking" },
-  { category: "KI im Business",   title: "Edge-AI im Mittelstand: Ein Praxisbericht aus drei Pilotprojekten",     author: "Marc Keller",      date: "02.04.2026", image: "https://picsum.photos/seed/extguest1/700/500", href: "/artikel/gastbeitrag-edge-ai-mittelstand", external: true },
-  { category: "EU AI Act",        title: "EU AI-Act: Was Schweizer Unternehmen unbedingt wissen und tun müssen",    author: "Ali Soy",          date: "03.04.2025", image: "https://picsum.photos/seed/ki2/700/500", href: "/artikel/eu-ai-act" },
-  { category: "Blockchain",       title: "Blockchain of Things",                                                   author: "Ali Soy",          date: "23.01.2025", image: "https://picsum.photos/seed/block1/700/500", href: "/artikel/blockchain-of-things" },
+  { category: "AI in Banking",    title: "Data-Driven Banking: Warum KI allein das eigentliche Problem nicht löst", author: "Andreas Kamm",     date: "07.04.2026", image: "https://picsum.photos/seed/bank1/1200/700", href: "/artikel/data-driven-banking" },
+  { category: "KI im Business",   title: "Wie Schweizer KMU bei Edge-AI vorne dabei sind",                          author: "Ali Soy",          date: "28.04.2026", image: "https://picsum.photos/seed/article1/700/500", href: "/artikel/schweizer-kmu-edge-ai" },
+  { category: "KI im Business",   title: "Edge-AI im Mittelstand: Ein Praxisbericht aus drei Pilotprojekten",       author: "Marc Keller",      date: "02.04.2026", image: "https://picsum.photos/seed/extguest1/700/500", href: "/artikel/gastbeitrag-edge-ai-mittelstand", external: true },
+  { category: "Future of Work",   title: "Die Zukunft der Arbeit: Augmentation statt Automation",                    author: "Ali Soy",          date: "15.04.2026", image: "https://picsum.photos/seed/article5/700/500", href: "/artikel/zukunft-arbeit-augmentation" },
 ];
 
 const swissAI = [

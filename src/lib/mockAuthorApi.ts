@@ -403,6 +403,11 @@ export function getArticle(id: string): Article | null {
   return a ? cloneArticle(a) : null;
 }
 
+export function getPublishedArticleBySlug(slug: string): Article | null {
+  const a = articles.find((x) => x.slug === slug && x.status === "published");
+  return a ? cloneArticle(a) : null;
+}
+
 export function getPublishedArticlesByAuthor(authorId: string): Article[] {
   return articles
     .filter((a) => a.authorId === authorId && a.status === "published")
