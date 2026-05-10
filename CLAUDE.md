@@ -121,8 +121,18 @@ Alle In-Memory-Mock-APIs in `src/lib/` sind als TODO-Phase-7+-markiert
 und werden mit der Supabase-Integration ersetzt:
 
 - `mockAuthorApi.ts` → Tabellen `authors` + `articles` + `revisions`
+  (`getCurrentAuthor()` ist deprecated → `@/lib/authorApi`, Rest noch in Nutzung
+  bis Session C das Schema erweitert)
 - `mockPodcastApi.ts` → Tabelle `podcasts` mit FK zu `authors` und `articles`
 - `articleSlugRegistry.ts` → Lookup via `select title from articles where slug = ?`
+
+**TODO Session C — Schema-Lücken vor Konsumenten-Migration:** Die Mock-`Author`-Shape
+hat Felder, die das aktuelle Supabase-Schema nicht abdeckt: `handle` (eigener Slug
+neben dem User-Slug), `social` (linkedin/x/mastodon), `location`, `joinedAt`,
+`role`-als-Job-Titel (zusätzlich zum Three-Role-Enum). Bevor die client-side
+Konsumenten (`AuthorShell`, `autor/dashboard`, `autor/profil`, `autor/podcasts`)
+auf `@/lib/authorApi` migrieren, braucht es eine echte ALTER-Migration der
+`authors`-Tabelle in Session C — Adapter-Layer wäre Schein-Lösung.
 
 ### Three-Role Author-Modell
 
@@ -174,6 +184,33 @@ npx supabase gen types typescript --project-id dkmvadaypxiaxwfkbghz > src/lib/da
 
 Projekt pausiert nach 7 Tagen Inaktivität. Bei aktiver Arbeit unkritisch;
 sonst im Dashboard "Restore" klicken (~30s).
+
+Auth-Mails: Default-SMTP von Supabase ist **2 Mails/Stunde** rate-limited.
+Beim Smoke-Test der Magic-Link-Flow das im Hinterkopf behalten. Resend-Migration
+mit eigenem Domain-SPF kommt auf der Phase-7-Merkliste.
+
+### Auth-Flow (seit Phase 7 Session B)
+
+- **Magic Link** via `supabase.auth.signInWithOtp` — kein Passwort, Klick auf
+  Link in der Mail = Bestätigung
+- Default-SMTP von Supabase (`noreply@mail.app.supabase.io`); Resend-Migration
+  später
+- Auth-Settings im Dashboard: Site URL + Redirect URLs müssen sowohl Vercel
+  (`https://digital-age-v2-eight.vercel.app/**`) als auch Container
+  (`http://claude-box.orb.local:3000/**`) und localhost abdecken
+- Three-Role-Enum: neue Signups landen via Trigger als `external`, Editor
+  promotet manuell zu `author`/`editor`
+
+### Supabase-Client-Module (`src/lib/supabase/`)
+
+- `client.ts` — Browser-Client für Client Components (`createBrowserClient`)
+- `server.ts` — Server-Client für Server Components, Route Handlers, Server
+  Actions (`createServerClient` + `cookies()` aus `next/headers`)
+- `proxy.ts` — Session-Refresh-Helper für Next.js 16 Proxy. Nicht direkt in
+  Components verwenden; wird nur von `src/proxy.ts` genutzt.
+
+Auth-Gate für `/autor/*` läuft als Server-Component-Layout (`src/app/autor/layout.tsx`),
+nicht als Proxy-Logik — Proxy refresht nur die Session.
 
 ### Auth gegen Cloud
 
