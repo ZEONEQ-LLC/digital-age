@@ -13,27 +13,12 @@ import NewsletterSignup from "@/components/NewsletterSignup";
 import ReadingProgress from "@/components/ReadingProgress";
 import TableOfContents, { type TocItem } from "@/components/TableOfContents";
 import ExternalBadge from "@/components/ExternalBadge";
-import {
-  getAuthor,
-  getPublishedArticleBySlug,
-  getPublishedArticlesByAuthor,
-} from "@/lib/mockAuthorApi";
-import type {
-  Article as MockArticle,
-  Author as MockAuthor,
-  Block,
-} from "@/types/author";
+import { getArticleBySlug, type ArticleWithFullRelations } from "@/lib/articleApi";
+import { getArticlesByAuthor } from "@/lib/authorApi";
+import { markdownToBlocks } from "@/lib/markdownBlocks";
+import type { Block } from "@/types/author";
 
 type PageProps = { params: Promise<{ slug: string }> };
-
-export default async function ArticlePage({ params }: PageProps) {
-  const { slug } = await params;
-  const article = getPublishedArticleBySlug(slug);
-  if (!article) notFound();
-  const author = getAuthor(article.authorId);
-  if (!author) notFound();
-  return <MockArticleView article={article} author={author} />;
-}
 
 function formatDateDE(iso: string | null): string {
   if (!iso) return "";
@@ -42,32 +27,31 @@ function formatDateDE(iso: string | null): string {
   return d.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-function deriveTocItems(article: MockArticle): TocItem[] {
+function deriveTocItems(blocks: Block[]): TocItem[] {
   const isHeadingBlock = (b: Block): b is Extract<Block, { type: "heading" }> =>
     b.type === "heading" && (b.level === 2 || b.level === 3);
-  return article.blocks
+  return blocks
     .filter(isHeadingBlock)
     .map((b) => ({ id: b.id, label: b.content, level: b.level }));
 }
 
-function MockArticleView({ article, author }: { article: MockArticle; author: MockAuthor }) {
-  const isExternal = author.type === "external";
-  const dateLabel = formatDateDE(article.publishedAt);
-  const url = article.slug ? `/artikel/${article.slug}` : "#";
-  const ttsText = `${article.title}. ${article.excerpt}`.trim();
-  const tocItems = deriveTocItems(article);
-  const related = getPublishedArticlesByAuthor(author.id)
-    .filter((a) => a.id !== article.id)
-    .slice(0, 3)
-    .map((a) => ({
-      category: a.category,
-      title: a.title,
-      author: author.name,
-      date: formatDateDE(a.publishedAt),
-      image: a.cover,
-      href: a.slug ? `/artikel/${a.slug}` : undefined,
-      external: isExternal,
-    }));
+export default async function ArticlePage({ params }: PageProps) {
+  const { slug } = await params;
+  const article = await getArticleBySlug(slug);
+  if (!article || !article.author) notFound();
+  return <ArticleView article={article} />;
+}
+
+function ArticleView({ article }: { article: ArticleWithFullRelations }) {
+  const author = article.author!;
+  const isExternal = author.role === "external";
+  const subcategory = article.subcategory ?? article.category?.name_de ?? "";
+  const dateLabel = formatDateDE(article.published_at);
+  const url = `/artikel/${article.slug}`;
+  const ttsText = `${article.title}. ${article.excerpt ?? ""}`.trim();
+  const blocks = markdownToBlocks(article.body_md ?? "");
+  const tocItems = deriveTocItems(blocks);
+  const authorHandle = author.handle ?? author.slug;
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
@@ -88,7 +72,7 @@ function MockArticleView({ article, author }: { article: MockArticle; author: Mo
               textTransform: "uppercase",
             }}
           >
-            {article.category}
+            {subcategory}
           </span>
           {isExternal && (
             <>
@@ -141,17 +125,19 @@ function MockArticleView({ article, author }: { article: MockArticle; author: Mo
                 border: `2px solid ${isExternal ? "var(--da-orange)" : "var(--da-green)"}`,
               }}
             >
-              <Image src={author.avatar} alt={author.name} fill sizes="44px" style={{ objectFit: "cover" }} unoptimized />
+              {author.avatar_url && (
+                <Image src={author.avatar_url} alt={author.display_name} fill sizes="44px" style={{ objectFit: "cover" }} unoptimized />
+              )}
             </div>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <Link href={`/autor/${author.handle}`} style={{ color: "var(--da-text)", fontSize: "var(--fs-body)", fontWeight: 600 }}>
-                  {author.name}
+                <Link href={`/autor/${authorHandle}`} style={{ color: "var(--da-text)", fontSize: "var(--fs-body)", fontWeight: 600 }}>
+                  {author.display_name}
                 </Link>
                 {isExternal && <ExternalBadge size="xs" />}
               </div>
               <p style={{ color: "var(--da-muted)", fontFamily: "var(--da-font-mono)", fontSize: "var(--fs-body-sm)" }}>
-                {dateLabel} · {article.readMinutes} min Lesezeit
+                {dateLabel} · {article.reading_minutes ?? 0} min Lesezeit
               </p>
             </div>
           </div>
@@ -164,16 +150,18 @@ function MockArticleView({ article, author }: { article: MockArticle; author: Mo
 
       <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 var(--sp-8) var(--sp-12)" }}>
         <div style={{ position: "relative", borderRadius: "10px", overflow: "hidden" }}>
-          <Image
-            src={article.cover}
-            alt={article.title}
-            width={1600}
-            height={900}
-            sizes="(max-width: 1100px) 100vw, 1100px"
-            priority
-            unoptimized
-            style={{ width: "100%", height: "auto", maxHeight: "520px", objectFit: "cover", display: "block" }}
-          />
+          {article.cover_image_url && (
+            <Image
+              src={article.cover_image_url}
+              alt={article.title}
+              width={1600}
+              height={900}
+              sizes="(max-width: 1100px) 100vw, 1100px"
+              priority
+              unoptimized
+              style={{ width: "100%", height: "auto", maxHeight: "520px", objectFit: "cover", display: "block" }}
+            />
+          )}
           <div
             aria-hidden
             style={{
@@ -189,7 +177,7 @@ function MockArticleView({ article, author }: { article: MockArticle; author: Mo
       <ArticleBodyGrid hasToc={tocItems.length > 0}>
         <article>
           <ArticleBody>
-            <BlockReader blocks={article.blocks} />
+            <BlockReader blocks={blocks} />
           </ArticleBody>
 
           <div style={{ marginTop: "var(--sp-12)", paddingTop: "var(--sp-8)", borderTop: "1px solid var(--da-card)" }}>
@@ -197,11 +185,11 @@ function MockArticleView({ article, author }: { article: MockArticle; author: Mo
           </div>
 
           <AuthorBox
-            name={author.name}
-            slug={author.handle}
-            avatar={author.avatar}
-            bio={author.bio}
-            role={author.role}
+            name={author.display_name}
+            slug={authorHandle}
+            avatar={author.avatar_url ?? ""}
+            bio={author.bio ?? ""}
+            role={author.job_title ?? undefined}
             external={isExternal}
           />
           <NewsletterSignup variant="inline" />
@@ -214,13 +202,51 @@ function MockArticleView({ article, author }: { article: MockArticle; author: Mo
         )}
       </ArticleBodyGrid>
 
-      {related.length > 0 && (
-        <ArticleSection title="Mehr von diesem Autor" href={`/autor/${author.handle}`} articles={related} />
-      )}
+      <RelatedFromAuthor
+        authorId={author.id}
+        authorDisplayName={author.display_name}
+        authorHandle={authorHandle}
+        isExternal={isExternal}
+        excludeArticleId={article.id}
+      />
 
       <div style={{ height: "var(--sp-20)" }} />
       <Footer />
     </main>
+  );
+}
+
+async function RelatedFromAuthor({
+  authorId,
+  authorDisplayName,
+  authorHandle,
+  isExternal,
+  excludeArticleId,
+}: {
+  authorId: string;
+  authorDisplayName: string;
+  authorHandle: string;
+  isExternal: boolean;
+  excludeArticleId: string;
+}) {
+  const relatedRows = await getArticlesByAuthor(authorId);
+  const related = relatedRows
+    .filter((a) => a.id !== excludeArticleId)
+    .slice(0, 3)
+    .map((a) => ({
+      category: a.subcategory ?? a.category?.name_de ?? "",
+      title: a.title,
+      author: authorDisplayName,
+      date: formatDateDE(a.published_at),
+      image: a.cover_image_url ?? "",
+      href: `/artikel/${a.slug}`,
+      external: isExternal,
+    }));
+
+  if (related.length === 0) return null;
+
+  return (
+    <ArticleSection title="Mehr von diesem Autor" href={`/autor/${authorHandle}`} articles={related} />
   );
 }
 

@@ -1,19 +1,8 @@
 import NewsTicker from "@/components/NewsTicker";
 import Footer from "@/components/Footer";
 import TopicListing from "@/components/TopicListing";
-import type { ListArticle } from "@/components/ArticleListRow";
-
-const articles: ListArticle[] = [
-  { id: 1, category: "GenAI",            title: "IoT-Geräte vernetzen mit AI – aber richtig: Warum OpenAI API nicht die Lösung ist",     author: "Ali Soy",          date: "10.02.2025", image: "https://picsum.photos/seed/iot1/800/500",   readTime: "6 min" },
-  { id: 2, category: "GenAI",            title: "Interoperabilität für IoT – Wie AI die Sprachbarrieren zwischen Maschinen überwindet",  author: "Ali Soy",          date: "07.02.2025", image: "https://picsum.photos/seed/iot2/800/500",   readTime: "5 min" },
-  { id: 3, category: "Blockchain",       title: "Blockchain of Things – Dezentralisierung trifft auf intelligente Maschinen",            author: "Ali Soy",          date: "23.01.2025", image: "https://picsum.photos/seed/block1/800/500", readTime: "8 min" },
-  { id: 4, category: "Robotics",         title: "Autonome Drohnen in der Industrie: Wie AI Lagerhaltung neu definiert",                  author: "Matthias Zwingli", date: "15.03.2026", image: "https://picsum.photos/seed/drone1/800/500", readTime: "7 min" },
-  { id: 5, category: "GenAI",            title: "Multimodale KI: Was passiert, wenn Maschinen sehen, hören und lesen können",            author: "Andreas Kamm",     date: "02.03.2026", image: "https://picsum.photos/seed/mm1/800/500",    readTime: "6 min" },
-  { id: 6, category: "Quantencomputing", title: "Quantencomputer 2026: Wo stehen wir wirklich — und wann kommt der Durchbruch?",         author: "Ali Soy",          date: "20.02.2026", image: "https://picsum.photos/seed/qc1/800/500",    readTime: "9 min" },
-  { id: 7, category: "Robotics",         title: "Cobots im KMU: Wie kleine Betriebe von kollaborativer Robotik profitieren",             author: "Matthias Zwingli", date: "10.02.2026", image: "https://picsum.photos/seed/cobot1/800/500", readTime: "5 min" },
-  { id: 8, category: "Blockchain",       title: "Smart Contracts in der Lieferkette: Praxisbericht aus der Schweizer Industrie",         author: "Ali Soy",          date: "01.02.2026", image: "https://picsum.photos/seed/sc1/800/500",    readTime: "7 min" },
-  { id: 9, category: "Quantencomputing", title: "Post-Quantum Kryptographie: Warum Unternehmen jetzt handeln müssen",                    author: "Andreas Kamm",     date: "20.01.2026", image: "https://picsum.photos/seed/pqc1/800/500",   readTime: "6 min" },
-];
+import { getArticlesByCategory } from "@/lib/articleApi";
+import { articleToListRow } from "@/lib/mappers/articleMappers";
 
 const subcategories = ["Alle", "GenAI", "Blockchain", "Robotics", "Quantencomputing"];
 
@@ -32,7 +21,10 @@ const authors = [
   { name: "Andreas Kamm",     role: "Emerging Tech", avatar: "https://i.pravatar.cc/80?u=andreas",  count: 2 },
 ];
 
-export default function FutureTechPage() {
+export default async function FutureTechPage() {
+  const rows = await getArticlesByCategory("future-tech");
+  const articles = rows.map(articleToListRow);
+
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <NewsTicker />
