@@ -533,6 +533,8 @@ export function submitForReview(id: string): Article | null {
   return cloneArticle(next);
 }
 
+// Used in Phase 7 — keep. Standard CRUD; consumed by author-suite delete actions
+// once the editor wires a confirm-and-delete flow against the real backend.
 export function deleteArticle(id: string): boolean {
   const before = articles.length;
   articles = articles.filter((a) => a.id !== id);
