@@ -446,16 +446,6 @@ export function getPublishedArticlesByAuthor(authorId: string): Article[] {
     .map(cloneArticle);
 }
 
-export function getPublishedExternalArticles(): Article[] {
-  return articles
-    .filter((a) => a.status === "published")
-    .filter((a) => {
-      const author = authors.find((x) => x.id === a.authorId);
-      return author?.type === "external";
-    })
-    .map(cloneArticle);
-}
-
 export function createDraft(): Article {
   const id = `art-${Date.now()}`;
   const blocks: Block[] = [
@@ -543,6 +533,11 @@ export function submitForReview(id: string): Article | null {
   return cloneArticle(next);
 }
 
+/**
+ * Standard CRUD delete; wired up in Phase 7 once the editor adds
+ * confirm-and-delete against the real backend.
+ * @public
+ */
 export function deleteArticle(id: string): boolean {
   const before = articles.length;
   articles = articles.filter((a) => a.id !== id);

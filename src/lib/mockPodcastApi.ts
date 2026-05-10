@@ -161,11 +161,6 @@ export function getPodcasts(): Podcast[] {
   return sortByPublishedDesc(podcasts).map(clone);
 }
 
-export function getPodcast(id: string): Podcast | null {
-  const p = podcasts.find((x) => x.id === id);
-  return p ? clone(p) : null;
-}
-
 function assertRecommenderEligible(authorId: string): void {
   const author = getAuthor(authorId);
   if (!author) throw new Error("Recommender not found.");
