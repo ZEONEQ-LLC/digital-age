@@ -12,9 +12,13 @@ export default function BlockReader({ blocks }: BlockReaderProps) {
         switch (b.type) {
           case "heading":
             return b.level === 2 ? (
-              <h2 key={b.id}>{b.content}</h2>
+              <h2 key={b.id} id={b.id} style={{ scrollMarginTop: "calc(var(--nav-h) + 80px)" }}>
+                {b.content}
+              </h2>
             ) : (
-              <h3 key={b.id}>{b.content}</h3>
+              <h3 key={b.id} id={b.id} style={{ scrollMarginTop: "calc(var(--nav-h) + 80px)" }}>
+                {b.content}
+              </h3>
             );
           case "paragraph":
             return <p key={b.id}>{b.content}</p>;
