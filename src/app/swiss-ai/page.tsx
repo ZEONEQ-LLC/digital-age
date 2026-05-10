@@ -172,7 +172,7 @@ export default function SwissAIPage() {
         .sa-feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-5); }
 
         .sa-grid-wrap { display: grid; grid-template-columns: 240px 1fr; gap: 48px; align-items: start; }
-        .sa-aside { position: sticky; top: 84px; display: flex; flex-direction: column; gap: var(--sp-6); }
+        .sa-aside { position: sticky; top: var(--aside-sticky-top); display: flex; flex-direction: column; gap: var(--sp-6); }
 
         .sa-flabel {
           color: var(--da-faint);

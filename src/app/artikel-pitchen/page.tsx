@@ -643,7 +643,7 @@ export default function PitchPage() {
               </div>
             </form>
 
-            <aside style={{ position: "sticky", top: 84, display: "flex", flexDirection: "column", gap: 16 }}>
+            <aside style={{ position: "sticky", top: "var(--aside-sticky-top)", display: "flex", flexDirection: "column", gap: 16 }}>
               <div
                 style={{
                   background: "var(--da-card)",

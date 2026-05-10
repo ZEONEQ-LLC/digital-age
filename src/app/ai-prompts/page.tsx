@@ -181,7 +181,7 @@ export default function AiPromptsPage() {
         .ap-feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); }
 
         .ap-grid-wrap { display: grid; grid-template-columns: 220px 1fr; gap: 48px; align-items: start; }
-        .ap-aside { position: sticky; top: 84px; display: flex; flex-direction: column; gap: var(--sp-6); }
+        .ap-aside { position: sticky; top: var(--aside-sticky-top); display: flex; flex-direction: column; gap: var(--sp-6); }
 
         .ap-flabel {
           color: var(--da-faint);
