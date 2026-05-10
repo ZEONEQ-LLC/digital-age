@@ -96,6 +96,7 @@
   --max-narrow:  720px;
   --max-dash:    1280px;
   --nav-h:       64px;
+  --aside-sticky-top: calc(var(--nav-h) + 24px);
   --sidebar-w:   240px;
 
   /* ── Transitions ───────────────────────────────────────────────── */

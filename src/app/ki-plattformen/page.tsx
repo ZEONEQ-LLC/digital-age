@@ -113,7 +113,7 @@ export default function KIPlattformenPage() {
 
         .kip-grid-wrap { display: grid; grid-template-columns: 220px 1fr; gap: 48px; align-items: start; }
         .kip-aside {
-          position: sticky; top: 84px;
+          position: sticky; top: var(--aside-sticky-top);
           display: flex; flex-direction: column; gap: var(--sp-6);
         }
         .kip-flabel {

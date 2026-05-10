@@ -286,7 +286,7 @@ export default function PromptEinreichenPage() {
         }
 
         .ein-aside {
-          position: sticky; top: 84px;
+          position: sticky; top: var(--aside-sticky-top);
           display: flex; flex-direction: column; gap: 16px;
         }
         .aside-label {

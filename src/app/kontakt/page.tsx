@@ -167,7 +167,7 @@ export default function KontaktPage() {
           transition: filter var(--t-fast);
         }
         .ko-submit:hover { filter: brightness(1.08); }
-        .ko-aside { position: sticky; top: 84px; display: flex; flex-direction: column; gap: 16px; }
+        .ko-aside { position: sticky; top: var(--aside-sticky-top); display: flex; flex-direction: column; gap: 16px; }
         .ko-aside-card { background: var(--da-card); border: 1px solid var(--da-border); border-radius: 8px; padding: 20px; }
         .ko-aside-card--accent { border-color: var(--da-green); }
         .ko-aside-overline {

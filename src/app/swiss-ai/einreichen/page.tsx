@@ -329,7 +329,7 @@ export default function EinreichenPage() {
           font-family: var(--da-font-mono); margin-top: 16px; text-align: center;
         }
 
-        .ein-aside { position: sticky; top: 84px; display: flex; flex-direction: column; }
+        .ein-aside { position: sticky; top: var(--aside-sticky-top); display: flex; flex-direction: column; }
         .ein-prev {
           background: var(--da-card); border: 1px solid var(--da-border);
           border-radius: var(--r-lg); padding: 24px;
