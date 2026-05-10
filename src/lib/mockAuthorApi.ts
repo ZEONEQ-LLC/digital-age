@@ -446,16 +446,6 @@ export function getPublishedArticlesByAuthor(authorId: string): Article[] {
     .map(cloneArticle);
 }
 
-export function getPublishedExternalArticles(): Article[] {
-  return articles
-    .filter((a) => a.status === "published")
-    .filter((a) => {
-      const author = authors.find((x) => x.id === a.authorId);
-      return author?.type === "external";
-    })
-    .map(cloneArticle);
-}
-
 export function createDraft(): Article {
   const id = `art-${Date.now()}`;
   const blocks: Block[] = [
