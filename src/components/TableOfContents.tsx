@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 
-export type TocItem = { id: string; label: string };
+export type TocItem = { id: string; label: string; level?: 2 | 3 };
 
 type TableOfContentsProps = {
   items: TocItem[];
@@ -62,19 +62,31 @@ export default function TableOfContents({ items }: TableOfContentsProps) {
           border-left-color: var(--da-green);
           font-weight: 600;
         }
+        .toc__link--h3 {
+          padding-left: 28px;
+          font-size: 12px;
+          color: var(--da-muted);
+        }
       `}</style>
       <nav className="toc" aria-label="Inhaltsverzeichnis">
         <p className="toc__label">Inhalt</p>
-        {items.map(({ id, label }) => (
-          <a
-            key={id}
-            href={`#${id}`}
-            className={`toc__link${active === id ? " toc__link--active" : ""}`}
-            onClick={(e) => handleClick(e, id)}
-          >
-            {label}
-          </a>
-        ))}
+        {items.map(({ id, label, level }) => {
+          const cls = [
+            "toc__link",
+            level === 3 ? "toc__link--h3" : "",
+            active === id ? "toc__link--active" : "",
+          ].filter(Boolean).join(" ");
+          return (
+            <a
+              key={id}
+              href={`#${id}`}
+              className={cls}
+              onClick={(e) => handleClick(e, id)}
+            >
+              {label}
+            </a>
+          );
+        })}
       </nav>
     </>
   );

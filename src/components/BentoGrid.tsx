@@ -12,8 +12,9 @@ export default function BentoGrid({ articles, href = "#" }: BentoGridProps) {
   //   [1] = right column upper
   //   [2] = right column lower
   //   [3] = bottom-left
-  //   [4] = bottom-middle
+  //   [4] = bottom-middle (optional — if absent, slot-3 spans the full bottom row)
   const a = articles;
+  const hasFourth = !!a[4];
 
   return (
     <>
@@ -51,6 +52,7 @@ export default function BentoGrid({ articles, href = "#" }: BentoGridProps) {
         }
         .bento-grid__slot-3 { grid-column: 1 / 2; grid-row: 2 / 3; }
         .bento-grid__slot-4 { grid-column: 2 / 3; grid-row: 2 / 3; }
+        .bento-grid--no-fourth .bento-grid__slot-3 { grid-column: 1 / 3; }
         @media (max-width: 1024px) {
           .bento-grid {
             grid-template-columns: repeat(2, 1fr);
@@ -91,7 +93,7 @@ export default function BentoGrid({ articles, href = "#" }: BentoGridProps) {
           <Link href={href} className="bento-header__more">mehr →</Link>
         </header>
 
-        <div className="bento-grid">
+        <div className={`bento-grid${hasFourth ? "" : " bento-grid--no-fourth"}`}>
           <div className="bento-grid__slot-0">
             <BentoCard article={a[0]} size="lg" accent="green" />
           </div>
@@ -102,9 +104,11 @@ export default function BentoGrid({ articles, href = "#" }: BentoGridProps) {
           <div className="bento-grid__slot-3">
             <BentoCard article={a[3]} size="sm" accent="orange" />
           </div>
-          <div className="bento-grid__slot-4">
-            <BentoCard article={a[4]} size="sm" accent="green" />
-          </div>
+          {hasFourth && (
+            <div className="bento-grid__slot-4">
+              <BentoCard article={a[4]} size="sm" accent="green" />
+            </div>
+          )}
         </div>
       </section>
     </>

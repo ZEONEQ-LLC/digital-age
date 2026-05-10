@@ -13,6 +13,7 @@ import type {
 
 const ALI_ID = "auth-editor-ali";
 const ANDREAS_ID = "auth-author-andreas";
+const MATTHIAS_ID = "auth-author-matthias";
 const MARC_ID = "auth-external-marc";
 
 const aliSoy: Author = {
@@ -44,6 +45,19 @@ const andreasKamm: Author = {
   joinedAt: "2024-06-01T00:00:00Z",
 };
 
+const matthiasZwingli: Author = {
+  id: MATTHIAS_ID,
+  type: "author",
+  name: "Matthias Zwingli",
+  handle: "matthias-zwingli",
+  email: "matthias@digital-age.ch",
+  role: "Founder & CEO, Connect AI",
+  location: "Zürich",
+  bio: "Matthias Zwingli ist CEO und Gründer von Connect AI, einem Unternehmen mit Sitz in Zürich, das sich auf hochwertige, massgeschneiderte KI-Assistenten für Unternehmen spezialisiert hat. Mit einem Hintergrund in Betriebswirtschaft von der Universität St. Gallen bringt er fundiertes Wissen in Unternehmensführung und Technologie mit. Matthias ist ein leidenschaftlicher Kitesurfer und engagierter Business Angel, der sich für die Förderung von Start-ups einsetzt.",
+  avatar: "https://i.pravatar.cc/200?img=33",
+  joinedAt: "2025-03-01T00:00:00Z",
+};
+
 const marcKeller: Author = {
   id: MARC_ID,
   type: "external",
@@ -53,12 +67,12 @@ const marcKeller: Author = {
   role: "Founder, Helvetia AI",
   location: "Bern, CH",
   bio: "Gründer von Helvetia AI. Beschäftigt sich mit Edge-AI-Anwendungen im Schweizer Mittelstand.",
-  avatar: "https://i.pravatar.cc/200?img=12",
+  avatar: "https://i.pravatar.cc/200?img=14",
   website: "https://helvetia-ai.ch",
   joinedAt: "2026-03-12",
 };
 
-const seedAuthors: Author[] = [aliSoy, andreasKamm, marcKeller];
+const seedAuthors: Author[] = [aliSoy, andreasKamm, matthiasZwingli, marcKeller];
 
 const sampleBlocks = (): Block[] => [
   { id: "b1", type: "heading", level: 2, content: "Die Banken haben einen Joker — sie nutzen ihn nur leise" },
@@ -190,6 +204,7 @@ const seedArticles = (): Article[] => {
   const blocks4 = draftBlocks();
   const blocks5 = sampleBlocks();
   const blocks6 = sampleBlocks();
+  const blocksBanking = sampleBlocks();
 
   return [
     {
@@ -324,6 +339,32 @@ const seedArticles = (): Article[] => {
       seoKeyword: "Augmentation Arbeit",
     },
     {
+      id: "art-andreas-banking",
+      authorId: ANDREAS_ID,
+      title: "Data-Driven Banking: Warum KI allein das eigentliche Problem nicht löst",
+      slug: "data-driven-banking",
+      blocks: blocksBanking,
+      contentMd: blocksToMarkdown(blocksBanking),
+      excerpt: "Banken investieren Milliarden in Künstliche Intelligenz. Doch ohne saubere Daten und klare Prozesse bleibt der erhoffte Durchbruch aus.",
+      cover: "https://picsum.photos/seed/bank1/1200/700",
+      category: "AI in Banking",
+      tags: ["AI", "Banking", "Datenstrategie"],
+      status: "published",
+      createdAt: "2026-03-28T08:00:00Z",
+      updatedAt: "2026-04-07T09:30:00Z",
+      publishedAt: "2026-04-07",
+      wordCount: wordCountOf(blocksBanking),
+      readMinutes: 7,
+      views: 9120,
+      reads: 6510,
+      completion: 74,
+      avgTime: "4:38",
+      seoScore: 88,
+      seoTitle: "Data-Driven Banking — KI ist nicht das Problem",
+      seoDescription: "Banken investieren Milliarden in KI. Warum die Datenbasis das eigentliche Hindernis ist — und wie Schweizer Banken pragmatisch vorgehen.",
+      seoKeyword: "Data-Driven Banking",
+    },
+    {
       id: "art-ext-1",
       authorId: MARC_ID,
       title: "Edge-AI im Mittelstand: Ein Praxisbericht aus drei Pilotprojekten",
@@ -387,6 +428,22 @@ export function getMyArticles(): Article[] {
 export function getArticle(id: string): Article | null {
   const a = articles.find((x) => x.id === id);
   return a ? cloneArticle(a) : null;
+}
+
+export function getPublishedArticleBySlug(slug: string): Article | null {
+  const a = articles.find((x) => x.slug === slug && x.status === "published");
+  return a ? cloneArticle(a) : null;
+}
+
+export function getPublishedArticlesByAuthor(authorId: string): Article[] {
+  return articles
+    .filter((a) => a.authorId === authorId && a.status === "published")
+    .sort((x, y) => {
+      const xd = x.publishedAt ?? "";
+      const yd = y.publishedAt ?? "";
+      return xd < yd ? 1 : xd > yd ? -1 : 0;
+    })
+    .map(cloneArticle);
 }
 
 export function getPublishedExternalArticles(): Article[] {

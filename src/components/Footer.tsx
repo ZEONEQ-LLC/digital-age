@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import Link from "next/link";
 import NewsletterSignup from "./NewsletterSignup";
 
 export default function Footer() {
@@ -48,11 +49,11 @@ export default function Footer() {
                   { label: "GenAI Prompts", href: "/ai-prompts" },
                   { label: "Podcasts", href: "/podcasts" },
                 ].map(({ label, href }) => (
-                  <a key={label} href={href} style={{ color: "var(--da-muted)", fontSize: "14px", textDecoration: "none", transition: "color 0.2s" }}
+                  <Link key={label} href={href} style={{ color: "var(--da-muted)", fontSize: "14px", textDecoration: "none", transition: "color 0.2s" }}
                     onMouseEnter={e => (e.currentTarget.style.color = "var(--da-green)")}
                     onMouseLeave={e => (e.currentTarget.style.color = "var(--da-muted)")}>
                     {label}
-                  </a>
+                  </Link>
                 ))}
               </nav>
             </div>
@@ -70,11 +71,11 @@ export default function Footer() {
                   { label: "Impressum", href: "/impressum" },
                   { label: "Datenschutzerklärung", href: "/datenschutzerklaerung" },
                 ].map(({ label, href }) => (
-                  <a key={label} href={href} style={{ color: "var(--da-muted)", fontSize: "14px", textDecoration: "none", transition: "color 0.2s" }}
+                  <Link key={label} href={href} style={{ color: "var(--da-muted)", fontSize: "14px", textDecoration: "none", transition: "color 0.2s" }}
                     onMouseEnter={e => (e.currentTarget.style.color = "var(--da-green)")}
                     onMouseLeave={e => (e.currentTarget.style.color = "var(--da-muted)")}>
                     {label}
-                  </a>
+                  </Link>
                 ))}
               </nav>
             </div>

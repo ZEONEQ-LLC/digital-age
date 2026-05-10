@@ -35,11 +35,15 @@ export default function PodcastCard({ podcast }: PodcastCardProps) {
         }
         .pdc:hover { border-color: var(--da-green); }
         .pdc__cover {
-          position: relative;
           width: 120px; height: 120px;
           border-radius: var(--r-md);
           overflow: hidden;
           flex-shrink: 0;
+        }
+        .pdc__cover-img {
+          width: 100%; height: 100%;
+          object-fit: cover;
+          display: block;
         }
         .pdc__head {
           display: flex; align-items: flex-start; justify-content: space-between;
@@ -115,6 +119,7 @@ export default function PodcastCard({ podcast }: PodcastCardProps) {
         @media (max-width: 640px) {
           .pdc { grid-template-columns: 1fr; gap: 14px; padding: 14px; }
           .pdc__cover { width: 100%; height: 200px; }
+          .pdc__cover-img { object-position: center; }
           .pdc__related { margin-left: 0; }
         }
       `}</style>
@@ -123,9 +128,9 @@ export default function PodcastCard({ podcast }: PodcastCardProps) {
           <Image
             src={podcast.cover}
             alt={podcast.title}
-            fill
-            sizes="(max-width: 640px) 100vw, 120px"
-            style={{ objectFit: "cover" }}
+            width={240}
+            height={240}
+            className="pdc__cover-img"
             unoptimized
           />
         </div>
