@@ -23,12 +23,16 @@ export type Database = {
           created_at: string
           excerpt: string | null
           id: string
+          is_featured: boolean
           published_at: string | null
+          reading_minutes: number | null
           slug: string
           status: Database["public"]["Enums"]["article_status"]
+          subcategory: string | null
           subtitle: string | null
           title: string
           updated_at: string
+          word_count: number | null
         }
         Insert: {
           author_id: string
@@ -38,12 +42,16 @@ export type Database = {
           created_at?: string
           excerpt?: string | null
           id?: string
+          is_featured?: boolean
           published_at?: string | null
+          reading_minutes?: number | null
           slug: string
           status?: Database["public"]["Enums"]["article_status"]
+          subcategory?: string | null
           subtitle?: string | null
           title: string
           updated_at?: string
+          word_count?: number | null
         }
         Update: {
           author_id?: string
@@ -53,12 +61,16 @@ export type Database = {
           created_at?: string
           excerpt?: string | null
           id?: string
+          is_featured?: boolean
           published_at?: string | null
+          reading_minutes?: number | null
           slug?: string
           status?: Database["public"]["Enums"]["article_status"]
+          subcategory?: string | null
           subtitle?: string | null
           title?: string
           updated_at?: string
+          word_count?: number | null
         }
         Relationships: [
           {
@@ -84,9 +96,14 @@ export type Database = {
           created_at: string
           display_name: string
           email: string
+          handle: string | null
           id: string
+          job_title: string | null
+          joined_at: string
+          location: string | null
           role: Database["public"]["Enums"]["author_role"]
           slug: string
+          social_links: Json | null
           updated_at: string
           user_id: string | null
         }
@@ -96,9 +113,14 @@ export type Database = {
           created_at?: string
           display_name: string
           email: string
+          handle?: string | null
           id?: string
+          job_title?: string | null
+          joined_at?: string
+          location?: string | null
           role?: Database["public"]["Enums"]["author_role"]
           slug: string
+          social_links?: Json | null
           updated_at?: string
           user_id?: string | null
         }
@@ -108,9 +130,14 @@ export type Database = {
           created_at?: string
           display_name?: string
           email?: string
+          handle?: string | null
           id?: string
+          job_title?: string | null
+          joined_at?: string
+          location?: string | null
           role?: Database["public"]["Enums"]["author_role"]
           slug?: string
+          social_links?: Json | null
           updated_at?: string
           user_id?: string | null
         }
