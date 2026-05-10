@@ -204,6 +204,7 @@ const seedArticles = (): Article[] => {
   const blocks4 = draftBlocks();
   const blocks5 = sampleBlocks();
   const blocks6 = sampleBlocks();
+  const blocksBanking = sampleBlocks();
 
   return [
     {
@@ -336,6 +337,32 @@ const seedArticles = (): Article[] => {
       seoTitle: "Augmentation statt Automation — digital age",
       seoDescription: "ETH-Studie zur Zukunft der Arbeit: Warum Augmentation der pragmatische Pfad für Schweizer KMU ist.",
       seoKeyword: "Augmentation Arbeit",
+    },
+    {
+      id: "art-andreas-banking",
+      authorId: ANDREAS_ID,
+      title: "Data-Driven Banking: Warum KI allein das eigentliche Problem nicht löst",
+      slug: "data-driven-banking",
+      blocks: blocksBanking,
+      contentMd: blocksToMarkdown(blocksBanking),
+      excerpt: "Banken investieren Milliarden in Künstliche Intelligenz. Doch ohne saubere Daten und klare Prozesse bleibt der erhoffte Durchbruch aus.",
+      cover: "https://picsum.photos/seed/bank1/1200/700",
+      category: "AI in Banking",
+      tags: ["AI", "Banking", "Datenstrategie"],
+      status: "published",
+      createdAt: "2026-03-28T08:00:00Z",
+      updatedAt: "2026-04-07T09:30:00Z",
+      publishedAt: "2026-04-07",
+      wordCount: wordCountOf(blocksBanking),
+      readMinutes: 7,
+      views: 9120,
+      reads: 6510,
+      completion: 74,
+      avgTime: "4:38",
+      seoScore: 88,
+      seoTitle: "Data-Driven Banking — KI ist nicht das Problem",
+      seoDescription: "Banken investieren Milliarden in KI. Warum die Datenbasis das eigentliche Hindernis ist — und wie Schweizer Banken pragmatisch vorgehen.",
+      seoKeyword: "Data-Driven Banking",
     },
     {
       id: "art-ext-1",
