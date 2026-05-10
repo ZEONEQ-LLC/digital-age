@@ -12,7 +12,7 @@ const accentVar: Record<Accent, string> = {
   purple: "var(--da-purple)",
 };
 
-export type AuthorSpotlight = {
+type AuthorSpotlight = {
   name: string;
   role: string;
   avatar: string;
