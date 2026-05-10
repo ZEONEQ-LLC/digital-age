@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export type SwissAIItem = {
+type SwissAIItem = {
   name: string;
   city: string;
   industry: string;
