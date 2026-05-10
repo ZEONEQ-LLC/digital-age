@@ -5,7 +5,7 @@ export default function HeroBold() {
   return (
     <>
       <style>{`
-        .hero-bold { position: relative; height: 92vh; min-height: 620px; overflow: hidden; }
+        .hero-bold { position: relative; height: 80vh; min-height: 560px; max-height: 820px; overflow: hidden; }
         .hero-bold__img { object-fit: cover; }
         .hero-bold__overlay {
           position: absolute; inset: 0;
