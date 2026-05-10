@@ -121,18 +121,15 @@ Alle In-Memory-Mock-APIs in `src/lib/` sind als TODO-Phase-7+-markiert
 und werden mit der Supabase-Integration ersetzt:
 
 - `mockAuthorApi.ts` → Tabellen `authors` + `articles` + `revisions`
-  (`getCurrentAuthor()` ist deprecated → `@/lib/authorApi`, Rest noch in Nutzung
-  bis Session C das Schema erweitert)
+  - `getCurrentAuthor()` ist deprecated → `@/lib/authorApi` (seit Session B)
+  - Public-facing Konsumenten (Homepage, Listings, Article-Detail, Author-Profil)
+    seit Session C auf `@/lib/articleApi` und `@/lib/authorApi` migriert
+  - Author-Suite-Konsumenten (Dashboard, Profil, Podcasts, AuthorShell) nutzen
+    noch CRUD-Functions aus mockAuthorApi (createDraft, saveDraft, submitForReview,
+    getRevisions, getDashboardStats) — Session D/E
 - `mockPodcastApi.ts` → Tabelle `podcasts` mit FK zu `authors` und `articles`
-- `articleSlugRegistry.ts` → Lookup via `select title from articles where slug = ?`
-
-**TODO Session C — Schema-Lücken vor Konsumenten-Migration:** Die Mock-`Author`-Shape
-hat Felder, die das aktuelle Supabase-Schema nicht abdeckt: `handle` (eigener Slug
-neben dem User-Slug), `social` (linkedin/x/mastodon), `location`, `joinedAt`,
-`role`-als-Job-Titel (zusätzlich zum Three-Role-Enum). Bevor die client-side
-Konsumenten (`AuthorShell`, `autor/dashboard`, `autor/profil`, `autor/podcasts`)
-auf `@/lib/authorApi` migrieren, braucht es eine echte ALTER-Migration der
-`authors`-Tabelle in Session C — Adapter-Layer wäre Schein-Lösung.
+- `articleSlugRegistry.ts` → wird in Session D durch Supabase-Query ersetzt
+  (aktuell nur noch von Podcast-Code referenziert)
 
 ### Three-Role Author-Modell
 
@@ -211,6 +208,49 @@ mit eigenem Domain-SPF kommt auf der Phase-7-Merkliste.
 
 Auth-Gate für `/autor/*` läuft als Server-Component-Layout (`src/app/autor/layout.tsx`),
 nicht als Proxy-Logik — Proxy refresht nur die Session.
+
+### Daten-Layer (`src/lib/`, seit Session C)
+
+- `articleApi.ts` — Server-side Article-Queries (`getFeaturedArticles`,
+  `getArticlesByCategory`, `getArticleBySlug`). Joined-Selects via PostgREST-
+  Embedding (`*, category:categories(...), author:authors(...)`)
+- `authorApi.ts` — Server-side Author-Queries (`getCurrentAuthor`,
+  `getAuthorByHandle`, `getArticlesByAuthor`, `signOut`)
+- `mappers/articleMappers.ts` — Mapper-Functions zwischen Supabase-Row-Shape
+  und Card-Component-Props (`articleToCard`, `articleToListRow`,
+  `authorToProfileViewModel`). Card-Components bleiben Supabase-frei.
+- `markdownBlocks.ts` — Markdown→Block-Tree-Konverter. Extrahiert aus
+  mockAuthorApi, damit BlockReader weiterhin TOC-Anker und Quote-Attribution
+  rendert. Article-Detail-Page nutzt das.
+
+### Schema-Erweiterungen (Session C)
+
+**authors:** `handle`, `job_title`, `location`, `social_links` (jsonb),
+`joined_at` (timestamptz)
+
+**articles:** `is_featured` (für Homepage-Bento), `word_count` und
+`reading_minutes` (auto-computed via Trigger bei body_md insert/update,
+200 Wörter/Minute), `subcategory` (loose Label wie "AI in Banking",
+"GenAI" — separat vom normalisierten category_id)
+
+**Subcategory-Deviation vom Spec:** Initial-Schema hat nur Hauptkategorien
+in `categories`-Tabelle. Listing-Pages und Card-UI brauchen aber feinere
+Sub-Labels pro Artikel. `subcategory text` auf articles ist die pragmatische
+Lösung; eine separate subcategories-Tabelle wäre für loose Display-Labels
+overkill. Multi-Tag-Filter kommt ggf. in Session E.
+
+### Seed-Daten (Session C)
+
+23 Articles und 4 Authors aus Mock-Quellen geseedet:
+- Ali Soy (editor): existierende Session-B-Row geupdated zu rich Profile
+- Andreas Kamm, Matthias Zwingli, Marc Keller: Insert mit Placeholder-Emails
+  (`@digital-age.ch` bzw. `@helvetia-ai.ch`). user_id null bis sie sich
+  einloggen.
+- **TODO Session D/E:** merge-on-first-login Logic im Auth-Trigger ergänzen,
+  damit bei Login mit Placeholder-Email der existierende Row geclaimt wird
+  statt zu kollidieren (slug/email-unique würde sonst PK-Violation werfen).
+- **TODO Session F:** body_md für 17 Listing-Only-Articles ist Placeholder
+  (Lorem-Ipsum + TODO-Marker). Echter Content kommt mit Editorial-Migration.
 
 ### Auth gegen Cloud
 
