@@ -1,11 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import AuthorCard from "@/components/author/AuthorCard";
 import MonoCaption from "@/components/author/MonoCaption";
 import { updateAuthorProfile } from "@/lib/authorActions";
+import { uploadAvatar } from "@/lib/storageActions";
 import type { AuthorRow } from "@/lib/authorApi";
+
+const MAX_BYTES = 2 * 1024 * 1024;
+const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp"];
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -49,19 +53,24 @@ export default function ProfileEditor({ initial }: { initial: AuthorRow }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadPending, startUpload] = useTransition();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   function onSave(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setSavedAt(null);
     startTransition(async () => {
       try {
+        // avatar_url wird separat via uploadAvatar-Flow gepflegt — hier
+        // bewusst nicht im Patch, damit der Upload-Flow autoritativ bleibt.
         await updateAuthorProfile({
           display_name: displayName.trim(),
           handle: handle.trim() || null,
           job_title: jobTitle.trim() || null,
           location: location.trim() || null,
           bio: bio.trim() || null,
-          avatar_url: avatarUrl.trim() || null,
           social_links: {
             linkedin: linkedin.trim() || null,
             x: x.trim() || null,
@@ -72,6 +81,38 @@ export default function ProfileEditor({ initial }: { initial: AuthorRow }) {
         setSavedAt(new Date().toLocaleTimeString("de-CH"));
       } catch (e) {
         setError(e instanceof Error ? e.message : "Speichern fehlgeschlagen.");
+      }
+    });
+  }
+
+  function onAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadError(null);
+
+    if (file.size > MAX_BYTES) {
+      setUploadError("Datei zu gross (max 2 MB).");
+      e.target.value = "";
+      return;
+    }
+    if (!ALLOWED_MIMES.includes(file.type)) {
+      setUploadError("Nur JPEG, PNG oder WebP erlaubt.");
+      e.target.value = "";
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append("file", file);
+
+    startUpload(async () => {
+      try {
+        const { url } = await uploadAvatar(initial.id, fd);
+        setAvatarUrl(url);
+      } catch (err) {
+        setUploadError(err instanceof Error ? err.message : "Upload fehlgeschlagen.");
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = "";
       }
     });
   }
@@ -92,6 +133,30 @@ export default function ProfileEditor({ initial }: { initial: AuthorRow }) {
           color: var(--da-faint);
           font-family: var(--da-font-mono);
           font-size: 12px;
+        }
+        .a-prof__avatar-wrap { position: relative; margin-bottom: 12px; }
+        .a-prof__avatar-overlay {
+          position: absolute; inset: 0;
+          background: rgba(0,0,0,0.55);
+          display: flex; align-items: center; justify-content: center;
+          color: var(--da-text);
+          font-family: var(--da-font-mono);
+          font-size: 12px;
+          border-radius: 8px;
+        }
+        .a-prof__avatar-input { display: none; }
+        .a-prof__avatar-btn {
+          width: 100%; background: transparent; color: var(--da-text);
+          border: 1px solid var(--da-border); padding: 10px;
+          border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer;
+          font-family: inherit;
+        }
+        .a-prof__avatar-btn:hover { border-color: var(--da-green); color: var(--da-green); }
+        .a-prof__avatar-btn:disabled { opacity: 0.6; cursor: wait; }
+        .a-prof__avatar-hint {
+          color: var(--da-muted-soft); font-size: 11px;
+          margin-top: 8px; line-height: 1.45;
+          font-family: var(--da-font-mono);
         }
         .a-prof__save {
           align-self: flex-start; background: var(--da-green); color: var(--da-dark);
@@ -237,28 +302,51 @@ export default function ProfileEditor({ initial }: { initial: AuthorRow }) {
         <aside className="a-prof__aside">
           <AuthorCard padding={20}>
             <MonoCaption>Avatar</MonoCaption>
-            {avatarUrl ? (
-              <Image
-                src={avatarUrl}
-                alt={displayName}
-                width={240}
-                height={240}
-                className="a-prof__avatar"
-                unoptimized
-                style={{ marginBottom: 12 }}
-              />
-            ) : (
-              <div className="a-prof__avatar-fb" style={{ marginBottom: 12 }}>
-                Kein Avatar
-              </div>
-            )}
-            <label style={labelStyle}>Avatar-URL</label>
+            <div className="a-prof__avatar-wrap">
+              {avatarUrl ? (
+                <Image
+                  src={avatarUrl}
+                  alt={displayName}
+                  width={240}
+                  height={240}
+                  className="a-prof__avatar"
+                  unoptimized
+                />
+              ) : (
+                <div className="a-prof__avatar-fb">Kein Avatar</div>
+              )}
+              {uploadPending && (
+                <div className="a-prof__avatar-overlay">Lädt hoch…</div>
+              )}
+            </div>
             <input
-              style={inputStyle}
-              value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-              placeholder="https://…"
+              ref={fileInputRef}
+              className="a-prof__avatar-input"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={onAvatarChange}
             />
+            <button
+              type="button"
+              className="a-prof__avatar-btn"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadPending}
+            >
+              {uploadPending ? "Lädt hoch…" : avatarUrl ? "Bild ändern" : "Bild hochladen"}
+            </button>
+            <p className="a-prof__avatar-hint">JPEG, PNG oder WebP · max 2 MB</p>
+            {uploadError && (
+              <p
+                style={{
+                  color: "var(--da-red, #ff5c5c)",
+                  fontSize: 12,
+                  marginTop: 8,
+                  lineHeight: 1.4,
+                }}
+              >
+                {uploadError}
+              </p>
+            )}
           </AuthorCard>
           <AuthorCard padding={18} accent="var(--da-green)">
             <MonoCaption color="var(--da-green)">Profil-Vorschau</MonoCaption>
