@@ -4,7 +4,8 @@ import NewsTicker from "@/components/NewsTicker";
 import Footer from "@/components/Footer";
 import ArticleCard from "@/components/ArticleCard";
 import ExternalBadge from "@/components/ExternalBadge";
-import { getAuthors, getPublishedArticlesByAuthor } from "@/lib/mockAuthorApi";
+import { getAuthorByHandle, getArticlesByAuthor } from "@/lib/authorApi";
+import { authorToProfileViewModel } from "@/lib/mappers/articleMappers";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
@@ -23,13 +24,16 @@ function linkedinHref(value: string | undefined): string | null {
 
 export default async function AuthorPage({ params }: PageProps) {
   const { slug } = await params;
-  const author = getAuthors().find((a) => a.handle === slug);
-  if (!author) notFound();
+  const row = await getAuthorByHandle(slug);
+  if (!row) notFound();
 
-  const articles = getPublishedArticlesByAuthor(author.id);
-  const categories = Array.from(new Set(articles.map((a) => a.category)));
-  const isExternal = author.type === "external";
-  const linkedin = linkedinHref(author.social?.linkedin);
+  const author = authorToProfileViewModel(row);
+  const articles = await getArticlesByAuthor(row.id);
+  const categories = Array.from(
+    new Set(articles.map((a) => a.category?.name_de).filter((x): x is string => !!x)),
+  );
+  const linkedin = linkedinHref(author.social.linkedin);
+  const website = author.social.website ?? null;
 
   return (
     <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
@@ -48,33 +52,37 @@ export default async function AuthorPage({ params }: PageProps) {
       <section style={{ borderBottom: "1px solid var(--da-card)", padding: "64px 32px" }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
           <div className="author-hero">
-            <Image
-              src={author.avatar}
-              alt={author.name}
-              width={200}
-              height={200}
-              priority
-              unoptimized
-              style={{ borderRadius: "50%", objectFit: "cover", border: "3px solid var(--da-green)" }}
-            />
+            {author.avatar && (
+              <Image
+                src={author.avatar}
+                alt={author.name}
+                width={200}
+                height={200}
+                priority
+                unoptimized
+                style={{ borderRadius: "50%", objectFit: "cover", border: "3px solid var(--da-green)" }}
+              />
+            )}
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px", flexWrap: "wrap" }}>
                 <p style={{ color: "var(--da-green)", fontSize: "13px", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", margin: 0 }}>
-                  {isExternal ? "Gastautor" : "Autor"}
+                  {author.isExternal ? "Gastautor" : "Autor"}
                 </p>
-                {isExternal && <ExternalBadge size="sm" />}
+                {author.isExternal && <ExternalBadge size="sm" />}
               </div>
               <h1 style={{ color: "var(--da-text)", fontSize: "clamp(32px, 4.5vw, 48px)", fontWeight: 700, lineHeight: 1.2, marginBottom: "8px", fontFamily: "Space Grotesk, sans-serif" }}>
                 {author.name}
               </h1>
-              {(author.role || author.location) && (
+              {(author.jobTitle || author.location) && (
                 <p style={{ color: "var(--da-muted)", fontSize: "18px", marginBottom: "24px" }}>
-                  {author.role}
-                  {author.role && author.location ? " · " : ""}
+                  {author.jobTitle}
+                  {author.jobTitle && author.location ? " · " : ""}
                   {author.location}
                 </p>
               )}
-              <p style={{ color: "var(--da-text-strong)", fontSize: "16px", lineHeight: 1.7, maxWidth: "700px", marginBottom: "32px" }}>{author.bio}</p>
+              {author.bio && (
+                <p style={{ color: "var(--da-text-strong)", fontSize: "16px", lineHeight: 1.7, maxWidth: "700px", marginBottom: "32px" }}>{author.bio}</p>
+              )}
 
               <div className="author-stats" style={{ marginBottom: "24px" }}>
                 <div>
@@ -87,7 +95,7 @@ export default async function AuthorPage({ params }: PageProps) {
                 </div>
               </div>
 
-              {(linkedin || author.website) && (
+              {(linkedin || website) && (
                 <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
                   {linkedin && (
                     <a href={linkedin} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "8px", backgroundColor: "var(--da-card)", border: "1px solid var(--da-border)", color: "var(--da-text-strong)", padding: "10px 18px", borderRadius: "4px", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>
@@ -95,8 +103,8 @@ export default async function AuthorPage({ params }: PageProps) {
                       LinkedIn
                     </a>
                   )}
-                  {author.website && (
-                    <a href={author.website} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "8px", backgroundColor: "var(--da-card)", border: "1px solid var(--da-border)", color: "var(--da-text-strong)", padding: "10px 18px", borderRadius: "4px", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>
+                  {website && (
+                    <a href={website} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "8px", backgroundColor: "var(--da-card)", border: "1px solid var(--da-border)", color: "var(--da-text-strong)", padding: "10px 18px", borderRadius: "4px", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>
                       <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10 14a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 10a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
                       Website
                     </a>
@@ -122,13 +130,13 @@ export default async function AuthorPage({ params }: PageProps) {
             {articles.map((a) => (
               <ArticleCard
                 key={a.id}
-                category={a.category}
+                category={a.subcategory ?? a.category?.name_de ?? ""}
                 title={a.title}
                 author={author.name}
-                date={formatDateDE(a.publishedAt)}
-                image={a.cover}
-                href={a.slug ? `/artikel/${a.slug}` : undefined}
-                external={isExternal}
+                date={formatDateDE(a.published_at)}
+                image={a.cover_image_url ?? ""}
+                href={`/artikel/${a.slug}`}
+                external={author.isExternal}
               />
             ))}
           </div>
