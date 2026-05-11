@@ -292,6 +292,28 @@ prüft jetzt vor Insert ob ein authors-Row mit gleicher Email + `user_id IS NULL
 existiert (Placeholder aus Session-C-Seed). Falls ja, claimt er die Row durch
 setzen von user_id. Sonst Insert wie vorher.
 
+**Wichtig — Merge greift nur bei exaktem Email-Match.** Wenn ein Mock-Author
+mit Platzhalter-Email gesseeded wurde (z.B. `ali@zeoneq.com`) und der echte
+Login eine andere Email nutzt (`ali.soy@icloud.com`), wird ein neuer
+`external`-Row angelegt — der Editor-Row bleibt unverlinkt. Der Merge muss
+dann manuell via SQL erfolgen:
+
+```sql
+-- Vor Cleanup: prüfen ob der external-Row Artikel/Podcasts hat
+SELECT COUNT(*) FROM public.articles WHERE author_id = '<external-id>';
+SELECT COUNT(*) FROM public.podcasts WHERE recommended_by_id = '<external-id>';
+
+-- Wenn beide 0: user_id auf den Editor-Row umhängen, external-Row löschen
+UPDATE public.authors
+SET user_id = '<auth-user-id>', email = '<real-login-email>'
+WHERE id = '<editor-row-id>';
+
+DELETE FROM public.authors WHERE id = '<external-row-id>';
+```
+
+Beispiel-Fix dokumentiert in PR #22 (Session E Folge-Fix). Künftige Seeds
+sollten mit der echten Login-Email anlegen, sonst wiederholt sich das Problem.
+
 ### Author-Routing-Split (Session C Fix-Up)
 
 `src/app/autor/` ist in zwei Route-Groups gesplittet:
