@@ -26,10 +26,14 @@ export type Database = {
           is_featured: boolean
           published_at: string | null
           reading_minutes: number | null
+          seo_description: string | null
+          seo_keyword: string | null
+          seo_title: string | null
           slug: string
           status: Database["public"]["Enums"]["article_status"]
           subcategory: string | null
           subtitle: string | null
+          tags: string[]
           title: string
           updated_at: string
           word_count: number | null
@@ -45,10 +49,14 @@ export type Database = {
           is_featured?: boolean
           published_at?: string | null
           reading_minutes?: number | null
+          seo_description?: string | null
+          seo_keyword?: string | null
+          seo_title?: string | null
           slug: string
           status?: Database["public"]["Enums"]["article_status"]
           subcategory?: string | null
           subtitle?: string | null
+          tags?: string[]
           title: string
           updated_at?: string
           word_count?: number | null
@@ -64,10 +72,14 @@ export type Database = {
           is_featured?: boolean
           published_at?: string | null
           reading_minutes?: number | null
+          seo_description?: string | null
+          seo_keyword?: string | null
+          seo_title?: string | null
           slug?: string
           status?: Database["public"]["Enums"]["article_status"]
           subcategory?: string | null
           subtitle?: string | null
+          tags?: string[]
           title?: string
           updated_at?: string
           word_count?: number | null
@@ -185,6 +197,8 @@ export type Database = {
           podcast_category: string
           recommended_at: string
           recommended_by_id: string | null
+          recommended_by_note: string | null
+          related_article_slug: string | null
           spotify_url: string | null
           title: string
           updated_at: string
@@ -200,6 +214,8 @@ export type Database = {
           podcast_category: string
           recommended_at?: string
           recommended_by_id?: string | null
+          recommended_by_note?: string | null
+          related_article_slug?: string | null
           spotify_url?: string | null
           title: string
           updated_at?: string
@@ -215,6 +231,8 @@ export type Database = {
           podcast_category?: string
           recommended_at?: string
           recommended_by_id?: string | null
+          recommended_by_note?: string | null
+          related_article_slug?: string | null
           spotify_url?: string | null
           title?: string
           updated_at?: string

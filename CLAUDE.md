@@ -115,23 +115,24 @@ Bestätigungspflichtig: `git push`, `git commit` (Message vorab zeigen),
 - Versehentlich committete Dateien: `git rm --cached <file>` und neu committen
 - `.env.local` NIEMALS committen — auch nicht "nur als Template"
 
-## Mock-API & Datenmodell (Phase 7+ Migration-Targets)
+## Datenmodell
 
-Alle In-Memory-Mock-APIs in `src/lib/` sind als TODO-Phase-7+-markiert
-und werden mit der Supabase-Integration ersetzt:
+Phase 7 abgeschlossen — alle Public- und Author-Suite-Pages laufen seit
+Session E gegen Supabase. Mock-APIs sind vollständig entfernt:
 
-- `mockAuthorApi.ts` → Tabellen `authors` + `articles` + `revisions`
-  - `getCurrentAuthor()` ist deprecated → `@/lib/authorApi` (seit Session B)
-  - Public-facing Konsumenten (Homepage, Listings, Article-Detail, Author-Profil)
-    seit Session C auf `@/lib/articleApi` und `@/lib/authorApi` migriert
-  - Author-Suite-Konsumenten (Dashboard, Profil, Podcasts, AuthorShell) nutzen
-    noch CRUD-Functions aus mockAuthorApi (createDraft, saveDraft, submitForReview,
-    getRevisions, getDashboardStats) — Session D/E
-- `mockPodcastApi.ts` → Tabelle `podcasts` (Empfehlungs-Modell, kein eigenes Hosting)
-  - Public-Page `/podcasts` seit Session D auf Supabase migriert (`@/lib/podcastApi`)
-  - Author-Suite-Page `/autor/podcasts` nutzt noch Mock — CRUD-Migration Session E
-- `articleSlugRegistry.ts` → wird in späterer Session durch Supabase-Query ersetzt
-  (aktuell nur noch von Mock-Podcast-Code referenziert; nicht mehr im Public-Flow)
+- ~~`mockAuthorApi.ts`~~ — entfernt in Session E, ersetzt durch `@/lib/authorApi`
+  (Reads) + `@/lib/authorActions.ts` (Server-Action-Mutationen)
+- ~~`mockPodcastApi.ts`~~ — entfernt in Session E, ersetzt durch
+  `@/lib/podcastApi` + `@/lib/podcastActions.ts`
+- ~~`articleSlugRegistry.ts`~~ — entfernt in Session E (Slug-Lookup über
+  `getArticleBySlug` in articleApi)
+- `@/types/blocks.ts` — übrig gebliebener `Block`-Type für Editor/Renderer
+  (Markdown ↔ Block-Tree über `@/lib/markdownBlocks`)
+
+**Out-of-scope, bleibt vorerst Mock-UI:**
+- `/artikel-pitchen` — Pitch-Formular zeigt nach Submit eine Success-UI,
+  persistiert aber nicht. Anonymous-Insert-Flow braucht eigenes Design
+  (Rate-Limit, Email-Bestätigung, Anti-Spam) — Session F+.
 
 ### Three-Role Author-Modell
 
@@ -145,15 +146,12 @@ und werden mit der Supabase-Integration ersetzt:
   Reassignment von Empfehlern (Podcast-Empfehlungen können auf andere
   interne Authors umgehängt werden).
 
-Externe Authors können niemals Podcast-Empfehler sein — wird in
-`mockPodcastApi.assertRecommenderEligible` validiert und später per
-RLS-Policy enforced.
+Externe Authors können niemals Podcast-Empfehler sein — RLS-Policy
+`podcasts_internal_author_insert/update` enforced das DB-seitig (Session D
+Fix-up). Article-Insert ist Authors+Editors vorbehalten, mit
+Status-Gating (Authors nur draft → in_review, Editors alles inkl. published/
+archived). Siehe `articles_*` Policies in den Session-E-Migrations.
 
-### Demo-Mode-Marker
-
-Frontend-only Features mit Mock-Persistenz tragen einen
-`<DemoBanner />` (siehe `src/components/DemoBanner.tsx`). Bei
-Supabase-Migration entfällt der Banner.
 
 ## Supabase
 
@@ -211,23 +209,29 @@ mit eigenem Domain-SPF kommt auf der Phase-7-Merkliste.
 Auth-Gate für `/autor/*` läuft als Server-Component-Layout (`src/app/autor/layout.tsx`),
 nicht als Proxy-Logik — Proxy refresht nur die Session.
 
-### Daten-Layer (`src/lib/`, seit Session C)
+### Daten-Layer (`src/lib/`)
 
-- `articleApi.ts` — Server-side Article-Queries (`getFeaturedArticles`,
-  `getArticlesByCategory`, `getArticleBySlug`). Joined-Selects via PostgREST-
-  Embedding (`*, category:categories(...), author:authors(...)`)
-- `authorApi.ts` — Server-side Author-Queries (`getCurrentAuthor`,
-  `getAuthorByHandle`, `getArticlesByAuthor`, `signOut`)
-- `podcastApi.ts` — Server-side Podcast-Queries (`getPublishedPodcasts` mit
-  optionalen Sprache-/Kategorie-Filtern, joined mit recommender-Author)
-- `mappers/articleMappers.ts` — Mapper zwischen Article-Row und
-  Card-Component-Props (`articleToCard`, `articleToListRow`,
-  `authorToProfileViewModel`). Card-Components bleiben Supabase-frei.
-- `mappers/podcastMappers.ts` — Mapper zwischen Podcast-Row und Card-VM
-  (`podcastToCardVM`) plus `PODCAST_LANGUAGES`-Konstante (DE/EN/FR/IT).
-- `markdownBlocks.ts` — Markdown→Block-Tree-Konverter. Extrahiert aus
-  mockAuthorApi, damit BlockReader weiterhin TOC-Anker und Quote-Attribution
-  rendert. Article-Detail-Page nutzt das.
+**Read-only-Server-Queries (Server Components):**
+- `articleApi.ts` — `getFeaturedArticles`, `getArticlesByCategory`, `getArticleBySlug`
+- `authorApi.ts` — `getCurrentAuthor`, `getAuthorByHandle`, `getArticlesByAuthor`,
+  `getMyArticles`, `getArticleById`, `getRevisions`, `getDashboardStats`, `signOut`
+- `podcastApi.ts` — `getPublishedPodcasts`, `getMyPodcasts`, `getPodcastById`
+
+**Server Actions / Mutationen (`"use server"`-Module, callable aus Client Components):**
+- `authorActions.ts` — `createDraft`, `saveArticle`, `submitForReview`,
+  `publishArticle`, `archiveArticle`, `deleteArticle`, `updateAuthorProfile`.
+  Jede Action prüft Auth + revalidiert betroffene Paths.
+- `podcastActions.ts` — `createPodcast`, `updatePodcast`, `deletePodcast`.
+  `requireInternalAuthor` blockiert external-Authors.
+
+**Helpers:**
+- `markdownBlocks.ts` — Bidirektionaler Markdown ↔ Block[] Konverter.
+  Editor toggelt zwischen Visual (BlockEditor) und Markdown-Editor; DB hält
+  immer `body_md`.
+- `mappers/articleMappers.ts` — DB-Row → Card-Component-Props
+  (`articleToCard`, `articleToListRow`, `authorToProfileViewModel`).
+- `mappers/podcastMappers.ts` — DB-Row → Card-VM (`podcastToCardVM`) plus
+  `PODCAST_LANGUAGES`-Konstante.
 
 ### Schema-Erweiterungen (Session C)
 
@@ -262,6 +266,53 @@ Author-Block dynamisch aus den geladenen Articles:
   Tag-System (eigene Tabelle, m:n zu articles) + Trending-Metrik (Click-Counter).
 - **Phase 8 — Author-Filter:** Author-Block-Klicks ohne Logik. Server-Side-Filter
   via URL-Param ist gegen aktuelle DB machbar, bisher nicht implementiert.
+
+### Author-Suite (Session E)
+
+`(suite)/layout.tsx` rendert den Auth-Gate UND wrapt children in `AuthorShell`
+(Server-Component). Damit können die einzelnen Suite-Pages "use client" sein
+ohne direkt eine async Server-Component zu importieren. AuthorShell holt den
+aktuellen Author via `authorApi.getCurrentAuthor` und reicht einen schlanken
+`AuthorChip`-View-Model an Sidebar/TopNav weiter.
+
+**Editor (`/autor/artikel/[id]`)** ist ein Server/Client-Split:
+- `page.tsx` (server) fetcht Article + Revisions + Categories + Current Author
+- `EditorClient.tsx` (client) trägt Form-State, ruft Server Actions auf
+- Status-Workflow: draft → in_review (Author) → published / archived (Editor).
+  RLS gating durchgehend.
+- Revisions werden bei jedem Update mit title-/body-snapshot in der `revisions`-
+  Tabelle festgehalten (DB-Trigger `articles_revision_on_update`).
+
+**Statistiken** zeigt nur Zahlen aus der DB (Counts, total Wörter). Sparklines/
+Heatmaps für Views/Reads wurden bewusst entfernt — kommen erst mit echter
+Event-Tracking-Integration (Phase 8 mit Plausible/PostHog/Supabase-Events).
+
+**Merge-on-first-login (Session E):** Der Auth-Trigger `handle_new_user`
+prüft jetzt vor Insert ob ein authors-Row mit gleicher Email + `user_id IS NULL`
+existiert (Placeholder aus Session-C-Seed). Falls ja, claimt er die Row durch
+setzen von user_id. Sonst Insert wie vorher.
+
+**Wichtig — Merge greift nur bei exaktem Email-Match.** Wenn ein Mock-Author
+mit Platzhalter-Email gesseeded wurde (z.B. `ali@zeoneq.com`) und der echte
+Login eine andere Email nutzt (`ali.soy@icloud.com`), wird ein neuer
+`external`-Row angelegt — der Editor-Row bleibt unverlinkt. Der Merge muss
+dann manuell via SQL erfolgen:
+
+```sql
+-- Vor Cleanup: prüfen ob der external-Row Artikel/Podcasts hat
+SELECT COUNT(*) FROM public.articles WHERE author_id = '<external-id>';
+SELECT COUNT(*) FROM public.podcasts WHERE recommended_by_id = '<external-id>';
+
+-- Wenn beide 0: user_id auf den Editor-Row umhängen, external-Row löschen
+UPDATE public.authors
+SET user_id = '<auth-user-id>', email = '<real-login-email>'
+WHERE id = '<editor-row-id>';
+
+DELETE FROM public.authors WHERE id = '<external-row-id>';
+```
+
+Beispiel-Fix dokumentiert in PR #22 (Session E Folge-Fix). Künftige Seeds
+sollten mit der echten Login-Email anlegen, sonst wiederholt sich das Problem.
 
 ### Author-Routing-Split (Session C Fix-Up)
 

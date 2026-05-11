@@ -16,7 +16,7 @@ import ExternalBadge from "@/components/ExternalBadge";
 import { getArticleBySlug, type ArticleWithFullRelations } from "@/lib/articleApi";
 import { getArticlesByAuthor } from "@/lib/authorApi";
 import { markdownToBlocks } from "@/lib/markdownBlocks";
-import type { Block } from "@/types/author";
+import type { Block } from "@/types/blocks";
 
 type PageProps = { params: Promise<{ slug: string }> };
 

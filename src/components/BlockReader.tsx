@@ -1,5 +1,5 @@
 import Image from "next/image";
-import type { Block } from "@/types/author";
+import type { Block } from "@/types/blocks";
 
 type BlockReaderProps = {
   blocks: Block[];

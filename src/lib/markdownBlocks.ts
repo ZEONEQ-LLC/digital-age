@@ -1,9 +1,33 @@
-// Markdown ↔ Block-Tree-Konverter für den ArticleDetail-Renderer.
-// Extrahiert aus mockAuthorApi.ts, damit auch der Supabase-backed Pfad den
-// bestehenden BlockReader weiterverwenden kann (Heading-Anker für TOC,
-// Quote-Attribution, List-Rendering).
+// Markdown ↔ Block-Tree-Konverter für den ArticleDetail-Renderer und Editor.
+// Extrahiert aus mockAuthorApi.ts (Session C+E).
 
-import type { Block } from "@/types/author";
+import type { Block } from "@/types/blocks";
+
+export function blocksToMarkdown(blocks: Block[]): string {
+  return blocks
+    .map((b) => {
+      switch (b.type) {
+        case "heading":
+          return `${"#".repeat(b.level)} ${b.content}`;
+        case "paragraph":
+          return b.content;
+        case "quote":
+          return (
+            b.content
+              .split("\n")
+              .map((l) => `> ${l}`)
+              .join("\n") + (b.attribution ? `\n> — ${b.attribution}` : "")
+          );
+        case "list":
+          return b.items.map((it) => `${b.ordered ? "1." : "-"} ${it}`).join("\n");
+        case "code":
+          return "```" + (b.language ?? "") + "\n" + b.content + "\n```";
+        case "image":
+          return `![${b.alt}](${b.src})${b.caption ? `\n*${b.caption}*` : ""}`;
+      }
+    })
+    .join("\n\n");
+}
 
 export function markdownToBlocks(md: string): Block[] {
   const lines = md.split("\n");

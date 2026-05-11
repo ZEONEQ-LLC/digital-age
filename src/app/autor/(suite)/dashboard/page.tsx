@@ -1,39 +1,50 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo } from "react";
-import AuthorShell from "@/components/author/AuthorShell";
 import AuthorCard from "@/components/author/AuthorCard";
 import AuthorStatusBadge from "@/components/author/AuthorStatusBadge";
 import MonoCaption from "@/components/author/MonoCaption";
 import PageTitle from "@/components/author/PageTitle";
-import Sparkline from "@/components/author/Sparkline";
 import StatCell from "@/components/author/StatCell";
-import { getCurrentAuthor, getMyArticles } from "@/lib/mockAuthorApi";
+import {
+  getCurrentAuthor,
+  getDashboardStats,
+  getMyArticles,
+} from "@/lib/authorApi";
 
-export default function AuthorDashboardPage() {
-  const author = useMemo(() => getCurrentAuthor(), []);
-  const articles = useMemo(() => getMyArticles(), []);
+function relativeFromIso(iso: string): string {
+  const then = new Date(iso).getTime();
+  const now = Date.now();
+  const diffMin = Math.max(1, Math.round((now - then) / 60000));
+  if (diffMin < 60) return `vor ${diffMin} min`;
+  const diffH = Math.round(diffMin / 60);
+  if (diffH < 24) return `vor ${diffH} Std.`;
+  const diffD = Math.round(diffH / 24);
+  if (diffD < 14) return `vor ${diffD} Tag${diffD === 1 ? "" : "en"}`;
+  const diffW = Math.round(diffD / 7);
+  return `vor ${diffW} Wo.`;
+}
 
-  const totalViews = articles.reduce((a, b) => a + b.views, 0);
-  const totalReads = articles.reduce((a, b) => a + b.reads, 0);
-  const published = articles.filter((a) => a.status === "published");
-  const inFlight = articles.filter((a) => a.status !== "published");
-  const avgCompletion = published.length
-    ? Math.round(published.reduce((a, b) => a + b.completion, 0) / published.length)
-    : 0;
-  const top = [...published].sort((a, b) => b.views - a.views)[0];
-  const readRate = totalViews > 0 ? Math.round((totalReads / totalViews) * 100) : 0;
+export default async function AuthorDashboardPage() {
+  const [author, stats, all] = await Promise.all([
+    getCurrentAuthor(),
+    getDashboardStats(),
+    getMyArticles(),
+  ]);
+
+  const firstName = author?.display_name?.split(" ")[0] ?? "Autor:in";
+  const published = all.filter((a) => a.status === "published");
+  const inFlight = all.filter((a) => a.status !== "published" && a.status !== "archived");
+  const topPublished = published[0] ?? null;
 
   return (
-    <AuthorShell>
+    <>
       <PageTitle
-        title={`Willkommen zurück, ${author.name.split(" ")[0]}`}
+        title={`Willkommen zurück, ${firstName}`}
         subtitle="Hier ist, was bei deinen Artikeln läuft."
         right={
           <Link
             href="/autor/artikel/neu"
+            prefetch={false}
             style={{
               background: "var(--da-green)",
               color: "var(--da-dark)",
@@ -66,6 +77,10 @@ export default function AuthorDashboardPage() {
         .a-dash-row__cover {
           width: 60px; height: 60px; border-radius: 4px; object-fit: cover; display: block;
         }
+        .a-dash-row__cover-fallback {
+          width: 60px; height: 60px; border-radius: 4px;
+          background: var(--da-card);
+        }
         .a-dash-row__title {
           color: var(--da-text); font-size: 13px; font-weight: 600; margin-bottom: 4px;
           overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -81,28 +96,10 @@ export default function AuthorDashboardPage() {
       `}</style>
 
       <div className="a-dash-stats">
-        <StatCell
-          label="Total Views"
-          value={totalViews.toLocaleString("de-CH")}
-          sub="↑ 12% vs. letzten Monat"
-        />
-        <StatCell
-          label="Reads (Completed)"
-          value={totalReads.toLocaleString("de-CH")}
-          sub={`${readRate}% Read-Rate`}
-        />
-        <StatCell
-          label="Avg. Completion"
-          value={`${avgCompletion}%`}
-          sub="Wie weit Leser kommen"
-          accent="var(--da-green)"
-        />
-        <StatCell
-          label="Veröffentlicht"
-          value={published.length}
-          sub={`${inFlight.length} in Bearbeitung`}
-          accent="var(--da-orange)"
-        />
+        <StatCell label="Drafts" value={stats.draftCount} sub="Noch nicht eingereicht" />
+        <StatCell label="In Review" value={stats.inReviewCount} sub="Wartet auf Editor" accent="var(--da-orange)" />
+        <StatCell label="Veröffentlicht" value={stats.publishedCount} sub="Live auf der Seite" accent="var(--da-green)" />
+        <StatCell label="Total Wörter" value={stats.totalWordCount.toLocaleString("de-CH")} sub={`${stats.totalReadingMinutes} min Lesezeit gesamt`} />
       </div>
 
       <div className="a-dash-cols">
@@ -117,20 +114,24 @@ export default function AuthorDashboardPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {inFlight.map((a) => (
                 <Link key={a.id} href={`/autor/artikel/${a.id}`} className="a-dash-row">
-                  <Image
-                    src={a.cover}
-                    alt=""
-                    width={60}
-                    height={60}
-                    className="a-dash-row__cover"
-                    unoptimized
-                  />
+                  {a.cover_image_url ? (
+                    <Image
+                      src={a.cover_image_url}
+                      alt=""
+                      width={60}
+                      height={60}
+                      className="a-dash-row__cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="a-dash-row__cover-fallback" />
+                  )}
                   <div style={{ minWidth: 0 }}>
                     <p className="a-dash-row__title">{a.title}</p>
                     <div className="a-dash-row__meta">
-                      <span>{a.wordCount} Wörter</span>
+                      <span>{a.word_count ?? 0} Wörter</span>
                       <span>·</span>
-                      <span>{relativeFromIso(a.updatedAt)}</span>
+                      <span>{relativeFromIso(a.updated_at)}</span>
                     </div>
                   </div>
                   <AuthorStatusBadge status={a.status} size="sm" />
@@ -141,8 +142,8 @@ export default function AuthorDashboardPage() {
         </AuthorCard>
 
         <AuthorCard padding={24} accent="var(--da-green)">
-          <MonoCaption color="var(--da-green)">Top Performer</MonoCaption>
-          {top ? (
+          <MonoCaption color="var(--da-green)">Letzter Beitrag</MonoCaption>
+          {topPublished ? (
             <>
               <h3
                 style={{
@@ -154,27 +155,24 @@ export default function AuthorDashboardPage() {
                   marginBottom: 16,
                 }}
               >
-                {top.title}
+                {topPublished.title}
               </h3>
-              <Sparkline
-                data={[120, 180, 240, 410, 380, 520, 690, 880, 720, 920, 1100, 1240]}
-                color="var(--da-green)"
-                height={50}
-              />
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 18 }}>
-                <div>
-                  <div style={{ color: "var(--da-text)", fontSize: 22, fontWeight: 700, fontFamily: "var(--da-font-display)", lineHeight: 1 }}>
-                    {top.views.toLocaleString("de-CH")}
-                  </div>
-                  <div style={{ color: "var(--da-muted)", fontSize: 11, marginTop: 4 }}>Views</div>
-                </div>
-                <div>
-                  <div style={{ color: "var(--da-green)", fontSize: 22, fontWeight: 700, fontFamily: "var(--da-font-display)", lineHeight: 1 }}>
-                    {top.completion}%
-                  </div>
-                  <div style={{ color: "var(--da-muted)", fontSize: 11, marginTop: 4 }}>Completion</div>
-                </div>
-              </div>
+              <p style={{ color: "var(--da-muted)", fontSize: 13, lineHeight: 1.6 }}>
+                {topPublished.word_count ?? 0} Wörter · {topPublished.reading_minutes ?? 0} min Lesezeit
+              </p>
+              <Link
+                href={`/autor/artikel/${topPublished.id}`}
+                style={{
+                  display: "inline-block",
+                  marginTop: 14,
+                  color: "var(--da-green)",
+                  fontSize: 13,
+                  textDecoration: "none",
+                  fontWeight: 600,
+                }}
+              >
+                Bearbeiten →
+              </Link>
             </>
           ) : (
             <p style={{ color: "var(--da-muted)", fontSize: 13 }}>
@@ -183,19 +181,6 @@ export default function AuthorDashboardPage() {
           )}
         </AuthorCard>
       </div>
-    </AuthorShell>
+    </>
   );
-}
-
-function relativeFromIso(iso: string): string {
-  const then = new Date(iso).getTime();
-  const now = Date.now();
-  const diffMin = Math.max(1, Math.round((now - then) / 60000));
-  if (diffMin < 60) return `vor ${diffMin} min`;
-  const diffH = Math.round(diffMin / 60);
-  if (diffH < 24) return `vor ${diffH} Std.`;
-  const diffD = Math.round(diffH / 24);
-  if (diffD < 14) return `vor ${diffD} Tag${diffD === 1 ? "" : "en"}`;
-  const diffW = Math.round(diffD / 7);
-  return `vor ${diffW} Wo.`;
 }

@@ -1,25 +1,30 @@
-import { getCurrentAuthor } from "@/lib/mockAuthorApi";
+import { getCurrentAuthor } from "@/lib/authorApi";
 import AuthorMobileBlock from "./AuthorMobileBlock";
 import AuthorSidebar from "./AuthorSidebar";
 import AuthorTopNav from "./AuthorTopNav";
+import type { AuthorChip } from "@/types/authorVM";
 
 type AuthorShellProps = {
   children: React.ReactNode;
 };
 
-export default function AuthorShell({ children }: AuthorShellProps) {
-  const author = getCurrentAuthor();
+export default async function AuthorShell({ children }: AuthorShellProps) {
+  const row = await getCurrentAuthor();
+  const author: AuthorChip = {
+    name: row?.display_name ?? "Unbekannt",
+    avatar: row?.avatar_url ?? "",
+    role: row?.job_title ?? undefined,
+  };
+
   return (
     <>
       <style>{`
         .a-shell { min-height: 100vh; background: var(--da-dark); }
 
-        /* Mobile: nur Block sichtbar */
         .a-shell__mobile { display: block; }
         .a-shell__tablet { display: none; }
         .a-shell__desktop { display: none; }
 
-        /* Tablet: TopNav + Main, ohne Sidebar */
         @media (min-width: 768px) {
           .a-shell__mobile { display: none; }
           .a-shell__tablet { display: block; }
@@ -31,7 +36,6 @@ export default function AuthorShell({ children }: AuthorShellProps) {
           animation: da-fadein var(--t-slow) ease;
         }
 
-        /* Desktop: Sidebar + Main mit margin */
         @media (min-width: 1024px) {
           .a-shell__tablet { display: none; }
           .a-shell__desktop { display: block; }
@@ -44,18 +48,15 @@ export default function AuthorShell({ children }: AuthorShellProps) {
         }
       `}</style>
       <div className="a-shell">
-        {/* Smartphone < 768px */}
         <div className="a-shell__mobile">
           <AuthorMobileBlock />
         </div>
 
-        {/* Tablet 768-1024px */}
         <div className="a-shell__tablet">
           <AuthorTopNav author={author} />
           <main className="a-shell__tablet-main">{children}</main>
         </div>
 
-        {/* Desktop ≥ 1024px */}
         <div className="a-shell__desktop">
           <AuthorSidebar author={author} />
           <main className="a-shell__desktop-main">{children}</main>
