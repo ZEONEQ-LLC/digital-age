@@ -4,8 +4,6 @@ import TopicListing from "@/components/TopicListing";
 import { getArticlesByCategory } from "@/lib/articleApi";
 import { articleToListRow } from "@/lib/mappers/articleMappers";
 
-const subcategories = ["Alle", "GenAI", "Blockchain", "Robotics", "Quantencomputing"];
-
 const categoryColors: Record<string, string> = {
   "GenAI":            "var(--da-green)",
   "Blockchain":       "var(--da-orange)",
@@ -24,6 +22,12 @@ const authors = [
 export default async function FutureTechPage() {
   const rows = await getArticlesByCategory("future-tech");
   const articles = rows.map(articleToListRow);
+
+  const subcategorySet = new Set<string>();
+  for (const row of rows) {
+    if (row.subcategory) subcategorySet.add(row.subcategory);
+  }
+  const subcategories = ["Alle", ...Array.from(subcategorySet).sort()];
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
