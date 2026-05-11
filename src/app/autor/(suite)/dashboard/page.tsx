@@ -44,6 +44,7 @@ export default async function AuthorDashboardPage() {
         right={
           <Link
             href="/autor/artikel/neu"
+            prefetch={false}
             style={{
               background: "var(--da-green)",
               color: "var(--da-dark)",
