@@ -11,8 +11,12 @@ const categoryColors: Record<string, string> = {
   "Quantencomputing": "var(--da-green)",
 };
 
+// TODO Phase 8: Trending-Chips ohne Klick-Logik (rein UI). Braucht Tag-System
+// + Trending-Metrik in eigener Migration.
 const trendingTags = ["GenAI 2026", "Quantum", "IoT", "Smart Contracts", "Cobots", "LLM Agents", "Post-Quantum"];
 
+// TODO Phase 8: Author-Filter ohne Klick-Logik. Server-Side-Filter via URL-Param
+// machbar, aber bisher nicht implementiert.
 const authors = [
   { name: "Ali Soy",          role: "Future Tech",   avatar: "https://i.pravatar.cc/80?u=ali",      count: 5 },
   { name: "Matthias Zwingli", role: "Robotics & IoT", avatar: "https://i.pravatar.cc/80?u=matthias", count: 2 },

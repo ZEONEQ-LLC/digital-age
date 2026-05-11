@@ -239,6 +239,31 @@ Sub-Labels pro Artikel. `subcategory text` auf articles ist die pragmatische
 Lösung; eine separate subcategories-Tabelle wäre für loose Display-Labels
 overkill. Multi-Tag-Filter kommt ggf. in Session E.
 
+### Listing-Pages (Session C)
+
+`/ki-im-business` und `/future-tech` rendern Subcategory-Filter-Chips dynamisch
+aus den geladenen Articles (`distinct subcategory`, sortiert, "Alle" first).
+`categoryColors` bleibt hardcoded — unbekannte Subcategories rendern den
+Filter-Chip ohne Dot.
+
+**TODOs:**
+- **Phase 8 — Trending-Chips:** aktuell rein UI ohne Klick-Logik. Braucht
+  Tag-System (eigene Tabelle, m:n zu articles) + Trending-Metrik (Click-Counter).
+- **Phase 8 — Author-Filter:** Sidebar-Author-Liste ohne Klick-Logik.
+  Server-Side-Filter via URL-Param ist gegen aktuelle DB machbar, bisher nicht
+  implementiert.
+
+### Author-Routing-Split (Session C Fix-Up)
+
+`src/app/autor/` ist in zwei Route-Groups gesplittet:
+
+- `(public)/[slug]/` — öffentliche Author-Profile, kein Auth-Gate
+- `(suite)/` — Author-Suite (Dashboard, Profil, Artikel, Podcasts, etc.) hinter
+  Auth-Gate (`(suite)/layout.tsx` redirected auf `/login` wenn keine Session)
+
+Route Groups sind URL-transparent: `/autor/ali-soy` bleibt `/autor/ali-soy`,
+`/autor/dashboard` bleibt `/autor/dashboard`.
+
 ### Seed-Daten (Session C)
 
 23 Articles und 4 Authors aus Mock-Quellen geseedet:

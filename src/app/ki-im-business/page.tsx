@@ -11,8 +11,12 @@ const categoryColors: Record<string, string> = {
   "Swiss Hosted GPT":  "var(--da-green)",
 };
 
+// TODO Phase 8: Trending-Chips ohne Klick-Logik (rein UI). Braucht Tag-System
+// + Trending-Metrik in eigener Migration.
 const trendingTags = ["EU AI Act", "GPT-4o", "Compliance 2026", "Swiss AI", "Automatisierung", "LLM Security", "Datenqualität"];
 
+// TODO Phase 8: Author-Filter ohne Klick-Logik. Server-Side-Filter via URL-Param
+// machbar, aber bisher nicht implementiert.
 const authors = [
   { name: "Andreas Kamm",     role: "Banking & AI",  avatar: "https://i.pravatar.cc/80?u=andreas",  count: 3 },
   { name: "Ali Soy",          role: "KI-Strategie",  avatar: "https://i.pravatar.cc/80?u=ali",      count: 3 },
