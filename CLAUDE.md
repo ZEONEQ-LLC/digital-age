@@ -127,9 +127,11 @@ und werden mit der Supabase-Integration ersetzt:
   - Author-Suite-Konsumenten (Dashboard, Profil, Podcasts, AuthorShell) nutzen
     noch CRUD-Functions aus mockAuthorApi (createDraft, saveDraft, submitForReview,
     getRevisions, getDashboardStats) — Session D/E
-- `mockPodcastApi.ts` → Tabelle `podcasts` mit FK zu `authors` und `articles`
-- `articleSlugRegistry.ts` → wird in Session D durch Supabase-Query ersetzt
-  (aktuell nur noch von Podcast-Code referenziert)
+- `mockPodcastApi.ts` → Tabelle `podcasts` (Empfehlungs-Modell, kein eigenes Hosting)
+  - Public-Page `/podcasts` seit Session D auf Supabase migriert (`@/lib/podcastApi`)
+  - Author-Suite-Page `/autor/podcasts` nutzt noch Mock — CRUD-Migration Session E
+- `articleSlugRegistry.ts` → wird in späterer Session durch Supabase-Query ersetzt
+  (aktuell nur noch von Mock-Podcast-Code referenziert; nicht mehr im Public-Flow)
 
 ### Three-Role Author-Modell
 
@@ -216,9 +218,13 @@ nicht als Proxy-Logik — Proxy refresht nur die Session.
   Embedding (`*, category:categories(...), author:authors(...)`)
 - `authorApi.ts` — Server-side Author-Queries (`getCurrentAuthor`,
   `getAuthorByHandle`, `getArticlesByAuthor`, `signOut`)
-- `mappers/articleMappers.ts` — Mapper-Functions zwischen Supabase-Row-Shape
-  und Card-Component-Props (`articleToCard`, `articleToListRow`,
+- `podcastApi.ts` — Server-side Podcast-Queries (`getPublishedPodcasts` mit
+  optionalen Sprache-/Kategorie-Filtern, joined mit recommender-Author)
+- `mappers/articleMappers.ts` — Mapper zwischen Article-Row und
+  Card-Component-Props (`articleToCard`, `articleToListRow`,
   `authorToProfileViewModel`). Card-Components bleiben Supabase-frei.
+- `mappers/podcastMappers.ts` — Mapper zwischen Podcast-Row und Card-VM
+  (`podcastToCardVM`) plus `PODCAST_LANGUAGES`-Konstante (DE/EN/FR/IT).
 - `markdownBlocks.ts` — Markdown→Block-Tree-Konverter. Extrahiert aus
   mockAuthorApi, damit BlockReader weiterhin TOC-Anker und Quote-Attribution
   rendert. Article-Detail-Page nutzt das.
@@ -267,6 +273,28 @@ Author-Block dynamisch aus den geladenen Articles:
 
 Route Groups sind URL-transparent: `/autor/ali-soy` bleibt `/autor/ali-soy`,
 `/autor/dashboard` bleibt `/autor/dashboard`.
+
+### Podcasts-Schema (Session D, drop+recreate)
+
+Modell-Wechsel von "Host produziert Episoden" → "kuratierte Empfehlungen
+externer Podcasts/Episoden". Alte `podcasts`-Tabelle (slug, audio_url,
+episode_number, host_id) wurde via `drop table cascade` entfernt und neu
+angelegt mit:
+
+- `language text check (de/en/fr/it)`, `podcast_category text` (loose Label)
+- `spotify_url text`, `apple_podcasts_url text` — keine eigenen Audio-Files
+- `recommended_by_id uuid` (FK zu authors, on delete set null)
+- `recommended_at timestamptz`, `is_published boolean default true`
+- Kein Review-Workflow: Author publisht direkt, keine `status`-Enum
+
+**RLS:** Public liest published, Author CRUD nur auf eigene (any
+is_published), Editor `for all` über alle Rows. Externe Authors sind
+DB-technisch erlaubt zu empfehlen — Einschränkung kommt ggf. später als
+zusätzliche Policy. (Mock hatte `assertRecommenderEligible` — Frontend-only,
+nicht enforced auf DB-Level.)
+
+**TODO post-Session-D:** Cover-Bilder in Supabase Storage hochladen und
+URLs in den 4 Seed-Rows aktualisieren (aktuell picsum-Placeholder).
 
 ### Seed-Daten (Session C)
 

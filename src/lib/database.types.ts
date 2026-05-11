@@ -175,51 +175,54 @@ export type Database = {
       }
       podcasts: {
         Row: {
-          audio_url: string
+          apple_podcasts_url: string | null
           cover_image_url: string | null
           created_at: string
           description: string | null
-          duration_seconds: number | null
-          episode_number: number | null
-          host_id: string | null
           id: string
-          published_at: string | null
-          slug: string
+          is_published: boolean
+          language: string
+          podcast_category: string
+          recommended_at: string
+          recommended_by_id: string | null
+          spotify_url: string | null
           title: string
           updated_at: string
         }
         Insert: {
-          audio_url: string
+          apple_podcasts_url?: string | null
           cover_image_url?: string | null
           created_at?: string
           description?: string | null
-          duration_seconds?: number | null
-          episode_number?: number | null
-          host_id?: string | null
           id?: string
-          published_at?: string | null
-          slug: string
+          is_published?: boolean
+          language: string
+          podcast_category: string
+          recommended_at?: string
+          recommended_by_id?: string | null
+          spotify_url?: string | null
           title: string
           updated_at?: string
         }
         Update: {
-          audio_url?: string
+          apple_podcasts_url?: string | null
           cover_image_url?: string | null
           created_at?: string
           description?: string | null
-          duration_seconds?: number | null
-          episode_number?: number | null
-          host_id?: string | null
           id?: string
-          published_at?: string | null
-          slug?: string
+          is_published?: boolean
+          language?: string
+          podcast_category?: string
+          recommended_at?: string
+          recommended_by_id?: string | null
+          spotify_url?: string | null
           title?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "podcasts_host_id_fkey"
-            columns: ["host_id"]
+            foreignKeyName: "podcasts_recommended_by_id_fkey"
+            columns: ["recommended_by_id"]
             isOneToOne: false
             referencedRelation: "authors"
             referencedColumns: ["id"]
