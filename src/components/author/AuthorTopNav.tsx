@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { Author } from "@/types/author";
+import type { AuthorChip } from "@/types/authorVM";
 
 type NavItem = { id: string; label: string; href: string; icon: string };
 
@@ -16,7 +16,7 @@ const items: NavItem[] = [
 ];
 
 type AuthorTopNavProps = {
-  author: Author;
+  author: AuthorChip;
 };
 
 export default function AuthorTopNav({ author }: AuthorTopNavProps) {
@@ -121,14 +121,33 @@ export default function AuthorTopNav({ author }: AuthorTopNavProps) {
             })}
           </nav>
           <div className="a-tn__chip">
-            <Image
-              src={author.avatar}
-              alt={author.name}
-              width={28}
-              height={28}
-              style={{ borderRadius: "50%", objectFit: "cover" }}
-              unoptimized
-            />
+            {author.avatar ? (
+              <Image
+                src={author.avatar}
+                alt={author.name}
+                width={28}
+                height={28}
+                style={{ borderRadius: "50%", objectFit: "cover" }}
+                unoptimized
+              />
+            ) : (
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  background: "var(--da-card)",
+                  color: "var(--da-muted)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+              >
+                {author.name.charAt(0).toUpperCase()}
+              </div>
+            )}
             <span className="a-tn__chip-name">{author.name}</span>
           </div>
         </div>

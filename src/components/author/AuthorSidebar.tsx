@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { Author } from "@/types/author";
+import type { AuthorChip } from "@/types/authorVM";
 
 type NavItem = { id: string; label: string; href: string; icon: string };
 
@@ -16,7 +16,7 @@ const items: NavItem[] = [
 ];
 
 type AuthorSidebarProps = {
-  author: Author;
+  author: AuthorChip;
 };
 
 export default function AuthorSidebar({ author }: AuthorSidebarProps) {
@@ -105,14 +105,32 @@ export default function AuthorSidebar({ author }: AuthorSidebarProps) {
         </Link>
 
         <div className="a-sb__chip">
-          <Image
-            src={author.avatar}
-            alt={author.name}
-            width={32}
-            height={32}
-            style={{ borderRadius: "50%", objectFit: "cover" }}
-            unoptimized
-          />
+          {author.avatar ? (
+            <Image
+              src={author.avatar}
+              alt={author.name}
+              width={32}
+              height={32}
+              style={{ borderRadius: "50%", objectFit: "cover" }}
+              unoptimized
+            />
+          ) : (
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                background: "var(--da-card)",
+                color: "var(--da-muted)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 600,
+              }}
+            >
+              {author.name.charAt(0).toUpperCase()}
+            </div>
+          )}
           <div style={{ minWidth: 0 }}>
             <p className="a-sb__chip-name">{author.name}</p>
             {author.role && <p className="a-sb__chip-role">{author.role}</p>}

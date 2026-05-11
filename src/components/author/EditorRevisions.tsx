@@ -2,20 +2,35 @@
 
 import AuthorCard from "./AuthorCard";
 import MonoCaption from "./MonoCaption";
-import type { Author, Revision } from "@/types/author";
+import type { RevisionWithEditor } from "@/lib/authorApi";
 
 type EditorRevisionsProps = {
-  revisions: Revision[];
-  authorsById: Record<string, Author>;
+  revisions: RevisionWithEditor[];
 };
 
-const dotColor = (type: Revision["type"]): string => {
-  if (type === "create") return "var(--da-green)";
-  if (type === "review") return "var(--da-orange)";
-  if (type === "submit") return "var(--da-orange)";
-  if (type === "publish") return "var(--da-green)";
+function dotColor(prev: string | null, next: string): string {
+  if (!prev) return "var(--da-green)";
+  if (next === "published") return "var(--da-green)";
+  if (next === "in_review") return "var(--da-orange)";
+  if (next === "archived") return "var(--da-faint)";
   return "var(--da-muted-soft)";
-};
+}
+
+function statusLabel(s: string): string {
+  if (s === "draft") return "Entwurf";
+  if (s === "in_review") return "In Review";
+  if (s === "published") return "Veröffentlicht";
+  if (s === "archived") return "Archiviert";
+  return s;
+}
+
+function summary(r: RevisionWithEditor): string {
+  if (!r.previous_status) return "Artikel erstellt";
+  if (r.previous_status !== r.new_status) {
+    return `Status: ${statusLabel(r.previous_status)} → ${statusLabel(r.new_status)}`;
+  }
+  return "Inhalt bearbeitet";
+}
 
 function relative(iso: string): string {
   const then = new Date(iso).getTime();
@@ -30,7 +45,7 @@ function relative(iso: string): string {
   return `vor ${diffW} Wo.`;
 }
 
-export default function EditorRevisions({ revisions, authorsById }: EditorRevisionsProps) {
+export default function EditorRevisions({ revisions }: EditorRevisionsProps) {
   if (revisions.length === 0) {
     return (
       <AuthorCard padding={22}>
@@ -45,7 +60,6 @@ export default function EditorRevisions({ revisions, authorsById }: EditorRevisi
       <MonoCaption>Revisionsverlauf</MonoCaption>
       <div style={{ display: "flex", flexDirection: "column" }}>
         {revisions.map((r, i) => {
-          const author = authorsById[r.authorId];
           const isLast = i === revisions.length - 1;
           return (
             <div
@@ -63,7 +77,7 @@ export default function EditorRevisions({ revisions, authorsById }: EditorRevisi
                     width: 9,
                     height: 9,
                     borderRadius: "50%",
-                    background: dotColor(r.type),
+                    background: dotColor(r.previous_status, r.new_status),
                   }}
                 />
                 {!isLast && <span style={{ width: 1, flex: 1, background: "var(--da-border)", marginTop: 4 }} />}
@@ -71,55 +85,25 @@ export default function EditorRevisions({ revisions, authorsById }: EditorRevisi
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                   <span style={{ color: "var(--da-text)", fontSize: 13, fontWeight: 600 }}>
-                    {author?.name ?? "Unbekannt"}
+                    {r.editor?.display_name ?? "System"}
                   </span>
                   <span style={{ color: "var(--da-muted-soft)", fontSize: 11, fontFamily: "var(--da-font-mono)" }}>
-                    {relative(r.createdAt)}
+                    {relative(r.created_at)}
                   </span>
                 </div>
-                <p style={{ color: "var(--da-muted)", fontSize: 12, marginBottom: 8 }}>{r.summary}</p>
-                {i > 0 && (
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button
-                      type="button"
-                      disabled
-                      title="Vergleich kommt mit Supabase-Backend"
-                      style={{
-                        background: "transparent",
-                        color: "var(--da-green)",
-                        border: "1px solid var(--da-green)",
-                        borderRadius: 3,
-                        padding: "3px 10px",
-                        fontSize: 11,
-                        fontWeight: 600,
-                        cursor: "not-allowed",
-                        opacity: 0.6,
-                        fontFamily: "inherit",
-                      }}
-                    >
-                      Vergleichen
-                    </button>
-                    <button
-                      type="button"
-                      disabled
-                      title="Wiederherstellen kommt mit Supabase-Backend"
-                      style={{
-                        background: "transparent",
-                        color: "var(--da-muted-soft)",
-                        border: "1px solid var(--da-border)",
-                        borderRadius: 3,
-                        padding: "3px 10px",
-                        fontSize: 11,
-                        fontWeight: 600,
-                        cursor: "not-allowed",
-                        opacity: 0.6,
-                        fontFamily: "inherit",
-                      }}
-                    >
-                      Wiederherstellen
-                    </button>
-                  </div>
-                )}
+                <p style={{ color: "var(--da-muted)", fontSize: 12, marginBottom: 4 }}>{summary(r)}</p>
+                <p
+                  style={{
+                    color: "var(--da-muted-soft)",
+                    fontSize: 11,
+                    fontFamily: "var(--da-font-mono)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  &ldquo;{r.title_snapshot}&rdquo;
+                </p>
               </div>
             </div>
           );
