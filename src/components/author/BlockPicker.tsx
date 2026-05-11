@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { BlockType } from "@/types/author";
+import type { BlockType } from "@/types/blocks";
 
 const OPTIONS: { id: string; label: string; icon: string; insertType: BlockType; level?: 2 | 3 }[] = [
   { id: "heading-2", label: "Heading 2", icon: "H2", insertType: "heading", level: 2 },

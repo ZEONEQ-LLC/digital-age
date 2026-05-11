@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Block as BlockT } from "@/types/author";
+import type { Block as BlockT } from "@/types/blocks";
 
 type BlockProps = {
   block: BlockT;

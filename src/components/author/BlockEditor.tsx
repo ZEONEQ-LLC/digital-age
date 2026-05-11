@@ -2,7 +2,7 @@
 
 import Block from "./Block";
 import BlockPicker from "./BlockPicker";
-import type { Block as BlockT, BlockType } from "@/types/author";
+import type { Block as BlockT, BlockType } from "@/types/blocks";
 
 type BlockEditorProps = {
   blocks: BlockT[];

@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import NewsTicker from "@/components/NewsTicker";
-import { submitExternalPitch } from "@/lib/mockAuthorApi";
+// TODO Session F+: echte anonyme-Pitch-Persistierung. Aktuell zeigt das Formular
+// nur die Success-UI, ohne Daten in die DB zu schreiben — ein RLS-geschützter
+// anonymous-insert braucht eigenes Design (rate limit, email confirm, etc.).
 
 type FormState = {
   title: string;
@@ -108,18 +110,6 @@ export default function PitchPage() {
     if (!allValid) return;
     setSubmitting(true);
     setTimeout(() => {
-      const cat = categories.find((c) => c.id === data.category)?.label ?? "Andere";
-      submitExternalPitch({
-        title: data.title.trim(),
-        excerpt: data.excerpt.trim(),
-        category: cat,
-        contentMd: data.contentMd,
-        authorName: data.authorName.trim(),
-        authorEmail: data.authorEmail.trim(),
-        authorRole: data.authorRole.trim() || undefined,
-        authorBio: data.authorBio.trim(),
-        authorWebsite: data.authorWebsite.trim() || undefined,
-      });
       setSubmitting(false);
       setSubmitted(true);
     }, 800);
