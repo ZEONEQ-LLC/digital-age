@@ -15,14 +15,6 @@ const categoryColors: Record<string, string> = {
 // + Trending-Metrik in eigener Migration.
 const trendingTags = ["GenAI 2026", "Quantum", "IoT", "Smart Contracts", "Cobots", "LLM Agents", "Post-Quantum"];
 
-// TODO Phase 8: Author-Filter ohne Klick-Logik. Server-Side-Filter via URL-Param
-// machbar, aber bisher nicht implementiert.
-const authors = [
-  { name: "Ali Soy",          role: "Future Tech",   avatar: "https://i.pravatar.cc/80?u=ali",      count: 5 },
-  { name: "Matthias Zwingli", role: "Robotics & IoT", avatar: "https://i.pravatar.cc/80?u=matthias", count: 2 },
-  { name: "Andreas Kamm",     role: "Emerging Tech", avatar: "https://i.pravatar.cc/80?u=andreas",  count: 2 },
-];
-
 export default async function FutureTechPage() {
   const rows = await getArticlesByCategory("future-tech");
   const articles = rows.map(articleToListRow);
@@ -32,6 +24,31 @@ export default async function FutureTechPage() {
     if (row.subcategory) subcategorySet.add(row.subcategory);
   }
   const subcategories = ["Alle", ...Array.from(subcategorySet).sort()];
+
+  // Authors aus geladenen Articles abgeleitet (Name + Avatar + Count).
+  // Role/Job-Title wird bewusst nicht angezeigt — schränkt thematisch zu stark ein.
+  // TODO Phase 8: Klick-Logic für Author-Filter (URL-Param, Server-Side-Filter).
+  const authorMap = new Map<
+    string,
+    { name: string; avatar: string; count: number }
+  >();
+  for (const row of rows) {
+    if (!row.author) continue;
+    const slug = row.author.slug;
+    const existing = authorMap.get(slug);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      authorMap.set(slug, {
+        name: row.author.display_name,
+        avatar: row.author.avatar_url ?? "",
+        count: 1,
+      });
+    }
+  }
+  const authors = Array.from(authorMap.values()).sort(
+    (a, b) => b.count - a.count,
+  );
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>

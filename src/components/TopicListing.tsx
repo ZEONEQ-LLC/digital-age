@@ -14,7 +14,7 @@ const accentVar: Record<Accent, string> = {
 
 type AuthorSpotlight = {
   name: string;
-  role: string;
+  role?: string;
   avatar: string;
   count: number;
 };
@@ -202,6 +202,14 @@ export default function TopicListing({
           overflow: hidden;
           flex-shrink: 0;
           border: 1.5px solid var(--da-border);
+          display: flex; align-items: center; justify-content: center;
+          background: var(--da-card);
+        }
+        .tl-author__initials {
+          color: var(--da-muted);
+          font-size: 14px;
+          font-weight: 600;
+          font-family: var(--da-font-display);
         }
         .tl-author__name {
           color: var(--da-text);
@@ -393,11 +401,15 @@ export default function TopicListing({
               {authors.map((a) => (
                 <div key={a.name} className="tl-author">
                   <div className="tl-author__avatar">
-                    <Image src={a.avatar} alt={a.name} fill sizes="36px" style={{ objectFit: "cover" }} />
+                    {a.avatar ? (
+                      <Image src={a.avatar} alt={a.name} fill sizes="36px" style={{ objectFit: "cover" }} unoptimized />
+                    ) : (
+                      <span className="tl-author__initials">{a.name.charAt(0).toUpperCase()}</span>
+                    )}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="tl-author__name">{a.name}</div>
-                    <div className="tl-author__role">{a.role}</div>
+                    {a.role && <div className="tl-author__role">{a.role}</div>}
                   </div>
                   <span className="tl-author__count">{a.count}</span>
                 </div>

@@ -241,17 +241,21 @@ overkill. Multi-Tag-Filter kommt ggf. in Session E.
 
 ### Listing-Pages (Session C)
 
-`/ki-im-business` und `/future-tech` rendern Subcategory-Filter-Chips dynamisch
-aus den geladenen Articles (`distinct subcategory`, sortiert, "Alle" first).
-`categoryColors` bleibt hardcoded — unbekannte Subcategories rendern den
-Filter-Chip ohne Dot.
+`/ki-im-business` und `/future-tech` rendern Subcategory-Filter-Chips und den
+Author-Block dynamisch aus den geladenen Articles:
+- **Subcategories:** `distinct subcategory`, sortiert, "Alle" first.
+  `categoryColors` bleibt hardcoded — unbekannte Subcategories rendern den
+  Filter-Chip ohne Dot.
+- **Author-Block:** Name + Avatar + Count pro Author aus der Article-Liste
+  aggregiert, sortiert nach Count desc. Role/Job-Title wird bewusst nicht
+  angezeigt (schränkt thematisch zu stark ein). Fallback bei fehlendem
+  `avatar_url`: erster Buchstabe als Initiale im Avatar-Kreis.
 
 **TODOs:**
 - **Phase 8 — Trending-Chips:** aktuell rein UI ohne Klick-Logik. Braucht
   Tag-System (eigene Tabelle, m:n zu articles) + Trending-Metrik (Click-Counter).
-- **Phase 8 — Author-Filter:** Sidebar-Author-Liste ohne Klick-Logik.
-  Server-Side-Filter via URL-Param ist gegen aktuelle DB machbar, bisher nicht
-  implementiert.
+- **Phase 8 — Author-Filter:** Author-Block-Klicks ohne Logik. Server-Side-Filter
+  via URL-Param ist gegen aktuelle DB machbar, bisher nicht implementiert.
 
 ### Author-Routing-Split (Session C Fix-Up)
 
