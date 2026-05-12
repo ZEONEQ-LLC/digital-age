@@ -1,10 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import NewsTicker from "@/components/NewsTicker";
 import Footer from "@/components/Footer";
-import { statusColor, type SwissStatus } from "@/components/CompanyCard";
+import { submitStartupExternal } from "@/lib/startupActions";
+import {
+  SWISS_STATUSES,
+  EMPLOYEE_RANGES,
+  FUNDING_STAGES,
+  INDUSTRIES,
+  lookupSwissStatus,
+} from "@/lib/mappers/startupMappers";
+import type {
+  SwissStatusCode,
+  EmployeeRangeCode,
+  FundingStageCode,
+} from "@/lib/startupApi";
 
 type FormData = {
   name: string;
@@ -12,11 +24,20 @@ type FormData = {
   description: string;
   website: string;
   logo: string;
-  status: SwissStatus;
+
+  swiss_status: SwissStatusCode;
   industry: string;
   city: string;
-  employees: string;
+  employee_range: EmployeeRangeCode;
   founded: string;
+
+  funding_stage: FundingStageCode | "";
+  total_funding_range: string;
+  last_round_at: string;
+  open_to_investment: boolean;
+  pitch_deck_url: string;
+  founders: string;
+
   contactName: string;
   email: string;
   role: string;
@@ -27,7 +48,10 @@ type FormErrors = Partial<Record<keyof FormData, string>>;
 
 const EMPTY: FormData = {
   name: "", tagline: "", description: "", website: "", logo: "",
-  status: "Swiss Based", industry: "FinTech", city: "", employees: "11–50", founded: "",
+  swiss_status: "swiss_based", industry: "FinTech", city: "",
+  employee_range: "r_11_50", founded: "",
+  funding_stage: "", total_funding_range: "", last_round_at: "",
+  open_to_investment: false, pitch_deck_url: "", founders: "",
   contactName: "", email: "", role: "", agreed: false,
 };
 
@@ -36,15 +60,6 @@ const STEPS = [
   { id: 2, label: "Klassifizierung", icon: "02" },
   { id: 3, label: "Kontakt",         icon: "03" },
 ] as const;
-
-const STATUS_OPTIONS: Array<{ value: SwissStatus; desc: string }> = [
-  { value: "Swiss Based",   desc: "Hauptsitz in der Schweiz" },
-  { value: "Swiss Founded", desc: "Schweizer Gründer, international tätig" },
-  { value: "Active in CH",  desc: "Internationale Firma mit Schweizer Präsenz" },
-];
-
-const INDUSTRIES = ["FinTech", "HealthTech", "LegalTech", "MarTech", "Enterprise", "Retail", "Robotics", "Logistics", "Consulting", "AI Governance", "Andere"];
-const EMPLOYEES = ["1–10", "11–50", "51–200", "200+"];
 
 function StepBar({ step }: { step: number }) {
   return (
@@ -74,7 +89,7 @@ function StepBar({ step }: { step: number }) {
 }
 
 function PreviewCard({ data }: { data: FormData }) {
-  const sc = statusColor(data.status);
+  const swiss = lookupSwissStatus(data.swiss_status);
   const empty = !data.name && !data.tagline;
   return (
     <div className="ein-prev">
@@ -84,8 +99,8 @@ function PreviewCard({ data }: { data: FormData }) {
       ) : (
         <>
           <div className="ein-prev__status">
-            <span className="ein-prev__dot" style={{ background: sc }} />
-            <span className="ein-prev__status-text" style={{ color: sc }}>🇨🇭 {data.status}</span>
+            <span className="ein-prev__dot" style={{ background: swiss.color }} />
+            <span className="ein-prev__status-text" style={{ color: swiss.color }}>🇨🇭 {swiss.label}</span>
           </div>
           <h3 className="ein-prev__name">
             {data.name || <span className="ein-prev__placeholder">Unternehmensname</span>}
@@ -96,7 +111,9 @@ function PreviewCard({ data }: { data: FormData }) {
           <div className="ein-prev__meta">
             {data.city && <span className="ein-prev__chip">📍 {data.city}</span>}
             <span className="ein-prev__chip ein-prev__chip--green">{data.industry}</span>
-            <span className="ein-prev__chip ein-prev__chip--mono">{data.employees} MA</span>
+            <span className="ein-prev__chip ein-prev__chip--mono">
+              {EMPLOYEE_RANGES.find((r) => r.code === data.employee_range)?.label} MA
+            </span>
           </div>
         </>
       )}
@@ -150,6 +167,8 @@ export default function EinreichenPage() {
   const [data, setData] = useState<FormData>(EMPTY);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, startSubmitting] = useTransition();
 
   const update = <K extends keyof FormData>(key: K, val: FormData[K]) => {
     setData((d) => ({ ...d, [key]: val }));
@@ -160,13 +179,22 @@ export default function EinreichenPage() {
     const e: FormErrors = {};
     if (step === 1) {
       if (!data.name.trim())        e.name        = "Pflichtfeld";
+      else if (data.name.length > 80) e.name = "Max 80 Zeichen";
       if (!data.tagline.trim())     e.tagline     = "Pflichtfeld";
+      else if (data.tagline.length > 100) e.tagline = "Max 100 Zeichen";
       if (!data.description.trim()) e.description = "Pflichtfeld";
       if (!data.website.trim())     e.website     = "Pflichtfeld";
       else if (!/^https?:\/\//.test(data.website)) e.website = "Bitte gültige URL eingeben (https://...)";
     }
     if (step === 2) {
       if (!data.city.trim()) e.city = "Pflichtfeld";
+      if (!data.founded.trim()) e.founded = "Pflichtfeld";
+      else {
+        const year = Number(data.founded);
+        if (!Number.isInteger(year) || year < 1990 || year > 2030) {
+          e.founded = "Jahr zwischen 1990 und 2030";
+        }
+      }
     }
     if (step === 3) {
       if (!data.contactName.trim()) e.contactName = "Pflichtfeld";
@@ -178,12 +206,44 @@ export default function EinreichenPage() {
     return Object.keys(e).length === 0;
   };
 
-  const next   = () => { if (validateStep()) setStep((s) => Math.min(s + 1, 3)); };
-  const back   = () => setStep((s) => Math.max(s - 1, 1));
+  const next = () => { if (validateStep()) setStep((s) => Math.min(s + 1, 3)); };
+  const back = () => setStep((s) => Math.max(s - 1, 1));
+
   const submit = () => {
-    if (!validateStep()) return;
-    console.log("[swiss-ai/einreichen] submission:", data);
-    setSubmitted(true);
+    if (!validateStep() || submitting) return;
+    setSubmitError(null);
+    startSubmitting(async () => {
+      try {
+        const founders = data.founders
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        await submitStartupExternal({
+          name: data.name,
+          tagline: data.tagline,
+          description: data.description,
+          website: data.website,
+          logo_url: data.logo || null,
+          swiss_status: data.swiss_status,
+          industry: data.industry,
+          city: data.city,
+          employee_range: data.employee_range,
+          founded_year: Number(data.founded),
+          funding_stage: data.funding_stage || null,
+          total_funding_range: data.total_funding_range || null,
+          last_round_at: data.last_round_at || null,
+          open_to_investment: data.open_to_investment,
+          pitch_deck_url: data.pitch_deck_url || null,
+          founder_names: founders.length > 0 ? founders : null,
+          submitter_name: data.contactName,
+          submitter_email: data.email,
+          submitter_role: data.role || null,
+        });
+        setSubmitted(true);
+      } catch (err) {
+        setSubmitError(err instanceof Error ? err.message : String(err));
+      }
+    });
   };
 
   return (
@@ -248,6 +308,11 @@ export default function EinreichenPage() {
           font-family: var(--da-font-display);
         }
         .ein-card__num { color: var(--da-green); font-family: var(--da-font-mono); font-size: 14px; }
+        .ein-card__sub {
+          color: var(--da-faint); font-family: var(--da-font-mono);
+          font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+          margin: 20px 0 12px;
+        }
 
         .field { margin-bottom: 22px; }
         .field label.lbl { display: block; color: var(--da-text-strong); font-size: 13px; font-weight: 600; margin-bottom: 8px; }
@@ -324,9 +389,13 @@ export default function EinreichenPage() {
           border: none; padding: 12px 32px; border-radius: var(--r-sm);
           font-size: 14px; font-weight: 700; cursor: pointer;
         }
+        .ein-nav__next:disabled { opacity: 0.6; cursor: not-allowed; }
         .ein-step-info {
           color: var(--da-faint); font-size: 12px;
           font-family: var(--da-font-mono); margin-top: 16px; text-align: center;
+        }
+        .ein-submit-error {
+          color: #ff8080; font-size: 13px; margin-top: 12px; line-height: 1.5;
         }
 
         .ein-aside { position: sticky; top: var(--aside-sticky-top); display: flex; flex-direction: column; }
@@ -440,7 +509,7 @@ export default function EinreichenPage() {
                   <>
                     <div className="field">
                       <label className="lbl">Name des Unternehmens *</label>
-                      <input type="text" className={`input${errors.name ? " err" : ""}`} value={data.name} onChange={(e) => update("name", e.target.value)} placeholder="z.B. DeepJudge" />
+                      <input type="text" className={`input${errors.name ? " err" : ""}`} maxLength={80} value={data.name} onChange={(e) => update("name", e.target.value)} placeholder="z.B. DeepJudge" />
                       {errors.name && <p className="err-msg">{errors.name}</p>}
                     </div>
                     <div className="field">
@@ -475,15 +544,14 @@ export default function EinreichenPage() {
                     <div className="field">
                       <label className="lbl">Swiss-Status *</label>
                       <div className="ein-radios">
-                        {STATUS_OPTIONS.map(({ value, desc }) => {
-                          const active = data.status === value;
-                          const sc = statusColor(value);
+                        {SWISS_STATUSES.map((s) => {
+                          const active = data.swiss_status === s.code;
                           return (
-                            <label key={value} className={`ein-radio${active ? " ein-radio--on" : ""}`} style={{ borderColor: active ? sc : undefined }}>
-                              <input type="radio" name="status" checked={active} onChange={() => update("status", value)} style={{ accentColor: sc }} />
+                            <label key={s.code} className={`ein-radio${active ? " ein-radio--on" : ""}`} style={{ borderColor: active ? s.color : undefined }}>
+                              <input type="radio" name="status" checked={active} onChange={() => update("swiss_status", s.code)} style={{ accentColor: s.color }} />
                               <div>
-                                <div className="ein-radio__name" style={{ color: sc }}>🇨🇭 {value}</div>
-                                <div className="ein-radio__desc">{desc}</div>
+                                <div className="ein-radio__name" style={{ color: s.color }}>🇨🇭 {s.label}</div>
+                                <div className="ein-radio__desc">{s.description}</div>
                               </div>
                             </label>
                           );
@@ -506,14 +574,44 @@ export default function EinreichenPage() {
                     <div className="ein-row2">
                       <div className="field">
                         <label className="lbl">Mitarbeitende *</label>
-                        <select className="sel" value={data.employees} onChange={(e) => update("employees", e.target.value)}>
-                          {EMPLOYEES.map((e) => <option key={e}>{e}</option>)}
+                        <select className="sel" value={data.employee_range} onChange={(e) => update("employee_range", e.target.value as EmployeeRangeCode)}>
+                          {EMPLOYEE_RANGES.map((r) => <option key={r.code} value={r.code}>{r.label}</option>)}
                         </select>
                       </div>
                       <div className="field">
-                        <label className="lbl">Gründungsjahr <span className="opt">(optional)</span></label>
-                        <input type="number" min={1990} max={2026} className="input" value={data.founded} onChange={(e) => update("founded", e.target.value)} placeholder="2020" />
+                        <label className="lbl">Gründungsjahr *</label>
+                        <input type="number" min={1990} max={2030} className={`input${errors.founded ? " err" : ""}`} value={data.founded} onChange={(e) => update("founded", e.target.value)} placeholder="2020" />
+                        {errors.founded && <p className="err-msg">{errors.founded}</p>}
                       </div>
+                    </div>
+
+                    <h3 className="ein-card__sub">Investor-Infos (optional)</h3>
+                    <div className="ein-row2">
+                      <div className="field">
+                        <label className="lbl">Funding Stage <span className="opt">(optional)</span></label>
+                        <select className="sel" value={data.funding_stage} onChange={(e) => update("funding_stage", e.target.value as FundingStageCode | "")}>
+                          <option value="">—</option>
+                          {FUNDING_STAGES.map((f) => <option key={f.code} value={f.code}>{f.label}</option>)}
+                        </select>
+                      </div>
+                      <div className="field">
+                        <label className="lbl">Total Funding <span className="opt">(z.B. CHF 5–10M)</span></label>
+                        <input type="text" className="input" value={data.total_funding_range} onChange={(e) => update("total_funding_range", e.target.value)} placeholder="CHF 5–10M" />
+                      </div>
+                    </div>
+                    <div className="ein-row2">
+                      <div className="field">
+                        <label className="lbl">Letzte Runde <span className="opt">(Datum, optional)</span></label>
+                        <input type="date" className="input" value={data.last_round_at} onChange={(e) => update("last_round_at", e.target.value)} />
+                      </div>
+                      <div className="field">
+                        <label className="lbl">Pitch Deck URL <span className="opt">(optional)</span></label>
+                        <input type="url" className="input" value={data.pitch_deck_url} onChange={(e) => update("pitch_deck_url", e.target.value)} placeholder="https://..." />
+                      </div>
+                    </div>
+                    <div className="field">
+                      <label className="lbl">Gründer:innen <span className="opt">(Namen kommagetrennt, optional)</span></label>
+                      <input type="text" className="input" value={data.founders} onChange={(e) => update("founders", e.target.value)} placeholder="z.B. Anna Muster, Beat Beispiel" />
                     </div>
                   </>
                 )}
@@ -539,6 +637,12 @@ export default function EinreichenPage() {
                     </div>
                     <div className="field">
                       <label className="ein-check">
+                        <input type="checkbox" checked={data.open_to_investment} onChange={(e) => update("open_to_investment", e.target.checked)} />
+                        <span>Wir sind offen für Investorengespräche (kann später von der Redaktion bestätigt werden).</span>
+                      </label>
+                    </div>
+                    <div className="field">
+                      <label className="ein-check">
                         <input type="checkbox" checked={data.agreed} onChange={(e) => update("agreed", e.target.checked)} />
                         <span>Ich bestätige, dass die Angaben korrekt sind und ich berechtigt bin, dieses Unternehmen einzutragen. Ich akzeptiere die <a href="/datenschutzerklaerung">Nutzungsbedingungen</a>.</span>
                       </label>
@@ -549,14 +653,17 @@ export default function EinreichenPage() {
 
                 <div className="ein-nav">
                   {step > 1 ? (
-                    <button type="button" className="ein-nav__back" onClick={back}>← Zurück</button>
+                    <button type="button" className="ein-nav__back" onClick={back} disabled={submitting}>← Zurück</button>
                   ) : <span />}
                   {step < 3 ? (
                     <button type="button" className="ein-nav__next" onClick={next}>Weiter →</button>
                   ) : (
-                    <button type="button" className="ein-nav__next" onClick={submit}>Zur Prüfung einreichen →</button>
+                    <button type="button" className="ein-nav__next" onClick={submit} disabled={submitting}>
+                      {submitting ? "Wird übermittelt..." : "Zur Prüfung einreichen →"}
+                    </button>
                   )}
                 </div>
+                {submitError && <p className="ein-submit-error">Fehler beim Einreichen: {submitError}</p>}
               </div>
               <p className="ein-step-info">Schritt {step} von {STEPS.length}</p>
             </div>
