@@ -10,7 +10,7 @@ create table public.invites (
   email text not null,
   display_name text,
   intended_role author_role not null default 'author',
-  token text unique not null default encode(gen_random_bytes(24), 'hex'),
+  token text unique not null default encode(extensions.gen_random_bytes(24), 'hex'),
   invited_by_id uuid references public.authors(id) on delete set null,
   invited_at timestamptz not null default now(),
   expires_at timestamptz not null default (now() + interval '14 days'),
