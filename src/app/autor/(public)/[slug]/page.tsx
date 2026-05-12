@@ -42,7 +42,7 @@ export default async function AuthorPage({ params }: PageProps) {
         .author-stats { display: flex; gap: 32px; flex-wrap: wrap; }
         @media (max-width: 768px) {
           .author-hero { grid-template-columns: 1fr; gap: 24px; text-align: center; }
-          .author-hero img { margin: 0 auto; }
+          .author-hero__avatar { margin: 0 auto; }
           .author-stats { justify-content: center; }
         }
       `}</style>
@@ -53,15 +53,28 @@ export default async function AuthorPage({ params }: PageProps) {
         <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
           <div className="author-hero">
             {author.avatar && (
-              <Image
-                src={author.avatar}
-                alt={author.name}
-                width={200}
-                height={200}
-                priority
-                unoptimized
-                style={{ borderRadius: "50%", objectFit: "cover", border: "3px solid var(--da-green)" }}
-              />
+              <div
+                className="author-hero__avatar"
+                style={{
+                  position: "relative",
+                  width: 200,
+                  height: 200,
+                  flexShrink: 0,
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                  border: "3px solid var(--da-green)",
+                }}
+              >
+                <Image
+                  src={author.avatar}
+                  alt={author.name}
+                  fill
+                  sizes="200px"
+                  priority
+                  unoptimized
+                  style={{ objectFit: "cover" }}
+                />
+              </div>
             )}
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px", flexWrap: "wrap" }}>
