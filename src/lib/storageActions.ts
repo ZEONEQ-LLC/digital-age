@@ -65,11 +65,10 @@ export async function uploadAvatar(
     throw new Error(`Upload fehlgeschlagen: ${uploadErr.message}`);
   }
 
-  const { data: urlData } = supabase.storage
-    .from("avatars")
-    .getPublicUrl(path, {
-      transform: { width: 256, height: 256, resize: "cover" },
-    });
+  // Object-Endpoint statt Render-Endpoint: Image-Transformation-API ist ein
+  // Pro-Plan-Feature und auf Free-Tier nicht verfügbar. Client resized vor
+  // Upload via Canvas (siehe ProfileEditor), Server-Transform daher unnötig.
+  const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
   const newUrl = urlData.publicUrl;
 
   const { error: updateErr } = await supabase
