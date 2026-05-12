@@ -111,7 +111,7 @@ export default function AuthorSidebar({ author }: AuthorSidebarProps) {
               alt={author.name}
               width={32}
               height={32}
-              style={{ borderRadius: "50%", objectFit: "cover" }}
+              style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", display: "block", flexShrink: 0 }}
               unoptimized
             />
           ) : (
