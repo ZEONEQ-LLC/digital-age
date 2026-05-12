@@ -185,6 +185,63 @@ export type Database = {
         }
         Relationships: []
       }
+      invites: {
+        Row: {
+          accepted_at: string | null
+          created_author_id: string | null
+          display_name: string | null
+          email: string
+          expires_at: string
+          id: string
+          intended_role: Database["public"]["Enums"]["author_role"]
+          invited_at: string
+          invited_by_id: string | null
+          revoked_at: string | null
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_author_id?: string | null
+          display_name?: string | null
+          email: string
+          expires_at?: string
+          id?: string
+          intended_role?: Database["public"]["Enums"]["author_role"]
+          invited_at?: string
+          invited_by_id?: string | null
+          revoked_at?: string | null
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_author_id?: string | null
+          display_name?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          intended_role?: Database["public"]["Enums"]["author_role"]
+          invited_at?: string
+          invited_by_id?: string | null
+          revoked_at?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invites_created_author_id_fkey"
+            columns: ["created_author_id"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invites_invited_by_id_fkey"
+            columns: ["invited_by_id"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       podcasts: {
         Row: {
           apple_podcasts_url: string | null
@@ -303,7 +360,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_author_id: { Args: never; Returns: string }
+      get_invite_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          accepted_at: string
+          display_name: string
+          email: string
+          expires_at: string
+          id: string
+          intended_role: Database["public"]["Enums"]["author_role"]
+          invited_at: string
+          invited_by_id: string
+          invited_by_name: string
+          revoked_at: string
+        }[]
+      }
+      is_editor: { Args: never; Returns: boolean }
     }
     Enums: {
       article_status: "draft" | "in_review" | "published" | "archived"
@@ -440,3 +513,4 @@ export const Constants = {
     },
   },
 } as const
+<claude-code-hint v="1" type="plugin" value="supabase@claude-plugins-official" />
