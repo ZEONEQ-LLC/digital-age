@@ -15,6 +15,11 @@ const items: NavItem[] = [
   { id: "profile",      label: "Profil",        href: "/autor/profil",        icon: "◉" },
 ];
 
+const adminItems: NavItem[] = [
+  { id: "admin-authors", label: "Autoren",      href: "/autor/admin/autoren",     icon: "◌" },
+  { id: "admin-invites", label: "Einladungen",  href: "/autor/admin/einladungen", icon: "✉" },
+];
+
 type AuthorSidebarProps = {
   author: AuthorChip;
 };
@@ -26,8 +31,13 @@ export default function AuthorSidebar({ author }: AuthorSidebarProps) {
     if (href === "/autor/artikel") {
       return path === href || path.startsWith("/autor/artikel/");
     }
+    if (href.startsWith("/autor/admin/")) {
+      return path === href || path.startsWith(`${href}/`);
+    }
     return path === href;
   };
+
+  const isEditor = author.userRole === "editor";
 
   return (
     <>
@@ -61,6 +71,13 @@ export default function AuthorSidebar({ author }: AuthorSidebarProps) {
         .a-sb__chip-name { color: var(--da-text); font-size: 12px; font-weight: 600; }
         .a-sb__chip-role { color: var(--da-faint); font-size: 10px; }
         .a-sb__nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+        .a-sb__section {
+          margin-top: 18px; padding: 0 12px 6px;
+          color: var(--da-faint); font-family: var(--da-font-mono);
+          font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+          text-transform: uppercase;
+          border-top: 1px solid var(--da-border); padding-top: 14px;
+        }
         .a-sb__nav-item {
           display: flex; align-items: center; gap: 12px;
           background: transparent; color: var(--da-muted-soft);
@@ -133,7 +150,7 @@ export default function AuthorSidebar({ author }: AuthorSidebarProps) {
           )}
           <div style={{ minWidth: 0 }}>
             <p className="a-sb__chip-name">{author.name}</p>
-            {author.role && <p className="a-sb__chip-role">{author.role}</p>}
+            {author.jobTitle && <p className="a-sb__chip-role">{author.jobTitle}</p>}
           </div>
         </div>
 
@@ -151,6 +168,24 @@ export default function AuthorSidebar({ author }: AuthorSidebarProps) {
               </Link>
             );
           })}
+          {isEditor && (
+            <>
+              <div className="a-sb__section">Admin</div>
+              {adminItems.map((it) => {
+                const sel = isActive(it.href);
+                return (
+                  <Link
+                    key={it.id}
+                    href={it.href}
+                    className={`a-sb__nav-item${sel ? " a-sb__nav-item--active" : ""}`}
+                  >
+                    <span className="a-sb__nav-icon">{it.icon}</span>
+                    {it.label}
+                  </Link>
+                );
+              })}
+            </>
+          )}
         </div>
 
         <div className="a-sb__foot">
