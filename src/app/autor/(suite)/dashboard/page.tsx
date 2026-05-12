@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import AuthorCard from "@/components/author/AuthorCard";
 import AuthorStatusBadge from "@/components/author/AuthorStatusBadge";
+import EditorAdminBlock from "@/components/author/EditorAdminBlock";
 import MonoCaption from "@/components/author/MonoCaption";
 import PageTitle from "@/components/author/PageTitle";
 import StatCell from "@/components/author/StatCell";
@@ -10,6 +11,7 @@ import {
   getDashboardStats,
   getMyArticles,
 } from "@/lib/authorApi";
+import { getEditorPerformanceStats } from "@/lib/editorAdminApi";
 
 function relativeFromIso(iso: string): string {
   const then = new Date(iso).getTime();
@@ -30,6 +32,9 @@ export default async function AuthorDashboardPage() {
     getDashboardStats(),
     getMyArticles(),
   ]);
+
+  const isEditor = author?.role === "editor";
+  const editorStats = isEditor ? await getEditorPerformanceStats() : null;
 
   const firstName = author?.display_name?.split(" ")[0] ?? "Autor:in";
   const published = all.filter((a) => a.status === "published");
@@ -181,6 +186,8 @@ export default async function AuthorDashboardPage() {
           )}
         </AuthorCard>
       </div>
+
+      {editorStats && <EditorAdminBlock stats={editorStats} />}
     </>
   );
 }
