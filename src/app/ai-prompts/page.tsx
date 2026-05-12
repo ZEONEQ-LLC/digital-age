@@ -14,11 +14,17 @@ function lookup(list: readonly { code: string; label: string }[], code: string):
   return list.find((it) => it.code === code)?.label ?? code;
 }
 
+function snippet(text: string, max = 120): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max).trimEnd() + "…";
+}
+
 function toLegacy(row: PromptWithAuthor): Prompt {
   return {
     id: row.id,
     title: row.title,
     body: row.prompt_text,
+    contextSnippet: snippet(row.context),
     category: lookup(PROMPT_CATEGORIES, row.category),
     difficulty: (lookup(PROMPT_DIFFICULTIES, row.difficulty) as Difficulty),
     tool: (lookup(PROMPT_TESTED_WITH, row.tested_with) as AiTool),

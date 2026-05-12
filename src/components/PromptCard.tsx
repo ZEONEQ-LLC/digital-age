@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { incrementPromptUses } from "@/lib/promptActions";
 
 export type Difficulty = "Anfänger" | "Fortgeschritten" | "Expert";
@@ -10,6 +11,7 @@ export type Prompt = {
   id: string;
   title: string;
   body: string;
+  contextSnippet?: string;
   category: string;
   difficulty: Difficulty;
   tool: AiTool;
@@ -54,6 +56,7 @@ export default function PromptCard({ prompt, accent = "var(--da-green)" }: Promp
   const tc = toolColor(prompt.tool);
 
   const onCopy = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     navigator.clipboard?.writeText(prompt.body).catch(() => {});
     setCopied(true);
@@ -73,9 +76,27 @@ export default function PromptCard({ prompt, accent = "var(--da-green)" }: Promp
           position: relative;
           display: flex;
           flex-direction: column;
-          transition: border-color var(--t-base), transform var(--t-base);
+          transition: border-color var(--t-base), transform var(--t-base), box-shadow var(--t-base);
+          text-decoration: none;
+          color: inherit;
+          cursor: pointer;
         }
-        .pcard:hover { border-color: var(--cc); transform: translateY(-2px); }
+        .pcard:hover {
+          border-color: var(--cc);
+          transform: translateY(-2px);
+          box-shadow: 0 0 0 1px var(--cc);
+        }
+        .pcard__context {
+          color: var(--da-muted-soft);
+          font-family: var(--da-font-mono);
+          font-size: 11px; line-height: 1.5;
+          margin-bottom: 12px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+        }
         .pcard__top {
           position: absolute; top: 12px; right: 12px;
           background: var(--accent); color: var(--da-dark);
@@ -162,7 +183,8 @@ export default function PromptCard({ prompt, accent = "var(--da-green)" }: Promp
         }
         .pcard__author { color: var(--da-muted); font-size: 11px; }
       `}</style>
-      <div
+      <Link
+        href={`/ai-prompts/${prompt.id}`}
         className="pcard"
         style={{
           ["--cc" as string]: cc,
@@ -178,6 +200,9 @@ export default function PromptCard({ prompt, accent = "var(--da-green)" }: Promp
           <span className="pcard__diff">{prompt.difficulty}</span>
         </div>
         <h3 className="pcard__title">{prompt.title}</h3>
+        {prompt.contextSnippet && (
+          <p className="pcard__context">{prompt.contextSnippet}</p>
+        )}
         <div className="pcard__code-wrap">
           <pre className="pcard__code">{prompt.body}</pre>
           <button
@@ -197,7 +222,7 @@ export default function PromptCard({ prompt, accent = "var(--da-green)" }: Promp
             <span className="pcard__author">{prompt.author}</span>
           </div>
         </div>
-      </div>
+      </Link>
     </>
   );
 }
