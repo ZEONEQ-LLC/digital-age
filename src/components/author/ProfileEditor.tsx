@@ -8,8 +8,49 @@ import { updateAuthorProfile } from "@/lib/authorActions";
 import { uploadAvatar } from "@/lib/storageActions";
 import type { AuthorRow } from "@/lib/authorApi";
 
-const MAX_BYTES = 2 * 1024 * 1024;
+// Original-Upload-Größe: bewusst grosszügig, weil der Client direkt vor dem
+// Upload via Canvas auf 512×512 JPEG q=0.85 (~80-120 KB) resized. Die DB-
+// und Server-Limits (2 MB) prüfen den resized Blob.
+const MAX_ORIGINAL_BYTES = 20 * 1024 * 1024;
 const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp"];
+
+async function resizeImage(file: File, maxSize = 512): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    // document.createElement statt `new Image()` damit nichts mit dem
+    // `next/image`-Default-Export kollidiert.
+    const img = document.createElement("img");
+    const url = URL.createObjectURL(file);
+    const cleanup = () => URL.revokeObjectURL(url);
+
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        cleanup();
+        reject(new Error("Canvas-Context nicht verfügbar."));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) => {
+          cleanup();
+          if (blob) resolve(blob);
+          else reject(new Error("Blob-Konvertierung fehlgeschlagen."));
+        },
+        "image/jpeg",
+        0.85,
+      );
+    };
+    img.onerror = () => {
+      cleanup();
+      reject(new Error("Bild konnte nicht gelesen werden."));
+    };
+    img.src = url;
+  });
+}
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -91,8 +132,8 @@ export default function ProfileEditor({ initial }: { initial: AuthorRow }) {
 
     setUploadError(null);
 
-    if (file.size > MAX_BYTES) {
-      setUploadError("Datei zu gross (max 2 MB).");
+    if (file.size > MAX_ORIGINAL_BYTES) {
+      setUploadError("Datei zu gross (max 20 MB Original).");
       e.target.value = "";
       return;
     }
@@ -102,11 +143,12 @@ export default function ProfileEditor({ initial }: { initial: AuthorRow }) {
       return;
     }
 
-    const fd = new FormData();
-    fd.append("file", file);
-
     startUpload(async () => {
       try {
+        const resized = await resizeImage(file, 512);
+        const fd = new FormData();
+        // Original-Filename behalten für extension/inhalt; Blob ist JPEG.
+        fd.append("file", resized, file.name.replace(/\.[^.]+$/, ".jpg"));
         const { url } = await uploadAvatar(initial.id, fd);
         setAvatarUrl(url);
       } catch (err) {
@@ -334,7 +376,7 @@ export default function ProfileEditor({ initial }: { initial: AuthorRow }) {
             >
               {uploadPending ? "Lädt hoch…" : avatarUrl ? "Bild ändern" : "Bild hochladen"}
             </button>
-            <p className="a-prof__avatar-hint">JPEG, PNG oder WebP · max 2 MB</p>
+            <p className="a-prof__avatar-hint">JPEG, PNG oder WebP · wird auf 512×512 verkleinert</p>
             {uploadError && (
               <p
                 style={{
