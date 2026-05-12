@@ -1,14 +1,15 @@
 "use client";
 
-import { statusColor, type Company } from "./CompanyCard";
+import Link from "next/link";
+import type { StartupCardVM } from "@/lib/mappers/startupMappers";
 
 type CompanyRowProps = {
-  company: Company;
+  company: StartupCardVM;
   accent?: string;
 };
 
 export default function CompanyRow({ company, accent = "var(--da-green)" }: CompanyRowProps) {
-  const sc = statusColor(company.status);
+  const sc = company.swiss_status_color;
   return (
     <>
       <style>{`
@@ -16,6 +17,7 @@ export default function CompanyRow({ company, accent = "var(--da-green)" }: Comp
           display: flex; align-items: center; gap: var(--sp-5);
           padding: 18px 0; border-bottom: 1px solid var(--da-border);
           transition: opacity var(--t-base);
+          text-decoration: none;
         }
         .crow:hover { opacity: 0.78; }
         .crow__bar { width: 3px; align-self: stretch; background: var(--cc-hl); border-radius: 2px; flex-shrink: 0; }
@@ -47,17 +49,21 @@ export default function CompanyRow({ company, accent = "var(--da-green)" }: Comp
           .crow__tagline { width: 100%; flex: 1 1 100%; order: 5; }
         }
       `}</style>
-      <div className="crow" style={{ ["--cc-hl" as string]: sc, ["--accent" as string]: accent }}>
+      <Link
+        href={`/swiss-ai/${company.slug}`}
+        className="crow"
+        style={{ ["--cc-hl" as string]: sc, ["--accent" as string]: accent }}
+      >
         <div className="crow__bar" />
         <div className="crow__name">
           <div className="crow__name-text">{company.name}</div>
-          <div className="crow__name-sub">{company.city} · {company.founded}</div>
+          <div className="crow__name-sub">{company.city} · {company.founded_year}</div>
         </div>
         <div className="crow__tagline">{company.tagline}</div>
-        <span className="crow__status">🇨🇭 {company.status}</span>
+        <span className="crow__status">🇨🇭 {company.swiss_status_label}</span>
         <span className="crow__industry">{company.industry}</span>
-        <span className="crow__emp">{company.employees}</span>
-      </div>
+        <span className="crow__emp">{company.employee_range_label}</span>
+      </Link>
     </>
   );
 }
