@@ -376,6 +376,91 @@ ruft fire-and-forget beim Copy.
 Copy-Button bleibt funktional via `e.preventDefault()` + `e.stopPropagation()` —
 sonst würde der Click auf Copy auch die Link-Navigation feuern.
 
+### AI Startups (PR C-2)
+
+Editor-kuratiertes Verzeichnis Schweizer KI-Unternehmen. Externe Submissions
+landen als `pending`, Editor approved/rejected/featured/archived. **Kein
+Author-Self-Service** (im Unterschied zu ai_prompts) — Startups sind
+Editor-only, Founder reichen über Public-Page ein und Editor verwaltet
+danach alles.
+
+**Tabelle `ai_startups`** mit Enums:
+- `startup_status`: `pending → published → featured → archived → rejected`
+- `swiss_status`: `swiss_based / swiss_founded / active_in_ch`
+- `employee_range`: `r_1_10 / r_11_50 / r_51_200 / r_201_500 / r_500_plus`
+- `funding_stage`: `bootstrapped / pre_seed / seed / series_a / series_b_plus / public_company`
+
+**Status-Workflow:**
+- External Submission (`/swiss-ai/einreichen`, anon) → `status='pending'`,
+  `submitter_name/email/role` gesetzt, `published_at=null`
+- Editor-Approval (`/autor/admin/startups`) → `approveStartup` (optional mit
+  `feature: true` setzt direkt featured), `rejectStartup` mit Reason,
+  `toggleStartupFeatured`, `toggleInvestorReady`, `updateStartup` (inkl. Slug),
+  `archiveStartup`, `restoreStartupToPending`, `restoreStartupToPublished`,
+  `deleteStartup`
+
+**Spotlight-Hard-Limit (max 3 featured):** Trigger
+`check_startup_spotlight_limit()` BEFORE INSERT/UPDATE blockiert den
+Übergang zu `featured` sobald 3 andere Rows bereits featured sind. Application
+fängt den `check_violation`-Errcode in `startupActions.ts` und gibt eine
+verständliche DE-Message zurück. Admin-UI zeigt zusätzlich Counter
+("Spotlight: 2/3 belegt") und disabled Feature-Buttons präventiv wenn voll.
+Kein FIFO-Auto-Unfeature — Editor entscheidet explizit, was rausfliegt.
+
+**Status-Transition-Trigger** `check_startup_status_transition()`: Nur
+Editor darf Status ändern. Inserts via anon sind durch separate RLS-Policy
+auf `status='pending'` gegated. Wenn `NEW.status = OLD.status` → kein Check
+(Editor kann nicht-Status-Felder editieren ohne Permission-Drama).
+
+**Slug-System:**
+- Generiert via RPC `suggest_startup_slug(p_name text)` (SECURITY DEFINER,
+  EXECUTE für anon+authenticated). Lowercase, Umlaute-Translit (ä→a, ö→o,
+  …, ß→s), Sonderzeichen → Bindestriche, dedupliziert via Counter-Suffix
+  (`deepjudge`, `deepjudge-1`, `deepjudge-2`).
+- DB-Constraint `slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'` + `unique`.
+- Editor kann Slug im Edit-Drawer ändern; `updateStartup` fängt
+  Unique-Constraint-Violation und zeigt "Slug ist bereits vergeben".
+
+**RLS-Policies:**
+- `ai_startups_public_read` — anon liest `published` + `featured`
+- `ai_startups_editor_all` — Editor FULL access auf alle Rows
+- `ai_startups_anon_submit` — anon + authenticated dürfen mit
+  `status='pending'`, ohne `reviewed_*`/`published_at`, mit
+  `submitter_name/email` einreichen
+
+**API-Module:**
+- `src/lib/startupApi.ts` — `getPublishedStartups`, `getFeaturedStartups`,
+  `getStartupBySlug` (RLS-gated, nur published/featured), `getAllStartupsForAdmin`,
+  `getPendingStartupCount`, `getFeaturedStartupCount`, `getStartupIndustries`,
+  `getStartupCities`.
+- `src/lib/startupActions.ts` — Editor-CRUD + `submitStartupExternal`
+  (anon-callable). `requireEditor`-Helper.
+- `src/lib/mappers/startupMappers.ts` — `startupToCardVM`, `SWISS_STATUSES`,
+  `EMPLOYEE_RANGES`, `FUNDING_STAGES`, `INDUSTRIES` (DB-code ↔ DE-Label-Mapping).
+
+**Daten-Flow:**
+- DB hält Lowercase-Enum-Codes (`swiss_based`, `r_11_50`, `series_a`)
+- UI nutzt deutsche/proper Labels via Mapper (`Swiss Based`, `11–50`, `Series A`)
+- Founder/Submitter ist **niemals** ein Author — kein Author-Linking, nur
+  `submitter_name/email/role` als opaque Text
+
+**Routes:**
+- Public: `/swiss-ai` (Server-Component + Client `StartupsBrowser` Filter),
+  `/swiss-ai/[slug]` (Detail-Page mit Spotlight-Badge, Investor-Block bei
+  `open_to_investment=true` oder Funding-Felder vorhanden, Founders-Block,
+  Website-CTA; RLS-gated — nur published/featured, sonst 404 via `notFound()`,
+  `generateMetadata` für SEO),
+  `/swiss-ai/einreichen` (3-Step-Wizard mit Live-Vorschau + Server-Action-Submit)
+- Editor-Admin: `/autor/admin/startups` — Tabs (Pending default) +
+  Spotlight-Counter + Vorschau-Modal + Edit-Drawer + Reject-Reason-Modal.
+  Kein Author-Suite-Tab.
+
+**Founder-Pattern:** Anon-Submission, kein Founder-Self-Service, kein
+Email-Bestätigung-Loop (Phase 8+). Investor-Felder (Funding Stage, Total
+Funding, Last Round, Pitch Deck URL, Founder Names) sind alle optional;
+Editor toggled `open_to_investment` explizit via Admin-UI — Submitter kann
+das im Step-3-Form vorschlagen, Editor entscheidet final.
+
 ### Editor-Admin-API (`src/lib/editorAdminApi.ts`)
 
 - `getAllAuthors` — alle Authors + `article_count` aggregation, sortiert
