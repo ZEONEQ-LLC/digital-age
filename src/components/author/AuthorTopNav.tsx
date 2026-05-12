@@ -12,12 +12,14 @@ const items: NavItem[] = [
   { id: "articles",  label: "Artikel",     href: "/autor/artikel",     icon: "▤" },
   { id: "stats",     label: "Stats",       href: "/autor/statistiken", icon: "▴" },
   { id: "podcasts",  label: "Podcasts",    href: "/autor/podcasts",    icon: "♫" },
+  { id: "prompts",   label: "Prompts",     href: "/autor/prompts",     icon: "❖" },
   { id: "profile",   label: "Profil",      href: "/autor/profil",      icon: "◉" },
 ];
 
 const adminItems: NavItem[] = [
   { id: "admin-authors", label: "Autoren",     href: "/autor/admin/autoren",     icon: "◌" },
   { id: "admin-invites", label: "Einladungen", href: "/autor/admin/einladungen", icon: "✉" },
+  { id: "admin-prompts", label: "Prompts",     href: "/autor/admin/prompts",     icon: "❖" },
 ];
 
 type AuthorTopNavProps = {

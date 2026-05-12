@@ -14,6 +14,90 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_prompts: {
+        Row: {
+          author_id: string | null
+          category: string
+          context: string
+          created_at: string
+          difficulty: Database["public"]["Enums"]["prompt_difficulty"]
+          example_output: string | null
+          id: string
+          prompt_text: string
+          published_at: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by_id: string | null
+          status: Database["public"]["Enums"]["prompt_status"]
+          submitter_email: string | null
+          submitter_name: string | null
+          submitter_url: string | null
+          tested_with: string
+          title: string
+          updated_at: string
+          uses_count: number
+        }
+        Insert: {
+          author_id?: string | null
+          category: string
+          context: string
+          created_at?: string
+          difficulty: Database["public"]["Enums"]["prompt_difficulty"]
+          example_output?: string | null
+          id?: string
+          prompt_text: string
+          published_at?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by_id?: string | null
+          status?: Database["public"]["Enums"]["prompt_status"]
+          submitter_email?: string | null
+          submitter_name?: string | null
+          submitter_url?: string | null
+          tested_with: string
+          title: string
+          updated_at?: string
+          uses_count?: number
+        }
+        Update: {
+          author_id?: string | null
+          category?: string
+          context?: string
+          created_at?: string
+          difficulty?: Database["public"]["Enums"]["prompt_difficulty"]
+          example_output?: string | null
+          id?: string
+          prompt_text?: string
+          published_at?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by_id?: string | null
+          status?: Database["public"]["Enums"]["prompt_status"]
+          submitter_email?: string | null
+          submitter_name?: string | null
+          submitter_url?: string | null
+          tested_with?: string
+          title?: string
+          updated_at?: string
+          uses_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_prompts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_prompts_reviewed_by_id_fkey"
+            columns: ["reviewed_by_id"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       articles: {
         Row: {
           author_id: string
@@ -376,11 +460,19 @@ export type Database = {
           revoked_at: string
         }[]
       }
+      increment_prompt_uses: { Args: { p_id: string }; Returns: undefined }
       is_editor: { Args: never; Returns: boolean }
     }
     Enums: {
       article_status: "draft" | "in_review" | "published" | "archived"
       author_role: "external" | "author" | "editor"
+      prompt_difficulty: "beginner" | "intermediate" | "expert"
+      prompt_status:
+        | "pending"
+        | "published"
+        | "featured"
+        | "rejected"
+        | "archived"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -510,6 +602,14 @@ export const Constants = {
     Enums: {
       article_status: ["draft", "in_review", "published", "archived"],
       author_role: ["external", "author", "editor"],
+      prompt_difficulty: ["beginner", "intermediate", "expert"],
+      prompt_status: [
+        "pending",
+        "published",
+        "featured",
+        "rejected",
+        "archived",
+      ],
     },
   },
 } as const

@@ -318,6 +318,57 @@ Editor-Admin-Policies (`20260512100002_authors_editor_admin_policies.sql`):
 - `invites_editor_all` — Editor hat FULL access (select/insert/update/delete)
 - KEIN public-read — Anon-Lookup geht über `get_invite_by_token` RPC
 
+### AI Prompts (PR C-1)
+
+Tabelle `ai_prompts` mit Submission-Workflow. Enums:
+- `prompt_status`: `pending → published → featured → archived → rejected`
+- `prompt_difficulty`: `beginner / intermediate / expert`
+
+**Status-Workflow:**
+- External Submission (`/ai-prompts/einreichen`, anon) → `status='pending'`,
+  `author_id=null`, `submitter_name/email` gesetzt
+- Author-CRUD (`/autor/prompts`) → `createPrompt` setzt `status='published'`
+  + `published_at` direkt; Author kann zwischen published/archived togglen
+- Editor-Approval (`/autor/admin/prompts`) → `approvePrompt` (optional mit
+  `feature: true` setzt direkt featured), `rejectPrompt` mit Reason,
+  `toggleFeatured`, `archivePromptAsEditor`, `restoreToPending`, `deletePrompt`
+
+**Status-Transition-Trigger** (Migration `20260512200000_ai_prompts_table.sql`):
+`check_prompt_status_transition()` validiert Status-Wechsel BEFORE UPDATE.
+- Status unverändert → kein Check (Author kann featured-Row weiterhin editieren)
+- Status geändert: Editor darf alles, Author nur `published` ↔ `archived`
+
+Wichtig: die naivere "RLS WITH CHECK status in ('published','archived')"
+hätte Authors blockiert, ihre eigenen featured-Prompts zu editieren (NEW.status
+bleibt 'featured' bei unverändertem Status, fällt durch den Check). Trigger
+prüft NUR Übergänge, nicht jeden UPDATE.
+
+**RLS-Policies:**
+- `ai_prompts_public_read` — anon liest `published` + `featured`
+- `ai_prompts_author_read_own` — Author sieht eigene (jeder Status)
+- `ai_prompts_author_insert_own` — author/editor inserten mit eigener author_id
+- `ai_prompts_author_update_own` — author/editor updaten eigene (Trigger gatet Übergänge)
+- `ai_prompts_author_delete_own` — author/editor löschen eigene
+- `ai_prompts_editor_all` — Editor FULL access auf alle Rows
+- `ai_prompts_anon_submit` — anon + authenticated dürfen mit `status='pending'`,
+  `author_id=null`, `submitter_name/email` einreichen
+
+**RPC `increment_prompt_uses(p_id uuid)`** — SECURITY DEFINER, anon+authenticated
+EXECUTE. Bumped uses_count nur für status in (published, featured). PromptCard
+ruft fire-and-forget beim Copy.
+
+**Daten-Flow:**
+- DB nutzt Lowercase-Codes (`business`, `chatgpt`, `beginner`)
+- UI nutzt deutsche Labels (`Business`, `ChatGPT`, `Anfänger`)
+- `mappers/promptMappers.ts` enthält die Konstanten-Listen mit `{code, label}`-Paaren
+
+**Routes:**
+- Public: `/ai-prompts` (Server Component + Client Filter-Browser),
+  `/ai-prompts/einreichen` (Client Form + Server-Action-Submit)
+- Author-Suite: `/autor/prompts` — eigene CRUD via Drawer-Form
+- Editor-Admin: `/autor/admin/prompts` — Tabs (Pending default) + Vorschau-Modal
+  + Reject-Reason-Modal
+
 ### Editor-Admin-API (`src/lib/editorAdminApi.ts`)
 
 - `getAllAuthors` — alle Authors + `article_count` aggregation, sortiert
@@ -353,6 +404,9 @@ nicht als Proxy-Logik — Proxy refresht nur die Session.
 - `podcastApi.ts` — `getPublishedPodcasts`, `getMyPodcasts`, `getPodcastById`
 - `editorAdminApi.ts` — `getAllAuthors`, `getAuthorById`, `getAllInvites`,
   `getEditorPerformanceStats`. Editor-only durch RLS gated.
+- `promptApi.ts` — `getPublishedPrompts`, `getFeaturedPrompts`, `getPromptById`,
+  `getMyPrompts`, `getAllPromptsForAdmin`, `getPromptCategories`,
+  `getPendingPromptCount`.
 
 **Server Actions / Mutationen (`"use server"`-Module, callable aus Client Components):**
 - `authorActions.ts` — `createDraft`, `saveArticle`, `submitForReview`,
@@ -365,6 +419,10 @@ nicht als Proxy-Logik — Proxy refresht nur die Session.
   `generateInviteForExistingPlaceholder`. `requireEditor`-Helper.
 - `authorAdminActions.ts` — `updateAuthorAsEditor`, `deleteAuthorAsEditor`.
   Delete macht Pre-Check auf Articles.
+- `promptActions.ts` — `createPrompt`, `updatePrompt`, `deletePrompt`
+  (Author-CRUD), `submitPromptExternal` (anon), `approvePrompt`, `rejectPrompt`,
+  `toggleFeatured`, `archivePromptAsEditor`, `restoreToPending`,
+  `incrementPromptUses`. `requireInternalAuthor` + `requireEditor`-Helpers.
 
 **Helpers:**
 - `markdownBlocks.ts` — Bidirektionaler Markdown ↔ Block[] Konverter.
@@ -374,6 +432,8 @@ nicht als Proxy-Logik — Proxy refresht nur die Session.
   (`articleToCard`, `articleToListRow`, `authorToProfileViewModel`).
 - `mappers/podcastMappers.ts` — DB-Row → Card-VM (`podcastToCardVM`) plus
   `PODCAST_LANGUAGES`-Konstante.
+- `mappers/promptMappers.ts` — `promptToCardVM` plus `PROMPT_CATEGORIES`,
+  `PROMPT_TESTED_WITH`, `PROMPT_DIFFICULTIES`-Konstanten (DB-code ↔ DE-Label-Mapping).
 
 ### Schema-Erweiterungen (Session C)
 
