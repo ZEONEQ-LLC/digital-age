@@ -1,10 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import NewsTicker from "@/components/NewsTicker";
 import Footer from "@/components/Footer";
 import { catColor, diffColor, toolColor, type AiTool, type Difficulty } from "@/components/PromptCard";
+import { submitPromptExternal } from "@/lib/promptActions";
+import {
+  PROMPT_CATEGORIES,
+  PROMPT_DIFFICULTIES,
+  PROMPT_TESTED_WITH,
+} from "@/lib/mappers/promptMappers";
+
+function codeForLabel(list: readonly { code: string; label: string }[], label: string): string {
+  return list.find((it) => it.label === label)?.code ?? label.toLowerCase();
+}
 
 type Category = "Business" | "Kreativ" | "Code" | "Marketing" | "Strategie" | "Lernen" | "Andere";
 
@@ -54,7 +64,8 @@ function StepHeader({ n, title, subtitle, complete }: { n: number; title: string
 export default function PromptEinreichenPage() {
   const [data, setData] = useState<FormData>(EMPTY);
   const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, startSubmitting] = useTransition();
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const set = <K extends keyof FormData>(k: K, v: FormData[K]) => {
     setData((d) => ({ ...d, [k]: v }));
@@ -74,12 +85,30 @@ export default function PromptEinreichenPage() {
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!allValid || submitting) return;
-    setSubmitting(true);
-    console.log("[ai-prompts/einreichen] submission:", data);
-    setTimeout(() => {
-      setSubmitting(false);
-      setSubmitted(true);
-    }, 600);
+    setSubmitError(null);
+    const difficultyCode = codeForLabel(PROMPT_DIFFICULTIES, data.difficulty as string) as
+      | "beginner"
+      | "intermediate"
+      | "expert";
+    startSubmitting(async () => {
+      try {
+        await submitPromptExternal({
+          title: data.title,
+          prompt_text: data.body,
+          context: data.context,
+          example_output: data.example || null,
+          category: codeForLabel(PROMPT_CATEGORIES, data.category as string),
+          tested_with: codeForLabel(PROMPT_TESTED_WITH, data.tool as string),
+          difficulty: difficultyCode,
+          submitter_name: data.author,
+          submitter_email: data.email,
+          submitter_url: data.link || null,
+        });
+        setSubmitted(true);
+      } catch (err) {
+        setSubmitError(err instanceof Error ? err.message : String(err));
+      }
+    });
   };
 
   const reset = () => {
@@ -684,6 +713,11 @@ export default function PromptEinreichenPage() {
                 {!allValid && (
                   <p className="submit-hint">
                     Bitte fülle alle Pflichtfelder (<span className="submit-hint__count">{stepsDone}/4</span> abgeschlossen)
+                  </p>
+                )}
+                {submitError && (
+                  <p style={{ color: "#ff8080", fontSize: 13, marginTop: 12, lineHeight: 1.5 }}>
+                    Fehler beim Einreichen: {submitError}
                   </p>
                 )}
               </div>
