@@ -3,9 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { incrementPromptUses } from "@/lib/promptActions";
-
-export type Difficulty = "Anfänger" | "Fortgeschritten" | "Expert";
-export type AiTool = "ChatGPT" | "Claude" | "Gemini" | "Mehrere";
+import { catColor, diffColor, toolColor, type AiTool, type Difficulty } from "@/components/promptColors";
 
 export type Prompt = {
   id: string;
@@ -18,30 +16,6 @@ export type Prompt = {
   uses: number;
   author: string;
   isTop: boolean;
-};
-
-export const toolColor = (t: AiTool): string =>
-  t === "ChatGPT" ? "var(--da-green)" :
-  t === "Claude"  ? "var(--da-orange)" :
-  t === "Gemini"  ? "var(--da-purple)" :
-                    "var(--da-muted-soft)";
-
-export const diffColor = (d: Difficulty): string =>
-  d === "Anfänger"        ? "var(--da-green)" :
-  d === "Fortgeschritten" ? "var(--da-orange)" :
-                            "var(--da-purple)";
-
-export const catColor = (cat: string): string => {
-  const map: Record<string, string> = {
-    Business:  "var(--da-green)",
-    Kreativ:   "var(--da-orange)",
-    Code:      "var(--da-purple)",
-    Marketing: "var(--da-green)",
-    Strategie: "var(--da-purple)",
-    Lernen:    "var(--da-orange)",
-    Andere:    "var(--da-muted-soft)",
-  };
-  return map[cat] ?? "var(--da-green)";
 };
 
 type PromptCardProps = {

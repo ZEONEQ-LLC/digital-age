@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import NewsTicker from "@/components/NewsTicker";
 import Footer from "@/components/Footer";
-import { catColor, diffColor, toolColor, type AiTool, type Difficulty } from "@/components/PromptCard";
+import { catColor, diffColor, toolColor, type AiTool, type Difficulty } from "@/components/promptColors";
 import { getPromptById } from "@/lib/promptApi";
 import {
   PROMPT_CATEGORIES,

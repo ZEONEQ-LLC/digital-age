@@ -1,7 +1,8 @@
 import Link from "next/link";
 import NewsTicker from "@/components/NewsTicker";
 import Footer from "@/components/Footer";
-import type { AiTool, Difficulty, Prompt } from "@/components/PromptCard";
+import type { Prompt } from "@/components/PromptCard";
+import type { AiTool, Difficulty } from "@/components/promptColors";
 import { getFeaturedPrompts, getPublishedPrompts, type PromptWithAuthor } from "@/lib/promptApi";
 import {
   PROMPT_CATEGORIES,
