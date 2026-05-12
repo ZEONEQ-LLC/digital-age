@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { incrementPromptUses } from "@/lib/promptActions";
 
 export type Difficulty = "Anfänger" | "Fortgeschritten" | "Expert";
 export type AiTool = "ChatGPT" | "Claude" | "Gemini" | "Mehrere";
 
 export type Prompt = {
-  id: number;
+  id: string;
   title: string;
   body: string;
   category: string;
@@ -57,6 +58,8 @@ export default function PromptCard({ prompt, accent = "var(--da-green)" }: Promp
     navigator.clipboard?.writeText(prompt.body).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+    // Fire-and-forget: uses_count via SECURITY-DEFINER RPC
+    incrementPromptUses(prompt.id).catch(() => {});
   };
 
   return (
