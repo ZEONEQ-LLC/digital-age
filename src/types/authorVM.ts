@@ -3,5 +3,6 @@
 export type AuthorChip = {
   name: string;
   avatar: string;
-  role?: string;
+  jobTitle?: string;
+  userRole: "external" | "author" | "editor";
 };

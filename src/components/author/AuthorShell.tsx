@@ -13,7 +13,8 @@ export default async function AuthorShell({ children }: AuthorShellProps) {
   const author: AuthorChip = {
     name: row?.display_name ?? "Unbekannt",
     avatar: row?.avatar_url ?? "",
-    role: row?.job_title ?? undefined,
+    jobTitle: row?.job_title ?? undefined,
+    userRole: row?.role ?? "external",
   };
 
   return (

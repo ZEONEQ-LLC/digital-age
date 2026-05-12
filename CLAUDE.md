@@ -249,6 +249,90 @@ State und andere Copy).
 "Du willst Author werden? Pitch deinen Artikel →" (Link auf `/artikel-pitchen`)
 umgestellt.
 
+### Editor-Admin-Section (PR B)
+
+Editors haben eine zusätzliche **Admin**-Sektion in Sidebar (Desktop) und
+TopNav (Tablet), bedingt sichtbar via `author.userRole === 'editor'`. Routen:
+
+- `/autor/admin/autoren` — Author-Liste mit Add-Modal (zwei Modi) + Edit-Drawer
+- `/autor/admin/einladungen` — Invite-Übersicht mit Status-Filter und
+  Copy/Revoke/Resend-Actions
+
+**Gating:** `src/app/autor/(suite)/admin/layout.tsx` redirected non-editors auf
+`/autor/dashboard`. RLS doppelt-gated on DB-Level (s.u.).
+
+### Invite-Flow (PR B)
+
+**Pragma:** Editor generiert Token, kopiert URL und versendet sie manuell
+(WhatsApp/Slack/eigene Mail). Resend/SMTP-Integration kommt in eigener Session.
+
+Tabelle `invites` (Migration `20260512100000_invites_table.sql`):
+- `intended_role` constraint `in ('author', 'editor')` — external läuft über
+  Pitch-Flow, nicht über Invites
+- `token text unique default encode(extensions.gen_random_bytes(24), 'hex')` —
+  pgcrypto-Funktion ist im `extensions`-Schema, NICHT in `public`. Bei neuen
+  Migrations mit `gen_random_bytes` immer `extensions.` voranstellen.
+- `expires_at default now() + interval '14 days'`
+
+**Status-Derivation** (View-Model in `editorAdminApi.getAllInvites`):
+- `accepted_at != null` → `accepted`
+- `revoked_at != null` → `revoked`
+- `expires_at < now()` → `expired`
+- sonst → `pending`
+
+**Onboarding-Lookup (`/onboarding?token=...`):** Public-Page nutzt RPC
+`public.get_invite_by_token(p_token text)` (SECURITY DEFINER + EXECUTE-Grant
+für anon). Anon hat KEIN direktes SELECT auf invites — verhindert
+Table-Enumeration mit dem public anon-Key. Drei Cases: invalid/accepted/valid.
+
+**Auth-Trigger-Reihenfolge** (`handle_new_user`, Migration
+`20260512100001_handle_new_user_with_invites.sql`):
+
+1. Aktives Invite mit matching email suchen (intended_role merken)
+2. Placeholder-Author (`user_id IS NULL`) mit matching email suchen
+3. Falls Placeholder vorhanden → merge (`user_id` setzen), Role auf
+   `intended_role` upgraden falls Invite vorhanden
+4. Falls kein Placeholder → neuen Author anlegen mit `intended_role` oder
+   Fallback `'external'`
+5. Falls Invite vorhanden → `accepted_at = now()`, `created_author_id` setzen
+
+**Wichtig:** Wenn ein Mock-Author-Placeholder mit falscher Email existiert
+und der echte Login eine andere Email nutzt, wird Schritt 2 nichts finden und
+ein neuer Author angelegt — der Placeholder bleibt verwaist. Cleanup wie in
+PR #22-Notes dokumentiert (manuelles SQL).
+
+### RLS: Authors (PR B Erweiterung)
+
+Zu den bestehenden Self-Update-Policies (Session B) kommen drei
+Editor-Admin-Policies (`20260512100002_authors_editor_admin_policies.sql`):
+
+- `authors_editor_insert` — Editor kann Placeholders anlegen
+- `authors_editor_update` — Editor kann Profil + Role auf ALLE Rows ändern
+  (Application-Layer enforced zusätzlich)
+- `authors_editor_delete` — Editor kann löschen; `articles.author_id` hat
+  `on delete restrict`, daher blockt die DB bei Articles. Application-Layer
+  zeigt freundliche Fehlermeldung.
+
+### RLS: Invites
+
+- `invites_editor_all` — Editor hat FULL access (select/insert/update/delete)
+- KEIN public-read — Anon-Lookup geht über `get_invite_by_token` RPC
+
+### Editor-Admin-API (`src/lib/editorAdminApi.ts`)
+
+- `getAllAuthors` — alle Authors + `article_count` aggregation, sortiert
+  (aktive zuerst, dann display_name)
+- `getAuthorById`
+- `getAllInvites` — mit `invited_by`-Join und derived status
+- `getEditorPerformanceStats` — Aggregat für Dashboard-Editor-Block
+
+**Server Actions:**
+- `inviteActions.ts` — `createInvite`, `createAuthorWithInvite`,
+  `createAuthorPlaceholder`, `revokeInvite`, `resendInvite`,
+  `generateInviteForExistingPlaceholder`. Alle prüfen `role === 'editor'`.
+- `authorAdminActions.ts` — `updateAuthorAsEditor`, `deleteAuthorAsEditor`.
+  Delete macht Pre-Check auf `articles.author_id`-Count.
+
 ### Supabase-Client-Module (`src/lib/supabase/`)
 
 - `client.ts` — Browser-Client für Client Components (`createBrowserClient`)
@@ -267,6 +351,8 @@ nicht als Proxy-Logik — Proxy refresht nur die Session.
 - `authorApi.ts` — `getCurrentAuthor`, `getAuthorByHandle`, `getArticlesByAuthor`,
   `getMyArticles`, `getArticleById`, `getRevisions`, `getDashboardStats`, `signOut`
 - `podcastApi.ts` — `getPublishedPodcasts`, `getMyPodcasts`, `getPodcastById`
+- `editorAdminApi.ts` — `getAllAuthors`, `getAuthorById`, `getAllInvites`,
+  `getEditorPerformanceStats`. Editor-only durch RLS gated.
 
 **Server Actions / Mutationen (`"use server"`-Module, callable aus Client Components):**
 - `authorActions.ts` — `createDraft`, `saveArticle`, `submitForReview`,
@@ -274,6 +360,11 @@ nicht als Proxy-Logik — Proxy refresht nur die Session.
   Jede Action prüft Auth + revalidiert betroffene Paths.
 - `podcastActions.ts` — `createPodcast`, `updatePodcast`, `deletePodcast`.
   `requireInternalAuthor` blockiert external-Authors.
+- `inviteActions.ts` — `createInvite`, `createAuthorWithInvite`,
+  `createAuthorPlaceholder`, `revokeInvite`, `resendInvite`,
+  `generateInviteForExistingPlaceholder`. `requireEditor`-Helper.
+- `authorAdminActions.ts` — `updateAuthorAsEditor`, `deleteAuthorAsEditor`.
+  Delete macht Pre-Check auf Articles.
 
 **Helpers:**
 - `markdownBlocks.ts` — Bidirektionaler Markdown ↔ Block[] Konverter.

@@ -15,6 +15,11 @@ const items: NavItem[] = [
   { id: "profile",   label: "Profil",      href: "/autor/profil",      icon: "◉" },
 ];
 
+const adminItems: NavItem[] = [
+  { id: "admin-authors", label: "Autoren",     href: "/autor/admin/autoren",     icon: "◌" },
+  { id: "admin-invites", label: "Einladungen", href: "/autor/admin/einladungen", icon: "✉" },
+];
+
 type AuthorTopNavProps = {
   author: AuthorChip;
 };
@@ -26,8 +31,13 @@ export default function AuthorTopNav({ author }: AuthorTopNavProps) {
     if (href === "/autor/artikel") {
       return path === href || path.startsWith("/autor/artikel/");
     }
+    if (href.startsWith("/autor/admin/")) {
+      return path === href || path.startsWith(`${href}/`);
+    }
     return path === href;
   };
+
+  const isEditor = author.userRole === "editor";
 
   return (
     <>
@@ -87,6 +97,16 @@ export default function AuthorTopNav({ author }: AuthorTopNavProps) {
         }
         .a-tn__icon { font-size: 11px; opacity: 0.7; }
         .a-tn__item--active .a-tn__icon { opacity: 1; }
+        .a-tn__divider {
+          width: 1px; height: 22px; background: var(--da-border);
+          margin: 0 4px; align-self: center; flex-shrink: 0;
+        }
+        .a-tn__label-admin {
+          color: var(--da-faint); font-family: var(--da-font-mono);
+          font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
+          text-transform: uppercase;
+          padding: 0 4px; align-self: center; flex-shrink: 0;
+        }
         .a-tn__chip {
           display: flex; align-items: center; gap: 8px;
           flex-shrink: 0;
@@ -119,6 +139,25 @@ export default function AuthorTopNav({ author }: AuthorTopNavProps) {
                 </Link>
               );
             })}
+            {isEditor && (
+              <>
+                <span className="a-tn__divider" aria-hidden />
+                <span className="a-tn__label-admin">Admin</span>
+                {adminItems.map((it) => {
+                  const sel = isActive(it.href);
+                  return (
+                    <Link
+                      key={it.id}
+                      href={it.href}
+                      className={`a-tn__item${sel ? " a-tn__item--active" : ""}`}
+                    >
+                      <span className="a-tn__icon">{it.icon}</span>
+                      {it.label}
+                    </Link>
+                  );
+                })}
+              </>
+            )}
           </nav>
           <div className="a-tn__chip">
             {author.avatar ? (
