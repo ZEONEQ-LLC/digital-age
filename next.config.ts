@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "i.pravatar.cc" },
       { protocol: "https", hostname: "*.mzstatic.com" },
       { protocol: "https", hostname: "i.scdn.co" },
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+        pathname: "/storage/v1/**",
+      },
     ],
   },
   async headers() {

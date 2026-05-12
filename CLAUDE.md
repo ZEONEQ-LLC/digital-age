@@ -177,6 +177,35 @@ npx supabase gen types typescript --project-id dkmvadaypxiaxwfkbghz > src/lib/da
 - Nach Schema-Änderung Types regenerieren, sonst läuft TypeScript schief
 - RLS auf allen Tabellen aktiv — keine Ausnahmen
 
+### Storage
+
+**Bucket `avatars`** — public-read, RLS-geschützt write.
+- Pfad-Konvention: `<author_id>/<timestamp>.jpg`
+- Bucket-Limit: max 2 MB, JPEG/PNG/WebP
+- Cleanup: Altes Avatar wird beim Upload via `uploadAvatar`-Server-Action gelöscht
+- Upload-Flow: `src/lib/storageActions.ts → uploadAvatar(authorId, formData)`
+- Next.js Image: `*.supabase.co/storage/v1/**` in `remotePatterns`
+
+**Avatar-Storage (Free-Tier-Anpassung):** Client resized via Canvas auf
+512×512 JPEG quality 0.85 (~80–120 KB) bevor die Datei zum Server geht.
+Supabase Image-Transformation-API ist NICHT auf Free-Tier verfügbar
+(Render-Endpoint wirft `FeatureNotEnabled`), daher Object-Endpoint
+(`/storage/v1/object/public/...`) statt Render-Endpoint. Bei Upgrade auf
+Pro könnte server-side Transformation reaktiviert werden für
+Retina-Variants oder Crop-Optionen — `uploadAvatar` müsste dann
+`getPublicUrl(path, { transform })` zurückbringen.
+
+**Helper-Functions (in Migrations definiert):**
+- `public.current_author_id()` — gibt `authors.id` für `auth.uid()` zurück
+- `public.is_editor()` — boolean, ob aktueller User Editor-Rolle hat
+
+Beide sind `SECURITY DEFINER` mit `search_path = public`, damit Storage-RLS-
+Policies sie sicher aufrufen können ohne Recursion-Risk.
+
+**Editor-Override für Avatare:** RLS-Policies erlauben Editoren bereits
+fremde Avatare zu schreiben (`is_editor()` Branch in den storage.objects
+WITH-CHECK-Clauses). UI dafür folgt in einer Folge-Session.
+
 ### Free-Tier-Hinweis
 
 Projekt pausiert nach 7 Tagen Inaktivität. Bei aktiver Arbeit unkritisch;
