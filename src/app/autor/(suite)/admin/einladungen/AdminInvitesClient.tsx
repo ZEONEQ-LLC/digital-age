@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { InviteWithInviter, InviteStatus } from "@/lib/editorAdminApi";
 import { revokeInvite, resendInvite } from "@/lib/inviteActions";
+import { buildInviteMessage } from "@/lib/inviteTextTemplate";
 
 type Props = { initialInvites: InviteWithInviter[] };
 
@@ -42,7 +43,9 @@ function formatDate(iso: string): string {
 
 export default function AdminInvitesClient({ initialInvites }: Props) {
   const router = useRouter();
-  const [invites] = useState(initialInvites);
+  // Direkt die Prop verwenden — useState würde sich nicht updaten,
+  // wenn router.refresh() neue Server-Daten holt.
+  const invites = initialInvites;
   const [filter, setFilter] = useState<FilterKey>("pending");
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -59,8 +62,14 @@ export default function AdminInvitesClient({ initialInvites }: Props) {
     return invites.filter((i) => i.status === filter);
   }, [invites, filter]);
 
-  function copyUrl(token: string) {
-    navigator.clipboard.writeText(inviteUrlFor(token));
+  function copyInviteText(invite: InviteWithInviter) {
+    const message = buildInviteMessage({
+      recipientName: invite.display_name ?? invite.email.split("@")[0],
+      inviterName: invite.invited_by?.display_name ?? "Die Redaktion",
+      inviteUrl: inviteUrlFor(invite.token),
+      intendedRole: invite.intended_role === "editor" ? "editor" : "author",
+    });
+    navigator.clipboard.writeText(message);
   }
 
   function doRevoke(id: string) {
@@ -216,7 +225,7 @@ export default function AdminInvitesClient({ initialInvites }: Props) {
                 <div className="a-inv-col-expires" style={{ color: "var(--da-muted)" }}>{formatDate(i.expires_at)}</div>
                 <div className="a-inv-actions">
                   {canCopy && (
-                    <button className="a-inv-btn" onClick={() => copyUrl(i.token)}>URL kopieren</button>
+                    <button className="a-inv-btn" onClick={() => copyInviteText(i)}>Text kopieren</button>
                   )}
                   {canResend && (
                     <button className="a-inv-btn" onClick={() => doResend(i.id)} disabled={busy}>

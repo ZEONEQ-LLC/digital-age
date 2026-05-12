@@ -14,12 +14,18 @@ import {
   deleteAuthorAsEditor,
   type AuthorAdminPatch,
 } from "@/lib/authorAdminActions";
+import { buildInviteMessage } from "@/lib/inviteTextTemplate";
 
-type Props = { initialAuthors: AuthorWithCount[] };
+type Props = { initialAuthors: AuthorWithCount[]; inviterName: string };
 
 type ModalMode = "closed" | "form" | "success";
 type ModalForm = { email: string; display_name: string; intended_role: "author" | "editor" };
-type SuccessResult = { token: string; email: string };
+type SuccessResult = {
+  token: string;
+  email: string;
+  display_name: string;
+  intended_role: "author" | "editor";
+};
 
 const roleStyles: Record<AuthorRole, { bg: string; color: string; label: string }> = {
   external: { bg: "rgba(85,85,85,0.18)", color: "var(--da-muted-soft)", label: "External" },
@@ -32,9 +38,11 @@ function inviteUrlFor(token: string): string {
   return `${window.location.origin}/onboarding?token=${token}`;
 }
 
-export default function AdminAuthorsClient({ initialAuthors }: Props) {
+export default function AdminAuthorsClient({ initialAuthors, inviterName }: Props) {
   const router = useRouter();
-  const [authors] = useState(initialAuthors);
+  // Direkt die Prop verwenden — useState würde nur den initialen Mount-Wert
+  // halten und sich nicht updaten, wenn router.refresh() neue Server-Daten holt.
+  const authors = initialAuthors;
 
   const [modalMode, setModalMode] = useState<ModalMode>("closed");
   const [modalForm, setModalForm] = useState<ModalForm>({ email: "", display_name: "", intended_role: "author" });
@@ -76,13 +84,28 @@ export default function AdminAuthorsClient({ initialAuthors }: Props) {
     startModalTransition(async () => {
       try {
         const { invite } = await createAuthorWithInvite(modalForm);
-        setModalSuccess({ token: invite.token, email: invite.email });
+        setModalSuccess({
+          token: invite.token,
+          email: invite.email,
+          display_name: invite.display_name ?? modalForm.display_name,
+          intended_role: modalForm.intended_role,
+        });
         setModalMode("success");
         router.refresh();
       } catch (e) {
         setModalError(e instanceof Error ? e.message : String(e));
       }
     });
+  }
+
+  function copyInviteMessage(opts: { token: string; display_name: string; intended_role: "author" | "editor" }) {
+    const message = buildInviteMessage({
+      recipientName: opts.display_name,
+      inviterName,
+      inviteUrl: inviteUrlFor(opts.token),
+      intendedRole: opts.intended_role,
+    });
+    navigator.clipboard.writeText(message);
   }
 
   return (
@@ -322,16 +345,22 @@ export default function AdminAuthorsClient({ initialAuthors }: Props) {
         <div className="a-adm-overlay" onClick={closeModal}>
           <div className="a-adm-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Author angelegt</h3>
-            <p className="lead">Einladung für <strong>{modalSuccess.email}</strong> wurde erzeugt. URL zum Versand:</p>
+            <p className="lead">Einladung für <strong>{modalSuccess.email}</strong> wurde erzeugt. Kopiere den Text und sende ihn per Mail/Chat.</p>
             <div className="a-adm-url-box">{inviteUrlFor(modalSuccess.token)}</div>
             <div className="a-adm-modal-actions">
               <button
                 className="a-adm-btn-secondary"
                 onClick={() => navigator.clipboard.writeText(inviteUrlFor(modalSuccess.token))}
               >
-                URL kopieren
+                Nur URL kopieren
               </button>
-              <button className="a-adm-btn-primary" onClick={closeModal}>Schließen</button>
+              <button
+                className="a-adm-btn-primary"
+                onClick={() => copyInviteMessage(modalSuccess)}
+              >
+                Text kopieren
+              </button>
+              <button className="a-adm-btn-secondary" onClick={closeModal}>Schließen</button>
             </div>
           </div>
         </div>
@@ -340,6 +369,7 @@ export default function AdminAuthorsClient({ initialAuthors }: Props) {
       {drawerAuthor && (
         <EditAuthorDrawer
           author={drawerAuthor}
+          inviterName={inviterName}
           onClose={() => setDrawerAuthorId(null)}
           onSaved={() => { setDrawerAuthorId(null); router.refresh(); }}
           onDeleted={() => { setDrawerAuthorId(null); router.refresh(); }}
@@ -351,12 +381,13 @@ export default function AdminAuthorsClient({ initialAuthors }: Props) {
 
 type DrawerProps = {
   author: AuthorWithCount;
+  inviterName: string;
   onClose: () => void;
   onSaved: () => void;
   onDeleted: () => void;
 };
 
-function EditAuthorDrawer({ author, onClose, onSaved, onDeleted }: DrawerProps) {
+function EditAuthorDrawer({ author, inviterName, onClose, onSaved, onDeleted }: DrawerProps) {
   const social = (author.social_links ?? {}) as Record<string, string | undefined>;
   const [displayName, setDisplayName] = useState(author.display_name);
   const [email, setEmail] = useState(author.email);
@@ -370,7 +401,7 @@ function EditAuthorDrawer({ author, onClose, onSaved, onDeleted }: DrawerProps) 
   const [website, setWebsite] = useState(social.website ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [generateInviteUrl, setGenerateInviteUrl] = useState<string | null>(null);
+  const [generatedInviteToken, setGeneratedInviteToken] = useState<string | null>(null);
 
   function save() {
     setError(null);
@@ -418,11 +449,22 @@ function EditAuthorDrawer({ author, onClose, onSaved, onDeleted }: DrawerProps) 
     startTransition(async () => {
       try {
         const invite = await generateInviteForExistingPlaceholder(author.id);
-        setGenerateInviteUrl(inviteUrlFor(invite.token));
+        setGeneratedInviteToken(invite.token);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       }
     });
+  }
+
+  function copyGeneratedInvite() {
+    if (!generatedInviteToken) return;
+    const message = buildInviteMessage({
+      recipientName: author.display_name,
+      inviterName,
+      inviteUrl: inviteUrlFor(generatedInviteToken),
+      intendedRole: author.role === "editor" ? "editor" : "author",
+    });
+    navigator.clipboard.writeText(message);
   }
 
   return (
@@ -436,11 +478,14 @@ function EditAuthorDrawer({ author, onClose, onSaved, onDeleted }: DrawerProps) 
 
         {!author.user_id && (
           <div style={{ background: "rgba(255,140,66,0.10)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 4, padding: 12, marginBottom: 20, fontSize: 12, color: "var(--da-orange)" }}>
-            Placeholder-Author (noch kein Login). {generateInviteUrl ? (
+            Placeholder-Author (noch kein Login). {generatedInviteToken ? (
               <>
                 <div style={{ marginTop: 8 }}>Neue Einladung:</div>
-                <div className="a-adm-url-box" style={{ marginTop: 6, marginBottom: 6 }}>{generateInviteUrl}</div>
-                <button className="a-adm-btn-secondary" onClick={() => navigator.clipboard.writeText(generateInviteUrl)}>URL kopieren</button>
+                <div className="a-adm-url-box" style={{ marginTop: 6, marginBottom: 6 }}>{inviteUrlFor(generatedInviteToken)}</div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button className="a-adm-btn-secondary" onClick={() => navigator.clipboard.writeText(inviteUrlFor(generatedInviteToken))}>Nur URL</button>
+                  <button className="a-adm-btn-primary" onClick={copyGeneratedInvite}>Text kopieren</button>
+                </div>
               </>
             ) : (
               <button className="a-adm-btn-secondary" onClick={generateInvite} disabled={pending} style={{ marginLeft: 8 }}>
