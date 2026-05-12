@@ -364,10 +364,17 @@ ruft fire-and-forget beim Copy.
 
 **Routes:**
 - Public: `/ai-prompts` (Server Component + Client Filter-Browser),
+  `/ai-prompts/[id]` (Detail-Page mit vollem Kontext, Beispiel-Output,
+  Author-Block; RLS-gated — nur published/featured, sonst 404 via `notFound()`,
+  `generateMetadata` für SEO),
   `/ai-prompts/einreichen` (Client Form + Server-Action-Submit)
 - Author-Suite: `/autor/prompts` — eigene CRUD via Drawer-Form
 - Editor-Admin: `/autor/admin/prompts` — Tabs (Pending default) + Vorschau-Modal
   + Reject-Reason-Modal
+
+**Card-Navigation:** `PromptCard` ist ein `<Link>`-Wrapper auf `/ai-prompts/[id]`.
+Copy-Button bleibt funktional via `e.preventDefault()` + `e.stopPropagation()` —
+sonst würde der Click auf Copy auch die Link-Navigation feuern.
 
 ### Editor-Admin-API (`src/lib/editorAdminApi.ts`)
 
