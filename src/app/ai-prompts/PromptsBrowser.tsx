@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import PromptCard, { catColor, diffColor, toolColor, type AiTool, type Difficulty, type Prompt } from "@/components/PromptCard";
+import PromptCard, { type Prompt } from "@/components/PromptCard";
+import { catColor, diffColor, toolColor, type AiTool, type Difficulty } from "@/components/promptColors";
 
 type Props = {
   all: Prompt[];

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import NewsTicker from "@/components/NewsTicker";
 import Footer from "@/components/Footer";
-import { catColor, diffColor, toolColor, type AiTool, type Difficulty } from "@/components/PromptCard";
+import { catColor, diffColor, toolColor, type AiTool, type Difficulty } from "@/components/promptColors";
 import { submitPromptExternal } from "@/lib/promptActions";
 import {
   PROMPT_CATEGORIES,
