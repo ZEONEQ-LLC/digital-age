@@ -11,6 +11,7 @@ const AUTHOR_SUITE_PATHS = [
   "/autor/statistiken",
   "/autor/podcasts",
   "/autor/profil",
+  "/autor/admin",
 ];
 
 export default function Navbar() {
