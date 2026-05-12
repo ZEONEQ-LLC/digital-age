@@ -98,6 +98,107 @@ export type Database = {
           },
         ]
       }
+      ai_startups: {
+        Row: {
+          city: string
+          created_at: string
+          description: string
+          employee_range: Database["public"]["Enums"]["employee_range"]
+          founded_year: number
+          founder_names: string[] | null
+          funding_stage: Database["public"]["Enums"]["funding_stage"] | null
+          id: string
+          industry: string
+          last_round_at: string | null
+          logo_url: string | null
+          name: string
+          open_to_investment: boolean
+          pitch_deck_url: string | null
+          published_at: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by_id: string | null
+          slug: string
+          status: Database["public"]["Enums"]["startup_status"]
+          submitter_email: string | null
+          submitter_name: string | null
+          submitter_role: string | null
+          swiss_status: Database["public"]["Enums"]["swiss_status"]
+          tagline: string
+          total_funding_range: string | null
+          updated_at: string
+          website: string
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          description: string
+          employee_range: Database["public"]["Enums"]["employee_range"]
+          founded_year: number
+          founder_names?: string[] | null
+          funding_stage?: Database["public"]["Enums"]["funding_stage"] | null
+          id?: string
+          industry: string
+          last_round_at?: string | null
+          logo_url?: string | null
+          name: string
+          open_to_investment?: boolean
+          pitch_deck_url?: string | null
+          published_at?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by_id?: string | null
+          slug: string
+          status?: Database["public"]["Enums"]["startup_status"]
+          submitter_email?: string | null
+          submitter_name?: string | null
+          submitter_role?: string | null
+          swiss_status: Database["public"]["Enums"]["swiss_status"]
+          tagline: string
+          total_funding_range?: string | null
+          updated_at?: string
+          website: string
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          description?: string
+          employee_range?: Database["public"]["Enums"]["employee_range"]
+          founded_year?: number
+          founder_names?: string[] | null
+          funding_stage?: Database["public"]["Enums"]["funding_stage"] | null
+          id?: string
+          industry?: string
+          last_round_at?: string | null
+          logo_url?: string | null
+          name?: string
+          open_to_investment?: boolean
+          pitch_deck_url?: string | null
+          published_at?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by_id?: string | null
+          slug?: string
+          status?: Database["public"]["Enums"]["startup_status"]
+          submitter_email?: string | null
+          submitter_name?: string | null
+          submitter_role?: string | null
+          swiss_status?: Database["public"]["Enums"]["swiss_status"]
+          tagline?: string
+          total_funding_range?: string | null
+          updated_at?: string
+          website?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_startups_reviewed_by_id_fkey"
+            columns: ["reviewed_by_id"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       articles: {
         Row: {
           author_id: string
@@ -462,10 +563,24 @@ export type Database = {
       }
       increment_prompt_uses: { Args: { p_id: string }; Returns: undefined }
       is_editor: { Args: never; Returns: boolean }
+      suggest_startup_slug: { Args: { p_name: string }; Returns: string }
     }
     Enums: {
       article_status: "draft" | "in_review" | "published" | "archived"
       author_role: "external" | "author" | "editor"
+      employee_range:
+        | "r_1_10"
+        | "r_11_50"
+        | "r_51_200"
+        | "r_201_500"
+        | "r_500_plus"
+      funding_stage:
+        | "bootstrapped"
+        | "pre_seed"
+        | "seed"
+        | "series_a"
+        | "series_b_plus"
+        | "public_company"
       prompt_difficulty: "beginner" | "intermediate" | "expert"
       prompt_status:
         | "pending"
@@ -473,6 +588,13 @@ export type Database = {
         | "featured"
         | "rejected"
         | "archived"
+      startup_status:
+        | "pending"
+        | "published"
+        | "featured"
+        | "rejected"
+        | "archived"
+      swiss_status: "swiss_based" | "swiss_founded" | "active_in_ch"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -602,6 +724,21 @@ export const Constants = {
     Enums: {
       article_status: ["draft", "in_review", "published", "archived"],
       author_role: ["external", "author", "editor"],
+      employee_range: [
+        "r_1_10",
+        "r_11_50",
+        "r_51_200",
+        "r_201_500",
+        "r_500_plus",
+      ],
+      funding_stage: [
+        "bootstrapped",
+        "pre_seed",
+        "seed",
+        "series_a",
+        "series_b_plus",
+        "public_company",
+      ],
       prompt_difficulty: ["beginner", "intermediate", "expert"],
       prompt_status: [
         "pending",
@@ -610,6 +747,14 @@ export const Constants = {
         "rejected",
         "archived",
       ],
+      startup_status: [
+        "pending",
+        "published",
+        "featured",
+        "rejected",
+        "archived",
+      ],
+      swiss_status: ["swiss_based", "swiss_founded", "active_in_ch"],
     },
   },
 } as const
