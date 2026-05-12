@@ -342,7 +342,6 @@ export default function AdminStartupsClient({ initialStartups, initialFeaturedCo
         ) : (
           filtered.map((s) => {
             const ss = statusStyles[s.status];
-            const swiss = lookupSwissStatus(s.swiss_status);
             const busy = busyId === s.id;
             const featureDisabled = busy || (s.status !== "featured" && spotlightFull);
             return (
