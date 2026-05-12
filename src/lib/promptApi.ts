@@ -68,9 +68,18 @@ export async function getPromptById(id: string): Promise<PromptWithAuthor | null
 
 export async function getMyPrompts(): Promise<PromptWithAuthor[]> {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+  const { data: me } = await supabase
+    .from("authors")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!me) return [];
   const { data, error } = await supabase
     .from("ai_prompts")
     .select(`*, ${AUTHOR_SELECT}`)
+    .eq("author_id", me.id)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data as PromptWithAuthor[] | null) ?? [];
