@@ -13,7 +13,7 @@ export function buildInviteMessage(opts: InviteMessageInput): string {
   const roleLabel = opts.intendedRole === "editor" ? "Editor" : "Autor";
   return `Hallo ${firstName},
 
-ich lade dich ein, ${roleLabel} bei digital age zu werden — dem Magazin für KI und Future Tech in der DACH-Region.
+ich lade dich ein, ${roleLabel} bei digital-age.ch zu werden — dem Magazin für KI und Future Tech in der DACH-Region.
 
 Über diesen Link kannst du dich registrieren:
 ${opts.inviteUrl}
