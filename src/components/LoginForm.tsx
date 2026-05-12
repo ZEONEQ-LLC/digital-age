@@ -196,12 +196,12 @@ export default function LoginForm({ initialError }: { initialError?: string }) {
         }}
       >
         <p style={{ color: "var(--da-muted)", fontSize: "14px" }}>
-          Noch kein Konto?{" "}
+          Du willst Author werden?{" "}
           <a
-            href="/registrieren"
+            href="/artikel-pitchen"
             style={{ color: "var(--da-green)", fontWeight: 600, textDecoration: "none" }}
           >
-            Jetzt registrieren
+            Pitch deinen Artikel →
           </a>
         </p>
       </div>

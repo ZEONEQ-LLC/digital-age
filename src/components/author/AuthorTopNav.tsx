@@ -127,7 +127,7 @@ export default function AuthorTopNav({ author }: AuthorTopNavProps) {
                 alt={author.name}
                 width={28}
                 height={28}
-                style={{ borderRadius: "50%", objectFit: "cover" }}
+                style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", display: "block", flexShrink: 0 }}
                 unoptimized
               />
             ) : (

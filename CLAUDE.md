@@ -227,6 +227,28 @@ mit eigenem Domain-SPF kommt auf der Phase-7-Merkliste.
 - Three-Role-Enum: neue Signups landen via Trigger als `external`, Editor
   promotet manuell zu `author`/`editor`
 
+### Self-Registration entfernt (PR A — Auth-Flow-Cleanup)
+
+Self-Registration ist **kein** unterstützter Flow mehr. Onboarding läuft
+ausschließlich über Editor-Invites (kommt mit PR B Editor-Author-Management).
+
+Entfernte Legacy-Mock-Pages (Phase-5-Reste, alle ohne State-Backing):
+
+- `/registrieren` — Two-Step-Mock (Email+PW Form, Platzhalter-Submit)
+- `/autor/profil-erstellen` — Schritt 2/2 des Mock-Chains, Mock-Profil-Form
+- `/autor/wartezimmer` — Mock-Status-Page mit hardcodedem Datum
+
+**Wartezimmer-Entscheidung:** komplett gelöscht (statt Stub/Wiederverwendung).
+Begründung: reine Mock-UI, kein State-Backing, keine externen Refs außer der
+Mock-Chain selbst. Der Invite-Flow in PR B nutzt einen separaten Token-Pfad
+(`/onboarding?token=...`), nicht `/wartezimmer` — eine generische "wartet auf
+Prüfung"-Anzeige passt dort UX-mässig nicht (Token-basierte Page hat anderen
+State und andere Copy).
+
+**Login-Page-CTA** wurde von "Noch kein Konto? Jetzt registrieren" auf
+"Du willst Author werden? Pitch deinen Artikel →" (Link auf `/artikel-pitchen`)
+umgestellt.
+
 ### Supabase-Client-Module (`src/lib/supabase/`)
 
 - `client.ts` — Browser-Client für Client Components (`createBrowserClient`)
