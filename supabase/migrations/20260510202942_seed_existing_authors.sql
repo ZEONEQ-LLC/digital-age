@@ -1,8 +1,11 @@
 -- Phase 7 Session C — Seed existing authors from mockAuthorApi.ts
 --
 -- Strategy:
---   - Ali Soy: Email 'ali@zeoneq.com' (echter Login aus Session B). Update auf
---     editor-role + Profile-Felder. on conflict (email) macht das idempotent.
+--   - Editor-Row: Update auf editor-role + Profile-Felder. on conflict (email)
+--     macht das idempotent. Email hier ist ein Placeholder — der echte
+--     Editor-Login wird mit der tatsächlichen Email-Adresse separat verlinkt
+--     (siehe CLAUDE.md → Merge-on-first-login). In Production bereits via
+--     manuellem SQL-Cleanup gemerged.
 --   - Andreas, Matthias, Marc: Insert mit Placeholder-Emails. user_id bleibt
 --     null bis sie sich erstmals einloggen. TODO Session D/E: merge-on-first-login
 --     Logic im Auth-Trigger ergänzen, damit beim ersten Login mit einer
@@ -14,7 +17,7 @@ insert into authors (
   (
     'ali-soy',
     'Ali Soy',
-    'ali@zeoneq.com',
+    'editor@digital-age.ch',
     'editor',
     'ali-soy',
     'Founder & Editor in Chief',
