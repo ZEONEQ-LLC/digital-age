@@ -44,6 +44,66 @@ Arbeiten — sie startet, wenn man den Container über das UI direkt öffnet.
 Stattdessen `docker start -i claude-box` oder `orb shell claude-box`
 vom Mac-Terminal nutzen.
 
+## Container-Rebuild: Auth wiederherstellen
+
+Beim Rebuild des `claude-box`-Containers gehen `gh`-Auth und
+`SUPABASE_ACCESS_TOKEN` verloren. Auth-Persistierung via Volume-Mount ist
+bewusst nicht eingerichtet — Rebuilds sind selten, der Mehrwert zu klein.
+Nach jedem Rebuild manuell:
+
+### gh CLI
+
+```bash
+gh auth login
+```
+
+Auswahl im interaktiven Flow:
+
+- `GitHub.com`
+- `HTTPS`
+- `Yes` (authenticate with credentials)
+- `Login with a web browser` → 8-stelligen Code merken, URL manuell im
+  Mac-Browser öffnen, Code eingeben
+
+Die Browser-Auto-Open-Meldung im Container ist harmlos — der Code-Flow
+funktioniert per Hand.
+
+Verifikation:
+
+```bash
+gh auth status
+```
+
+### SUPABASE_ACCESS_TOKEN
+
+Token aus dem Supabase-Dashboard → Account → Access Tokens (oder
+bestehenden wiederverwenden), dann:
+
+```bash
+export SUPABASE_ACCESS_TOKEN=<token>
+```
+
+Für Persistenz innerhalb der laufenden Container-Session in `~/.bashrc`
+ergänzen — geht beim nächsten Rebuild wieder verloren, ist aber innerhalb
+derselben Container-Lifetime stabil:
+
+```bash
+echo 'export SUPABASE_ACCESS_TOKEN=<token>' >> ~/.bashrc
+```
+
+Verifikation:
+
+```bash
+npx supabase projects list
+```
+
+### Wenn häufiger Rebuilds nötig werden
+
+Dann auf Volume-Mount-basierte Persistierung umsteigen: `~/.config/gh`
+als Volume mounten und `SUPABASE_ACCESS_TOKEN` aus einer Env-Datei laden.
+Aktuell bewusst nicht eingerichtet — Aufwand-Nutzen-Verhältnis stimmt
+bei der geringen Rebuild-Häufigkeit nicht.
+
 ## Befehle
 
 ```bash
