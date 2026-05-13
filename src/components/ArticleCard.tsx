@@ -9,12 +9,12 @@ type ArticleCardProps = {
   author: string;
   date: string;
   image: string;
-  href?: string;
+  href: string;
   featured?: boolean;
   external?: boolean;
 };
 
-export default function ArticleCard({ category, title, author, date, image, href = "#", featured = false, external = false }: ArticleCardProps) {
+export default function ArticleCard({ category, title, author, date, image, href, featured = false, external = false }: ArticleCardProps) {
   return (
     <a href={href} style={{ textDecoration: "none", display: "block" }}>
       <div style={{

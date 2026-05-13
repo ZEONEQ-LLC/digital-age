@@ -8,7 +8,7 @@ export type BentoArticle = {
   author: string;
   date: string;
   image: string;
-  href?: string;
+  href: string;
   external?: boolean;
 };
 
@@ -71,7 +71,7 @@ export default function BentoCard({ article, size = "sm", accent = "green" }: Be
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
       `}</style>
-      <Link href={article.href ?? "#"} className="bento-card">
+      <Link href={article.href} className="bento-card">
         <Image
           src={article.image}
           alt={article.title}
