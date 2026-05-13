@@ -255,16 +255,41 @@ Pro könnte server-side Transformation reaktiviert werden für
 Retina-Variants oder Crop-Optionen — `uploadAvatar` müsste dann
 `getPublicUrl(path, { transform })` zurückbringen.
 
+**Bucket `articles`** — public-read, RLS-geschützt write (Phase 8a).
+- Pfad-Konvention: `<article_id>/<filename>`, Filename-Pattern
+  `<shortUuid>-<slugifiedOriginalName>.<ext>` (z.B. `a3f8c2e1-mountain-sunset.webp`)
+- Bucket-Limit: max 5 MB, JPEG/PNG/WebP/GIF
+- Compression: client-seitig via `browser-image-compression` (max 2400px,
+  quality 0.85, Ziel-Output WebP < 500 KB; GIFs durchlaufen ohne Compression
+  damit Animation erhalten bleibt)
+- Upload-Flow: `src/lib/storageActions.ts → uploadArticleImage(articleId, formData)`,
+  Auth doppelt-gated (Application-Layer Owner-Check + Storage-RLS-Policy)
+- Cleanup-Cascade: `deleteArticle` in `authorActions.ts` ruft
+  `deleteAllArticleImages(id)` vor dem DB-Delete (Option B, kein DB-Trigger)
+- Orphan-Cleanup: Edge Function `supabase/functions/cleanup-orphan-drafts/`
+  findet Drafts mit `title='Unbenannter Artikel'`, `body_md=''`,
+  `updated_at < now() - 7d` und löscht Row + Storage-Files. Deploy + Cron-
+  Schedule manuell (Dashboard), siehe README in der Function.
+
 **Helper-Functions (in Migrations definiert):**
 - `public.current_author_id()` — gibt `authors.id` für `auth.uid()` zurück
 - `public.is_editor()` — boolean, ob aktueller User Editor-Rolle hat
+- `public.can_modify_article_image(article_id_text text)` — boolean, true
+  wenn User Editor ist oder der Article ihm gehört. Akzeptiert text, fängt
+  ungültige UUID-Casts intern → liefert `false` statt zu werfen.
 
-Beide sind `SECURITY DEFINER` mit `search_path = public`, damit Storage-RLS-
+Alle sind `SECURITY DEFINER` mit `search_path = public`, damit Storage-RLS-
 Policies sie sicher aufrufen können ohne Recursion-Risk.
 
 **Editor-Override für Avatare:** RLS-Policies erlauben Editoren bereits
 fremde Avatare zu schreiben (`is_editor()` Branch in den storage.objects
 WITH-CHECK-Clauses). UI dafür folgt in einer Folge-Session.
+
+**Wichtig — `/autor/artikel/neu`:** Der Route Handler erzeugt SOFORT einen
+Draft in der DB (für die `article_id`, die der Storage-Pfad braucht). Alle
+Links auf diese Route MÜSSEN `prefetch={false}` setzen, sonst erzeugt das
+Next.js-Hover-/Viewport-Prefetch leere Drafts. Aktuelle Links in
+`(suite)/artikel/page.tsx` und `(suite)/dashboard/page.tsx` sind korrekt.
 
 ### Free-Tier-Hinweis
 
