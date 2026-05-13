@@ -147,3 +147,6 @@ next-env.d.ts
 
 # Design handoff (Phase 0)
 _design-handoff/
+
+# Claude Code session state
+.claude/
