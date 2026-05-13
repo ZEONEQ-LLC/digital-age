@@ -3,10 +3,10 @@ import BentoCard, { type BentoArticle } from "./BentoCard";
 
 type BentoGridProps = {
   articles: BentoArticle[];
-  href?: string;
+  href: string;
 };
 
-export default function BentoGrid({ articles, href = "#" }: BentoGridProps) {
+export default function BentoGrid({ articles, href }: BentoGridProps) {
   // Layout slots:
   //   [0] = large top-left (2 cols × 1 row)
   //   [1] = right column upper

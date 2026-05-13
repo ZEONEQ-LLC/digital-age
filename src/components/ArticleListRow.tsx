@@ -10,7 +10,7 @@ export type ListArticle = {
   date: string;
   image: string;
   readTime: string;
-  href?: string;
+  href: string;
   external?: boolean;
 };
 
@@ -99,7 +99,7 @@ export default function ArticleListRow({ article, dotColor }: ArticleListRowProp
           .alr__title { font-size: var(--fs-body); }
         }
       `}</style>
-      <Link href={article.href ?? "#"} style={{ textDecoration: "none", display: "block" }}>
+      <Link href={article.href} style={{ textDecoration: "none", display: "block" }}>
         <article className="alr">
           <div className="alr__bar" style={{ background: dotColor }} aria-hidden />
           <div className="alr__cover">

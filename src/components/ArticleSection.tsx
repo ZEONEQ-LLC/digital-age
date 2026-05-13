@@ -6,7 +6,7 @@ type Article = {
   author: string;
   date: string;
   image: string;
-  href?: string;
+  href: string;
   external?: boolean;
 };
 
