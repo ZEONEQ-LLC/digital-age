@@ -161,15 +161,15 @@ Docker-in-Container hätte Reibung gebracht; Free-Tier-Cloud reicht für
 Phase 7 vollständig aus.
 
 - **Projekt:** `digital-age db` · Region `eu-central-1` · Free-Tier
-- **Project Ref:** `dkmvadaypxiaxwfkbghz`
-- **Dashboard:** https://supabase.com/dashboard/project/dkmvadaypxiaxwfkbghz
+- **Project Ref:** in `.env.local` als `SUPABASE_PROJECT_REF` (nicht im Repo)
+- **Dashboard:** https://supabase.com/dashboard/project/<project-ref>
 
 ### Befehle (Cloud-Only)
 
 ```bash
 npx supabase migration new <name>      # neue SQL-Migration anlegen
 npx supabase db push                   # alle pending Migrations auf Cloud deployen
-npx supabase gen types typescript --project-id dkmvadaypxiaxwfkbghz > src/lib/database.types.ts
+npx supabase gen types typescript --project-id "$SUPABASE_PROJECT_REF" > src/lib/database.types.ts
 ```
 
 - Migrations sind versioniert in `supabase/migrations/`, sind Source-of-Truth
