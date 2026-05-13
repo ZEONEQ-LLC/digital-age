@@ -647,10 +647,10 @@ existiert (Placeholder aus Session-C-Seed). Falls ja, claimt er die Row durch
 setzen von user_id. Sonst Insert wie vorher.
 
 **Wichtig — Merge greift nur bei exaktem Email-Match.** Wenn ein Mock-Author
-mit Platzhalter-Email gesseeded wurde (z.B. `ali@zeoneq.com`) und der echte
-Login eine andere Email nutzt (`ali.soy@icloud.com`), wird ein neuer
-`external`-Row angelegt — der Editor-Row bleibt unverlinkt. Der Merge muss
-dann manuell via SQL erfolgen:
+mit Platzhalter-Email gesseeded wurde (z.B. `placeholder@digital-age.ch`)
+und der echte Login eine andere Email nutzt (`real-login@example.com`),
+wird ein neuer `external`-Row angelegt — der Editor-Row bleibt unverlinkt.
+Der Merge muss dann manuell via SQL erfolgen:
 
 ```sql
 -- Vor Cleanup: prüfen ob der external-Row Artikel/Podcasts hat
