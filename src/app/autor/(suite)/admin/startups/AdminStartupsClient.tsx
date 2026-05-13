@@ -92,10 +92,9 @@ function startupToDraft(s: StartupRow): EditDraft {
 
 type Props = {
   initialStartups: StartupRow[];
-  initialFeaturedCount: number;
 };
 
-export default function AdminStartupsClient({ initialStartups, initialFeaturedCount }: Props) {
+export default function AdminStartupsClient({ initialStartups }: Props) {
   const router = useRouter();
   const startups = initialStartups;
   const [tab, setTab] = useState<TabKey>("pending");
@@ -114,7 +113,7 @@ export default function AdminStartupsClient({ initialStartups, initialFeaturedCo
     return c;
   }, [startups]);
 
-  const featuredCount = counts.featured || initialFeaturedCount;
+  const featuredCount = counts.featured;
   const spotlightFull = featuredCount >= 3;
 
   const filtered = useMemo(() => startups.filter((s) => s.status === tab), [startups, tab]);

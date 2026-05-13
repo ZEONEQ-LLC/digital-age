@@ -85,16 +85,6 @@ export async function getPendingStartupCount(): Promise<number> {
   return count ?? 0;
 }
 
-export async function getFeaturedStartupCount(): Promise<number> {
-  const supabase = await createClient();
-  const { count, error } = await supabase
-    .from("ai_startups")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "featured");
-  if (error) return 0;
-  return count ?? 0;
-}
-
 export async function getStartupIndustries(): Promise<string[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
