@@ -71,7 +71,7 @@ export type ExternalStartupSubmitInput = {
   submitter_role?: string | null;
 };
 
-export async function submitStartupExternal(input: ExternalStartupSubmitInput): Promise<{ id: string }> {
+export async function submitStartupExternal(input: ExternalStartupSubmitInput): Promise<void> {
   const name = input.name.trim();
   const tagline = input.tagline.trim();
   const description = input.description.trim();
@@ -102,7 +102,10 @@ export async function submitStartupExternal(input: ExternalStartupSubmitInput): 
   if (slugError) throw slugError;
   if (!slug) throw new Error("Slug-Generierung fehlgeschlagen.");
 
-  const { data, error } = await supabase
+  // Bewusst KEIN .select().single() hier: anon hat keine SELECT-Policy für
+  // status='pending'-Rows, der Return-Representation würde via RLS-Filter
+  // einen 42501 erzeugen obwohl der Insert-Check selbst durchgegangen wäre.
+  const { error } = await supabase
     .from("ai_startups")
     .insert({
       slug,
@@ -126,12 +129,9 @@ export async function submitStartupExternal(input: ExternalStartupSubmitInput): 
       submitter_email: submitterEmail,
       submitter_role: input.submitter_role?.trim() || null,
       status: "pending",
-    })
-    .select("id")
-    .single();
+    });
   if (error) throw error;
   revalidatePath("/autor/admin/startups");
-  return { id: data.id };
 }
 
 export async function approveStartup(id: string, opts?: { feature?: boolean }): Promise<void> {
