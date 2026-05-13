@@ -19,7 +19,8 @@ const items: NavItem[] = [
 const adminItems: NavItem[] = [
   { id: "admin-authors", label: "Autoren",      href: "/autor/admin/autoren",     icon: "◌" },
   { id: "admin-invites", label: "Einladungen",  href: "/autor/admin/einladungen", icon: "✉" },
-  { id: "admin-prompts", label: "Prompts",      href: "/autor/admin/prompts",     icon: "❖" },
+  { id: "admin-prompts",  label: "Prompts",  href: "/autor/admin/prompts",  icon: "❖" },
+  { id: "admin-startups", label: "Startups", href: "/autor/admin/startups", icon: "⊞" },
 ];
 
 type AuthorSidebarProps = {
