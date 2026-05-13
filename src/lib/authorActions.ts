@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { deleteAllArticleImages } from "@/lib/storageActions";
 import type { Database } from "@/lib/database.types";
 
 type ArticleRow = Database["public"]["Tables"]["articles"]["Row"];
@@ -164,6 +165,11 @@ export async function archiveArticle(id: string): Promise<ArticleRow> {
 export async function deleteArticle(id: string): Promise<void> {
   const supabase = await createClient();
   await requireCurrentAuthor();
+
+  // Cascade: Storage-Objects vor DB-Row löschen. Wenn Storage-Cleanup
+  // fehlschlägt, brechen wir ab — verwaiste Storage-Files sind teurer als
+  // ein temporär nicht löschbarer Article. RLS gated den Storage-Zugriff.
+  await deleteAllArticleImages(id);
 
   const { error } = await supabase.from("articles").delete().eq("id", id);
   if (error) throw error;

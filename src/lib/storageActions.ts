@@ -103,3 +103,155 @@ function extractAvatarPath(url: string): string | null {
   const match = url.match(/\/avatars\/([^?]+)/);
   return match ? match[1] : null;
 }
+
+// =============================================================================
+// Article-Images
+// =============================================================================
+
+const ARTICLE_MAX_BYTES = 5 * 1024 * 1024;
+const ARTICLE_ALLOWED_MIMES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
+
+// Slugifier für den lesbaren Filename-Teil. Umlaute → Translit, Sonderzeichen
+// → Bindestriche, max 50 Zeichen. Identisch zum Schema im Slug-RPC für
+// Startups, hier aber rein in TS weil File-Upload client-getriggert ist.
+function slugifyFilename(name: string): string {
+  const withoutExt = name.replace(/\.[^.]+$/, "");
+  const translit = withoutExt
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss");
+  const slug = translit.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return slug.slice(0, 50) || "image";
+}
+
+async function requireArticleAccess(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  articleId: string,
+): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Nicht eingeloggt.");
+
+  const { data: me } = await supabase
+    .from("authors")
+    .select("id, role")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!me) throw new Error("Author-Profil nicht gefunden.");
+
+  if (me.role === "editor") return;
+
+  const { data: article } = await supabase
+    .from("articles")
+    .select("author_id")
+    .eq("id", articleId)
+    .maybeSingle();
+  if (!article) throw new Error("Artikel nicht gefunden.");
+
+  if (article.author_id !== me.id) {
+    throw new Error("Keine Berechtigung für dieses Artikel-Bild.");
+  }
+}
+
+// Upload-Server-Action für Artikel-Bilder.
+//
+// - Compression läuft client-seitig in der ImageUploader-Komponente
+//   (`browser-image-compression`). Hier kommt der bereits komprimierte File an.
+// - Filename: `<shortUuid>-<slugifiedOriginalName>.<ext>` — UUID-Prefix für
+//   Kollisionssicherheit, slugged Name für SEO/Debugging.
+// - Pfad: `<articleId>/<filename>` — Storage-RLS prüft erstes Segment gegen
+//   `articles.author_id` bzw. Editor-Rolle.
+// - Auth: doppelt-gated — Application-Layer + Storage-RLS-Policy.
+export async function uploadArticleImage(
+  articleId: string,
+  formData: FormData,
+): Promise<{ url: string; path: string }> {
+  const file = formData.get("file");
+  if (!(file instanceof File)) throw new Error("Keine Datei übermittelt.");
+  if (file.size > ARTICLE_MAX_BYTES) {
+    throw new Error("Datei zu gross (max 5 MB).");
+  }
+  if (!ARTICLE_ALLOWED_MIMES.includes(file.type)) {
+    throw new Error("Nur JPEG, PNG, WebP oder GIF erlaubt.");
+  }
+
+  const supabase = await createClient();
+  await requireArticleAccess(supabase, articleId);
+
+  const originalName = file.name || "image";
+  const ext = (originalName.split(".").pop() ?? "jpg").toLowerCase();
+  const shortUuid = crypto.randomUUID().slice(0, 8);
+  const filename = `${shortUuid}-${slugifyFilename(originalName)}.${ext}`;
+  const path = `${articleId}/${filename}`;
+
+  const { error: uploadErr } = await supabase.storage
+    .from("articles")
+    .upload(path, file, { cacheControl: "3600", upsert: false });
+  if (uploadErr) {
+    throw new Error(`Upload fehlgeschlagen: ${uploadErr.message}`);
+  }
+
+  const { data: urlData } = supabase.storage
+    .from("articles")
+    .getPublicUrl(path);
+
+  return { url: urlData.publicUrl, path };
+}
+
+// Löscht ein einzelnes Article-Bild. Auth doppelt-gated wie Upload.
+export async function deleteArticleImage(
+  articleId: string,
+  filename: string,
+): Promise<void> {
+  const supabase = await createClient();
+  await requireArticleAccess(supabase, articleId);
+
+  const path = `${articleId}/${filename}`;
+  const { error } = await supabase.storage.from("articles").remove([path]);
+  if (error) throw new Error(`Delete fehlgeschlagen: ${error.message}`);
+}
+
+// Listet alle Filenames im Folder eines Articles. Wird für Debug/Cleanup
+// und für `deleteAllArticleImages` benutzt.
+export async function listArticleImages(
+  articleId: string,
+): Promise<string[]> {
+  const supabase = await createClient();
+  await requireArticleAccess(supabase, articleId);
+
+  const { data, error } = await supabase.storage
+    .from("articles")
+    .list(articleId, { limit: 1000 });
+  if (error) throw new Error(`List fehlgeschlagen: ${error.message}`);
+  return (data ?? []).map((entry) => entry.name);
+}
+
+// Löscht den gesamten Folder eines Articles (Cleanup-Cascade vor Article-Delete
+// und Orphan-Cleanup). Best-Effort: wenn der Folder leer ist, ist das kein
+// Fehler. RLS-Auth läuft über `listArticleImages` / `remove`.
+export async function deleteAllArticleImages(articleId: string): Promise<void> {
+  const supabase = await createClient();
+  await requireArticleAccess(supabase, articleId);
+
+  const { data: entries, error: listErr } = await supabase.storage
+    .from("articles")
+    .list(articleId, { limit: 1000 });
+  if (listErr) {
+    throw new Error(`List fehlgeschlagen: ${listErr.message}`);
+  }
+  if (!entries || entries.length === 0) return;
+
+  const paths = entries.map((e) => `${articleId}/${e.name}`);
+  const { error: removeErr } = await supabase.storage
+    .from("articles")
+    .remove(paths);
+  if (removeErr) {
+    throw new Error(`Cleanup fehlgeschlagen: ${removeErr.message}`);
+  }
+}
