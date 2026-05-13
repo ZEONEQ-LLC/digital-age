@@ -84,7 +84,7 @@ export default function Footer() {
           {/* Bottom bar */}
           <div style={{ borderTop: "1px solid var(--da-card)", paddingTop: "32px" }}>
             <p style={{ color: "var(--da-muted-soft)", fontSize: "13px", lineHeight: 1.7 }}>
-              © 2025 digital-age.ch | Alle Rechte vorbehalten.
+              © 2026 digital-age.ch | Alle Rechte vorbehalten.
             </p>
             <p style={{ color: "var(--da-muted-soft)", fontSize: "13px", lineHeight: 1.7 }}>
               Die Inhalte dieser Webseite sind urheberrechtlich geschützt. Ohne ausdrückliche Zustimmung von digital-age.ch dürfen Inhalte weder kopiert, verändert, verbreitet noch anderweitig genutzt werden.
