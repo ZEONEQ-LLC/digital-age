@@ -18,6 +18,7 @@ import { getArticleBySlug, type ArticleWithFullRelations } from "@/lib/articleAp
 import { getArticlesByAuthor } from "@/lib/authorApi";
 import { getCoverUrl } from "@/lib/coverImage";
 import { markdownToBlocks } from "@/lib/markdownBlocks";
+import { slugifyTag } from "@/lib/tagSlug";
 import {
   BLOCK_SCHEMA_VERSION,
   type Block,
@@ -202,8 +203,9 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
           {article.tags && article.tags.length > 0 && (
             <div style={{ marginTop: "var(--sp-10)", display: "flex", flexWrap: "wrap", gap: 8 }}>
               {article.tags.map((tag) => (
-                <span
+                <Link
                   key={tag}
+                  href={`/tag/${slugifyTag(tag)}`}
                   style={{
                     background: "var(--da-card)",
                     border: "1px solid var(--da-border)",
@@ -212,10 +214,12 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
                     padding: "4px 10px",
                     borderRadius: 999,
                     fontFamily: "var(--da-font-mono)",
+                    textDecoration: "none",
+                    transition: "border-color var(--t-fast), color var(--t-fast)",
                   }}
                 >
                   #{tag}
-                </span>
+                </Link>
               ))}
             </div>
           )}

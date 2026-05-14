@@ -628,6 +628,15 @@ export type Database = {
           revoked_at: string
         }[]
       }
+      get_top_tags: {
+        Args: { limit_count?: number }
+        Returns: {
+          article_count: number
+          id: string
+          name: string
+          slug: string
+        }[]
+      }
       increment_prompt_uses: { Args: { p_id: string }; Returns: undefined }
       is_editor: { Args: never; Returns: boolean }
       suggest_startup_slug: { Args: { p_name: string }; Returns: string }

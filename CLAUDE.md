@@ -429,8 +429,43 @@ TopNav (Tablet), bedingt sichtbar via `author.userRole === 'editor'`. Routen:
   komplett neu gesetzt (delete-all + insert) — pro Article max 1 Schreib-
   zyklus, einfach + atomar genug für unsere Scale.
 
-T2 (Public-Frontend: Tag-Detail-Page, /tags-Übersicht, Trending-Sidebar)
-und T3 (Admin-Tag-Verwaltung mit Merge/Rename/Delete) folgen.
+T3 (Admin-Tag-Verwaltung mit Merge/Rename/Delete) folgt.
+
+### Tag-System Public-Frontend (PR T2)
+
+- **Routen:**
+  - `/tag/[slug]` — Tag-Detail-Page mit chronologischer Artikel-Liste
+    (max 50). SSG via `generateStaticParams`; bei Neutags zwischen zwei
+    Builds rendert Next.js on-demand. `generateMetadata` setzt Title +
+    Description. 404 via `notFound()` bei unbekanntem Slug.
+  - `/tags` — Alphabetische Pill-Cloud aller Tags ohne Count-Badges.
+    Render dynamisch (kein SSG nötig).
+- **Helper-Modul** `src/lib/tags.ts`:
+  - `getAllTags()`, `getTagBySlug(slug)`, `getTopTags(limit=5)` (über RPC),
+    `getArticlesByTagSlug(slug, limit)` (Zwei-Step: tag-id auflösen,
+    junction-Filter, articles mit Standard-Relations laden).
+- **Postgres-Funktion** `get_top_tags(limit_count)` (Migration
+  `20260514205726_top_tags_function.sql`): `SECURITY DEFINER`, EXECUTE
+  für anon+authenticated. Aggregiert tags über published Articles,
+  sortiert count DESC, name ASC. Global, all-time, kein Zeitfenster.
+- **Top-Themen-Sidebar** in `TopicListing`-Komponente: neuer optionaler
+  `topTags`-Prop, gerendert als Section BELOW Autoren und ABOVE
+  Newsletter. Nur in `/ki-im-business` und `/future-tech` verdrahtet.
+  Pills sind Links auf `/tag/[slug]`, kleiner monospace-Count
+  daneben. "Alle Themen →"-Link unter den Pills auf `/tags`.
+- **Klickbare Tag-Pills** im Artikel-Detail (`/artikel/[slug]`): die
+  bestehenden Mono-Pills (`article.tags[]`) sind jetzt Links auf
+  `/tag/[slugifyTag(name)]` via `src/lib/tagSlug.ts` (gleiche Slugify-
+  Logik wie im Migrations-Skript und `syncArticleTags`).
+- **Build-Hinweis:** `generateStaticParams` in `/tag/[slug]` darf den
+  ssr-Client (`createClient`) NICHT verwenden, weil der intern
+  `cookies()` aufruft (build-time verboten). Statt dessen direkt
+  `@supabase/supabase-js` mit `NEXT_PUBLIC_SUPABASE_URL/ANON_KEY`.
+  Falls die Env-Vars beim Build fehlen (lokal ohne `.env.local`),
+  returnt die Funktion `[]` und Next rendert alle Slugs dynamisch.
+- **Bewusst nicht in T2:** Tag-Cloud auf der Homepage, Top-Tags-Sidebar
+  auf anderen Public-Pages, echtes Trending mit Zeitfenster, Related-
+  Tags, Tag-Admin-UI (kommt in T3), Tags auf Article-Cards.
 
 ### Invite-Flow (PR B)
 

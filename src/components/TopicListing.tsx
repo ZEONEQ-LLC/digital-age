@@ -19,6 +19,12 @@ type AuthorSpotlight = {
   count: number;
 };
 
+export type TopTagItem = {
+  slug: string;
+  name: string;
+  count: number;
+};
+
 export type TopicListingProps = {
   topicLabel: string;
   lead: string;
@@ -27,6 +33,7 @@ export type TopicListingProps = {
   categoryColors?: Record<string, string>;
   trendingTags: string[];
   authors: AuthorSpotlight[];
+  topTags?: TopTagItem[];
   newsletter: { title: string; rhythm: string };
   accentColor?: Accent;
 };
@@ -42,6 +49,7 @@ export default function TopicListing({
   categoryColors = {},
   trendingTags,
   authors,
+  topTags = [],
   newsletter,
   accentColor = "green",
 }: TopicListingProps) {
@@ -189,6 +197,26 @@ export default function TopicListing({
           transition: border-color var(--t-fast), color var(--t-fast);
         }
         .tl-tag:hover { border-color: var(--accent); color: var(--accent); }
+        .tl-tag--link {
+          display: inline-flex; align-items: center; gap: 6px;
+          text-decoration: none;
+        }
+        .tl-tag__count {
+          font-family: var(--da-font-mono);
+          font-size: 10px;
+          color: var(--da-faint);
+        }
+        .tl-tag--link:hover .tl-tag__count { color: var(--accent); }
+        .tl-tag-all {
+          display: inline-block;
+          margin-top: 12px;
+          color: var(--da-muted);
+          font-size: var(--fs-meta);
+          text-decoration: none;
+          font-family: var(--da-font-body);
+          transition: color var(--t-fast);
+        }
+        .tl-tag-all:hover { color: var(--accent); }
 
         .tl-author {
           display: flex; align-items: center; gap: 12px;
@@ -417,6 +445,28 @@ export default function TopicListing({
                 </div>
               ))}
             </div>
+
+            {topTags.length > 0 && (
+              <div>
+                <p className="tl-aside__label">Top Themen</p>
+                <div className="tl-tags">
+                  {topTags.map((tag) => (
+                    <Link
+                      key={tag.slug}
+                      href={`/tag/${tag.slug}`}
+                      className="tl-tag tl-tag--link"
+                      aria-label={`Tag ${tag.name}, ${tag.count} Artikel`}
+                    >
+                      #{tag.name}
+                      <span className="tl-tag__count">{tag.count}</span>
+                    </Link>
+                  ))}
+                </div>
+                <Link href="/tags" className="tl-tag-all">
+                  Alle Themen →
+                </Link>
+              </div>
+            )}
 
             <div className="tl-newsletter">
               <p className="tl-newsletter__overline">Newsletter</p>

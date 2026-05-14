@@ -3,6 +3,7 @@ import Footer from "@/components/Footer";
 import SpotlightSection from "@/components/SpotlightSection";
 import TopicListing from "@/components/TopicListing";
 import { getArticlesByCategory, getFeaturedByCategory } from "@/lib/articleApi";
+import { getTopTags } from "@/lib/tags";
 import { articleToListRow } from "@/lib/mappers/articleMappers";
 
 const categoryColors: Record<string, string> = {
@@ -17,10 +18,16 @@ const categoryColors: Record<string, string> = {
 const trendingTags: string[] = [];
 
 export default async function FutureTechPage() {
-  const [rows, featured] = await Promise.all([
+  const [rows, featured, topTagsRaw] = await Promise.all([
     getArticlesByCategory("future-tech"),
     getFeaturedByCategory("future-tech", 3),
+    getTopTags(5),
   ]);
+  const topTags = topTagsRaw.map((t) => ({
+    slug: t.slug,
+    name: t.name,
+    count: Number(t.article_count),
+  }));
   const articles = rows.map(articleToListRow);
 
   const subcategorySet = new Set<string>();
@@ -66,6 +73,7 @@ export default async function FutureTechPage() {
         categoryColors={categoryColors}
         trendingTags={trendingTags}
         authors={authors}
+        topTags={topTags}
         newsletter={{ title: "Future Tech — wöchentlich", rhythm: "Jeden Donnerstag. Kein Spam." }}
         accentColor="purple"
       />
