@@ -662,6 +662,72 @@ aktuellen Author via `authorApi.getCurrentAuthor` und reicht einen schlanken
 - Revisions werden bei jedem Update mit title-/body-snapshot in der `revisions`-
   Tabelle festgehalten (DB-Trigger `articles_revision_on_update`).
 
+**Block-Editor (Phase 8b/c)** — strukturierte Block-Persistenz statt
+freiem Markdown:
+
+- **Storage:** `articles.body_blocks jsonb` (nullable) hält ein
+  `BlockDocument`-Objekt `{ version, blocks, sources }`. `body_md` wird beim
+  Save server-seitig aus body_blocks via `renderBlockDocumentToMarkdown`
+  regeneriert — bleibt simplifizierte/suchbare Repräsentation, kein
+  Roundtrip-Ziel mehr.
+- **Source-of-Truth:** Visual-Editor schreibt `body_blocks`, Server überschreibt
+  `body_md` beim Patch. Markdown-Modus wird Read-Only sobald `body_blocks`
+  Special-Blocks enthält (StatBox, Disclaimer, InternalArticleCard, oder
+  irgendwelche Sources). Banner zeigt das im UI.
+- **Legacy-Migration:** Wenn `body_blocks IS NULL` und `body_md` nicht leer,
+  zeigt der Editor beim Markdown→Visual-Wechsel `LegacyMigrationModal`. Auf
+  Bestätigung wird `markdownToBlocks(body_md)` einmalig in body_blocks
+  geparst.
+
+**Block-Typen** (`src/types/blocks.ts`):
+- Basis: `heading` (H2/H3/H4), `paragraph`, `quote`, `list`, `code`, `image`,
+  `divider` (full / short)
+- Special (machen Markdown read-only): `statbox` (3 fixed items),
+  `disclaimer` (mit optionalem akzent-Link), `internalArticleCard`
+  (Cover + Title + Excerpt, Cache wird beim Verlinken gespeichert)
+
+**Inline-Marker im `block.content`** (Markdown-Subset + Custom):
+- `**bold**`, `_italic_`, `[text](url)`
+- `[[slug]](Title)` — Internal-Link auf `/artikel/<slug>`
+- `{{g}}…{{/g}}` / `{{o}}…{{/o}}` — Highlight Grün/Orange
+- `{{lg}}…{{/lg}}` / `{{xl}}…{{/xl}}` — Font-Size Large/XL
+- `[^N]` — Source-Reference auf `sources[N-1]`
+
+Eingesetzt durch `FloatingToolbar` (zeigt bei Text-Selektion in Paragraph/
+Quote-Content). Heading + List-Items: keine Toolbar in dieser PR.
+
+**WICHTIG — Editor ist NICHT WYSIWYG für Inline-Formatierung.** Inline-
+Marker erscheinen im Editor-Textarea als Roh-Text (`**bold**`,
+`{{g}}…{{/g}}` etc.). Bewusste Trade-off-Entscheidung: ein echter WYSIWYG-
+Editor (Tiptap o.ä.) wäre Phase-8b/c gesprengt; Tiptap-Migration kommt in
+einer eigenen Phase. Authors sehen die gerenderte Markup in der
+**Vorschau-Tab** im Editor. Hinweis-Banner im Visual-Tab macht das
+transparent.
+
+**Source-System (SourceList):**
+- Quellen in `BlockDocument.sources: Source[]`, jede mit stabiler ID.
+- Inline-Marker `[^N]` ist 1-indexed und referenziert `sources[N-1]`.
+- `BlockReader` (Public-Page) macht Auto-Renumbering on-the-fly: walks block-
+  Content in Reihenfolge, baut Mapping `originalN → displayN`, rendert
+  Marker als `displayN` und Source-Liste am Article-Ende in derselben
+  Reihenfolge. Dangling References werden ausgeblendet.
+- Source-Picker-Modal (`SourcePicker.tsx`) zeigt existierende Quellen
+  + erlaubt neue anzulegen. Keine explizite Lösch-UI in v1 — verwaiste
+  Sources bleiben in `sources[]` ohne Public-Render-Impact.
+
+**Featured Image:** `FeaturedImageBox` in der Editor-Sidebar (oben über
+Statistiken). Nutzt den `ImageUploader` aus Phase 8a, schreibt direkt
+in `cover_image_url` (Listing-Cards + Detail-Page-Hero greifen drauf zu).
+
+**Frontend-Renderer:** `BlockReader` rendert alle Typen + Inline-Marker
+via Pattern-Matching (kein dangerouslySetInnerHTML — alles geht durch
+React-Escaping).
+
+**Article-Detail-Page (`/artikel/[slug]`):** lädt `body_blocks` aus der DB
+direkt, fällt für Legacy-Artikel auf `markdownToBlocks(body_md)` zurück.
+Übergibt komplettes `BlockDocument` an `BlockReader` (damit Sources auch
+ohne body_blocks-Special-Blocks korrekt rendern).
+
 **Statistiken** zeigt nur Zahlen aus der DB (Counts, total Wörter). Sparklines/
 Heatmaps für Views/Reads wurden bewusst entfernt — kommen erst mit echter
 Event-Tracking-Integration (Phase 8 mit Plausible/PostHog/Supabase-Events).

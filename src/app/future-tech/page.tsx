@@ -11,9 +11,9 @@ const categoryColors: Record<string, string> = {
   "Quantencomputing": "var(--da-green)",
 };
 
-// TODO Phase 8: Trending-Chips ohne Klick-Logik (rein UI). Braucht Tag-System
-// + Trending-Metrik in eigener Migration.
-const trendingTags = ["GenAI 2026", "Quantum", "IoT", "Smart Contracts", "Cobots", "LLM Agents", "Post-Quantum"];
+// Statische Trending-Liste entfernt — kommt mit dem Tag-System (Phase 8d).
+// TopicListing blendet den Block aus, wenn das Array leer ist.
+const trendingTags: string[] = [];
 
 export default async function FutureTechPage() {
   const rows = await getArticlesByCategory("future-tech");

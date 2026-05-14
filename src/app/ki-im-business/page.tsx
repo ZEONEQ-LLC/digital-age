@@ -11,9 +11,9 @@ const categoryColors: Record<string, string> = {
   "Swiss Hosted GPT":  "var(--da-green)",
 };
 
-// TODO Phase 8: Trending-Chips ohne Klick-Logik (rein UI). Braucht Tag-System
-// + Trending-Metrik in eigener Migration.
-const trendingTags = ["EU AI Act", "GPT-4o", "Compliance 2026", "Swiss AI", "Automatisierung", "LLM Security", "Datenqualität"];
+// Statische Trending-Liste entfernt — kommt mit dem Tag-System (Phase 8d).
+// TopicListing blendet den Block aus, wenn das Array leer ist.
+const trendingTags: string[] = [];
 
 export default async function KIBusinessPage() {
   const rows = await getArticlesByCategory("ki-business");

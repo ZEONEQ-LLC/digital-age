@@ -14,6 +14,13 @@ export default function BentoGrid({ articles, href }: BentoGridProps) {
   //   [3] = bottom-left
   //   [4] = bottom-middle (optional — if absent, slot-3 spans the full bottom row)
   const a = articles;
+
+  // Empty-/Sparse-State: Slot-Layout braucht min. 4 Artikel (slot-0 bis
+  // slot-3 sind hardcoded). Bei weniger → komplett ausblenden, sonst greifen
+  // die direkten Zugriffe (`a[0]…a[3]`) auf undefined zu und BentoCard
+  // wirft beim Lesen von `article.href`.
+  if (a.length < 4) return null;
+
   const hasFourth = !!a[4];
 
   return (

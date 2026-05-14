@@ -387,14 +387,16 @@ export default function TopicListing({
               })}
             </div>
 
-            <div>
-              <p className="tl-aside__label">Trending</p>
-              <div className="tl-tags">
-                {trendingTags.map((tag) => (
-                  <span key={tag} className="tl-tag"># {tag}</span>
-                ))}
+            {trendingTags.length > 0 && (
+              <div>
+                <p className="tl-aside__label">Trending</p>
+                <div className="tl-tags">
+                  {trendingTags.map((tag) => (
+                    <span key={tag} className="tl-tag"># {tag}</span>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <div>
               <p className="tl-aside__label">Autoren</p>

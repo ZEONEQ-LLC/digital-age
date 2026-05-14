@@ -1,6 +1,7 @@
 "use client";
 
 import AuthorCard from "./AuthorCard";
+import FeaturedImageBox from "./FeaturedImageBox";
 import MonoCaption from "./MonoCaption";
 
 type EditorSidebarProps = {
@@ -8,6 +9,9 @@ type EditorSidebarProps = {
   readMinutes: number;
   category: string;
   tags: string[];
+  articleId: string;
+  coverImageUrl: string;
+  onCoverChange: (url: string) => void;
 };
 
 const AI_TOOLTIP = "AI-Features kommen in einer späteren Phase";
@@ -19,9 +23,15 @@ const AI_BUTTONS = [
   "Zusammenfassung erstellen",
 ];
 
-export default function EditorSidebar({ wordCount, readMinutes, category, tags }: EditorSidebarProps) {
+export default function EditorSidebar({ wordCount, readMinutes, category, tags, articleId, coverImageUrl, onCoverChange }: EditorSidebarProps) {
   return (
     <aside style={{ position: "sticky", top: 24, display: "flex", flexDirection: "column", gap: 14 }}>
+      <FeaturedImageBox
+        articleId={articleId}
+        coverImageUrl={coverImageUrl}
+        onCoverChange={onCoverChange}
+      />
+
       <AuthorCard padding={18}>
         <MonoCaption>Statistiken</MonoCaption>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>

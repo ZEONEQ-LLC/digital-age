@@ -3,18 +3,23 @@
 import { useEffect, useRef, useState } from "react";
 import type { BlockType } from "@/types/blocks";
 
-const OPTIONS: { id: string; label: string; icon: string; insertType: BlockType; level?: 2 | 3 }[] = [
+const OPTIONS: { id: string; label: string; icon: string; insertType: BlockType; level?: 2 | 3 | 4 }[] = [
   { id: "heading-2", label: "Heading 2", icon: "H2", insertType: "heading", level: 2 },
   { id: "heading-3", label: "Heading 3", icon: "H3", insertType: "heading", level: 3 },
+  { id: "heading-4", label: "Heading 4", icon: "H4", insertType: "heading", level: 4 },
   { id: "paragraph", label: "Absatz",    icon: "¶",  insertType: "paragraph" },
   { id: "quote",     label: "Zitat",     icon: "❝",  insertType: "quote" },
   { id: "list",      label: "Liste",     icon: "•",  insertType: "list" },
   { id: "code",      label: "Code",      icon: "<>", insertType: "code" },
   { id: "image",     label: "Bild",      icon: "▢",  insertType: "image" },
+  { id: "statbox",   label: "Statistik-Box", icon: "▦", insertType: "statbox" },
+  { id: "disclaimer", label: "Disclaimer", icon: "⚠", insertType: "disclaimer" },
+  { id: "internal-card", label: "Verwandter Artikel", icon: "↳", insertType: "internalArticleCard" },
+  { id: "divider",   label: "Trennlinie", icon: "—",  insertType: "divider" },
 ];
 
 type BlockPickerProps = {
-  onPick: (type: BlockType, level?: 2 | 3) => void;
+  onPick: (type: BlockType, level?: 2 | 3 | 4) => void;
   variant?: "block" | "compact";
 };
 

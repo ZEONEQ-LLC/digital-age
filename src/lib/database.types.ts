@@ -202,6 +202,7 @@ export type Database = {
       articles: {
         Row: {
           author_id: string
+          body_blocks: Json | null
           body_md: string | null
           category_id: string
           cover_image_url: string | null
@@ -225,6 +226,7 @@ export type Database = {
         }
         Insert: {
           author_id: string
+          body_blocks?: Json | null
           body_md?: string | null
           category_id: string
           cover_image_url?: string | null
@@ -248,6 +250,7 @@ export type Database = {
         }
         Update: {
           author_id?: string
+          body_blocks?: Json | null
           body_md?: string | null
           category_id?: string
           cover_image_url?: string | null
@@ -545,6 +548,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_modify_article_image: {
+        Args: { article_id_text: string }
+        Returns: boolean
+      }
       current_author_id: { Args: never; Returns: string }
       get_invite_by_token: {
         Args: { p_token: string }
