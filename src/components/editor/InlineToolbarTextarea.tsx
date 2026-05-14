@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import FloatingToolbar, { type ToolbarTarget } from "./FloatingToolbar";
 import type { ArticleSearchResult } from "@/lib/articleSearchActions";
 
@@ -27,6 +27,15 @@ export default function InlineToolbarTextarea({
 }: Props) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const [hasSelection, setHasSelection] = useState(false);
+
+  // Auto-grow: nach jedem Value-Change die Textarea-Höhe auf scrollHeight
+  // setzen. useLayoutEffect feuert vor Paint, damit kein Flackern entsteht.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
 
   function track() {
     const el = ref.current;
@@ -90,7 +99,7 @@ export default function InlineToolbarTextarea({
       <textarea
         ref={ref}
         rows={rows}
-        style={style}
+        style={{ overflowY: "hidden", ...style }}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}

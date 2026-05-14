@@ -326,15 +326,24 @@ function renderBlock(
         >
           <p style={{ color: "var(--da-text)", fontSize: 14, lineHeight: 1.6, marginBottom: b.linkText && b.linkUrl ? 8 : 0 }}>
             {b.text}
+            {b.linkText && b.linkUrl && (
+              <>
+                {" "}
+                <a
+                  href={b.linkUrl}
+                  style={{
+                    color: "var(--da-green)",
+                    fontWeight: 600,
+                    fontSize: "inherit",
+                    textDecoration: "underline",
+                    textUnderlineOffset: "3px",
+                  }}
+                >
+                  {b.linkText} →
+                </a>
+              </>
+            )}
           </p>
-          {b.linkText && b.linkUrl && (
-            <a
-              href={b.linkUrl}
-              style={{ color: "var(--da-green)", fontWeight: 600, textDecoration: "none" }}
-            >
-              {b.linkText} →
-            </a>
-          )}
         </aside>
       );
     case "internalArticleCard":
