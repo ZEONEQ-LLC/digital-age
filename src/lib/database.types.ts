@@ -210,6 +210,7 @@ export type Database = {
           excerpt: string | null
           id: string
           is_featured: boolean
+          is_hero: boolean
           published_at: string | null
           reading_minutes: number | null
           seo_description: string | null
@@ -234,6 +235,7 @@ export type Database = {
           excerpt?: string | null
           id?: string
           is_featured?: boolean
+          is_hero?: boolean
           published_at?: string | null
           reading_minutes?: number | null
           seo_description?: string | null
@@ -258,6 +260,7 @@ export type Database = {
           excerpt?: string | null
           id?: string
           is_featured?: boolean
+          is_hero?: boolean
           published_at?: string | null
           reading_minutes?: number | null
           seo_description?: string | null

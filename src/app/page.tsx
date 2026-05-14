@@ -1,6 +1,7 @@
 import NewsTicker from "@/components/NewsTicker";
 import HeroBold from "@/components/HeroBold";
 import BentoGrid from "@/components/BentoGrid";
+import SpotlightSection from "@/components/SpotlightSection";
 import SwissAIStrip from "@/components/SwissAIStrip";
 import ArticleSection from "@/components/ArticleSection";
 import CTAInverted from "@/components/CTAInverted";
@@ -8,6 +9,7 @@ import Footer from "@/components/Footer";
 import {
   getFeaturedArticles,
   getArticlesByCategory,
+  getHeroOrLatestByCategory,
 } from "@/lib/articleApi";
 import { articleToCard } from "@/lib/mappers/articleMappers";
 
@@ -20,16 +22,24 @@ const swissAI = [
 ];
 
 export default async function Home() {
-  const [featured, kiBusiness, futureTech] = await Promise.all([
+  const [featured, kiBusiness, futureTech, heroKi, heroFt] = await Promise.all([
     getFeaturedArticles(4),
     getArticlesByCategory("ki-business", 3),
     getArticlesByCategory("future-tech", 2),
+    getHeroOrLatestByCategory("ki-business"),
+    getHeroOrLatestByCategory("future-tech"),
   ]);
+
+  // Spotlight: 1 Hero (oder Fallback-Neueste) pro Kategorie.
+  const spotlight = [heroKi, heroFt].filter(
+    (a): a is NonNullable<typeof a> => !!a,
+  );
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <NewsTicker />
       <HeroBold />
+      <SpotlightSection articles={spotlight} />
       <BentoGrid articles={featured.map(articleToCard)} href="/ki-im-business" />
       <ArticleSection title="KI & Business" href="/ki-im-business" articles={kiBusiness.map(articleToCard)} />
       <SwissAIStrip items={swissAI} />

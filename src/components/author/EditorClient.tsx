@@ -557,7 +557,19 @@ export default function EditorClient({ article, revisions, categories, isEditor,
                 <select
                   className="a-edit-meta-select"
                   value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    if (next === categoryId) return;
+                    // Featured/Hero werden serverseitig auf false gesetzt
+                    // (siehe saveArticle), aber wir warnen den User vorher.
+                    if ((article.is_featured || article.is_hero) && next !== article.category_id) {
+                      const ok = window.confirm(
+                        "Dieser Artikel ist als Featured oder Hero markiert. Beim Wechsel der Kategorie werden Featured- und Hero-Status zurückgesetzt. Fortfahren?",
+                      );
+                      if (!ok) return;
+                    }
+                    setCategoryId(next);
+                  }}
                 >
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>{c.name_de}</option>
@@ -680,6 +692,8 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             isEditor={isEditor}
             allAuthors={allAuthors}
             currentAuthorId={article.author_id}
+            initialIsFeatured={article.is_featured ?? false}
+            initialIsHero={article.is_hero ?? false}
           />
         </div>
       )}
