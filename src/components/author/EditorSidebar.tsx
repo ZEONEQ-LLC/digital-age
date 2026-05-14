@@ -1,8 +1,10 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import AuthorCard from "./AuthorCard";
 import FeaturedImageBox from "./FeaturedImageBox";
 import MonoCaption from "./MonoCaption";
+import { updateArticleAuthor } from "@/lib/authorAdminActions";
 
 type EditorSidebarProps = {
   wordCount: number;
@@ -14,6 +16,9 @@ type EditorSidebarProps = {
   onCoverChange: (url: string) => void;
   publishedAtDate: string; // YYYY-MM-DD, "" wenn nicht gesetzt
   onPublishedAtChange: (date: string) => void;
+  isEditor: boolean;
+  allAuthors: { id: string; display_name: string; role: string }[];
+  currentAuthorId: string;
 };
 
 const AI_TOOLTIP = "AI-Features kommen in einer späteren Phase";
@@ -25,7 +30,28 @@ const AI_BUTTONS = [
   "Zusammenfassung erstellen",
 ];
 
-export default function EditorSidebar({ wordCount, readMinutes, category, tags, articleId, coverImageUrl, onCoverChange, publishedAtDate, onPublishedAtChange }: EditorSidebarProps) {
+export default function EditorSidebar({ wordCount, readMinutes, category, tags, articleId, coverImageUrl, onCoverChange, publishedAtDate, onPublishedAtChange, isEditor, allAuthors, currentAuthorId }: EditorSidebarProps) {
+  const [assignedAuthor, setAssignedAuthor] = useState(currentAuthorId);
+  const [authorToast, setAuthorToast] = useState<string | null>(null);
+  const [authorPending, startAuthorTransition] = useTransition();
+
+  function handleAuthorChange(newId: string) {
+    if (newId === assignedAuthor) return;
+    const prev = assignedAuthor;
+    setAssignedAuthor(newId);
+    startAuthorTransition(async () => {
+      try {
+        await updateArticleAuthor(articleId, newId);
+        setAuthorToast("Author geändert");
+        setTimeout(() => setAuthorToast(null), 2500);
+      } catch (e) {
+        setAssignedAuthor(prev);
+        setAuthorToast(e instanceof Error ? e.message : "Fehler beim Speichern");
+        setTimeout(() => setAuthorToast(null), 4000);
+      }
+    });
+  }
+
   return (
     <aside style={{ position: "sticky", top: 24, display: "flex", flexDirection: "column", gap: 14 }}>
       <FeaturedImageBox
@@ -59,6 +85,42 @@ export default function EditorSidebar({ wordCount, readMinutes, category, tags, 
           Publish das aktuelle Datum gesetzt wird.
         </p>
       </AuthorCard>
+
+      {isEditor && (
+        <AuthorCard padding={18}>
+          <MonoCaption>Author</MonoCaption>
+          <select
+            value={assignedAuthor}
+            disabled={authorPending}
+            onChange={(e) => handleAuthorChange(e.target.value)}
+            style={{
+              width: "100%",
+              background: "var(--da-darker)",
+              color: "var(--da-text)",
+              border: "1px solid var(--da-border)",
+              borderRadius: 4,
+              padding: "8px 10px",
+              fontSize: 13,
+              fontFamily: "inherit",
+              outline: "none",
+              marginTop: 8,
+              cursor: authorPending ? "wait" : "pointer",
+            }}
+          >
+            {allAuthors.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.display_name}
+                {a.role === "external" ? " (extern)" : ""}
+              </option>
+            ))}
+          </select>
+          {authorToast && (
+            <p style={{ color: "var(--da-green)", fontSize: 11, marginTop: 8, fontFamily: "var(--da-font-mono)" }}>
+              {authorToast}
+            </p>
+          )}
+        </AuthorCard>
+      )}
 
       <AuthorCard padding={18}>
         <MonoCaption>Statistiken</MonoCaption>

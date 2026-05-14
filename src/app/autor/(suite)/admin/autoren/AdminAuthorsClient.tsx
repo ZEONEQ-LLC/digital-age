@@ -15,6 +15,7 @@ import {
   type AuthorAdminPatch,
 } from "@/lib/authorAdminActions";
 import { buildInviteMessage } from "@/lib/inviteTextTemplate";
+import AvatarUploadBlock from "@/components/author/AvatarUploadBlock";
 
 type Props = { initialAuthors: AuthorWithCount[]; inviterName: string };
 
@@ -388,6 +389,7 @@ type DrawerProps = {
 };
 
 function EditAuthorDrawer({ author, inviterName, onClose, onSaved, onDeleted }: DrawerProps) {
+  const router = useRouter();
   const social = (author.social_links ?? {}) as Record<string, string | undefined>;
   const [displayName, setDisplayName] = useState(author.display_name);
   const [email, setEmail] = useState(author.email);
@@ -494,6 +496,13 @@ function EditAuthorDrawer({ author, inviterName, onClose, onSaved, onDeleted }: 
             )}
           </div>
         )}
+
+        <AvatarUploadBlock
+          authorId={author.id}
+          authorName={author.display_name}
+          currentAvatarUrl={author.avatar_url ?? ""}
+          onUploaded={() => router.refresh()}
+        />
 
         <div className="a-adm-field">
           <label>Anzeigename</label>

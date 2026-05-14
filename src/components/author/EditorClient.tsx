@@ -42,9 +42,10 @@ type Props = {
   revisions: RevisionWithEditor[];
   categories: { id: string; slug: string; name_de: string }[];
   isEditor: boolean;
+  allAuthors: { id: string; display_name: string; role: string }[];
 };
 
-export default function EditorClient({ article, revisions, categories, isEditor }: Props) {
+export default function EditorClient({ article, revisions, categories, isEditor, allAuthors }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("content");
   const [mode, setMode] = useState<Mode>("visual");
@@ -676,6 +677,9 @@ export default function EditorClient({ article, revisions, categories, isEditor 
             onCoverChange={setCover}
             publishedAtDate={publishedAtDate}
             onPublishedAtChange={setPublishedAtDate}
+            isEditor={isEditor}
+            allAuthors={allAuthors}
+            currentAuthorId={article.author_id}
           />
         </div>
       )}

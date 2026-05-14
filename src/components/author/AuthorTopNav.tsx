@@ -17,6 +17,7 @@ const items: NavItem[] = [
 ];
 
 const adminItems: NavItem[] = [
+  { id: "admin-articles", label: "Alle Artikel", href: "/autor/admin/artikel",     icon: "▦" },
   { id: "admin-authors", label: "Autoren",     href: "/autor/admin/autoren",     icon: "◌" },
   { id: "admin-invites", label: "Einladungen", href: "/autor/admin/einladungen", icon: "✉" },
   { id: "admin-prompts",  label: "Prompts Admin",  href: "/autor/admin/prompts",  icon: "❖" },

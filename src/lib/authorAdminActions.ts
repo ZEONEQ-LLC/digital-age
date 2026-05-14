@@ -79,6 +79,32 @@ export async function updateAuthorAsEditor(id: string, patch: AuthorAdminPatch):
   return data;
 }
 
+// Weist einen Artikel einem anderen Author zu. Editor-only. RLS-Policy
+// `articles_editor_all` deckt die Update-Permission ab.
+export async function updateArticleAuthor(
+  articleId: string,
+  newAuthorId: string,
+): Promise<void> {
+  await requireEditor();
+  const supabase = await createClient();
+
+  const { data: targetAuthor } = await supabase
+    .from("authors")
+    .select("id")
+    .eq("id", newAuthorId)
+    .maybeSingle();
+  if (!targetAuthor) throw new Error("Ziel-Author existiert nicht.");
+
+  const { error } = await supabase
+    .from("articles")
+    .update({ author_id: newAuthorId })
+    .eq("id", articleId);
+  if (error) throw new Error(`Author-Zuweisung fehlgeschlagen: ${error.message}`);
+
+  revalidatePath(`/autor/artikel/${articleId}`);
+  revalidatePath("/autor/admin/artikel");
+}
+
 export async function deleteAuthorAsEditor(id: string): Promise<void> {
   await requireEditor();
   const supabase = await createClient();
