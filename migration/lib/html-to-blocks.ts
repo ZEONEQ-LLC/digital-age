@@ -393,11 +393,15 @@ export function htmlToBlockDocument(
   // entfernen, sonst bleibt eine verwaiste Trennlinie nach dem Body.
   let preprocessedHtml = rawHtml;
   if (disclaimerDetection.via === "wp-block-ref") {
+    // ACHTUNG: enge Begrenzung der inneren Pattern-Strecke, sonst frisst die
+    // Regex non-greedy von der ersten <wp:separator> im Body bis zum
+    // disclaimer-Ref — und löscht den ganzen Body dazwischen (inkl. Sources).
+    // Daher nur `[^<]*`/`\s*` statt `[\s\S]*?` für die Zwischenstücke.
     preprocessedHtml = preprocessedHtml.replace(
-      /<!--\s*wp:separator[\s\S]*?<hr[^>]*\/?>[\s\S]*?<!--\s*\/wp:separator[\s\S]*?-->\s*(?=<!--\s*wp:block\s*\{[^}]*"ref":\s*1915)/g,
+      /<!--\s*wp:separator[^>]*-->\s*<hr[^>]*\/?>\s*<!--\s*\/wp:separator\s*-->\s*(?=<!--\s*wp:block\s*\{[^}]*"ref":\s*1915)/g,
       "",
     );
-    // Fallback: nackter <hr> vor dem ref (ohne separator-Wrapper)
+    // Fallback: nackter <hr> direkt vor dem Ref (ohne Separator-Wrapper)
     preprocessedHtml = preprocessedHtml.replace(
       /<hr[^>]*\/?>\s*(?=<!--\s*wp:block\s*\{[^}]*"ref":\s*1915)/g,
       "",

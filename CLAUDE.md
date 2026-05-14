@@ -837,17 +837,36 @@ npx tsx migration/import-wp-articles.ts migration/wordpress-export.xml
   (case-insensitive).
 - Category-Mapping in `migration/lib/category-resolver.ts`.
 - HTML → Markdown via Turndown, dann zu `BlockDocument` via
-  `markdownToBlocks`. Special-Blocks (StatBox etc.) entstehen aus WP-
-  Content nicht — können später manuell ergänzt werden.
+  `markdownToBlocks`.
 - Cover-Image bleibt zunächst auf WP-Attachment-URL (extern); Bilder-
   Migration in Supabase-Storage kommt in Phase 8e.
 - Logs in `migration/logs/` (gitignored).
 - Der `migration/wordpress-export.xml` ist gitignored — der User stellt
   ihn lokal bereit.
 
+**v2-Erweiterungen** (PR #37 / `migration/lib/html-to-blocks.ts`):
+- DOM-Pre-Processing via `@mixmark-io/domino` (turndown's eigener DOM).
+- **Source-URL-Mapping:** findet `<h2 id="sources">` + nachfolgende `<ol>`
+  oder `<p>` mit `[N] <a>` + `<br>`. Inline-Refs `[\[N\]\[M\]](#sources)`
+  werden zu separaten externen Links pro `[N]` umgeschrieben. Source-Liste
+  + vorangehender `<hr>` aus dem Body entfernt.
+- **Highlights:** `<mark style="background-color:var(--ast-global-color-2)">`
+  → `{{g}}…{{/g}}`. Orange-Variante analog auf `#ff8c42`/`has-orange-background`.
+- **AI-Disclaimer-Block:** Detection via `wp:block {"ref":1915}` Marker
+  (Reusable-Block-ID 1915 = "KI-Transparenz · Vorlage" in digital-age.ch).
+  Sprache wird per Title-Heuristik DE/EN bestimmt, Default-Disclaimer-Block
+  mit Link auf `/ki-transparenz` ans Ende der Blocks angehängt. Verwaiste
+  Trennlinien vor dem Ref werden entfernt.
+- **Excerpt-Strip:** Erster Paragraph im Body wird entfernt wenn er
+  Präfix-Match (≥50 Zeichen) mit dem WP-Excerpt hat.
+- **Divider-Normalisierung:** Post-Turndown Regex `* * *` / `***` /
+  `- - -` → `---` (wird zu `divider`-Block in `markdownToBlocks`).
+
 Stopp-Kriterien im Skript:
 - Wenn mehr als 5 Posts ohne match-baren Author → Abbruch mit Exit-Code 2.
 - Unbekannte WP-Categories → Warning + Fallback auf `future-tech`.
+- Im echten Run (nicht Dry-Run): bei vorhandenen Drafts in der DB
+  interaktiver Prompt mit Anleitung zum manuellen Cleanup.
 
 ## Sicherheit
 
