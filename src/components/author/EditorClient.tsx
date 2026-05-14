@@ -55,6 +55,11 @@ export default function EditorClient({ article, revisions, categories, isEditor 
   const [categoryId, setCategoryId] = useState(article.category_id);
   const [subcategory, setSubcategory] = useState(article.subcategory ?? "");
   const [tagsText, setTagsText] = useState((article.tags ?? []).join(", "));
+  // Veröffentlichungsdatum: YYYY-MM-DD-Format für <input type="date">.
+  // Bei Save wird's auf Midnight-UTC-ISO-Timestamp expandiert; null bei leer.
+  const [publishedAtDate, setPublishedAtDate] = useState<string>(
+    article.published_at ? article.published_at.slice(0, 10) : "",
+  );
 
   // Initial-State:
   //   - body_blocks gesetzt → BlockDocument geladen, Visual ist Source-of-Truth
@@ -177,6 +182,12 @@ export default function EditorClient({ article, revisions, categories, isEditor 
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
+    // Date-Input liefert "YYYY-MM-DD"; wir speichern Midnight-UTC. Leerer
+    // String → null (DB-Spalte ist nullable). Beim Publish behält publishArticle
+    // das vorhandene Datum und überschreibt nicht.
+    const publishedAtIso = publishedAtDate
+      ? `${publishedAtDate}T00:00:00.000Z`
+      : null;
     const patch: ArticlePatch = {
       title,
       excerpt: excerpt || null,
@@ -187,6 +198,7 @@ export default function EditorClient({ article, revisions, categories, isEditor 
       seo_title: seo.title || null,
       seo_description: seo.description || null,
       seo_keyword: seo.keyword || null,
+      published_at: publishedAtIso,
     };
     if (doc) {
       // Wenn im Markdown-Modus getippt wurde: Markdown → Blocks synchronisieren
@@ -662,6 +674,8 @@ export default function EditorClient({ article, revisions, categories, isEditor 
             articleId={article.id}
             coverImageUrl={cover}
             onCoverChange={setCover}
+            publishedAtDate={publishedAtDate}
+            onPublishedAtChange={setPublishedAtDate}
           />
         </div>
       )}

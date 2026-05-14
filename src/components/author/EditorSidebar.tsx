@@ -12,6 +12,8 @@ type EditorSidebarProps = {
   articleId: string;
   coverImageUrl: string;
   onCoverChange: (url: string) => void;
+  publishedAtDate: string; // YYYY-MM-DD, "" wenn nicht gesetzt
+  onPublishedAtChange: (date: string) => void;
 };
 
 const AI_TOOLTIP = "AI-Features kommen in einer späteren Phase";
@@ -23,7 +25,7 @@ const AI_BUTTONS = [
   "Zusammenfassung erstellen",
 ];
 
-export default function EditorSidebar({ wordCount, readMinutes, category, tags, articleId, coverImageUrl, onCoverChange }: EditorSidebarProps) {
+export default function EditorSidebar({ wordCount, readMinutes, category, tags, articleId, coverImageUrl, onCoverChange, publishedAtDate, onPublishedAtChange }: EditorSidebarProps) {
   return (
     <aside style={{ position: "sticky", top: 24, display: "flex", flexDirection: "column", gap: 14 }}>
       <FeaturedImageBox
@@ -31,6 +33,32 @@ export default function EditorSidebar({ wordCount, readMinutes, category, tags, 
         coverImageUrl={coverImageUrl}
         onCoverChange={onCoverChange}
       />
+
+      <AuthorCard padding={18}>
+        <MonoCaption>Veröffentlichungsdatum</MonoCaption>
+        <input
+          type="date"
+          value={publishedAtDate}
+          onChange={(e) => onPublishedAtChange(e.target.value)}
+          style={{
+            width: "100%",
+            background: "var(--da-darker)",
+            color: "var(--da-text)",
+            border: "1px solid var(--da-border)",
+            borderRadius: 4,
+            padding: "8px 10px",
+            fontSize: 13,
+            fontFamily: "inherit",
+            outline: "none",
+            marginTop: 8,
+            colorScheme: "dark",
+          }}
+        />
+        <p style={{ color: "var(--da-faint)", fontSize: 10, marginTop: 8, lineHeight: 1.5 }}>
+          Bleibt beim Publish erhalten — leer setzen, damit beim ersten
+          Publish das aktuelle Datum gesetzt wird.
+        </p>
+      </AuthorCard>
 
       <AuthorCard padding={18}>
         <MonoCaption>Statistiken</MonoCaption>

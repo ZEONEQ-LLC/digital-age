@@ -76,6 +76,7 @@ export type ArticlePatch = {
   seo_title?: string | null;
   seo_description?: string | null;
   seo_keyword?: string | null;
+  published_at?: string | null;
 };
 
 export async function saveArticle(id: string, patch: ArticlePatch): Promise<ArticleRow> {
