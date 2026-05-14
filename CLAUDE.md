@@ -844,23 +844,42 @@ npx tsx migration/import-wp-articles.ts migration/wordpress-export.xml
 - Der `migration/wordpress-export.xml` ist gitignored — der User stellt
   ihn lokal bereit.
 
-**v2-Erweiterungen** (PR #37 / `migration/lib/html-to-blocks.ts`):
+**v2-Erweiterungen** (`migration/lib/html-to-blocks.ts`):
 - DOM-Pre-Processing via `@mixmark-io/domino` (turndown's eigener DOM).
 - **Source-URL-Mapping:** findet `<h2 id="sources">` + nachfolgende `<ol>`
-  oder `<p>` mit `[N] <a>` + `<br>`. Inline-Refs `[\[N\]\[M\]](#sources)`
-  werden zu separaten externen Links pro `[N]` umgeschrieben. Source-Liste
-  + vorangehender `<hr>` aus dem Body entfernt.
-- **Highlights:** `<mark style="background-color:var(--ast-global-color-2)">`
-  → `{{g}}…{{/g}}`. Orange-Variante analog auf `#ff8c42`/`has-orange-background`.
+  oder `<p>` mit `[N] <a>` + `<br>`. Source-Liste + vorangehender `<hr>`
+  aus dem Body entfernt.
 - **AI-Disclaimer-Block:** Detection via `wp:block {"ref":1915}` Marker
   (Reusable-Block-ID 1915 = "KI-Transparenz · Vorlage" in digital-age.ch).
   Sprache wird per Title-Heuristik DE/EN bestimmt, Default-Disclaimer-Block
-  mit Link auf `/ki-transparenz` ans Ende der Blocks angehängt. Verwaiste
-  Trennlinien vor dem Ref werden entfernt.
-- **Excerpt-Strip:** Erster Paragraph im Body wird entfernt wenn er
-  Präfix-Match (≥50 Zeichen) mit dem WP-Excerpt hat.
+  mit Link auf `/ki-transparenz` ans Ende der Blocks angehängt.
 - **Divider-Normalisierung:** Post-Turndown Regex `* * *` / `***` /
   `- - -` → `---` (wird zu `divider`-Block in `markdownToBlocks`).
+
+**v3-Erweiterungen** (Korrektur des Source-Formats + Highlight-Bugfix):
+- **Source-Refs als `[^N]`-Marker** (statt externer Markdown-Links): Inline-
+  Refs `[\[N\]\[M\]](#sources)` werden zu `[^N][^M]…`. Der `BlockReader`
+  rendert daraus hochgestellte Source-Links wie für manuell erstellte
+  Artikel.
+- **`BlockDocument.sources[]` befüllt:** ID `src-${N}`, `text` aus dem
+  `<li>`-Anchor (oder Domain-Fallback `Order.co` etc.), `url` aus erstem
+  `<a href>` im `<li>`.
+- **Highlights — Rule-Ordering-Bug gefixt:** Turndown evaluiert Rules in
+  umgekehrter Registrierungsreihenfolge. Generic-Mark-Fallback wird jetzt
+  zuerst registriert (damit zuletzt geprüft), spezifische grün/orange
+  Rules danach.
+- **Highlight-Detection nutzt `background-color`-Wert** statt nur Class-
+  Namen: WP/Astra benutzt `has-ast-global-color-2-color` Class auch für
+  reine Foreground-Farbe (`background-color: rgba(0,0,0,0)`). Solche Marks
+  sind KEINE Highlights und werden nicht umgewandelt.
+- **Highlight-Format `{{g}}**bold**{{/g}}`** (Bold INNEN, Marker AUSSEN):
+  Für WP-Pattern `<strong><mark>X</mark></strong>` zieht die Mark-Rule
+  das `**` selbst rein, und eine zusätzliche Strong-Rule erkennt diesen
+  Fall und gibt nur den content zurück (keine doppelten `**`).
+- **Excerpt komplett `null`:** Skript schreibt keinen Excerpt mehr. User
+  pflegt manuell via "Zusammenfassung erstellen"-Button im Editor.
+- **Excerpt-Strip-Logik** (PR #37) bleibt im Code aber wird nicht mehr
+  aufgerufen (Vergleichs-Excerpt ist immer leer).
 
 Stopp-Kriterien im Skript:
 - Wenn mehr als 5 Posts ohne match-baren Author → Abbruch mit Exit-Code 2.

@@ -228,10 +228,9 @@ async function main() {
         `dividers-norm=${conversion.stats.dividersNormalized}`,
     );
 
-    const excerpt =
-      preliminaryExcerpt ||
-      extractExcerpt(conversion.markdown) ||
-      null;
+    // V3: Excerpts werden NICHT migriert. User pflegt sie manuell im Editor
+    // via "Zusammenfassung erstellen"-Button beim Polishen.
+    const excerpt = null;
 
     // Optional: thumbnail-URL aus Attachments (Bilder-Migration ersetzt das später)
     const coverUrl = post.thumbnailId
