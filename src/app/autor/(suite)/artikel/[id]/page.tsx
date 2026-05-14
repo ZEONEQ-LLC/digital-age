@@ -29,6 +29,16 @@ export default async function EditorPage({ params }: PageProps) {
 
   const isEditor = me?.role === "editor";
 
+  // Editor sieht Author-Dropdown → Liste mitgeben. Authors brauchen sie nicht.
+  let allAuthors: { id: string; display_name: string; role: string }[] = [];
+  if (isEditor) {
+    const { data } = await supabase
+      .from("authors")
+      .select("id, display_name, role")
+      .order("display_name");
+    allAuthors = data ?? [];
+  }
+
   return (
     <>
       <MobileEditorWarning />
@@ -38,6 +48,7 @@ export default async function EditorPage({ params }: PageProps) {
           revisions={revisions}
           categories={categories ?? []}
           isEditor={isEditor}
+          allAuthors={allAuthors}
         />
       </div>
     </>

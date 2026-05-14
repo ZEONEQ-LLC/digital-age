@@ -339,12 +339,30 @@ umgestellt.
 Editors haben eine zusätzliche **Admin**-Sektion in Sidebar (Desktop) und
 TopNav (Tablet), bedingt sichtbar via `author.userRole === 'editor'`. Routen:
 
+- `/autor/admin/artikel` — Alle Artikel cross-author mit Status-Tabs,
+  Filter (Author / Kategorie) und Sort (Datum asc/desc). Klick auf Row
+  öffnet den regulären Artikel-Editor.
 - `/autor/admin/autoren` — Author-Liste mit Add-Modal (zwei Modi) + Edit-Drawer
 - `/autor/admin/einladungen` — Invite-Übersicht mit Status-Filter und
   Copy/Revoke/Resend-Actions
 
 **Gating:** `src/app/autor/(suite)/admin/layout.tsx` redirected non-editors auf
 `/autor/dashboard`. RLS doppelt-gated on DB-Level (s.u.).
+
+### Editor-Tools (PR 2a)
+
+- **Author-Zuweisung pro Artikel:** Im Artikel-Editor sieht der Editor in
+  der Sidebar einen Dropdown `Author` (zwischen Veröffentlichungsdatum und
+  Statistiken). Server-Action `updateArticleAuthor` in
+  `authorAdminActions.ts`, RLS via bestehende `articles_editor_all` Policy.
+- **Avatar-Upload für fremde Authors:** `AvatarUploadBlock` wird im
+  EditAuthorDrawer oberhalb des Anzeigename-Felds gerendert. Nutzt die
+  bestehende `uploadAvatar`-Server-Action (Own-or-Editor-Check schon drin),
+  Storage-Policy `avatars_*_own_or_editor` deckt's auf DB-Ebene ab. Cache-
+  Bust via `?t=<ts>`-URL-Param.
+- **Alle-Artikel-Listing:** neue Page `/autor/admin/artikel` mit Status-
+  Tabs, Author-/Category-/Sort-Filtern. Eigener Filter-Bar oberhalb der
+  Listing-Rows. Reset-Button nur sichtbar wenn Filter aktiv.
 
 ### Invite-Flow (PR B)
 
