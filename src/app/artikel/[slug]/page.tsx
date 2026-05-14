@@ -16,7 +16,11 @@ import ExternalBadge from "@/components/ExternalBadge";
 import { getArticleBySlug, type ArticleWithFullRelations } from "@/lib/articleApi";
 import { getArticlesByAuthor } from "@/lib/authorApi";
 import { markdownToBlocks } from "@/lib/markdownBlocks";
-import type { Block } from "@/types/blocks";
+import {
+  BLOCK_SCHEMA_VERSION,
+  type Block,
+  type BlockDocument,
+} from "@/types/blocks";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
@@ -28,11 +32,26 @@ function formatDateDE(iso: string | null): string {
 }
 
 function deriveTocItems(blocks: Block[]): TocItem[] {
-  const isHeadingBlock = (b: Block): b is Extract<Block, { type: "heading" }> =>
-    b.type === "heading" && (b.level === 2 || b.level === 3);
-  return blocks
-    .filter(isHeadingBlock)
-    .map((b) => ({ id: b.id, label: b.content, level: b.level }));
+  const items: TocItem[] = [];
+  for (const b of blocks) {
+    if (b.type === "heading" && (b.level === 2 || b.level === 3)) {
+      items.push({ id: b.id, label: b.content, level: b.level });
+    }
+  }
+  return items;
+}
+
+function resolveBlockDocument(article: ArticleWithFullRelations): BlockDocument {
+  // body_blocks ist Source-of-Truth seit Phase 8b/c. Legacy-Artikel ohne
+  // body_blocks fallen auf den Markdown-Parser zurück.
+  if (article.body_blocks) {
+    return article.body_blocks as unknown as BlockDocument;
+  }
+  return {
+    version: BLOCK_SCHEMA_VERSION,
+    blocks: markdownToBlocks(article.body_md ?? ""),
+    sources: [],
+  };
 }
 
 export default async function ArticlePage({ params }: PageProps) {
@@ -49,8 +68,8 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
   const dateLabel = formatDateDE(article.published_at);
   const url = `/artikel/${article.slug}`;
   const ttsText = `${article.title}. ${article.excerpt ?? ""}`.trim();
-  const blocks = markdownToBlocks(article.body_md ?? "");
-  const tocItems = deriveTocItems(blocks);
+  const doc = resolveBlockDocument(article);
+  const tocItems = deriveTocItems(doc.blocks);
   const authorHandle = author.handle ?? author.slug;
 
   return (
@@ -177,7 +196,7 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
       <ArticleBodyGrid hasToc={tocItems.length > 0}>
         <article>
           <ArticleBody>
-            <BlockReader blocks={blocks} />
+            <BlockReader doc={doc} />
           </ArticleBody>
 
           <div style={{ marginTop: "var(--sp-12)", paddingTop: "var(--sp-8)", borderTop: "1px solid var(--da-card)" }}>

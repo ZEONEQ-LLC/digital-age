@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -9,7 +8,11 @@ import BlockEditor from "@/components/author/BlockEditor";
 import EditorRevisions from "@/components/author/EditorRevisions";
 import EditorSeoPanel, { type SeoState } from "@/components/author/EditorSeoPanel";
 import EditorSidebar from "@/components/author/EditorSidebar";
+import LegacyMigrationModal from "@/components/author/LegacyMigrationModal";
 import MarkdownEditor from "@/components/author/MarkdownEditor";
+import InternalArticleAutocomplete from "@/components/editor/InternalArticleAutocomplete";
+import SourcePicker, { newSourceId } from "@/components/editor/SourcePicker";
+import type { ArticleSearchResult } from "@/lib/articleSearchActions";
 import {
   archiveArticle,
   deleteArticle,
@@ -20,7 +23,12 @@ import {
 } from "@/lib/authorActions";
 import type { SuiteArticle, RevisionWithEditor, ArticleStatus } from "@/lib/authorApi";
 import { blocksToMarkdown, markdownToBlocks } from "@/lib/markdownBlocks";
-import type { Block } from "@/types/blocks";
+import type { Block, BlockDocument } from "@/types/blocks";
+import {
+  BLOCK_SCHEMA_VERSION,
+  emptyBlockDocument,
+  hasSpecialBlocks,
+} from "@/types/blocks";
 
 type Tab = "content" | "seo" | "revisions";
 type Mode = "visual" | "markdown";
@@ -44,9 +52,42 @@ export default function EditorClient({ article, revisions, categories, isEditor 
   const [subcategory, setSubcategory] = useState(article.subcategory ?? "");
   const [tagsText, setTagsText] = useState((article.tags ?? []).join(", "));
 
-  const [blocks, setBlocks] = useState<Block[]>(() => markdownToBlocks(article.body_md ?? ""));
+  // Initial-State:
+  //   - body_blocks gesetzt → BlockDocument geladen, Visual ist Source-of-Truth
+  //   - body_blocks null + body_md leer → frischer Artikel, leerer Doc
+  //   - body_blocks null + body_md nicht leer → Legacy-Artikel, doc=null bis
+  //     User Markdown→Visual triggert (Confirmation-Modal)
+  const initialDoc: BlockDocument | null = (() => {
+    if (article.body_blocks) {
+      return article.body_blocks as unknown as BlockDocument;
+    }
+    if (!article.body_md || article.body_md.trim() === "") {
+      return emptyBlockDocument();
+    }
+    return null; // Legacy, awaiting migration
+  })();
+
+  const [doc, setDoc] = useState<BlockDocument | null>(initialDoc);
   const [markdown, setMarkdown] = useState(article.body_md ?? "");
   const [status, setStatus] = useState<ArticleStatus>(article.status);
+  const [showLegacyModal, setShowLegacyModal] = useState(false);
+  const [articlePickHandler, setArticlePickHandler] = useState<
+    ((r: ArticleSearchResult) => void) | null
+  >(null);
+  const [sourceInsertHandler, setSourceInsertHandler] = useState<
+    ((n: number) => void) | null
+  >(null);
+
+  // Wrap in einer setter-Funktion (Form mit Vorher-State), damit setState
+  // den Callback nicht als Reducer behandelt.
+  function requestArticlePick(onPick: (r: ArticleSearchResult) => void) {
+    setArticlePickHandler(() => onPick);
+  }
+  function requestSourcePick(insertMarker: (n: number) => void) {
+    setSourceInsertHandler(() => insertMarker);
+  }
+
+  const markdownReadOnly = doc !== null && hasSpecialBlocks(doc);
 
   const [seo, setSeo] = useState<SeoState>({
     title: article.seo_title ?? "",
@@ -61,28 +102,63 @@ export default function EditorClient({ article, revisions, categories, isEditor 
 
   function switchMode(next: Mode) {
     if (next === mode) return;
+
     if (next === "markdown") {
-      setMarkdown(blocksToMarkdown(blocks));
-    } else {
-      setBlocks(markdownToBlocks(markdown));
+      // Visual → Markdown: aus aktuellem Doc rendern.
+      if (doc) setMarkdown(blocksToMarkdown(doc.blocks));
+      setMode("markdown");
+      return;
     }
-    setMode(next);
+
+    // next === "visual"
+    if (doc === null) {
+      // Legacy: bei nicht-leerem Markdown via Modal bestätigen.
+      if (markdown.trim() !== "") {
+        setShowLegacyModal(true);
+        return;
+      }
+      setDoc(emptyBlockDocument());
+      setMode("visual");
+      return;
+    }
+
+    // doc existiert. Falls Markdown editierbar war: Re-Parse nur der Blocks,
+    // sources bleiben unverändert. Falls Markdown read-only war: keine Aktion.
+    if (!markdownReadOnly) {
+      setDoc({ ...doc, blocks: markdownToBlocks(markdown) });
+    }
+    setMode("visual");
+  }
+
+  function confirmLegacyMigration() {
+    const blocks = markdownToBlocks(markdown);
+    setDoc({ version: BLOCK_SCHEMA_VERSION, blocks, sources: [] });
+    setShowLegacyModal(false);
+    setMode("visual");
   }
 
   const wordCount = useMemo(() => {
-    const text = blocks.reduce((acc, b) => {
+    const blocks: Block[] = doc?.blocks ?? [];
+    const blockText = blocks.reduce((acc, b) => {
       if (b.type === "list") return acc + " " + b.items.join(" ");
       if (b.type === "image") return acc + " " + b.alt + " " + (b.caption ?? "");
       if (b.type === "code") return acc + " " + b.content;
+      if (b.type === "statbox") {
+        return acc + " " + b.items.map((it) => `${it.value} ${it.label}`).join(" ");
+      }
+      if (b.type === "disclaimer") return acc + " " + b.text + " " + (b.linkText ?? "");
+      if (b.type === "internalArticleCard") return acc + " " + b.cachedTitle;
+      if (b.type === "divider") return acc;
       return acc + " " + b.content;
-    }, "") + " " + title + " " + excerpt;
+    }, "");
+    const fallback = doc ? "" : markdown;
+    const text = blockText + " " + fallback + " " + title + " " + excerpt;
     return text.split(/\s+/).filter(Boolean).length;
-  }, [blocks, title, excerpt]);
+  }, [doc, markdown, title, excerpt]);
 
   const readMinutes = Math.max(1, Math.round(wordCount / 200));
 
   function buildPatch(): ArticlePatch {
-    const bodyMd = mode === "visual" ? blocksToMarkdown(blocks) : markdown;
     const cleanTags = tagsText
       .split(",")
       .map((t) => t.trim())
@@ -93,12 +169,18 @@ export default function EditorClient({ article, revisions, categories, isEditor 
       cover_image_url: cover || null,
       category_id: categoryId,
       subcategory: subcategory || null,
-      body_md: bodyMd,
       tags: cleanTags,
       seo_title: seo.title || null,
       seo_description: seo.description || null,
       seo_keyword: seo.keyword || null,
     };
+    if (doc) {
+      // Visual ist Source-of-Truth: body_blocks senden, Server regeneriert body_md
+      patch.body_blocks = doc;
+    } else {
+      // Legacy-Markdown-Only: body_md as-is durchschleifen
+      patch.body_md = markdown;
+    }
     if (seo.slug && seo.slug !== article.slug) {
       patch.slug = seo.slug;
     }
@@ -244,24 +326,6 @@ export default function EditorClient({ article, revisions, categories, isEditor 
           font-family: inherit;
         }
         .a-edit-mode-btn--active { background: var(--da-green); color: var(--da-dark); }
-        .a-edit-cover {
-          position: relative; border-radius: 8px; overflow: hidden;
-          margin-bottom: 18px; border: 1px solid var(--da-border);
-          background: var(--da-card);
-          min-height: 120px;
-        }
-        .a-edit-cover__img {
-          width: 100%; aspect-ratio: 16/8; object-fit: cover; display: block;
-        }
-        .a-edit-cover__input {
-          position: absolute; bottom: 14px; right: 14px;
-          background: rgba(0,0,0,0.7); color: var(--da-text);
-          border: 1px solid var(--da-border);
-          padding: 8px 14px; border-radius: 4px;
-          font-size: 12px; font-weight: 600;
-          font-family: inherit;
-          width: clamp(220px, 50%, 360px);
-        }
         .a-edit-title-card {
           background: var(--da-card); border: 1px solid var(--da-border);
           border-radius: 8px; padding: 28px; margin-bottom: 18px;
@@ -422,25 +486,6 @@ export default function EditorClient({ article, revisions, categories, isEditor 
               </span>
             </div>
 
-            <div className="a-edit-cover">
-              {cover && (
-                <Image
-                  src={cover}
-                  alt=""
-                  width={1600}
-                  height={800}
-                  className="a-edit-cover__img"
-                  unoptimized
-                />
-              )}
-              <input
-                type="url"
-                className="a-edit-cover__input"
-                value={cover}
-                onChange={(e) => setCover(e.target.value)}
-                placeholder="Cover-URL einfügen"
-              />
-            </div>
 
             <div className="a-edit-title-card">
               <input
@@ -493,9 +538,44 @@ export default function EditorClient({ article, revisions, categories, isEditor 
 
             <div className="a-edit-body-card">
               {mode === "visual" ? (
-                <BlockEditor blocks={blocks} onChange={setBlocks} />
+                doc ? (
+                  <BlockEditor
+                    doc={doc}
+                    onChange={setDoc}
+                    articleId={article.id}
+                    onRequestArticlePick={requestArticlePick}
+                    onRequestSourcePick={requestSourcePick}
+                  />
+                ) : (
+                  <div style={{ color: "var(--da-muted)", fontSize: 14 }}>
+                    Visual-Editor wird vorbereitet…
+                  </div>
+                )
               ) : (
-                <MarkdownEditor value={markdown} onChange={setMarkdown} />
+                <>
+                  {markdownReadOnly && (
+                    <div
+                      style={{
+                        background: "rgba(255, 140, 66, 0.08)",
+                        border: "1px solid var(--da-orange)",
+                        color: "var(--da-orange)",
+                        padding: "10px 14px",
+                        borderRadius: 4,
+                        fontSize: 13,
+                        marginBottom: 12,
+                      }}
+                    >
+                      Dieser Artikel enthält Spezial-Blocks. Markdown-Sicht zeigt
+                      eine vereinfachte Darstellung — Bearbeiten nur im
+                      Visual-Modus möglich.
+                    </div>
+                  )}
+                  <MarkdownEditor
+                    value={markdown}
+                    onChange={setMarkdown}
+                    readOnly={markdownReadOnly}
+                  />
+                </>
               )}
             </div>
           </div>
@@ -505,9 +585,50 @@ export default function EditorClient({ article, revisions, categories, isEditor 
             readMinutes={readMinutes}
             category={categoryName}
             tags={tagsText.split(",").map((t) => t.trim()).filter(Boolean)}
+            articleId={article.id}
+            coverImageUrl={cover}
+            onCoverChange={setCover}
           />
         </div>
       )}
+
+      {showLegacyModal && (
+        <LegacyMigrationModal
+          onCancel={() => setShowLegacyModal(false)}
+          onConfirm={confirmLegacyMigration}
+        />
+      )}
+
+      <InternalArticleAutocomplete
+        open={articlePickHandler !== null}
+        onClose={() => setArticlePickHandler(null)}
+        onPick={(result) => {
+          articlePickHandler?.(result);
+          setArticlePickHandler(null);
+        }}
+        excludeId={article.id}
+      />
+
+      <SourcePicker
+        open={sourceInsertHandler !== null}
+        onClose={() => setSourceInsertHandler(null)}
+        sources={doc?.sources ?? []}
+        onPickExisting={(n) => {
+          sourceInsertHandler?.(n);
+          setSourceInsertHandler(null);
+        }}
+        onCreateNew={(source) => {
+          if (!doc) return;
+          const newSources = [
+            ...doc.sources,
+            { id: newSourceId(), ...source },
+          ];
+          setDoc({ ...doc, sources: newSources });
+          const newN = newSources.length;
+          sourceInsertHandler?.(newN);
+          setSourceInsertHandler(null);
+        }}
+      />
 
       {tab === "seo" && (
         <div style={{ maxWidth: 720 }}>

@@ -6,9 +6,10 @@ import remarkGfm from "remark-gfm";
 type MarkdownEditorProps = {
   value: string;
   onChange: (next: string) => void;
+  readOnly?: boolean;
 };
 
-export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
+export default function MarkdownEditor({ value, onChange, readOnly = false }: MarkdownEditorProps) {
   return (
     <>
       <style>{`
@@ -90,6 +91,8 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
             onChange={(e) => onChange(e.target.value)}
             placeholder={"## Heading\n\nDein Text. **bold**, _italic_, [link](url)\n\n- Liste\n- Punkte"}
             spellCheck={false}
+            readOnly={readOnly}
+            style={readOnly ? { cursor: "not-allowed", opacity: 0.7 } : undefined}
           />
         </div>
         <div className="a-md-pane">

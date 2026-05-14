@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { deleteAllArticleImages } from "@/lib/storageActions";
-import type { Database } from "@/lib/database.types";
+import { renderBlockDocumentToMarkdown } from "@/lib/blockDocumentMarkdown";
+import { emptyBlockDocument, type BlockDocument } from "@/types/blocks";
+import type { Database, Json } from "@/lib/database.types";
 
 type ArticleRow = Database["public"]["Tables"]["articles"]["Row"];
 type AuthorRow = Database["public"]["Tables"]["authors"]["Row"];
@@ -49,6 +51,7 @@ export async function createDraft(input?: {
       author_id: me.id,
       status: "draft",
       body_md: "",
+      body_blocks: emptyBlockDocument() as unknown as Json,
     })
     .select("id")
     .single();
@@ -65,6 +68,7 @@ export type ArticlePatch = {
   slug?: string;
   excerpt?: string | null;
   body_md?: string;
+  body_blocks?: BlockDocument | null;
   category_id?: string;
   subcategory?: string | null;
   cover_image_url?: string | null;
@@ -78,9 +82,23 @@ export async function saveArticle(id: string, patch: ArticlePatch): Promise<Arti
   const supabase = await createClient();
   await requireCurrentAuthor();
 
+  // Visual-Editor ist Source-of-Truth: wenn body_blocks im Patch, regeneriert
+  // der Server body_md daraus (überschreibt ggf. einen mitgesendeten body_md-
+  // Wert). Markdown-Modus-Edits auf Legacy-Artikeln senden nur body_md →
+  // bleiben unverändert durchgeschleift.
+  type ArticleUpdate = Database["public"]["Tables"]["articles"]["Update"];
+  const { body_blocks: patchBlocks, ...rest } = patch;
+  const dbPatch: ArticleUpdate = { ...rest };
+  if (patchBlocks !== undefined && patchBlocks !== null) {
+    dbPatch.body_md = renderBlockDocumentToMarkdown(patchBlocks);
+    dbPatch.body_blocks = patchBlocks as unknown as Json;
+  } else if (patchBlocks === null) {
+    dbPatch.body_blocks = null;
+  }
+
   const { data, error } = await supabase
     .from("articles")
-    .update(patch)
+    .update(dbPatch)
     .eq("id", id)
     .select("*")
     .single();
