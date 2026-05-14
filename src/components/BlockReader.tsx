@@ -12,75 +12,101 @@ type BlockReaderProps = {
 // Nodes umgesetzt. Kein dangerouslySetInnerHTML — alle Werte gehen durch
 // React-Escaping. Nesting wird nicht unterstützt (FloatingToolbar verhindert
 // das im Editor).
-const PATTERNS: {
+//
+// Source-Marker `[^N]` linkt direkt auf die externe URL der Quelle, falls
+// vorhanden. Fallback: Anchor auf das Source-Liste-Item am Article-Ende
+// (`#source-N`).
+type Pattern = {
   re: RegExp;
   render: (m: RegExpExecArray, key: number) => ReactNode;
-}[] = [
-  {
-    re: /\[\^(\d+)\]/,
-    render: (m, key) => (
-      <sup key={key}>
-        <a href={`#source-${m[1]}`} className="article-source-ref">
+};
+
+function buildPatterns(sourceUrlByDisplay: Map<number, string>): Pattern[] {
+  return [
+    {
+      re: /\[\^(\d+)\]/,
+      render: (m, key) => {
+        const n = m[1];
+        const url = sourceUrlByDisplay.get(parseInt(n, 10));
+        if (url) {
+          return (
+            <sup key={key}>
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="article-source-ref"
+              >
+                {n}
+              </a>
+            </sup>
+          );
+        }
+        return (
+          <sup key={key}>
+            <a href={`#source-${n}`} className="article-source-ref">
+              {n}
+            </a>
+          </sup>
+        );
+      },
+    },
+    {
+      re: /\[\[([^\]]+)\]\]\(([^)]+)\)/,
+      render: (m, key) => (
+        <Link key={key} href={`/artikel/${m[1]}`} className="internal-link">
+          {m[2]}
+        </Link>
+      ),
+    },
+    {
+      re: /\[([^\]]+)\]\(([^)]+)\)/,
+      render: (m, key) => (
+        <a key={key} href={m[2]} target="_blank" rel="noopener noreferrer">
           {m[1]}
         </a>
-      </sup>
-    ),
-  },
-  {
-    re: /\[\[([^\]]+)\]\]\(([^)]+)\)/,
-    render: (m, key) => (
-      <Link key={key} href={`/artikel/${m[1]}`} className="internal-link">
-        {m[2]}
-      </Link>
-    ),
-  },
-  {
-    re: /\[([^\]]+)\]\(([^)]+)\)/,
-    render: (m, key) => (
-      <a key={key} href={m[2]} target="_blank" rel="noopener noreferrer">
-        {m[1]}
-      </a>
-    ),
-  },
-  {
-    re: /\{\{(g|o)\}\}([\s\S]*?)\{\{\/\1\}\}/,
-    render: (m, key) => (
-      <mark
-        key={key}
-        className={m[1] === "g" ? "hl-green" : "hl-orange"}
-        style={{
-          background: m[1] === "g" ? "var(--da-green)" : "var(--da-orange)",
-          color: "var(--da-dark)",
-          padding: "1px 6px",
-          borderRadius: 3,
-          fontWeight: 600,
-        }}
-      >
-        {m[2]}
-      </mark>
-    ),
-  },
-  {
-    re: /\{\{(lg|xl)\}\}([\s\S]*?)\{\{\/\1\}\}/,
-    render: (m, key) => (
-      <span
-        key={key}
-        className={`size-${m[1]}`}
-        style={{ fontSize: m[1] === "xl" ? "1.5em" : "1.2em" }}
-      >
-        {m[2]}
-      </span>
-    ),
-  },
-  {
-    re: /\*\*([\s\S]+?)\*\*/,
-    render: (m, key) => <strong key={key}>{m[1]}</strong>,
-  },
-  {
-    re: /_([^_\n]+)_/,
-    render: (m, key) => <em key={key}>{m[1]}</em>,
-  },
-];
+      ),
+    },
+    {
+      re: /\{\{(g|o)\}\}([\s\S]*?)\{\{\/\1\}\}/,
+      render: (m, key) => (
+        <mark
+          key={key}
+          className={m[1] === "g" ? "hl-green" : "hl-orange"}
+          style={{
+            background: m[1] === "g" ? "var(--da-green)" : "var(--da-orange)",
+            color: "var(--da-dark)",
+            padding: "1px 6px",
+            borderRadius: 3,
+            fontWeight: 600,
+          }}
+        >
+          {m[2]}
+        </mark>
+      ),
+    },
+    {
+      re: /\{\{(lg|xl)\}\}([\s\S]*?)\{\{\/\1\}\}/,
+      render: (m, key) => (
+        <span
+          key={key}
+          className={`size-${m[1]}`}
+          style={{ fontSize: m[1] === "xl" ? "1.5em" : "1.2em" }}
+        >
+          {m[2]}
+        </span>
+      ),
+    },
+    {
+      re: /\*\*([\s\S]+?)\*\*/,
+      render: (m, key) => <strong key={key}>{m[1]}</strong>,
+    },
+    {
+      re: /_([^_\n]+)_/,
+      render: (m, key) => <em key={key}>{m[1]}</em>,
+    },
+  ];
+}
 
 // Mappt `[^N]`-Marker im Content auf ihre Display-Nummer aus dem
 // Source-Mapping (1-indexed Reihenfolge erstes Vorkommen). Wird vor
@@ -99,7 +125,7 @@ function applySourceMapping(
   });
 }
 
-function renderInline(content: string): ReactNode[] {
+function renderInline(content: string, patterns: Pattern[]): ReactNode[] {
   const nodes: ReactNode[] = [];
   let rest = content;
   let key = 0;
@@ -109,8 +135,8 @@ function renderInline(content: string): ReactNode[] {
     let bestMatch: RegExpExecArray | null = null;
     let bestPatternIdx = -1;
 
-    for (let i = 0; i < PATTERNS.length; i++) {
-      const m = PATTERNS[i].re.exec(rest);
+    for (let i = 0; i < patterns.length; i++) {
+      const m = patterns[i].re.exec(rest);
       if (m && (bestIdx < 0 || m.index < bestIdx)) {
         bestIdx = m.index;
         bestMatch = m;
@@ -126,7 +152,7 @@ function renderInline(content: string): ReactNode[] {
     if (bestIdx > 0) {
       nodes.push(rest.slice(0, bestIdx));
     }
-    nodes.push(PATTERNS[bestPatternIdx].render(bestMatch, key++));
+    nodes.push(patterns[bestPatternIdx].render(bestMatch, key++));
     rest = rest.slice(bestIdx + bestMatch[0].length);
   }
 
@@ -181,9 +207,10 @@ function buildSourceOrder(blocks: Block[]): {
 function renderBlock(
   b: Block,
   sourceMapping: Map<number, number>,
+  patterns: Pattern[],
 ): ReactNode {
   const inline = (text: string) =>
-    renderInline(applySourceMapping(text, sourceMapping));
+    renderInline(applySourceMapping(text, sourceMapping), patterns);
   switch (b.type) {
     case "heading": {
       const style = { scrollMarginTop: "calc(var(--nav-h) + 80px)" } as const;
@@ -417,11 +444,20 @@ export default function BlockReader({ doc, blocks }: BlockReaderProps) {
   const sources: Source[] = doc?.sources ?? [];
   const { mapping, order } = buildSourceOrder(effectiveBlocks);
 
+  // Display-Nummer → externe URL der referenzierten Quelle, damit Inline-
+  // Marker `[N]` direkt auf die externe Quelle linken kann.
+  const sourceUrlByDisplay = new Map<number, string>();
+  order.forEach((originalN, i) => {
+    const s = sources[originalN - 1];
+    if (s?.url) sourceUrlByDisplay.set(i + 1, s.url);
+  });
+  const patterns = buildPatterns(sourceUrlByDisplay);
+
   return (
     <>
       {effectiveBlocks.map((b) => (
         <span key={b.id} style={{ display: "contents" }}>
-          {renderBlock(b, mapping)}
+          {renderBlock(b, mapping, patterns)}
         </span>
       ))}
       {renderSourceList(sources, order)}

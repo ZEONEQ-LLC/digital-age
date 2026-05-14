@@ -706,6 +706,30 @@ export default function EditorClient({ article, revisions, categories, isEditor 
               }
             />
           </ArticleBody>
+          {(() => {
+            const tags = tagsText.split(",").map((t) => t.trim()).filter(Boolean);
+            if (tags.length === 0) return null;
+            return (
+              <div style={{ marginTop: 32, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    style={{
+                      background: "var(--da-card)",
+                      border: "1px solid var(--da-border)",
+                      color: "var(--da-text-strong)",
+                      fontSize: 12,
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      fontFamily: "var(--da-font-mono)",
+                    }}
+                  >
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       )}
 

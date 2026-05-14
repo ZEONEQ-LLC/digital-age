@@ -346,6 +346,23 @@ export default function Block({
       );
     }
     if (block.type === "disclaimer") {
+      const applyTemplate = (lang: "de" | "en") => {
+        if (lang === "de") {
+          onChange({
+            ...block,
+            text: "AI war beteiligt. Verantwortung übernehmen wir.",
+            linkText: "So machen wir das",
+            linkUrl: "/ki-transparenz",
+          });
+        } else {
+          onChange({
+            ...block,
+            text: "AI contributed. The responsibility stays with us.",
+            linkText: "How we handle it",
+            linkUrl: "/ki-transparenz",
+          });
+        }
+      };
       return (
         <div
           style={{
@@ -355,7 +372,26 @@ export default function Block({
             padding: 16,
           }}
         >
-          <label style={{ ...labelStyle, marginTop: 0 }}>Text</label>
+          <label style={{ ...labelStyle, marginTop: 0 }}>Vorlage</label>
+          <select
+            style={{
+              ...boxedInput,
+              cursor: "pointer",
+              appearance: "auto",
+            }}
+            value=""
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "de" || v === "en") applyTemplate(v);
+              e.target.value = "";
+            }}
+          >
+            <option value="">— Vorlage wählen —</option>
+            <option value="de">AI-Transparenz-Hinweis (DE)</option>
+            <option value="en">AI-Transparency-Disclaimer (EN)</option>
+          </select>
+
+          <label style={labelStyle}>Text</label>
           <textarea
             rows={2}
             style={{ ...baseInput, fontSize: 14, color: "var(--da-text)" }}

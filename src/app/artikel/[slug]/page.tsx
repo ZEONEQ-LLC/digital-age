@@ -199,6 +199,27 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
             <BlockReader doc={doc} />
           </ArticleBody>
 
+          {article.tags && article.tags.length > 0 && (
+            <div style={{ marginTop: "var(--sp-10)", display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {article.tags.map((tag) => (
+                <span
+                  key={tag}
+                  style={{
+                    background: "var(--da-card)",
+                    border: "1px solid var(--da-border)",
+                    color: "var(--da-text-strong)",
+                    fontSize: 12,
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    fontFamily: "var(--da-font-mono)",
+                  }}
+                >
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
+
           <div style={{ marginTop: "var(--sp-12)", paddingTop: "var(--sp-8)", borderTop: "1px solid var(--da-card)" }}>
             <ShareButtons title={article.title} url={url} />
           </div>
