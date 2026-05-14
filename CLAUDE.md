@@ -817,6 +817,38 @@ export SUPABASE_ACCESS_TOKEN=sbp_...
 CLI findet das Token automatisch. Token nicht ins Repo committen, nicht im
 `.bashrc` persistieren.
 
+### WordPress-Migration (Phase 8d)
+
+Skript `migration/import-wp-articles.ts` importiert einen WordPress-XML-
+Export als `draft`-Artikel. Lauf:
+
+```bash
+export SUPABASE_URL="https://<ref>.supabase.co"
+export SUPABASE_SERVICE_ROLE_KEY=$(npx supabase projects api-keys --project-ref <ref> 2>/dev/null | awk '/service_role/ {print $3}')
+npx tsx migration/import-wp-articles.ts migration/wordpress-export.xml --dry-run
+# bei sauberem Dry-Run:
+npx tsx migration/import-wp-articles.ts migration/wordpress-export.xml
+```
+
+- Service-Role-Key wird nur lokal in der Shell-Session gehalten — NIE
+  committen, NIE in `.env.local` mit `NEXT_PUBLIC_`-Prefix.
+- Idempotent: vor Insert wird per Slug geprüft, Re-Runs sind safe.
+- Author-Matching per `wp:author_email` gegen `authors.email`
+  (case-insensitive).
+- Category-Mapping in `migration/lib/category-resolver.ts`.
+- HTML → Markdown via Turndown, dann zu `BlockDocument` via
+  `markdownToBlocks`. Special-Blocks (StatBox etc.) entstehen aus WP-
+  Content nicht — können später manuell ergänzt werden.
+- Cover-Image bleibt zunächst auf WP-Attachment-URL (extern); Bilder-
+  Migration in Supabase-Storage kommt in Phase 8e.
+- Logs in `migration/logs/` (gitignored).
+- Der `migration/wordpress-export.xml` ist gitignored — der User stellt
+  ihn lokal bereit.
+
+Stopp-Kriterien im Skript:
+- Wenn mehr als 5 Posts ohne match-baren Author → Abbruch mit Exit-Code 2.
+- Unbekannte WP-Categories → Warning + Fallback auf `future-tech`.
+
 ## Sicherheit
 
 - Service-Role-Key NIEMALS client-seitig
