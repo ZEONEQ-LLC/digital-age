@@ -62,48 +62,134 @@ function createTurndown(): TurndownService {
     },
   });
 
-  // <mark> mit grünem Hintergrund → {{g}}…{{/g}}
+  // Turndown evaluiert Rules in UMGEKEHRTER Registrierungsreihenfolge.
+  // Daher zuerst genericMark (Fallback) registrieren, dann grün/orange. Die
+  // spezifischen Pattern werden zuerst geprüft und gewinnen wenn sie matchen.
+  td.addRule("genericMark", {
+    filter: "mark",
+    replacement: (content) => content,
+  });
+
+  // Format-Konvention: `{{g}}**bold**{{/g}}` (Marker aussen, Bold innen).
+  // WP nutzt zwei Nesting-Varianten:
+  //   (A) `<strong><mark>X</mark></strong>` — strong aussen, mark innen
+  //   (B) `<mark><strong>X</strong></mark>` — mark aussen, strong innen
+  // Beide werden zum gleichen Output normalisiert.
+  //
+  // Für (A): die Mark-Rule erkennt parent=STRONG, zieht das `**` selbst rein
+  // und die zugehörige Strong-Rule unten emittiert nur content (kein
+  // zusätzliches `**`).
   td.addRule("greenHighlight", {
     filter: (node) => {
       if (node.nodeName !== "MARK") return false;
       const el = node as unknown as ElementLike;
-      const style = el.getAttribute?.("style") ?? "";
-      const cls = el.getAttribute?.("class") ?? "";
-      return /ast-global-color-2|#32ff7e|rgb\(50,\s*255,\s*126\)|highlight-green|has-green-background/i.test(
-        style + " " + cls,
-      );
+      return matchesHighlightColor(el, "green");
     },
-    replacement: (content) => `{{g}}${content}{{/g}}`,
+    replacement: (content, node) => {
+      if (parentIsStrongAroundOnlyThisMark(node)) {
+        return `{{g}}**${content}**{{/g}}`;
+      }
+      return `{{g}}${content}{{/g}}`;
+    },
   });
 
-  // <mark> mit orangem Hintergrund → {{o}}…{{/o}}
   td.addRule("orangeHighlight", {
     filter: (node) => {
       if (node.nodeName !== "MARK") return false;
       const el = node as unknown as ElementLike;
-      const style = el.getAttribute?.("style") ?? "";
-      const cls = el.getAttribute?.("class") ?? "";
-      return /#ff8c42|rgb\(255,\s*140,\s*66\)|highlight-orange|has-orange-background/i.test(
-        style + " " + cls,
-      );
+      return matchesHighlightColor(el, "orange");
     },
-    replacement: (content) => `{{o}}${content}{{/o}}`,
+    replacement: (content, node) => {
+      if (parentIsStrongAroundOnlyThisMark(node)) {
+        return `{{o}}**${content}**{{/g}}`.replace("{{/g}}", "{{/o}}");
+      }
+      return `{{o}}${content}{{/o}}`;
+    },
   });
 
-  // Generic <mark> Fallback: nur Content durchreichen
-  td.addRule("genericMark", {
-    filter: "mark",
+  // Wenn ein <strong> NUR ein farbiges <mark> als Kind hat, hat das Mark-
+  // Replacement das `**` schon mitgenommen → wir geben nur den content zurück
+  // ohne zusätzliches `**`-Wrapping. Bei normalem <strong> mit anderem
+  // Inhalt greift Turndowns Default-Strong-Behaviour.
+  td.addRule("strongAroundColoredMark", {
+    filter: (node) => {
+      if (node.nodeName !== "STRONG") return false;
+      const el = node as unknown as ElementLike;
+      const children = el.children ? Array.from(el.children) : [];
+      if (children.length !== 1) return false;
+      const only = children[0] as ElementLike;
+      if (only.nodeName !== "MARK") return false;
+      return (
+        matchesHighlightColor(only, "green") ||
+        matchesHighlightColor(only, "orange")
+      );
+    },
     replacement: (content) => content,
   });
 
   return td;
 }
 
+// Prüft ob das gegebene Mark-Node das einzige Kind eines <strong>-Parents
+// ist — Standard-WP-Pattern (A).
+function parentIsStrongAroundOnlyThisMark(node: unknown): boolean {
+  const n = node as { parentNode?: { nodeName?: string; children?: ArrayLike<unknown> } };
+  const parent = n.parentNode;
+  if (!parent || parent.nodeName !== "STRONG") return false;
+  const childCount = parent.children ? parent.children.length : 0;
+  return childCount === 1;
+}
+
+// Prüft ob das style-Attribut tatsächlich einen non-transparenten
+// background-color-Wert hat, der zur gefragten Farbe passt. Class-Namen
+// alleine reichen NICHT — `has-ast-global-color-2-color` ist Foreground.
+function matchesHighlightColor(el: ElementLike, target: "green" | "orange"): boolean {
+  const style = el.getAttribute?.("style") ?? "";
+  const bgMatch = style.match(/background-color\s*:\s*([^;"]+)/i);
+  if (!bgMatch) return false;
+  const bg = bgMatch[1].trim().toLowerCase();
+  // Transparent → kein Highlight
+  if (
+    bg.startsWith("rgba(0,") ||
+    bg === "transparent" ||
+    bg === "initial" ||
+    bg === "inherit" ||
+    bg === "unset"
+  ) {
+    return false;
+  }
+  if (target === "green") {
+    return /ast-global-color-2|#32ff7e|rgb\(50,\s*255,\s*126\)|highlight-green|has-green-background/i.test(
+      bg,
+    );
+  }
+  return /#ff8c42|rgb\(255,\s*140,\s*66\)|highlight-orange|has-orange-background/i.test(bg);
+}
+
 // ---------------------------------------------------------------------------
 // DOM-Pre-Processing
 // ---------------------------------------------------------------------------
 
-type SourceMap = Map<number, string>;
+type SourceEntry = { text: string; url: string };
+type SourceMap = Map<number, SourceEntry>;
+
+// Label aus dem ersten <a>-Element: bevorzugt Anchor-Text, sonst Domain.
+function extractLabel(li: ElementLike): { text: string; url: string } | null {
+  const a = li.querySelector?.("a[href]");
+  const href = a?.getAttribute?.("href") ?? "";
+  if (!href) return null;
+  const anchorText = (a?.textContent ?? "").trim();
+  if (anchorText.length > 0) return { text: anchorText, url: href };
+  // Fallback: Domain-Name
+  let host = "";
+  try {
+    host = new URL(href).hostname.replace(/^www\./, "");
+  } catch {
+    return { text: "Quelle", url: href };
+  }
+  const niceHost = host.charAt(0).toUpperCase() + host.slice(1);
+  return { text: niceHost, url: href };
+}
 
 // Findet die Quellen-<ol> und extrahiert die externen URLs nach Index.
 // Heuristik:
@@ -187,19 +273,29 @@ function extractAndStripSourceList(doc: DocumentLike): {
   if (ol) {
     const lis = ol.querySelectorAll("li");
     for (let i = 0; i < lis.length; i++) {
-      const a = (lis[i] as ElementLike).querySelector("a[href]");
-      const href = a?.getAttribute?.("href");
-      if (href) urls.set(i + 1, href);
+      const entry = extractLabel(lis[i] as ElementLike);
+      if (entry) urls.set(i + 1, entry);
     }
   } else if (listP) {
-    // `[N] <a href="...">...</a>` aus dem innerHTML extrahieren
+    // `[N] <a href="...">Label</a>` aus dem innerHTML extrahieren
     const innerHtml = listP.innerHTML ?? "";
-    const re = /\[(\d+)\]\s*<a[^>]*\bhref="([^"]+)"/g;
+    const re = /\[(\d+)\]\s*<a[^>]*\bhref="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
     let m: RegExpExecArray | null;
     while ((m = re.exec(innerHtml)) !== null) {
       const n = parseInt(m[1], 10);
       const url = m[2];
-      if (!urls.has(n)) urls.set(n, url);
+      const anchorText = m[3].replace(/<[^>]+>/g, "").trim();
+      if (urls.has(n)) continue;
+      if (anchorText.length > 0) {
+        urls.set(n, { text: anchorText, url });
+      } else {
+        try {
+          const host = new URL(url).hostname.replace(/^www\./, "");
+          urls.set(n, { text: host.charAt(0).toUpperCase() + host.slice(1), url });
+        } catch {
+          urls.set(n, { text: "Quelle", url });
+        }
+      }
     }
   }
 
@@ -274,6 +370,9 @@ function buildDisclaimerBlock(language: "de" | "en"): Block {
 const SOURCE_REF_GROUP = /\[((?:\\\[\d+\\\])+)\]\(#sources?\)/g;
 const SINGLE_REF = /\\\[(\d+)\\\]/g;
 
+// Schreibt Inline-Source-Refs `[\[N\]\[M\]…](#sources)` zu `[^N][^M]…` um.
+// Die `[^N]`-Marker werden vom `BlockReader` zu hochgestellten Source-Links
+// gerendert (siehe BlockReader.tsx → buildSourceOrder).
 function rewriteSourceRefs(
   md: string,
   urlMap: SourceMap,
@@ -284,15 +383,34 @@ function rewriteSourceRefs(
     const refs: string[] = [];
     for (const m of refsBlock.matchAll(SINGLE_REF)) {
       const n = parseInt(m[1], 10);
-      const url = urlMap.get(n);
-      if (url) {
-        refs.push(`[\\[${n}\\]](${url})`);
+      if (urlMap.has(n)) {
+        refs.push(`[^${n}]`);
       } else {
         warnings.push(`Source ${n} hat keine URL im Mapping — Ref gedroppt`);
       }
     }
     return refs.join("");
   });
+}
+
+// BlockDocument.sources[] aus dem URL-Mapping bauen. ID-Format: stabile
+// String-IDs `src-${N}` (kompatibel mit Source.id-Schema). Array wird in
+// N-Reihenfolge sortiert — sources[N-1] entspricht `[^N]`.
+function buildSourcesArray(urlMap: SourceMap): import("../../src/types/blocks").Source[] {
+  if (urlMap.size === 0) return [];
+  const max = Math.max(...urlMap.keys());
+  const sources: import("../../src/types/blocks").Source[] = [];
+  for (let n = 1; n <= max; n++) {
+    const entry = urlMap.get(n);
+    if (entry) {
+      sources.push({ id: `src-${n}`, text: entry.text, url: entry.url });
+    } else {
+      // Lücke im Mapping (N fehlt in WP-Liste) → Platzhalter, sonst stimmt
+      // die Index→N-Korrespondenz nicht mehr.
+      sources.push({ id: `src-${n}`, text: `Quelle ${n}` });
+    }
+  }
+  return sources;
 }
 
 // Plain-Text-Divider: `* * *`, `***`, `- - -` auf eigener Zeile → `---`.
@@ -412,18 +530,14 @@ export function htmlToBlockDocument(
   const docDom = domino.createDocument(`<div id="__root">${preprocessedHtml}</div>`);
   const sourceExtraction = extractAndStripSourceList(docDom);
 
-  // Highlight-Counts vor Turndown (wir prüfen erkannte Mark-Tags)
+  // Highlight-Counts vor Turndown — gleiche Logik wie die Turndown-Rules,
+  // damit Stats und tatsächlicher Output übereinstimmen.
   const markCount = { green: 0, orange: 0 };
   const marks = docDom.querySelectorAll("mark");
   for (let i = 0; i < marks.length; i++) {
     const el = marks[i] as ElementLike;
-    const style = el.getAttribute?.("style") ?? "";
-    const cls = el.getAttribute?.("class") ?? "";
-    if (/ast-global-color-2|#32ff7e|rgb\(50,\s*255,\s*126\)|highlight-green|has-green-background/i.test(style + " " + cls)) {
-      markCount.green++;
-    } else if (/#ff8c42|rgb\(255,\s*140,\s*66\)|highlight-orange|has-orange-background/i.test(style + " " + cls)) {
-      markCount.orange++;
-    }
+    if (matchesHighlightColor(el, "green")) markCount.green++;
+    else if (matchesHighlightColor(el, "orange")) markCount.orange++;
   }
 
   // Turndown auf das Body-Root anwenden (cleaned DOM)
@@ -454,7 +568,7 @@ export function htmlToBlockDocument(
   const doc: BlockDocument = {
     version: BLOCK_SCHEMA_VERSION,
     blocks,
-    sources: [],
+    sources: buildSourcesArray(sourceExtraction.urls),
   };
 
   return {
