@@ -12,6 +12,7 @@ import LegacyMigrationModal from "@/components/author/LegacyMigrationModal";
 import MarkdownEditor from "@/components/author/MarkdownEditor";
 import ArticleBody from "@/components/ArticleBody";
 import BlockReader from "@/components/BlockReader";
+import InlineToolbarTextarea from "@/components/editor/InlineToolbarTextarea";
 import InternalArticleAutocomplete from "@/components/editor/InternalArticleAutocomplete";
 import SourcePicker, { newSourceId } from "@/components/editor/SourcePicker";
 import type { ArticleSearchResult } from "@/lib/articleSearchActions";
@@ -497,12 +498,26 @@ export default function EditorClient({ article, revisions, categories, isEditor 
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Artikel-Titel"
               />
-              <textarea
+              <InlineToolbarTextarea
                 rows={3}
-                className="a-edit-excerpt"
                 value={excerpt}
-                onChange={(e) => setExcerpt(e.target.value)}
+                onChange={setExcerpt}
                 placeholder="Abstract / Lead-Paragraph"
+                onRequestArticlePick={requestArticlePick}
+                onRequestSourcePick={requestSourcePick}
+                style={{
+                  width: "100%",
+                  background: "transparent",
+                  border: "none",
+                  outline: "none",
+                  color: "var(--da-muted)",
+                  fontSize: 16,
+                  lineHeight: 1.6,
+                  fontStyle: "italic",
+                  resize: "none",
+                  padding: 0,
+                  fontFamily: "inherit",
+                }}
               />
             </div>
 
