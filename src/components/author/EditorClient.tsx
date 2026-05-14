@@ -73,6 +73,11 @@ export default function EditorClient({ article, revisions, categories, isEditor 
 
   const [doc, setDoc] = useState<BlockDocument | null>(initialDoc);
   const [markdown, setMarkdown] = useState(article.body_md ?? "");
+  // Wird true sobald der User im Markdown-Modus tippt. Wird auf false
+  // gesetzt, wenn wir Markdown aus doc neu erzeugen (also bei Visual→Markdown-
+  // Switch). Steuert ob beim nächsten Visual-Switch / Save re-geparst wird —
+  // sonst gehen Spezial-Blocks unnötig verloren.
+  const [markdownDirty, setMarkdownDirty] = useState(false);
   const [status, setStatus] = useState<ArticleStatus>(article.status);
   const [showLegacyModal, setShowLegacyModal] = useState(false);
   const [articlePickHandler, setArticlePickHandler] = useState<
@@ -91,7 +96,10 @@ export default function EditorClient({ article, revisions, categories, isEditor 
     setSourceInsertHandler(() => insertMarker);
   }
 
-  const markdownReadOnly = doc !== null && hasSpecialBlocks(doc);
+  // Informational flag: zeigt einen Hinweis-Banner im Markdown-Modus, dass
+  // Spezial-Blocks bei Markdown-Edits verloren gehen. Macht Markdown NICHT
+  // read-only — der User entscheidet selbst.
+  const hasSpecialContent = doc !== null && hasSpecialBlocks(doc);
 
   const [seo, setSeo] = useState<SeoState>({
     title: article.seo_title ?? "",
@@ -108,8 +116,9 @@ export default function EditorClient({ article, revisions, categories, isEditor 
     if (next === mode) return;
 
     if (next === "markdown") {
-      // Visual → Markdown: aus aktuellem Doc rendern.
+      // Visual → Markdown: aus aktuellem Doc rendern, Dirty-Flag zurücksetzen.
       if (doc) setMarkdown(blocksToMarkdown(doc.blocks));
+      setMarkdownDirty(false);
       setMode("markdown");
       return;
     }
@@ -126,10 +135,11 @@ export default function EditorClient({ article, revisions, categories, isEditor 
       return;
     }
 
-    // doc existiert. Falls Markdown editierbar war: Re-Parse nur der Blocks,
-    // sources bleiben unverändert. Falls Markdown read-only war: keine Aktion.
-    if (!markdownReadOnly) {
+    // doc existiert. Nur re-parsen wenn der User wirklich getippt hat —
+    // sonst gehen Spezial-Blocks unnötig verloren beim Hin-und-Her-Wechseln.
+    if (markdownDirty) {
       setDoc({ ...doc, blocks: markdownToBlocks(markdown) });
+      setMarkdownDirty(false);
     }
     setMode("visual");
   }
@@ -179,8 +189,14 @@ export default function EditorClient({ article, revisions, categories, isEditor 
       seo_keyword: seo.keyword || null,
     };
     if (doc) {
-      // Visual ist Source-of-Truth: body_blocks senden, Server regeneriert body_md
-      patch.body_blocks = doc;
+      // Wenn im Markdown-Modus getippt wurde: Markdown → Blocks synchronisieren
+      // bevor wir doc speichern. Sources bleiben erhalten (doc-level), aber
+      // Spezial-Block-Strukturen werden beim Re-Parse verworfen.
+      if (mode === "markdown" && markdownDirty) {
+        patch.body_blocks = { ...doc, blocks: markdownToBlocks(markdown) };
+      } else {
+        patch.body_blocks = doc;
+      }
     } else {
       // Legacy-Markdown-Only: body_md as-is durchschleifen
       patch.body_md = markdown;
@@ -572,7 +588,7 @@ export default function EditorClient({ article, revisions, categories, isEditor 
                 )
               ) : (
                 <>
-                  {markdownReadOnly && (
+                  {hasSpecialContent && (
                     <div
                       style={{
                         background: "rgba(255, 140, 66, 0.08)",
@@ -584,15 +600,19 @@ export default function EditorClient({ article, revisions, categories, isEditor 
                         marginBottom: 12,
                       }}
                     >
-                      Dieser Artikel enthält Spezial-Blocks. Markdown-Sicht zeigt
-                      eine vereinfachte Darstellung — Bearbeiten nur im
-                      Visual-Modus möglich.
+                      Dieser Artikel enthält Spezial-Blocks (StatBox,
+                      Disclaimer, Quellen, etc.). Markdown-Sicht zeigt eine
+                      vereinfachte Darstellung — wenn du hier änderst und
+                      speicherst, werden die Spezial-Blocks durch den
+                      Markdown-Inhalt ersetzt.
                     </div>
                   )}
                   <MarkdownEditor
                     value={markdown}
-                    onChange={setMarkdown}
-                    readOnly={markdownReadOnly}
+                    onChange={(v) => {
+                      setMarkdown(v);
+                      setMarkdownDirty(true);
+                    }}
                   />
                 </>
               )}
