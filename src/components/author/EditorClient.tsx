@@ -12,6 +12,7 @@ import LegacyMigrationModal from "@/components/author/LegacyMigrationModal";
 import MarkdownEditor from "@/components/author/MarkdownEditor";
 import ArticleBody from "@/components/ArticleBody";
 import BlockReader from "@/components/BlockReader";
+import InlineText from "@/components/InlineText";
 import InlineToolbarTextarea from "@/components/editor/InlineToolbarTextarea";
 import InternalArticleAutocomplete from "@/components/editor/InternalArticleAutocomplete";
 import SourcePicker, { newSourceId } from "@/components/editor/SourcePicker";
@@ -707,7 +708,7 @@ export default function EditorClient({ article, revisions, categories, isEditor 
                 marginBottom: 28,
               }}
             >
-              {excerpt}
+              <InlineText content={excerpt} sources={doc?.sources ?? []} />
             </p>
           )}
           <ArticleBody>

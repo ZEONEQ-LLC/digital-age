@@ -9,6 +9,7 @@ import AuthorBox from "@/components/AuthorBox";
 import ArticleBody from "@/components/ArticleBody";
 import ArticleSection from "@/components/ArticleSection";
 import BlockReader from "@/components/BlockReader";
+import InlineText from "@/components/InlineText";
 import NewsletterSignup from "@/components/NewsletterSignup";
 import ReadingProgress from "@/components/ReadingProgress";
 import TableOfContents, { type TocItem } from "@/components/TableOfContents";
@@ -117,7 +118,7 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
 
         {article.excerpt && (
           <p style={{ color: "#c0c0c0", fontSize: "20px", lineHeight: 1.65, marginBottom: "36px", fontWeight: 300 }}>
-            {article.excerpt}
+            <InlineText content={article.excerpt} sources={doc.sources} />
           </p>
         )}
 
