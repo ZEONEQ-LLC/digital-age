@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import ArticleCard from "@/components/ArticleCard";
 import ExternalBadge from "@/components/ExternalBadge";
 import { getAuthorByHandle, getArticlesByAuthor } from "@/lib/authorApi";
+import { getCoverUrl } from "@/lib/coverImage";
 import { authorToProfileViewModel } from "@/lib/mappers/articleMappers";
 
 type PageProps = { params: Promise<{ slug: string }> };
@@ -147,7 +148,7 @@ export default async function AuthorPage({ params }: PageProps) {
                 title={a.title}
                 author={author.name}
                 date={formatDateDE(a.published_at)}
-                image={a.cover_image_url ?? ""}
+                image={getCoverUrl(a)}
                 href={`/artikel/${a.slug}`}
                 external={author.isExternal}
               />

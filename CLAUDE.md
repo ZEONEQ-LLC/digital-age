@@ -388,12 +388,21 @@ TopNav (Tablet), bedingt sichtbar via `author.userRole === 'editor'`. Routen:
   - Kategorie-Pages (`/ki-im-business`, `/future-tech`) zeigen Spotlight
     oben mit `getFeaturedByCategory(slug, 3)`. Section verschwindet bei
     0 Featured.
-  - Homepage zeigt 2-Card-Spotlight zwischen `HeroBold` und `BentoGrid`
-    mit `getHeroOrLatestByCategory("ki-business")` und ... `("future-tech")`.
-    Fallback auf neuesten Artikel falls kein Hero gesetzt.
+  - Homepage zeigt 2-Card-Spotlight direkt nach `HeroBold`. `BentoGrid`
+    wurde entfernt — Hero im Spotlight + restliche Artikel in den
+    Kategorie-Sections decken das gleiche Ziel ab.
+  - Kategorie-Sections auf der Homepage filtern Hero-Featured raus
+    (`getArticlesByCategory(..., { excludeHero: true })`) damit jeder
+    Artikel max einmal auf der Homepage erscheint.
 - **Admin-Listing-Badges:** `HERO` (orange solid) bzw. `FEATURED` (orange
   outline) neben dem Status-Badge in `/autor/admin/artikel`. Zusätzlicher
   Filter "Featured: Alle / Nur Featured / Nur Hero / Nicht featured".
+- **Default-Cover-Bild:** Artikel ohne `cover_image_url` (z.B. Legacy-
+  Artikel aus 2020/2021 die im WP keine Cover hatten) zeigen
+  `/images/defaults/article-cover-default.png`. Zentraler Helper
+  `getCoverUrl(article)` in `src/lib/coverImage.ts` — überall verwenden
+  wo Cover gerendert wird (Listing-Cards via Mapper, Detail-Page-Hero,
+  Admin-Listing, Dashboard, Author-Public-Profile).
 
 ### Invite-Flow (PR B)
 

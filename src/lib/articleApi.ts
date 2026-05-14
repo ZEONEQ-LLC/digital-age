@@ -38,6 +38,7 @@ export async function getFeaturedArticles(limit = 4): Promise<ArticleWithRelatio
 export async function getArticlesByCategory(
   categorySlug: string,
   limit?: number,
+  options: { excludeHero?: boolean } = {},
 ): Promise<ArticleWithRelations[]> {
   const supabase = await createClient();
   let query = supabase
@@ -48,6 +49,7 @@ export async function getArticlesByCategory(
     .eq("status", "published")
     .eq("category.slug", categorySlug)
     .order("published_at", { ascending: false });
+  if (options.excludeHero) query = query.eq("is_hero", false);
   if (limit) query = query.limit(limit);
   const { data } = await query;
   return (data as ArticleWithRelations[] | null) ?? [];
