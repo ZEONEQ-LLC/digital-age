@@ -23,10 +23,14 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/turndown": "^5.0.6",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
+    "fast-xml-parser": "^5.8.0",
     "supabase": "^2.98.2",
     "tailwindcss": "^4",
+    "tsx": "^4.21.1",
+    "turndown": "^7.2.4",
     "typescript": "^5"
   }
 }

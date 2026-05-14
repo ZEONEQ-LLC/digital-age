@@ -150,3 +150,9 @@ _design-handoff/
 
 # Claude Code session state
 .claude/
+
+# WordPress-Migration Logs + Sample-Bodies (Phase 8d)
+migration/logs/
+
+# WordPress-Export-Datei (User-bereitgestellt, nicht ins Repo)
+migration/*.xml
