@@ -11,6 +11,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { writeFileSync } from "node:fs";
+import { createInterface } from "node:readline/promises";
 import { parseWPExport } from "./lib/xml-parser";
 import { htmlToBlockDocument } from "./lib/html-to-blocks";
 import { createAuthorResolver } from "./lib/author-resolver";
@@ -125,6 +126,27 @@ async function main() {
 
   const categoryResolver = createCategoryResolver(supabase);
 
+  // Sicherheitsabfrage bei nicht-leerer Drafts-Tabelle (nur im echten Run).
+  // Idempotenz schützt nur bei gleichem Slug — alles andere bleibt liegen.
+  if (!dryRun) {
+    const { count: existingDrafts } = await supabase
+      .from("articles")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "draft");
+    if ((existingDrafts ?? 0) > 0) {
+      const rl = createInterface({ input: process.stdin, output: process.stdout });
+      logger.warn(`Aktuell ${existingDrafts} Drafts in der DB. Migration löscht sie NICHT automatisch.`);
+      logger.warn(`Falls die alle aus der vorigen Migration sind, manuell löschen:`);
+      logger.warn(`  npx supabase db query --linked "delete from articles where status = 'draft';"`);
+      const answer = await rl.question("Fortfahren mit Migration trotz vorhandener Drafts? (y/N) ");
+      rl.close();
+      if (answer.trim().toLowerCase() !== "y") {
+        logger.info("Abgebrochen vom User.");
+        process.exit(0);
+      }
+    }
+  }
+
   const counts: Counts = {
     total: exp.posts.length,
     imported: 0,
@@ -182,19 +204,32 @@ async function main() {
       continue;
     }
 
+    // Excerpt zuerst — wird zum Strip-Vergleich an die Conversion mitgegeben
+    const preliminaryExcerpt = post.excerpt && post.excerpt.trim() ? post.excerpt.trim() : "";
+
     // HTML → Markdown → Blocks
     let conversion;
     try {
-      conversion = htmlToBlockDocument(post.contentHtml);
+      conversion = htmlToBlockDocument(post.contentHtml, {
+        title: post.title,
+        excerpt: preliminaryExcerpt,
+      });
     } catch (err) {
       logger.fail(`${label} — Conversion-Fehler: ${err instanceof Error ? err.message : String(err)}`);
       counts.failed++;
       continue;
     }
     for (const w of conversion.warnings) logger.warn(`  ${label}: ${w}`);
+    logger.info(
+      `  ${label} stats: sources=${conversion.stats.sourcesMapped}/${conversion.stats.sourcesFound}, ` +
+        `hl=g${conversion.stats.highlightsGreen}/o${conversion.stats.highlightsOrange}, ` +
+        `disclaimer=${conversion.stats.disclaimerAttached ? conversion.stats.disclaimerLanguage : "no"}, ` +
+        `excerpt-strip=${conversion.stats.excerptStripped ? "yes" : "no"}, ` +
+        `dividers-norm=${conversion.stats.dividersNormalized}`,
+    );
 
     const excerpt =
-      (post.excerpt && post.excerpt.trim()) ||
+      preliminaryExcerpt ||
       extractExcerpt(conversion.markdown) ||
       null;
 
@@ -246,19 +281,66 @@ async function main() {
   logger.summary(counts);
 
   if (dryRun) {
-    // Snapshot der ersten 3 konvertierten Bodies → optisch prüfen
+    // Sample-Stichproben: 1 mit Sources, 1 mit Highlights, 1 mit Disclaimer
     const sampleFile = `migration/logs/sample-bodies-${ts}.md`;
     const samples: string[] = [];
-    for (const post of exp.posts.slice(0, 3)) {
+
+    const sourcesCandidate = exp.posts.find((p) => /#sources/i.test(p.contentHtml));
+    const highlightCandidate = exp.posts.find(
+      (p) => p.contentHtml.includes("<mark") && p !== sourcesCandidate,
+    );
+    const disclaimerCandidate = exp.posts.find(
+      (p) =>
+        /wp:block\s*\{[^}]*"ref":\s*1915\b/.test(p.contentHtml) &&
+        p !== sourcesCandidate &&
+        p !== highlightCandidate,
+    );
+    const picks = [sourcesCandidate, highlightCandidate, disclaimerCandidate].filter(
+      (p): p is (typeof exp.posts)[number] => !!p,
+    );
+
+    for (const post of picks) {
       try {
-        const { markdown } = htmlToBlockDocument(post.contentHtml);
-        samples.push(`# ${post.title}\n\n_Slug: ${post.slug}_\n\n---\n\n${markdown}\n\n========\n`);
-      } catch {
-        // ignore
+        const conv = htmlToBlockDocument(post.contentHtml, {
+          title: post.title,
+          excerpt: post.excerpt && post.excerpt.trim() ? post.excerpt.trim() : "",
+        });
+        const firstBlock = conv.doc.blocks[0];
+        const lastBlock = conv.doc.blocks[conv.doc.blocks.length - 1];
+        const summary = [
+          `Artikel: ${post.title}`,
+          `─────────────────────────────────────`,
+          `Source-Refs/URLs mapped:  ${conv.stats.sourcesMapped} / ${conv.stats.sourcesFound}`,
+          `Highlights:               grün ${conv.stats.highlightsGreen}, orange ${conv.stats.highlightsOrange}`,
+          `Disclaimer-Block:         ${conv.stats.disclaimerAttached ? `ja (${conv.stats.disclaimerLanguage}, via ${conv.stats.disclaimerVia})` : "nein"}`,
+          `Excerpt-Strip:            ${conv.stats.excerptStripped ? "ja" : "nein"}`,
+          `Divider normalisiert:     ${conv.stats.dividersNormalized}`,
+          ``,
+          `Erster Block (preview):`,
+          `  type: "${firstBlock?.type ?? "—"}"`,
+          firstBlock && "content" in firstBlock
+            ? `  content: ${JSON.stringify(firstBlock.content.slice(0, 140))}…`
+            : `  (kein content-Feld)`,
+          ``,
+          `Letzter Block (preview):`,
+          `  type: "${lastBlock?.type ?? "—"}"`,
+          lastBlock?.type === "disclaimer"
+            ? `  text:     "${lastBlock.text}"\n  linkText: "${lastBlock.linkText ?? ""}"\n  linkUrl:  "${lastBlock.linkUrl ?? ""}"`
+            : lastBlock && "content" in lastBlock
+              ? `  content: ${JSON.stringify(lastBlock.content.slice(0, 140))}…`
+              : `  (kein content-Feld)`,
+          ``,
+          `========`,
+        ].join("\n");
+        samples.push(summary);
+        // Auch nach stdout für direkten User-Review
+        logger.info("\n" + summary);
+      } catch (err) {
+        logger.fail(`Sample-Conversion crashed: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
-    writeFileSync(sampleFile, samples.join("\n"));
-    logger.info(`Sample-Bodies (3 Stichproben): ${sampleFile}`);
+    writeFileSync(sampleFile, samples.join("\n\n"));
+    logger.info(`Sample-Bodies (${picks.length} Stichproben): ${sampleFile}`);
   }
 
   process.exit(counts.failed > 0 ? 3 : 0);
