@@ -1,7 +1,8 @@
 import NewsTicker from "@/components/NewsTicker";
 import Footer from "@/components/Footer";
+import SpotlightSection from "@/components/SpotlightSection";
 import TopicListing from "@/components/TopicListing";
-import { getArticlesByCategory } from "@/lib/articleApi";
+import { getArticlesByCategory, getFeaturedByCategory } from "@/lib/articleApi";
 import { articleToListRow } from "@/lib/mappers/articleMappers";
 
 const categoryColors: Record<string, string> = {
@@ -16,7 +17,10 @@ const categoryColors: Record<string, string> = {
 const trendingTags: string[] = [];
 
 export default async function KIBusinessPage() {
-  const rows = await getArticlesByCategory("ki-business");
+  const [rows, featured] = await Promise.all([
+    getArticlesByCategory("ki-business"),
+    getFeaturedByCategory("ki-business", 3),
+  ]);
   const articles = rows.map(articleToListRow);
 
   const subcategorySet = new Set<string>();
@@ -53,6 +57,7 @@ export default async function KIBusinessPage() {
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <NewsTicker />
+      <SpotlightSection articles={featured} />
       <TopicListing
         topicLabel="KI & Business"
         lead="Wie KI Unternehmen in der DACH-Region transformiert — Strategien, Praxisberichte, Entscheidungshilfen."

@@ -9,7 +9,7 @@ export default async function AdminArticlesPage() {
     supabase
       .from("articles")
       .select(
-        "id, slug, title, status, cover_image_url, published_at, reading_minutes, word_count, author_id, category_id, tags",
+        "id, slug, title, status, cover_image_url, published_at, reading_minutes, word_count, author_id, category_id, tags, is_featured, is_hero",
       )
       .order("published_at", { ascending: false, nullsFirst: false }),
     supabase
@@ -44,6 +44,8 @@ export default async function AdminArticlesPage() {
     categorySlug: categoryMap.get(a.category_id)?.slug ?? "",
     categoryName: categoryMap.get(a.category_id)?.name ?? "",
     tags: a.tags ?? [],
+    isFeatured: a.is_featured ?? false,
+    isHero: a.is_hero ?? false,
   }));
 
   return (

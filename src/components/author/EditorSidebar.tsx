@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import AuthorCard from "./AuthorCard";
 import FeaturedImageBox from "./FeaturedImageBox";
 import MonoCaption from "./MonoCaption";
-import { updateArticleAuthor } from "@/lib/authorAdminActions";
+import { updateArticleAuthor, updateFeaturedStatus } from "@/lib/authorAdminActions";
 
 type EditorSidebarProps = {
   wordCount: number;
@@ -19,6 +19,8 @@ type EditorSidebarProps = {
   isEditor: boolean;
   allAuthors: { id: string; display_name: string; role: string }[];
   currentAuthorId: string;
+  initialIsFeatured: boolean;
+  initialIsHero: boolean;
 };
 
 const AI_TOOLTIP = "AI-Features kommen in einer späteren Phase";
@@ -30,10 +32,69 @@ const AI_BUTTONS = [
   "Zusammenfassung erstellen",
 ];
 
-export default function EditorSidebar({ wordCount, readMinutes, category, tags, articleId, coverImageUrl, onCoverChange, publishedAtDate, onPublishedAtChange, isEditor, allAuthors, currentAuthorId }: EditorSidebarProps) {
+export default function EditorSidebar({ wordCount, readMinutes, category, tags, articleId, coverImageUrl, onCoverChange, publishedAtDate, onPublishedAtChange, isEditor, allAuthors, currentAuthorId, initialIsFeatured, initialIsHero }: EditorSidebarProps) {
   const [assignedAuthor, setAssignedAuthor] = useState(currentAuthorId);
   const [authorToast, setAuthorToast] = useState<string | null>(null);
   const [authorPending, startAuthorTransition] = useTransition();
+
+  const [isFeatured, setIsFeatured] = useState(initialIsFeatured);
+  const [isHero, setIsHero] = useState(initialIsHero);
+  const [featuredPending, startFeaturedTransition] = useTransition();
+  const [featuredToast, setFeaturedToast] = useState<string | null>(null);
+  const [heroConflict, setHeroConflict] = useState<{ id: string; title: string } | null>(null);
+
+  function flashToast(msg: string, ms = 3000) {
+    setFeaturedToast(msg);
+    setTimeout(() => setFeaturedToast(null), ms);
+  }
+
+  async function applyFeatured(next: { featured: boolean; hero: boolean; forceReplace?: boolean }) {
+    return new Promise<void>((resolve) => {
+      startFeaturedTransition(async () => {
+        const result = await updateFeaturedStatus(articleId, next.featured, next.hero, next.forceReplace);
+        if (result.ok) {
+          setIsFeatured(next.featured);
+          setIsHero(next.hero);
+          flashToast(next.hero ? "Hero gesetzt" : next.featured ? "Featured gesetzt" : "Featured entfernt");
+        } else if (result.code === "MAX_FEATURED_REACHED") {
+          flashToast("Max 3 Featured-Artikel in dieser Kategorie. Entferne erst einen anderen.", 5000);
+        } else if (result.code === "HERO_CONFLICT") {
+          setHeroConflict({ id: result.existingHeroId, title: result.existingHeroTitle });
+        } else if (result.code === "UNAUTHORIZED") {
+          flashToast("Keine Berechtigung.", 5000);
+        } else {
+          // INVALID
+          flashToast(`Fehler: ${result.message}`, 5000);
+        }
+        resolve();
+      });
+    });
+  }
+
+  function onToggleFeatured(next: boolean) {
+    if (next) {
+      void applyFeatured({ featured: true, hero: isHero });
+    } else {
+      if (isHero) {
+        if (!window.confirm("Hero-Featured wird ebenfalls entfernt. Fortfahren?")) return;
+      }
+      void applyFeatured({ featured: false, hero: false });
+    }
+  }
+
+  function onToggleHero(next: boolean) {
+    if (next) {
+      void applyFeatured({ featured: true, hero: true });
+    } else {
+      void applyFeatured({ featured: isFeatured, hero: false });
+    }
+  }
+
+  async function confirmHeroReplace() {
+    if (!heroConflict) return;
+    setHeroConflict(null);
+    await applyFeatured({ featured: true, hero: true, forceReplace: true });
+  }
 
   function handleAuthorChange(newId: string) {
     if (newId === assignedAuthor) return;
@@ -85,6 +146,102 @@ export default function EditorSidebar({ wordCount, readMinutes, category, tags, 
           Publish das aktuelle Datum gesetzt wird.
         </p>
       </AuthorCard>
+
+      {isEditor && (
+        <AuthorCard padding={18}>
+          <MonoCaption>Featured</MonoCaption>
+          <label style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: 10, cursor: featuredPending ? "wait" : "pointer" }}>
+            <input
+              type="checkbox"
+              checked={isFeatured}
+              disabled={featuredPending}
+              onChange={(e) => onToggleFeatured(e.target.checked)}
+              style={{ marginTop: 3, cursor: "inherit" }}
+            />
+            <span>
+              <span style={{ color: "var(--da-text)", fontSize: 13, fontWeight: 600 }}>Featured (Spotlight-Section)</span>
+              <span style={{ display: "block", color: "var(--da-muted)", fontSize: 11, lineHeight: 1.5, marginTop: 2 }}>
+                In der Kategorie-Page oben. Max 3 pro Kategorie.
+              </span>
+            </span>
+          </label>
+          <label
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "flex-start",
+              marginTop: 12,
+              cursor: !isFeatured || featuredPending ? "not-allowed" : "pointer",
+              opacity: !isFeatured ? 0.5 : 1,
+            }}
+            title={!isFeatured ? "Erst als Featured markieren" : ""}
+          >
+            <input
+              type="checkbox"
+              checked={isHero}
+              disabled={!isFeatured || featuredPending}
+              onChange={(e) => onToggleHero(e.target.checked)}
+              style={{ marginTop: 3, cursor: "inherit" }}
+            />
+            <span>
+              <span style={{ color: "var(--da-text)", fontSize: 13, fontWeight: 600 }}>Hero-Featured (Homepage)</span>
+              <span style={{ display: "block", color: "var(--da-muted)", fontSize: 11, lineHeight: 1.5, marginTop: 2 }}>
+                Auf der Startseite oben. Nur möglich wenn Featured. Max 1 pro Kategorie.
+              </span>
+            </span>
+          </label>
+          {featuredToast && (
+            <p style={{ color: featuredToast.startsWith("Fehler") || featuredToast.startsWith("Max") || featuredToast.startsWith("Keine") ? "var(--da-orange)" : "var(--da-green)", fontSize: 11, marginTop: 10, fontFamily: "var(--da-font-mono)" }}>
+              {featuredToast}
+            </p>
+          )}
+        </AuthorCard>
+      )}
+
+      {heroConflict && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 24, zIndex: 100,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setHeroConflict(null); }}
+        >
+          <div style={{
+            background: "var(--da-card)",
+            border: "1px solid var(--da-border)",
+            borderRadius: 8,
+            padding: 24,
+            maxWidth: 480,
+            width: "100%",
+            fontFamily: "var(--da-font-body)",
+          }}>
+            <h2 style={{ color: "var(--da-text)", fontSize: 17, fontWeight: 700, marginBottom: 12, fontFamily: "var(--da-font-display)" }}>
+              Hero-Konflikt
+            </h2>
+            <p style={{ color: "var(--da-muted)", fontSize: 13, lineHeight: 1.6, marginBottom: 8 }}>
+              In dieser Kategorie ist bereits{" "}
+              <a href={`/autor/artikel/${heroConflict.id}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--da-green)", fontWeight: 600 }}>
+                &quot;{heroConflict.title}&quot;
+              </a>{" "}
+              als Hero-Featured markiert.
+            </p>
+            <p style={{ color: "var(--da-muted)", fontSize: 13, lineHeight: 1.6, marginBottom: 20 }}>
+              Diesen Artikel als neuen Hero setzen und den bestehenden auf nur Featured zurückstufen?
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => setHeroConflict(null)} style={{ background: "transparent", color: "var(--da-muted-soft)", border: "1px solid var(--da-border)", padding: "8px 16px", borderRadius: 4, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                Abbrechen
+              </button>
+              <button type="button" onClick={confirmHeroReplace} style={{ background: "var(--da-green)", color: "var(--da-dark)", border: "none", padding: "8px 16px", borderRadius: 4, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                Ersetzen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isEditor && (
         <AuthorCard padding={18}>

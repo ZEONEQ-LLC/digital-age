@@ -1,7 +1,8 @@
 import NewsTicker from "@/components/NewsTicker";
 import Footer from "@/components/Footer";
+import SpotlightSection from "@/components/SpotlightSection";
 import TopicListing from "@/components/TopicListing";
-import { getArticlesByCategory } from "@/lib/articleApi";
+import { getArticlesByCategory, getFeaturedByCategory } from "@/lib/articleApi";
 import { articleToListRow } from "@/lib/mappers/articleMappers";
 
 const categoryColors: Record<string, string> = {
@@ -16,7 +17,10 @@ const categoryColors: Record<string, string> = {
 const trendingTags: string[] = [];
 
 export default async function FutureTechPage() {
-  const rows = await getArticlesByCategory("future-tech");
+  const [rows, featured] = await Promise.all([
+    getArticlesByCategory("future-tech"),
+    getFeaturedByCategory("future-tech", 3),
+  ]);
   const articles = rows.map(articleToListRow);
 
   const subcategorySet = new Set<string>();
@@ -53,6 +57,7 @@ export default async function FutureTechPage() {
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <NewsTicker />
+      <SpotlightSection articles={featured} />
       <TopicListing
         topicLabel="Future Tech"
         lead="Technologien von morgen — heute verstehen. GenAI, IoT, Blockchain und die Innovationen, die unsere Welt neu gestalten."

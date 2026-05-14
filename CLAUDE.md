@@ -364,6 +364,37 @@ TopNav (Tablet), bedingt sichtbar via `author.userRole === 'editor'`. Routen:
   Tabs, Author-/Category-/Sort-Filtern. Eigener Filter-Bar oberhalb der
   Listing-Rows. Reset-Button nur sichtbar wenn Filter aktiv.
 
+### Featured & Spotlight (PR 2b)
+
+- **DB:** `articles.is_hero boolean` neu (is_featured existiert seit
+  Initial-Schema). Constraint `hero_must_be_featured` (Hero impliziert
+  Featured). Partial-Unique-Index `one_hero_per_category` für max 1 Hero
+  pro Kategorie. Max-3-Featured pro Kategorie wird im Server-Action-Layer
+  enforced, NICHT in der DB.
+- **Server-Action** `updateFeaturedStatus(articleId, featured, hero,
+  forceReplace?)` in `authorAdminActions.ts`. Returns Discriminated-Union
+  mit Codes `MAX_FEATURED_REACHED` / `HERO_CONFLICT` (mit existing-Daten)
+  / `UNAUTHORIZED` / `INVALID`. Bei HERO_CONFLICT zeigt UI Bestätigungs-
+  Dialog, ruft mit `forceReplace=true` erneut auf → bisheriger Hero wird
+  zurückgesetzt vor neuem Set (Partial-Unique-Index sonst).
+- **Auto-Reset:** `saveArticle` setzt Featured/Hero auf false wenn
+  `category_id` wechselt; `archiveArticle` setzt beide auf false. UI im
+  Editor zeigt zusätzlich Confirmation-Dialog beim Kategorie-Wechsel.
+- **Editor-UI:** Featured-Section in der Artikel-Sidebar zwischen
+  Veröffentlichungsdatum und Author. Beide Checkboxen, Hero disabled
+  wenn nicht Featured. Hero-Replace-Dialog zeigt Link zum aktuellen Hero.
+- **Public-UI:**
+  - `SpotlightSection.tsx` rendert bis zu 3 Featured-Cards in einer Grid.
+  - Kategorie-Pages (`/ki-im-business`, `/future-tech`) zeigen Spotlight
+    oben mit `getFeaturedByCategory(slug, 3)`. Section verschwindet bei
+    0 Featured.
+  - Homepage zeigt 2-Card-Spotlight zwischen `HeroBold` und `BentoGrid`
+    mit `getHeroOrLatestByCategory("ki-business")` und ... `("future-tech")`.
+    Fallback auf neuesten Artikel falls kein Hero gesetzt.
+- **Admin-Listing-Badges:** `HERO` (orange solid) bzw. `FEATURED` (orange
+  outline) neben dem Status-Badge in `/autor/admin/artikel`. Zusätzlicher
+  Filter "Featured: Alle / Nur Featured / Nur Hero / Nicht featured".
+
 ### Invite-Flow (PR B)
 
 **Pragma:** Editor generiert Token, kopiert URL und versendet sie manuell

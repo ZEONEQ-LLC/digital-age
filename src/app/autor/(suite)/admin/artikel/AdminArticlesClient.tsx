@@ -21,10 +21,13 @@ export type AdminArticleRow = {
   categorySlug: string;
   categoryName: string;
   tags: string[];
+  isFeatured: boolean;
+  isHero: boolean;
 };
 
 type StatusFilter = "all" | ArticleStatus;
 type SortOrder = "date_desc" | "date_asc";
+type FeaturedFilter = "all" | "featured" | "hero" | "not_featured";
 
 const STATUS_FILTERS: { id: StatusFilter; label: string }[] = [
   { id: "all", label: "Alle" },
@@ -61,6 +64,7 @@ export default function AdminArticlesClient({ rows, authors, categories }: Props
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [authorFilter, setAuthorFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [featuredFilter, setFeaturedFilter] = useState<FeaturedFilter>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("date_desc");
 
   const filtered = useMemo(() => {
@@ -68,13 +72,16 @@ export default function AdminArticlesClient({ rows, authors, categories }: Props
     if (statusFilter !== "all") out = out.filter((r) => r.status === statusFilter);
     if (authorFilter !== "all") out = out.filter((r) => r.authorId === authorFilter);
     if (categoryFilter !== "all") out = out.filter((r) => r.categoryId === categoryFilter);
+    if (featuredFilter === "featured") out = out.filter((r) => r.isFeatured);
+    else if (featuredFilter === "hero") out = out.filter((r) => r.isHero);
+    else if (featuredFilter === "not_featured") out = out.filter((r) => !r.isFeatured);
     out = [...out].sort((a, b) => {
       const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
       const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
       return sortOrder === "date_desc" ? tb - ta : ta - tb;
     });
     return out;
-  }, [rows, statusFilter, authorFilter, categoryFilter, sortOrder]);
+  }, [rows, statusFilter, authorFilter, categoryFilter, featuredFilter, sortOrder]);
 
   const counts = useMemo(() => {
     const c = { all: rows.length, draft: 0, in_review: 0, published: 0, archived: 0 };
@@ -83,7 +90,10 @@ export default function AdminArticlesClient({ rows, authors, categories }: Props
   }, [rows]);
 
   const filtersActive =
-    authorFilter !== "all" || categoryFilter !== "all" || sortOrder !== "date_desc";
+    authorFilter !== "all" ||
+    categoryFilter !== "all" ||
+    featuredFilter !== "all" ||
+    sortOrder !== "date_desc";
 
   return (
     <>
@@ -236,6 +246,16 @@ export default function AdminArticlesClient({ rows, authors, categories }: Props
         </select>
         <select
           className="adm-art__select"
+          value={featuredFilter}
+          onChange={(e) => setFeaturedFilter(e.target.value as FeaturedFilter)}
+        >
+          <option value="all">Featured: Alle</option>
+          <option value="featured">Nur Featured</option>
+          <option value="hero">Nur Hero</option>
+          <option value="not_featured">Nicht featured</option>
+        </select>
+        <select
+          className="adm-art__select"
           value={sortOrder}
           onChange={(e) => setSortOrder(e.target.value as SortOrder)}
         >
@@ -249,6 +269,7 @@ export default function AdminArticlesClient({ rows, authors, categories }: Props
             onClick={() => {
               setAuthorFilter("all");
               setCategoryFilter("all");
+              setFeaturedFilter("all");
               setSortOrder("date_desc");
             }}
           >
@@ -291,7 +312,43 @@ export default function AdminArticlesClient({ rows, authors, categories }: Props
             </div>
             <div className="adm-art__author">{a.authorName}</div>
             <div className="adm-art__time">{relativeFromIso(a.publishedAt)}</div>
-            <AuthorStatusBadge status={a.status} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
+              <AuthorStatusBadge status={a.status} />
+              {a.isHero ? (
+                <span
+                  style={{
+                    background: "var(--da-orange)",
+                    color: "var(--da-dark)",
+                    fontSize: 9,
+                    fontWeight: 800,
+                    letterSpacing: "0.08em",
+                    padding: "2px 6px",
+                    borderRadius: 3,
+                    fontFamily: "var(--da-font-mono)",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  HERO
+                </span>
+              ) : a.isFeatured ? (
+                <span
+                  style={{
+                    background: "transparent",
+                    border: "1px solid var(--da-orange)",
+                    color: "var(--da-orange)",
+                    fontSize: 9,
+                    fontWeight: 800,
+                    letterSpacing: "0.08em",
+                    padding: "1px 5px",
+                    borderRadius: 3,
+                    fontFamily: "var(--da-font-mono)",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  FEATURED
+                </span>
+              ) : null}
+            </div>
             <div className="adm-art__arrow">→</div>
           </Link>
         ))

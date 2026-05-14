@@ -97,6 +97,25 @@ export async function saveArticle(id: string, patch: ArticlePatch): Promise<Arti
     dbPatch.body_blocks = null;
   }
 
+  // Auto-Reset von Featured/Hero bei Kategorie-Wechsel. Frontend zeigt vorher
+  // einen Bestätigungs-Dialog (Block D in PR 2b), aber wir doppeln server-
+  // seitig damit der State garantiert konsistent bleibt.
+  if (dbPatch.category_id !== undefined) {
+    const { data: current } = await supabase
+      .from("articles")
+      .select("category_id, is_featured, is_hero")
+      .eq("id", id)
+      .single();
+    if (
+      current &&
+      current.category_id !== dbPatch.category_id &&
+      (current.is_featured || current.is_hero)
+    ) {
+      dbPatch.is_featured = false;
+      dbPatch.is_hero = false;
+    }
+  }
+
   const { data, error } = await supabase
     .from("articles")
     .update(dbPatch)
@@ -169,15 +188,18 @@ export async function archiveArticle(id: string): Promise<ArticleRow> {
   const me = await requireCurrentAuthor();
   if (me.role !== "editor") throw new Error("Nur Editors können archivieren.");
 
+  // Beim Archivieren wird Featured/Hero gleich mit zurückgesetzt — ein
+  // archivierter Artikel hat in den Spotlight-Sections nichts verloren.
   const { data, error } = await supabase
     .from("articles")
-    .update({ status: "archived" })
+    .update({ status: "archived", is_featured: false, is_hero: false })
     .eq("id", id)
     .select("*")
     .single();
   if (error) throw error;
   revalidatePath("/autor/artikel");
   revalidatePath(`/autor/artikel/${id}`);
+  revalidatePath("/");
   return data;
 }
 

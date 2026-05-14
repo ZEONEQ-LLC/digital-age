@@ -79,6 +79,114 @@ export async function updateAuthorAsEditor(id: string, patch: AuthorAdminPatch):
   return data;
 }
 
+// Featured/Hero-Status auf einem Artikel umschalten. Editor-only.
+// Validierungen:
+//   - hero ohne featured → unzulässig (DB-Constraint + App-Check)
+//   - max 3 featured pro Kategorie (App-Check, kein DB-Constraint)
+//   - max 1 hero pro Kategorie (DB-Constraint via Partial Unique Index;
+//     App-Check liefert vorher den HERO_CONFLICT-Error mit existing-Daten,
+//     UI kann mit forceReplace=true erneut aufrufen)
+const MAX_FEATURED_PER_CATEGORY = 3;
+
+export type UpdateFeaturedResult =
+  | { ok: true }
+  | { ok: false; code: "UNAUTHORIZED" }
+  | { ok: false; code: "INVALID"; message: string }
+  | { ok: false; code: "MAX_FEATURED_REACHED" }
+  | {
+      ok: false;
+      code: "HERO_CONFLICT";
+      existingHeroId: string;
+      existingHeroTitle: string;
+    };
+
+export async function updateFeaturedStatus(
+  articleId: string,
+  isFeatured: boolean,
+  isHero: boolean,
+  forceReplace = false,
+): Promise<UpdateFeaturedResult> {
+  try {
+    await requireEditor();
+  } catch {
+    return { ok: false, code: "UNAUTHORIZED" };
+  }
+
+  if (isHero && !isFeatured) {
+    return { ok: false, code: "INVALID", message: "Hero benötigt Featured." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: article, error: articleErr } = await supabase
+    .from("articles")
+    .select("id, category_id, is_featured, is_hero")
+    .eq("id", articleId)
+    .maybeSingle();
+  if (articleErr || !article) {
+    return { ok: false, code: "INVALID", message: "Artikel nicht gefunden." };
+  }
+
+  // Max-3-Featured-Check: nur wenn der Artikel NEU featured wird
+  if (isFeatured && !article.is_featured) {
+    const { count } = await supabase
+      .from("articles")
+      .select("id", { count: "exact", head: true })
+      .eq("category_id", article.category_id)
+      .eq("is_featured", true);
+    if ((count ?? 0) >= MAX_FEATURED_PER_CATEGORY) {
+      return { ok: false, code: "MAX_FEATURED_REACHED" };
+    }
+  }
+
+  // Hero-Conflict-Check: nur wenn der Artikel NEU hero wird
+  if (isHero && !article.is_hero) {
+    const { data: existingHero } = await supabase
+      .from("articles")
+      .select("id, title")
+      .eq("category_id", article.category_id)
+      .eq("is_hero", true)
+      .maybeSingle();
+    if (existingHero && existingHero.id !== articleId) {
+      if (!forceReplace) {
+        return {
+          ok: false,
+          code: "HERO_CONFLICT",
+          existingHeroId: existingHero.id,
+          existingHeroTitle: existingHero.title,
+        };
+      }
+      // Force: bisherigen Hero zurücksetzen, BEVOR wir den neuen setzen,
+      // sonst greift der Partial-Unique-Index. Best-Effort: bei Fehler
+      // brechen wir ab, der State bleibt konsistent (alter Hero noch da).
+      const { error: resetErr } = await supabase
+        .from("articles")
+        .update({ is_hero: false })
+        .eq("id", existingHero.id);
+      if (resetErr) {
+        return {
+          ok: false,
+          code: "INVALID",
+          message: `Hero-Reset fehlgeschlagen: ${resetErr.message}`,
+        };
+      }
+    }
+  }
+
+  const { error: updateErr } = await supabase
+    .from("articles")
+    .update({ is_featured: isFeatured, is_hero: isHero })
+    .eq("id", articleId);
+  if (updateErr) {
+    return { ok: false, code: "INVALID", message: updateErr.message };
+  }
+
+  revalidatePath(`/autor/artikel/${articleId}`);
+  revalidatePath("/autor/admin/artikel");
+  revalidatePath("/");
+  return { ok: true };
+}
+
 // Weist einen Artikel einem anderen Author zu. Editor-only. RLS-Policy
 // `articles_editor_all` deckt die Update-Permission ab.
 export async function updateArticleAuthor(
