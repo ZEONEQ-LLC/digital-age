@@ -404,6 +404,34 @@ TopNav (Tablet), bedingt sichtbar via `author.userRole === 'editor'`. Routen:
   wo Cover gerendert wird (Listing-Cards via Mapper, Detail-Page-Hero,
   Admin-Listing, Dashboard, Author-Public-Profile).
 
+### Tag-System Foundation (PR T1)
+
+- **DB:** Tabellen `tags` (slug-unique, name, timestamps) und `article_tags`-
+  Junction. Backwards-Compat: `articles.tags text[]` bleibt erhalten und
+  wird parallel gepflegt — Cleanup in Folge-PR sobald T2 + T3 produktiv.
+- **RLS:** `tags_public_read` für anon, `tags_author_insert` für authenticated
+  authors (Editor-Save-Flow legt neue Tags an), `tags_editor_update/delete`
+  für Editor-Rolle. `article_tags`: public-read, Author kann Junctions für
+  eigene Articles managen, Editor für alle.
+- **Migrations-Skript** `migration/migrate-tags.ts` (zwei Phasen):
+  - `--export` → schreibt `migration/tag-export.json` (sortiert nach
+    Häufigkeit). User reviewt + legt `migration/tag-merge-mapping.json`
+    an (Synonym-Map: `{ "AI Agents": "Agentic AI" }`).
+  - `--apply` → upserted Tags, befüllt Junction, schreibt parallel
+    `articles.tags[]` mit kanonischen Namen (Backwards-Compat).
+- **Editor-UI:** `TagInput.tsx` ist ein Autocomplete-Pill-Input. Sucht via
+  `searchTags`-Server-Action in der `tags`-Tabelle (`ilike` auf name).
+  Suggestion-Dropdown listet bis zu 8 Matches plus „+ Neuer Tag „xyz""-
+  CTA. Enter/Tab/Komma fügen Pille hinzu, Backspace bei leerem Input
+  entfernt letzte Pille, ESC schliesst Dropdown.
+- **Save-Flow:** `saveArticle` ruft `syncArticleTags()` nach dem Article-
+  Update. Slugify-Logik identisch zum Migrations-Skript. Junction wird
+  komplett neu gesetzt (delete-all + insert) — pro Article max 1 Schreib-
+  zyklus, einfach + atomar genug für unsere Scale.
+
+T2 (Public-Frontend: Tag-Detail-Page, /tags-Übersicht, Trending-Sidebar)
+und T3 (Admin-Tag-Verwaltung mit Merge/Rename/Delete) folgen.
+
 ### Invite-Flow (PR B)
 
 **Pragma:** Editor generiert Token, kopiert URL und versendet sie manuell

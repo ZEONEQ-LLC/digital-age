@@ -124,9 +124,99 @@ export async function saveArticle(id: string, patch: ArticlePatch): Promise<Arti
     .single();
 
   if (error) throw error;
+
+  // Tags-Sync: tags-Tabelle + article_tags-Junction. Läuft NACH dem Article-
+  // Update, damit der RLS-Check (Author-of-article) gegen den finalen
+  // author_id-State greift. articles.tags[] wird oben via dbPatch
+  // mitgepflegt (Backwards-Compat); hier kümmern wir uns nur um die
+  // neue Tabellen-Struktur.
+  if (patch.tags !== undefined) {
+    await syncArticleTags(supabase, id, patch.tags);
+  }
+
   revalidatePath("/autor/artikel");
   revalidatePath(`/autor/artikel/${id}`);
   return data;
+}
+
+// Tags-Sync: Upsert in `tags` (slug = canonicalized name), dann
+// `article_tags`-Junction für den Article komplett neu setzen.
+async function syncArticleTags(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  articleId: string,
+  tagNames: string[],
+): Promise<void> {
+  const clean = tagNames
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+
+  // Slug aus Name ableiten (gleiche Logik wie im Migrations-Skript).
+  const slugify = (s: string): string =>
+    s
+      .toLowerCase()
+      .replace(/ä/g, "ae")
+      .replace(/ö/g, "oe")
+      .replace(/ü/g, "ue")
+      .replace(/ß/g, "ss")
+      .replace(/&/g, "und")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80);
+
+  // Dedup nach Slug (z.B. "AI" und "ai" geben den gleichen Slug).
+  const tagsBySlug = new Map<string, string>();
+  for (const name of clean) {
+    const slug = slugify(name);
+    if (!slug) continue;
+    if (!tagsBySlug.has(slug)) tagsBySlug.set(slug, name);
+  }
+
+  let tagIds: string[] = [];
+  if (tagsBySlug.size > 0) {
+    const rows = Array.from(tagsBySlug.entries()).map(([slug, name]) => ({
+      slug,
+      name,
+    }));
+    // Upsert ohne Name-Update bei Conflict: existierende Tags behalten ihren
+    // kanonischen Name (z.B. wenn jemand "ki" tippt, bleibt "KI" wie's ist).
+    const { data: upserted, error: upErr } = await supabase
+      .from("tags")
+      .upsert(rows, { onConflict: "slug", ignoreDuplicates: true })
+      .select("id, slug");
+    // upserted enthält nur neue Rows; existierende müssen wir separat laden.
+    if (upErr) throw new Error(`Tag-Upsert: ${upErr.message}`);
+
+    const slugList = Array.from(tagsBySlug.keys());
+    const { data: allRelevant } = await supabase
+      .from("tags")
+      .select("id, slug")
+      .in("slug", slugList);
+    tagIds = (allRelevant ?? []).map((t) => t.id);
+    // Vermerke unused upserted-Var damit der Linter ruhig ist
+    void upserted;
+  }
+
+  // Junction komplett neu setzen: delete alle bestehenden, insert neue.
+  // Bei Author-Role greift RLS-Policy `article_tags_author_write`/`_delete`
+  // (Author kann nur für eigene Articles), bei Editor `article_tags_editor_all`.
+  const { error: delErr } = await supabase
+    .from("article_tags")
+    .delete()
+    .eq("article_id", articleId);
+  if (delErr) throw new Error(`Junction-Delete: ${delErr.message}`);
+
+  if (tagIds.length === 0) return;
+  const junctionRows = tagIds.map((tagId) => ({
+    article_id: articleId,
+    tag_id: tagId,
+  }));
+  const { error: insErr } = await supabase
+    .from("article_tags")
+    .upsert(junctionRows, {
+      onConflict: "article_id,tag_id",
+      ignoreDuplicates: true,
+    });
+  if (insErr) throw new Error(`Junction-Insert: ${insErr.message}`);
 }
 
 export async function submitForReview(id: string): Promise<ArticleRow> {

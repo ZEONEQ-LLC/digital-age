@@ -10,6 +10,7 @@ import EditorSeoPanel, { type SeoState } from "@/components/author/EditorSeoPane
 import EditorSidebar from "@/components/author/EditorSidebar";
 import LegacyMigrationModal from "@/components/author/LegacyMigrationModal";
 import MarkdownEditor from "@/components/author/MarkdownEditor";
+import TagInput from "@/components/author/TagInput";
 import ArticleBody from "@/components/ArticleBody";
 import BlockReader from "@/components/BlockReader";
 import InlineText from "@/components/InlineText";
@@ -55,7 +56,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   const [cover, setCover] = useState(article.cover_image_url ?? "");
   const [categoryId, setCategoryId] = useState(article.category_id);
   const [subcategory, setSubcategory] = useState(article.subcategory ?? "");
-  const [tagsText, setTagsText] = useState((article.tags ?? []).join(", "));
+  const [tagList, setTagList] = useState<string[]>(article.tags ?? []);
   // Veröffentlichungsdatum: YYYY-MM-DD-Format für <input type="date">.
   // Bei Save wird's auf Midnight-UTC-ISO-Timestamp expandiert; null bei leer.
   const [publishedAtDate, setPublishedAtDate] = useState<string>(
@@ -179,10 +180,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   const readMinutes = Math.max(1, Math.round(wordCount / 200));
 
   function buildPatch(): ArticlePatch {
-    const cleanTags = tagsText
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
+    const cleanTags = tagList.map((t) => t.trim()).filter(Boolean);
     // Date-Input liefert "YYYY-MM-DD"; wir speichern Midnight-UTC. Leerer
     // String → null (DB-Spalte ist nullable). Beim Publish behält publishArticle
     // das vorhandene Datum und überschreibt nicht.
@@ -586,12 +584,11 @@ export default function EditorClient({ article, revisions, categories, isEditor,
                 />
               </div>
               <div>
-                <label className="a-edit-meta-label">Tags (komma-separiert)</label>
-                <input
-                  className="a-edit-meta-input"
-                  value={tagsText}
-                  onChange={(e) => setTagsText(e.target.value)}
-                  placeholder="z.B. KI, KMU, Schweiz"
+                <label className="a-edit-meta-label">Tags</label>
+                <TagInput
+                  value={tagList}
+                  onChange={setTagList}
+                  placeholder="Tag suchen oder neu anlegen…"
                 />
               </div>
             </div>
@@ -683,7 +680,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             wordCount={wordCount}
             readMinutes={readMinutes}
             category={categoryName}
-            tags={tagsText.split(",").map((t) => t.trim()).filter(Boolean)}
+            tags={tagList}
             articleId={article.id}
             coverImageUrl={cover}
             onCoverChange={setCover}
@@ -810,7 +807,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             />
           </ArticleBody>
           {(() => {
-            const tags = tagsText.split(",").map((t) => t.trim()).filter(Boolean);
+            const tags = tagList;
             if (tags.length === 0) return null;
             return (
               <div style={{ marginTop: 32, display: "flex", flexWrap: "wrap", gap: 8 }}>
