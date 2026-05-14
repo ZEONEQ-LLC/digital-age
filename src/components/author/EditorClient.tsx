@@ -10,6 +10,7 @@ import EditorSeoPanel, { type SeoState } from "@/components/author/EditorSeoPane
 import EditorSidebar from "@/components/author/EditorSidebar";
 import LegacyMigrationModal from "@/components/author/LegacyMigrationModal";
 import MarkdownEditor from "@/components/author/MarkdownEditor";
+import ArticleBody from "@/components/ArticleBody";
 import BlockReader from "@/components/BlockReader";
 import InternalArticleAutocomplete from "@/components/editor/InternalArticleAutocomplete";
 import SourcePicker, { newSourceId } from "@/components/editor/SourcePicker";
@@ -694,7 +695,7 @@ export default function EditorClient({ article, revisions, categories, isEditor 
               {excerpt}
             </p>
           )}
-          <div style={{ color: "var(--da-text-strong)", fontSize: 16, lineHeight: 1.75 }}>
+          <ArticleBody>
             <BlockReader
               doc={
                 doc ?? {
@@ -704,7 +705,7 @@ export default function EditorClient({ article, revisions, categories, isEditor 
                 }
               }
             />
-          </div>
+          </ArticleBody>
         </div>
       )}
 

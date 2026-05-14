@@ -49,13 +49,11 @@ const PATTERNS: {
         key={key}
         className={m[1] === "g" ? "hl-green" : "hl-orange"}
         style={{
-          background:
-            m[1] === "g"
-              ? "rgba(50,255,126,0.2)"
-              : "rgba(255,140,66,0.2)",
-          color: "inherit",
-          padding: "1px 4px",
-          borderRadius: 2,
+          background: m[1] === "g" ? "var(--da-green)" : "var(--da-orange)",
+          color: "var(--da-dark)",
+          padding: "1px 6px",
+          borderRadius: 3,
+          fontWeight: 600,
         }}
       >
         {m[2]}
