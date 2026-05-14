@@ -426,26 +426,6 @@ export default function TopicListing({
               </div>
             )}
 
-            <div>
-              <p className="tl-aside__label">Autoren</p>
-              {authors.map((a) => (
-                <div key={a.name} className="tl-author">
-                  <div className="tl-author__avatar">
-                    {a.avatar ? (
-                      <Image src={a.avatar} alt={a.name} fill sizes="36px" style={{ objectFit: "cover" }} unoptimized />
-                    ) : (
-                      <span className="tl-author__initials">{a.name.charAt(0).toUpperCase()}</span>
-                    )}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="tl-author__name">{a.name}</div>
-                    {a.role && <div className="tl-author__role">{a.role}</div>}
-                  </div>
-                  <span className="tl-author__count">{a.count}</span>
-                </div>
-              ))}
-            </div>
-
             {topTags.length > 0 && (
               <div>
                 <p className="tl-aside__label">Top Themen</p>
@@ -467,6 +447,26 @@ export default function TopicListing({
                 </Link>
               </div>
             )}
+
+            <div>
+              <p className="tl-aside__label">Autoren</p>
+              {authors.map((a) => (
+                <div key={a.name} className="tl-author">
+                  <div className="tl-author__avatar">
+                    {a.avatar ? (
+                      <Image src={a.avatar} alt={a.name} fill sizes="36px" style={{ objectFit: "cover" }} unoptimized />
+                    ) : (
+                      <span className="tl-author__initials">{a.name.charAt(0).toUpperCase()}</span>
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="tl-author__name">{a.name}</div>
+                    {a.role && <div className="tl-author__role">{a.role}</div>}
+                  </div>
+                  <span className="tl-author__count">{a.count}</span>
+                </div>
+              ))}
+            </div>
 
             <div className="tl-newsletter">
               <p className="tl-newsletter__overline">Newsletter</p>

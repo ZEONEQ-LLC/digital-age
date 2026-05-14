@@ -449,10 +449,11 @@ T3 (Admin-Tag-Verwaltung mit Merge/Rename/Delete) folgt.
   für anon+authenticated. Aggregiert tags über published Articles,
   sortiert count DESC, name ASC. Global, all-time, kein Zeitfenster.
 - **Top-Themen-Sidebar** in `TopicListing`-Komponente: neuer optionaler
-  `topTags`-Prop, gerendert als Section BELOW Autoren und ABOVE
-  Newsletter. Nur in `/ki-im-business` und `/future-tech` verdrahtet.
-  Pills sind Links auf `/tag/[slug]`, kleiner monospace-Count
-  daneben. "Alle Themen →"-Link unter den Pills auf `/tags`.
+  `topTags`-Prop, gerendert als Section ZWISCHEN Kategorien und Autoren
+  (Reihenfolge: Kategorien → Top Themen → Autoren → Newsletter). Nur in
+  `/ki-im-business` und `/future-tech` verdrahtet. Pills sind Links auf
+  `/tag/[slug]`, kleiner monospace-Count daneben. "Alle Themen →"-Link
+  unter den Pills auf `/tags`.
 - **Klickbare Tag-Pills** im Artikel-Detail (`/artikel/[slug]`): die
   bestehenden Mono-Pills (`article.tags[]`) sind jetzt Links auf
   `/tag/[slugifyTag(name)]` via `src/lib/tagSlug.ts` (gleiche Slugify-
