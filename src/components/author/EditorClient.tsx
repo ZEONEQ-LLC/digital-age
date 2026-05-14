@@ -574,13 +574,48 @@ export default function EditorClient({ article, revisions, categories, isEditor 
             <div className="a-edit-body-card">
               {mode === "visual" ? (
                 doc ? (
-                  <BlockEditor
-                    doc={doc}
-                    onChange={setDoc}
-                    articleId={article.id}
-                    onRequestArticlePick={requestArticlePick}
-                    onRequestSourcePick={requestSourcePick}
-                  />
+                  <>
+                    <div
+                      style={{
+                        background: "rgba(50, 255, 126, 0.06)",
+                        border: "1px solid var(--da-border)",
+                        color: "var(--da-muted)",
+                        padding: "8px 12px",
+                        borderRadius: 4,
+                        fontSize: 12,
+                        marginBottom: 14,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      Inline-Formatierung (Bold, Highlights, Links, Quellen
+                      etc.) erscheint hier als Markdown- und Custom-Syntax.
+                      Wie der Artikel später aussieht, zeigt der{" "}
+                      <button
+                        type="button"
+                        onClick={() => setTab("preview")}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: "var(--da-green)",
+                          textDecoration: "underline",
+                          cursor: "pointer",
+                          fontSize: "inherit",
+                          padding: 0,
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        Vorschau-Tab
+                      </button>
+                      .
+                    </div>
+                    <BlockEditor
+                      doc={doc}
+                      onChange={setDoc}
+                      articleId={article.id}
+                      onRequestArticlePick={requestArticlePick}
+                      onRequestSourcePick={requestSourcePick}
+                    />
+                  </>
                 ) : (
                   <div style={{ color: "var(--da-muted)", fontSize: 14 }}>
                     Visual-Editor wird vorbereitet…

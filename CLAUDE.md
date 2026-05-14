@@ -696,6 +696,14 @@ freiem Markdown:
 Eingesetzt durch `FloatingToolbar` (zeigt bei Text-Selektion in Paragraph/
 Quote-Content). Heading + List-Items: keine Toolbar in dieser PR.
 
+**WICHTIG — Editor ist NICHT WYSIWYG für Inline-Formatierung.** Inline-
+Marker erscheinen im Editor-Textarea als Roh-Text (`**bold**`,
+`{{g}}…{{/g}}` etc.). Bewusste Trade-off-Entscheidung: ein echter WYSIWYG-
+Editor (Tiptap o.ä.) wäre Phase-8b/c gesprengt; Tiptap-Migration kommt in
+einer eigenen Phase. Authors sehen die gerenderte Markup in der
+**Vorschau-Tab** im Editor. Hinweis-Banner im Visual-Tab macht das
+transparent.
+
 **Source-System (SourceList):**
 - Quellen in `BlockDocument.sources: Source[]`, jede mit stabiler ID.
 - Inline-Marker `[^N]` ist 1-indexed und referenziert `sources[N-1]`.
