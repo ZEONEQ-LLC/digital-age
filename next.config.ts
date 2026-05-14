@@ -13,6 +13,14 @@ const nextConfig: NextConfig = {
         hostname: "*.supabase.co",
         pathname: "/storage/v1/**",
       },
+      // Temporär: alte WP-Hosting-URLs der migrierten Artikel. Fällt mit
+      // Phase 8e (Bilder ins Supabase-Storage) weg. Vor Domain-Switch
+      // zwingend, sonst werden URLs tot.
+      {
+        protocol: "https",
+        hostname: "digital-age.ch",
+        pathname: "/wp-content/uploads/**",
+      },
     ],
   },
   async headers() {
