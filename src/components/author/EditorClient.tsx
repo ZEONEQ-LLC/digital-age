@@ -10,6 +10,7 @@ import EditorSeoPanel, { type SeoState } from "@/components/author/EditorSeoPane
 import EditorSidebar from "@/components/author/EditorSidebar";
 import LegacyMigrationModal from "@/components/author/LegacyMigrationModal";
 import MarkdownEditor from "@/components/author/MarkdownEditor";
+import BlockReader from "@/components/BlockReader";
 import InternalArticleAutocomplete from "@/components/editor/InternalArticleAutocomplete";
 import SourcePicker, { newSourceId } from "@/components/editor/SourcePicker";
 import type { ArticleSearchResult } from "@/lib/articleSearchActions";
@@ -30,7 +31,7 @@ import {
   hasSpecialBlocks,
 } from "@/types/blocks";
 
-type Tab = "content" | "seo" | "revisions";
+type Tab = "content" | "preview" | "seo" | "revisions";
 type Mode = "visual" | "markdown";
 
 type Props = {
@@ -447,6 +448,7 @@ export default function EditorClient({ article, revisions, categories, isEditor 
       <div className="a-edit-tabs">
         {[
           { id: "content", label: "Inhalt" },
+          { id: "preview", label: "Vorschau" },
           { id: "seo", label: "SEO & Meta" },
           { id: "revisions", label: "Revisionen" },
         ].map((t) => (
@@ -629,6 +631,82 @@ export default function EditorClient({ article, revisions, categories, isEditor 
           setSourceInsertHandler(null);
         }}
       />
+
+      {tab === "preview" && (
+        <div
+          style={{
+            maxWidth: 860,
+            margin: "0 auto",
+            background: "var(--da-darker)",
+            border: "1px solid var(--da-border)",
+            borderRadius: 8,
+            padding: "32px 36px 48px",
+          }}
+        >
+          <div
+            style={{
+              color: "var(--da-faint)",
+              fontFamily: "var(--da-font-mono)",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              marginBottom: 16,
+            }}
+          >
+            Vorschau · So sieht der Artikel auf der Public-Page aus
+          </div>
+          {cover && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={cover}
+              alt=""
+              style={{
+                width: "100%",
+                aspectRatio: "16/9",
+                objectFit: "cover",
+                borderRadius: 8,
+                marginBottom: 24,
+              }}
+            />
+          )}
+          <h1
+            style={{
+              color: "var(--da-text)",
+              fontFamily: "var(--da-font-display)",
+              fontSize: 36,
+              fontWeight: 800,
+              lineHeight: 1.15,
+              marginBottom: 12,
+            }}
+          >
+            {title || "(Ohne Titel)"}
+          </h1>
+          {excerpt && (
+            <p
+              style={{
+                color: "var(--da-muted)",
+                fontSize: 18,
+                lineHeight: 1.55,
+                marginBottom: 28,
+              }}
+            >
+              {excerpt}
+            </p>
+          )}
+          <div style={{ color: "var(--da-text-strong)", fontSize: 16, lineHeight: 1.75 }}>
+            <BlockReader
+              doc={
+                doc ?? {
+                  version: BLOCK_SCHEMA_VERSION,
+                  blocks: markdownToBlocks(markdown),
+                  sources: [],
+                }
+              }
+            />
+          </div>
+        </div>
+      )}
 
       {tab === "seo" && (
         <div style={{ maxWidth: 720 }}>

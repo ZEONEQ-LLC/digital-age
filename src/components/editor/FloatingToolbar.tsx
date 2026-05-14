@@ -81,8 +81,14 @@ export default function FloatingToolbar({
   function handleHyperlink(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    const url = window.prompt("Link-URL:");
-    if (!url) return;
+    const raw = window.prompt("Link-URL:");
+    if (!raw) return;
+    const trimmed = raw.trim();
+    if (!trimmed) return;
+    // Auto-Prefix https:// damit `www.google.com` nicht als relativer Pfad
+    // interpretiert wird (→ /artikel/www.google.com → 404).
+    const hasScheme = /^(https?:\/\/|\/|#|mailto:|tel:)/i.test(trimmed);
+    const url = hasScheme ? trimmed : `https://${trimmed}`;
     onApply(`[`, `](${url})`);
   }
 

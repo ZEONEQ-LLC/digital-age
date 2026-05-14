@@ -41,6 +41,35 @@ export default function InlineToolbarTextarea({
     const end = el.selectionEnd ?? 0;
     if (start === end) return;
     const v = el.value;
+
+    // Toggle-Verhalten: wenn die Selektion bereits VON `before`…`after`
+    // umgeben ist (Marker drumherum, nicht in der Selektion enthalten),
+    // entfernen wir die Marker statt eine zweite Schicht zu wrappen. Sonst
+    // entstehen `{{xl}}{{xl}}text{{/xl}}{{/xl}}` durch Doppelklicks.
+    const outerBefore = v.slice(Math.max(0, start - before.length), start);
+    const outerAfter = v.slice(end, end + after.length);
+    if (
+      before.length > 0 &&
+      after.length > 0 &&
+      outerBefore === before &&
+      outerAfter === after
+    ) {
+      const inner = v.slice(start, end);
+      const next =
+        v.slice(0, start - before.length) +
+        inner +
+        v.slice(end + after.length);
+      onChange(next);
+      requestAnimationFrame(() => {
+        const el2 = ref.current;
+        if (!el2) return;
+        el2.focus();
+        el2.setSelectionRange(start - before.length, end - before.length);
+        setHasSelection(true);
+      });
+      return;
+    }
+
     const next = v.slice(0, start) + before + v.slice(start, end) + after + v.slice(end);
     onChange(next);
     // Selektion auf den eingefügten Inhalt halten — feels-right für
