@@ -905,6 +905,33 @@ Stopp-Kriterien im Skript:
 - Im echten Run (nicht Dry-Run): bei vorhandenen Drafts in der DB
   interaktiver Prompt mit Anleitung zum manuellen Cleanup.
 
+### WP-Bilder-Migration (Phase 8e)
+
+Skript `migration/migrate-wp-images.ts` migriert alle Bilder, die auf
+`https://digital-age.ch/wp-content/uploads/...` zeigen, ins Supabase-
+Storage-Bucket `articles` unter Pfad-Schema `{article_id}/{slugified-name}`.
+
+```bash
+export SUPABASE_URL="https://<ref>.supabase.co"
+export SUPABASE_SERVICE_ROLE_KEY=$(npx supabase projects api-keys --project-ref <ref> 2>/dev/null | awk '/service_role/ {print $3}')
+npx tsx migration/migrate-wp-images.ts --dry-run
+# bei sauberem Dry-Run:
+npx tsx migration/migrate-wp-images.ts   # interaktive JA-Bestätigung
+```
+
+- Wird auf alle `articles` mit `status='published'` angewendet
+- Aktualisiert `cover_image_url` plus `image`- und `internalArticleCard`-
+  Block-URLs im `body_blocks`-JSONB
+- Idempotent via Storage-File-Listing pro Article-Folder
+- Original-WP-URL bleibt erhalten falls Download/Upload fehlschlägt
+- Filename-Slugifier strippt WP-Grössen-Suffixe (`-1024x576` etc.) und
+  Umlaute
+- Bucket-Whitelist nur JPEG/PNG/WebP/GIF — AVIF wird übersprungen mit
+  Warning
+
+Erste Live-Migration: 91 Bilder migriert, 7 skip-existing, 1 failed
+(AVIF, Original-URL bleibt). 42 von 51 Artikeln aktualisiert.
+
 ## Sicherheit
 
 - Service-Role-Key NIEMALS client-seitig
