@@ -41,9 +41,9 @@ const handleBtn: React.CSSProperties = {
   width: 22,
   height: 22,
   borderRadius: 4,
-  background: "var(--da-dark)",
+  background: "var(--da-card)",
   border: "1px solid var(--da-border)",
-  color: "var(--da-muted-soft)",
+  color: "var(--da-text-strong)",
   fontSize: 12,
   fontWeight: 700,
   cursor: "pointer",
@@ -53,6 +53,7 @@ const handleBtn: React.CSSProperties = {
   lineHeight: 1,
   padding: 0,
   fontFamily: "inherit",
+  boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
 };
 
 const boxedInput: React.CSSProperties = {
@@ -536,6 +537,7 @@ export default function Block({
           display: hov ? "flex" : "none",
           gap: 4,
           alignItems: "center",
+          zIndex: 5,
         }}
       >
         <button
