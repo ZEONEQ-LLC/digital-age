@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import AuthorStatusBadge from "@/components/author/AuthorStatusBadge";
+import { DEFAULT_COVER_URL } from "@/lib/coverImage";
 import type { ArticleStatus } from "@/lib/authorApi";
 
 export type AdminArticleRow = {
@@ -291,18 +292,14 @@ export default function AdminArticlesClient({ rows, authors, categories }: Props
             href={`/autor/artikel/${a.id}`}
             className="adm-art__row"
           >
-            {a.coverImageUrl ? (
-              <Image
-                src={a.coverImageUrl}
-                alt=""
-                width={72}
-                height={56}
-                className="adm-art__cover"
-                unoptimized
-              />
-            ) : (
-              <div className="adm-art__cover-fb" />
-            )}
+            <Image
+              src={a.coverImageUrl || DEFAULT_COVER_URL}
+              alt=""
+              width={72}
+              height={56}
+              className="adm-art__cover"
+              unoptimized
+            />
             <div style={{ minWidth: 0 }}>
               <div className="adm-art__title">{a.title}</div>
               <div className="adm-art__meta">

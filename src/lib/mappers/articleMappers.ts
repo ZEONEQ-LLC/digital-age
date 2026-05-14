@@ -5,6 +5,7 @@
 
 import type { ArticleWithRelations } from "@/lib/articleApi";
 import type { Database } from "@/lib/database.types";
+import { getCoverUrl } from "@/lib/coverImage";
 import type { ListArticle } from "@/components/ArticleListRow";
 
 type AuthorRow = Database["public"]["Tables"]["authors"]["Row"];
@@ -37,7 +38,7 @@ export function articleToCard(article: ArticleWithRelations): CardArticle {
     title: article.title,
     author: article.author?.display_name ?? "Unbekannt",
     date: formatDateDE(article.published_at),
-    image: article.cover_image_url ?? "",
+    image: getCoverUrl(article),
     href: `/artikel/${article.slug}`,
     external: article.author?.role === "external",
   };

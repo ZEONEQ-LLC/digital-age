@@ -16,6 +16,7 @@ import TableOfContents, { type TocItem } from "@/components/TableOfContents";
 import ExternalBadge from "@/components/ExternalBadge";
 import { getArticleBySlug, type ArticleWithFullRelations } from "@/lib/articleApi";
 import { getArticlesByAuthor } from "@/lib/authorApi";
+import { getCoverUrl } from "@/lib/coverImage";
 import { markdownToBlocks } from "@/lib/markdownBlocks";
 import {
   BLOCK_SCHEMA_VERSION,
@@ -170,18 +171,16 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
 
       <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 var(--sp-8) var(--sp-12)" }}>
         <div style={{ position: "relative", borderRadius: "10px", overflow: "hidden" }}>
-          {article.cover_image_url && (
-            <Image
-              src={article.cover_image_url}
-              alt={article.title}
-              width={1600}
-              height={900}
-              sizes="(max-width: 1100px) 100vw, 1100px"
-              priority
-              unoptimized
-              style={{ width: "100%", height: "auto", maxHeight: "520px", objectFit: "cover", display: "block" }}
-            />
-          )}
+          <Image
+            src={getCoverUrl(article)}
+            alt={article.title}
+            width={1600}
+            height={900}
+            sizes="(max-width: 1100px) 100vw, 1100px"
+            priority
+            unoptimized
+            style={{ width: "100%", height: "auto", maxHeight: "520px", objectFit: "cover", display: "block" }}
+          />
           <div
             aria-hidden
             style={{
@@ -279,7 +278,7 @@ async function RelatedFromAuthor({
       title: a.title,
       author: authorDisplayName,
       date: formatDateDE(a.published_at),
-      image: a.cover_image_url ?? "",
+      image: getCoverUrl(a),
       href: `/artikel/${a.slug}`,
       external: isExternal,
     }));

@@ -6,6 +6,7 @@ import EditorAdminBlock from "@/components/author/EditorAdminBlock";
 import MonoCaption from "@/components/author/MonoCaption";
 import PageTitle from "@/components/author/PageTitle";
 import StatCell from "@/components/author/StatCell";
+import { getCoverUrl } from "@/lib/coverImage";
 import {
   getCurrentAuthor,
   getDashboardStats,
@@ -119,18 +120,14 @@ export default async function AuthorDashboardPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {inFlight.map((a) => (
                 <Link key={a.id} href={`/autor/artikel/${a.id}`} className="a-dash-row">
-                  {a.cover_image_url ? (
-                    <Image
-                      src={a.cover_image_url}
-                      alt=""
-                      width={60}
-                      height={60}
-                      className="a-dash-row__cover"
-                      unoptimized
-                    />
-                  ) : (
-                    <div className="a-dash-row__cover-fallback" />
-                  )}
+                  <Image
+                    src={getCoverUrl(a)}
+                    alt=""
+                    width={60}
+                    height={60}
+                    className="a-dash-row__cover"
+                    unoptimized
+                  />
                   <div style={{ minWidth: 0 }}>
                     <p className="a-dash-row__title">{a.title}</p>
                     <div className="a-dash-row__meta">
