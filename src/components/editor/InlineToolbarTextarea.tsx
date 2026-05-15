@@ -41,30 +41,83 @@ function pairsEqual(a: readonly [string, string], b: readonly [string, string]):
   return a[0] === b[0] && a[1] === b[1];
 }
 
-// Peelt ab `start`/`end` alle bekannten Wrap-Paare aus, die die Selektion
-// direkt umschliessen. Returnt den Stack (innerster Wrap zuerst, äusserster
-// zuletzt) plus die erweiterten Grenzen.
+// Identifiziert alle bekannten Wraps, die die Selektion umgeben, sowohl
+// INNERHALB der Selektion (User hat den Wrapper mit-markiert: z.B. nach
+// einem vorherigen Bold-Klick) als auch AUSSERHALB (User hat nur den
+// inneren Text markiert). Das Decken-beider-Seiten ist nötig, damit das
+// Toggle-Verhalten konsistent ist egal wo die Selektion exakt sitzt.
+//
+// Returnt:
+//   stack          — kombiniert, innerster Wrap zuerst, äusserster zuletzt
+//   innerStart/End — Bereich des reinen Inhalts (alle Wraps abgezogen)
+//   outerStart/End — Bereich, der beim Re-Emit komplett ersetzt wird
+//                    (alle erkannten Wraps + Inhalt)
 function peelWraps(
   v: string,
   start: number,
   end: number,
-): { stack: Array<readonly [string, string]>; outerStart: number; outerEnd: number } {
-  const stack: Array<readonly [string, string]> = [];
-  let s = start;
-  let e = end;
-  outer: while (true) {
+): {
+  stack: Array<readonly [string, string]>;
+  innerStart: number;
+  innerEnd: number;
+  outerStart: number;
+  outerEnd: number;
+} {
+  // Inside-Peel: Wraps DIREKT innerhalb der Selektion abziehen. Erste
+  // Iteration entfernt den selektion-äussersten Wrap (= insgesamt am
+  // weitesten aussen unter den inside-Peels).
+  let innerStart = start;
+  let innerEnd = end;
+  const insidePeels: Array<readonly [string, string]> = [];
+  let peeling = true;
+  while (peeling) {
+    peeling = false;
     for (const pair of WRAP_PAIRS) {
       const [b, a] = pair;
-      if (s >= b.length && v.slice(s - b.length, s) === b && v.slice(e, e + a.length) === a) {
-        stack.push(pair);
-        s -= b.length;
-        e += a.length;
-        continue outer;
+      if (
+        innerEnd - innerStart >= b.length + a.length &&
+        v.slice(innerStart, innerStart + b.length) === b &&
+        v.slice(innerEnd - a.length, innerEnd) === a
+      ) {
+        insidePeels.push(pair);
+        innerStart += b.length;
+        innerEnd -= a.length;
+        peeling = true;
+        break;
       }
     }
-    break;
   }
-  return { stack, outerStart: s, outerEnd: e };
+
+  // Outside-Peel: Wraps DIREKT ausserhalb der Original-Selektion abziehen.
+  // Erste Iteration entfernt den selektion-nächsten Wrap aussen (= am
+  // weitesten innen unter den outside-Peels relativ zum Text).
+  let outerStart = start;
+  let outerEnd = end;
+  const outsidePeels: Array<readonly [string, string]> = [];
+  peeling = true;
+  while (peeling) {
+    peeling = false;
+    for (const pair of WRAP_PAIRS) {
+      const [b, a] = pair;
+      if (
+        outerStart >= b.length &&
+        v.slice(outerStart - b.length, outerStart) === b &&
+        v.slice(outerEnd, outerEnd + a.length) === a
+      ) {
+        outsidePeels.push(pair);
+        outerStart -= b.length;
+        outerEnd += a.length;
+        peeling = true;
+        break;
+      }
+    }
+  }
+
+  // Kombinierter Stack innermost-first:
+  //   reverse(insidePeels)  — insidePeels[last] war der text-näheste
+  //   + outsidePeels        — outsidePeels[0] ist nächst-aussen darüber
+  const stack = [...insidePeels].reverse().concat(outsidePeels);
+  return { stack, innerStart, innerEnd, outerStart, outerEnd };
 }
 
 function rebuildWithStack(
@@ -75,8 +128,9 @@ function rebuildWithStack(
   innerEnd: number,
   newStack: ReadonlyArray<readonly [string, string]>,
 ): { next: string; selStart: number; selEnd: number } {
-  // Reihenfolge im Stack: index 0 ist der innerste Wrap. Beim Emit kommt
-  // der innerste ganz nah am Inhalt, der äusserste ganz aussen.
+  // Stack-Order: [innermost, ..., outermost]. Beim Iterieren bauen wir
+  // pre/post von innen nach aussen auf — innermost-b prepended in pre,
+  // innermost-a appended in post.
   const inner = v.slice(innerStart, innerEnd);
   let pre = "";
   let post = "";
@@ -85,8 +139,10 @@ function rebuildWithStack(
     post = post + a;
   }
   const next = v.slice(0, outerStart) + pre + inner + post + v.slice(outerEnd);
-  const selStart = outerStart + pre.length;
-  const selEnd = selStart + inner.length;
+  // Neue Selektion umfasst den GESAMTEN emittierten Bereich (inkl. Wraps),
+  // damit Folge-Klicks die Wraps mit-erkennen und additiv arbeiten können.
+  const selStart = outerStart;
+  const selEnd = outerStart + pre.length + inner.length + post.length;
   return { next, selStart, selEnd };
 }
 
@@ -164,11 +220,15 @@ export default function InlineToolbarTextarea({
       return;
     }
 
-    // Stack-Toggle: bestehende Wraps um die Selektion peelen, prüfen ob das
-    // Target schon drin ist, dann togglen (entfernen) oder addieren. Bei
-    // einem Add werden Mutex-Konkurrenten (z.B. anderes Highlight) vorher
-    // aus dem Stack entfernt.
-    const { stack, outerStart, outerEnd } = peelWraps(v, start, end);
+    // Stack-Toggle: bestehende Wraps um die Selektion peelen (sowohl innen
+    // mit-markiert als auch aussen), prüfen ob das Target schon drin ist,
+    // dann togglen (entfernen) oder addieren. Bei einem Add werden Mutex-
+    // Konkurrenten (z.B. anderes Highlight) vorher aus dem Stack entfernt.
+    const { stack, innerStart, innerEnd, outerStart, outerEnd } = peelWraps(
+      v,
+      start,
+      end,
+    );
     const hasTarget = stack.some((p) => pairsEqual(p, targetPair));
     let newStack: Array<readonly [string, string]>;
     if (hasTarget) {
@@ -188,8 +248,8 @@ export default function InlineToolbarTextarea({
       v,
       outerStart,
       outerEnd,
-      start,
-      end,
+      innerStart,
+      innerEnd,
       newStack,
     );
     onChange(next);
@@ -202,9 +262,11 @@ export default function InlineToolbarTextarea({
     });
   }
 
-  // Format-Reset: alle bekannten Inline-Wraps um die Selektion entfernen.
-  // Inhalt (Selektion-Text) bleibt unverändert; Block-Alignment ist davon
-  // nicht betroffen (lebt im Block-Objekt, nicht im Text).
+  // Format-Reset: alle bekannten Inline-Wraps um die Selektion entfernen,
+  // egal wie verschachtelt. peelWraps deckt sowohl innen mit-markierte
+  // Wraps als auch aussen-stehende ab — Reset baut anschliessend mit
+  // leerem Stack neu auf, sodass der reine Inhalt übrig bleibt. Block-
+  // Alignment ist davon nicht betroffen (lebt im Block-Objekt).
   function resetFormatting() {
     const el = ref.current;
     if (!el) return;
@@ -212,14 +274,18 @@ export default function InlineToolbarTextarea({
     const end = el.selectionEnd ?? 0;
     if (start === end) return;
     const v = el.value;
-    const { outerStart, outerEnd } = peelWraps(v, start, end);
-    if (outerStart === start && outerEnd === end) return; // nichts zu strippen
+    const { stack, innerStart, innerEnd, outerStart, outerEnd } = peelWraps(
+      v,
+      start,
+      end,
+    );
+    if (stack.length === 0) return; // nichts zu strippen
     const { next, selStart, selEnd } = rebuildWithStack(
       v,
       outerStart,
       outerEnd,
-      start,
-      end,
+      innerStart,
+      innerEnd,
       [],
     );
     onChange(next);
