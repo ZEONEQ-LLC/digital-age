@@ -7,7 +7,6 @@ import {
   Link,
   Preview,
   Section,
-  Tailwind,
 } from "@react-email/components";
 import type { ReactNode } from "react";
 
@@ -107,17 +106,16 @@ export default function Layout({ previewText, children }: LayoutProps) {
         <style dangerouslySetInnerHTML={{ __html: HEAD_CSS }} />
       </Head>
       <Preview>{previewText}</Preview>
-      <Tailwind>
-        <Body
-          className="body-bg"
-          style={{
-            backgroundColor: "#f4f4f5",
-            margin: 0,
-            padding: "32px 16px",
-            fontFamily: FONT_BODY,
-            WebkitTextSizeAdjust: "100%",
-          }}
-        >
+      <Body
+        className="body-bg"
+        style={{
+          backgroundColor: "#f4f4f5",
+          margin: 0,
+          padding: "32px 16px",
+          fontFamily: FONT_BODY,
+          WebkitTextSizeAdjust: "100%",
+        }}
+      >
           <Container
             className="container"
             style={{
@@ -196,7 +194,6 @@ export default function Layout({ previewText, children }: LayoutProps) {
             </Section>
           </Container>
         </Body>
-      </Tailwind>
     </Html>
   );
 }
