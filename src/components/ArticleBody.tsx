@@ -54,6 +54,15 @@ export default function ArticleBody({ children }: { children: React.ReactNode })
           text-decoration: underline;
           text-underline-offset: 3px;
         }
+        /* Verschachtelte Inline-Elemente innerhalb von Highlights sollen die
+         * dunkle Highlight-Farbe erben statt eigene globale Farben zu setzen.
+         * Sonst überschreibt z.B. \`.article-body strong { color: text }\` die
+         * \`color: dark\` des Mark und der Text wird auf grünem/orangem
+         * Hintergrund unleserlich (weiss auf grün). */
+        .article-body mark strong,
+        .article-body mark em,
+        .article-body mark a,
+        .article-body mark code { color: inherit; }
       `}</style>
       <div className="article-body">{children}</div>
     </>
