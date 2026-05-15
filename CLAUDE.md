@@ -468,6 +468,55 @@ T3 (Admin-Tag-Verwaltung mit Merge/Rename/Delete) folgt.
   auf anderen Public-Pages, echtes Trending mit Zeitfenster, Related-
   Tags, Tag-Admin-UI (kommt in T3), Tags auf Article-Cards.
 
+### Tag-System Admin-Verwaltung (PR T3)
+
+Editor-Self-Service für Rename / Merge / Delete von Tags. Damit ist das
+Tag-System komplett (T1 Foundation, T2 Public-Frontend, T3 Admin).
+
+- **Route:** `/autor/admin/tags` — Editor-only via bestehendem
+  `(suite)/admin/layout.tsx`-Gate (kein zusätzlicher Check nötig).
+- **UI:** Suche (Name + Slug, case-insensitive), sortierbare Tabelle
+  (Default: Article-Count DESC, Name ASC), Mobile-Card-Layout <768px.
+  Action-Buttons pro Row: Rename / Merge / Löschen.
+- **Audit-Log:** `tag_audit_log`-Tabelle (Migration
+  `20260514212235_tags_admin.sql`). Append-only, kein UPDATE/DELETE-
+  Policy. SELECT nur für Editor (`tag_audit_log_editor_read`). `tag_id`
+  ist BEWUSST kein FK — bei delete/merge bleibt der Audit-Eintrag
+  bestehen. `merged_into_tag_id` referenziert tags(id) mit
+  `on delete set null`.
+- **Postgres-Functions** (alle SECURITY DEFINER, search_path=public,
+  EXECUTE für authenticated, interner Editor-Check via `public.is_editor()`):
+  - `rename_tag(p_tag_id, p_new_name)` — regeneriert Slug aus Name
+    (identische Slugify-Logik wie `src/lib/tagSlug.ts`), Conflict-Check
+    auf `slug`, Update `tags.name+slug+updated_at`, parallel-Update
+    `articles.tags[]` via `array_replace`, Audit-Insert. Returnt
+    `{success, new_slug, affected_count}`.
+  - `merge_tags(p_from_id, p_to_id)` — Junctions umhängen via
+    `INSERT … ON CONFLICT DO NOTHING` + DELETE der Source-Junctions,
+    `articles.tags[]` dedupliziert (`array_remove(from) || [to]` →
+    `array_agg(distinct …)`), Source-Tag löschen, Audit-Insert.
+  - `delete_tag(p_tag_id)` — `articles.tags[]` updaten, Junctions +
+    Tag löschen, Audit-Insert.
+- **Server Actions** (`src/lib/admin/tagOperations.ts`): `renameTag`,
+  `mergeTag`, `deleteTag`. Rufen die RPCs, mappen Postgres-Errorcodes
+  (`23505` → "Slug bereits vergeben", `42501` → "Nur Editoren …",
+  `P0002` → "Tag nicht gefunden", `22023` → "Name darf nicht leer
+  sein"), revalidieren `/autor/admin/tags`, `/tags`, `/tag/[new-slug]`
+  und die Listing-Pages mit Top-Themen-Sidebar
+  (`/ki-im-business`, `/future-tech`).
+- **Modals** (`src/components/admin/`):
+  - `RenameTagModal` — Slug-Vorschau live, Warnung bei Slug-Wechsel
+    inkl. 404-Hinweis für alte URL.
+  - `MergeTagModal` — Single-Select-Autocomplete via bestehender
+    `searchTags`-Server-Action (Reuse aus T1), zeigt Affected-Count
+    vor Bestätigung.
+  - `DeleteTagModal` — Type-to-confirm-Pattern (Tag-Name muss exakt
+    getippt werden, GitHub-Style).
+- **Audit-Log-Anzeige:** `TagAuditLog`-Komponente unter der Tabelle,
+  letzte 20 Operationen. Actor-Name kommt aus separater
+  authors-Query (`user_id IN (...)` → `display_name`), weil
+  `auth.users` nicht direkt joinbar ist.
+
 ### Invite-Flow (PR B)
 
 **Pragma:** Editor generiert Token, kopiert URL und versendet sie manuell
