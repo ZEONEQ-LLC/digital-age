@@ -17,6 +17,7 @@ export type SubscriberRow = {
   confirmedAt: string | null;
   unsubscribedAt: string | null;
   createdAt: string;
+  confirmationExpiresAt: string;
 };
 
 type Props = {
@@ -52,6 +53,23 @@ function formatDateDE(iso: string | null): string {
   });
 }
 
+// Relativer Expiry-Status für Pending-Rows. Abgelaufen / „X Tage" / „heute".
+function formatExpiry(iso: string, status: SubscriberRow["status"]): {
+  label: string;
+  color: string;
+} {
+  if (status !== "pending") return { label: "—", color: "var(--da-muted-soft)" };
+  const expires = new Date(iso).getTime();
+  const now = Date.now();
+  const diffMs = expires - now;
+  if (diffMs <= 0) return { label: "Abgelaufen", color: "#ff6b6b" };
+  const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+  if (diffDays === 0) return { label: "<24h", color: "var(--da-orange)" };
+  if (diffDays === 1) return { label: "1 Tag", color: "var(--da-orange)" };
+  if (diffDays <= 2) return { label: `${diffDays} Tage`, color: "var(--da-orange)" };
+  return { label: `${diffDays} Tage`, color: "var(--da-muted)" };
+}
+
 function csvEscape(value: string): string {
   if (value === "" || (!value.includes(",") && !value.includes('"') && !value.includes("\n"))) {
     return value;
@@ -67,6 +85,7 @@ function downloadCsv(rows: SubscriberRow[], status: StatusFilter): void {
     "source",
     "created_at",
     "consent_at",
+    "confirmation_expires_at",
     "confirmed_at",
     "unsubscribed_at",
   ];
@@ -80,6 +99,7 @@ function downloadCsv(rows: SubscriberRow[], status: StatusFilter): void {
         csvEscape(r.source),
         csvEscape(r.createdAt),
         csvEscape(r.consentAt),
+        csvEscape(r.confirmationExpiresAt),
         csvEscape(r.confirmedAt ?? ""),
         csvEscape(r.unsubscribedAt ?? ""),
       ].join(","),
@@ -361,6 +381,7 @@ export default function AdminNewsletterClient({
                   <th className="nl-adm-th">Source</th>
                   <th className="nl-adm-th">Erstellt</th>
                   <th className="nl-adm-th">Consent</th>
+                  <th className="nl-adm-th">Expiry</th>
                   <th className="nl-adm-th" style={{ textAlign: "right" }}>
                     Aktion
                   </th>
@@ -390,6 +411,20 @@ export default function AdminNewsletterClient({
                     <td className="nl-adm-td nl-adm-td--date">
                       {formatDateDE(r.consentAt)}
                     </td>
+                    {(() => {
+                      const exp = formatExpiry(
+                        r.confirmationExpiresAt,
+                        r.status,
+                      );
+                      return (
+                        <td
+                          className="nl-adm-td nl-adm-td--date"
+                          style={{ color: exp.color }}
+                        >
+                          {exp.label}
+                        </td>
+                      );
+                    })()}
                     <td className="nl-adm-td" style={{ textAlign: "right" }}>
                       <button
                         type="button"
@@ -426,6 +461,20 @@ export default function AdminNewsletterClient({
                     {r.source} · {formatDateDE(r.createdAt)}
                   </span>
                 </div>
+                {r.status === "pending" &&
+                  (() => {
+                    const exp = formatExpiry(
+                      r.confirmationExpiresAt,
+                      r.status,
+                    );
+                    return (
+                      <div className="nl-adm-card__row">
+                        <span style={{ color: exp.color }}>
+                          Expiry: {exp.label}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 <button
                   type="button"
                   className="nl-adm-action"

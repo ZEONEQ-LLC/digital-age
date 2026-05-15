@@ -9,11 +9,11 @@ export default function Page() {
       <section style={{ maxWidth: "640px", margin: "0 auto", padding: "80px 32px", textAlign: "center" }}>
         <div style={{ fontSize: "64px", marginBottom: "24px" }}>📬</div>
         <h1 style={{ color: "var(--da-text)", fontSize: "36px", fontWeight: 700, fontFamily: "Space Grotesk, sans-serif", marginBottom: "16px" }}>
-          Danke für dein Interesse!
+          Fast geschafft!
         </h1>
         <p style={{ color: "var(--da-muted)", fontSize: "18px", lineHeight: 1.6, marginBottom: "32px" }}>
-          Wir haben deine Anmeldung erhalten. Sobald wir den E-Mail-Versand aufschalten,
-          schicken wir dir eine Bestätigungs-Mail und du bekommst den ersten Newsletter.
+          Bestätigungs-Mail ist unterwegs. Klick auf den Link in der Mail, um
+          deine Anmeldung abzuschliessen. Der Link ist 7 Tage gültig.
         </p>
 
         <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>

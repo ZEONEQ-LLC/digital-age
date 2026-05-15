@@ -2,11 +2,30 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sendInviteMail } from "@/lib/newsletter/mail";
 import type { Database } from "@/lib/database.types";
 
 type InviteRow = Database["public"]["Tables"]["invites"]["Row"];
 type AuthorRow = Database["public"]["Tables"]["authors"]["Row"];
 type IntendedRole = "author" | "editor";
+
+// Mail-Versand fire-and-forget: bei Failure bleibt das Invite gültig
+// (Token+Expiry in DB), `mailSent: false` triggert im Admin-UI den
+// Clipboard-Fallback-Hinweis.
+async function dispatchInviteMail(invite: InviteRow): Promise<boolean> {
+  try {
+    const result = await sendInviteMail({
+      email: invite.email,
+      token: invite.token,
+      displayName: invite.display_name,
+      intendedRole: invite.intended_role as IntendedRole,
+    });
+    return result.ok;
+  } catch (e) {
+    console.error("[invite] mail dispatch failed:", e);
+    return false;
+  }
+}
 
 async function requireEditor(): Promise<{ id: string }> {
   const supabase = await createClient();
@@ -138,7 +157,7 @@ export async function createInvite(input: {
   email: string;
   display_name: string;
   intended_role: string;
-}): Promise<InviteRow> {
+}): Promise<InviteRow & { mailSent: boolean }> {
   const me = await requireEditor();
   validateEmail(input.email);
   validateDisplayName(input.display_name);
@@ -151,15 +170,16 @@ export async function createInvite(input: {
     intended_role: role,
     invited_by_id: me.id,
   });
+  const mailSent = await dispatchInviteMail(invite);
   revalidateAdminPaths();
-  return invite;
+  return { ...invite, mailSent };
 }
 
 export async function createAuthorWithInvite(input: {
   email: string;
   display_name: string;
   intended_role: string;
-}): Promise<{ author: AuthorRow; invite: InviteRow }> {
+}): Promise<{ author: AuthorRow; invite: InviteRow; mailSent: boolean }> {
   const me = await requireEditor();
   validateEmail(input.email);
   validateDisplayName(input.display_name);
@@ -177,8 +197,9 @@ export async function createAuthorWithInvite(input: {
     intended_role: role,
     invited_by_id: me.id,
   });
+  const mailSent = await dispatchInviteMail(invite);
   revalidateAdminPaths();
-  return { author, invite };
+  return { author, invite, mailSent };
 }
 
 export async function createAuthorPlaceholder(input: {
@@ -213,7 +234,7 @@ export async function revokeInvite(id: string): Promise<void> {
   revalidateAdminPaths();
 }
 
-export async function resendInvite(id: string): Promise<InviteRow> {
+export async function resendInvite(id: string): Promise<InviteRow & { mailSent: boolean }> {
   await requireEditor();
   const supabase = await createClient();
 
@@ -245,11 +266,14 @@ export async function resendInvite(id: string): Promise<InviteRow> {
     .select("*")
     .single();
   if (error) throw error;
+  const mailSent = await dispatchInviteMail(data);
   revalidateAdminPaths();
-  return data;
+  return { ...data, mailSent };
 }
 
-export async function generateInviteForExistingPlaceholder(authorId: string): Promise<InviteRow> {
+export async function generateInviteForExistingPlaceholder(
+  authorId: string,
+): Promise<InviteRow & { mailSent: boolean }> {
   const me = await requireEditor();
   const supabase = await createClient();
 
@@ -283,8 +307,9 @@ export async function generateInviteForExistingPlaceholder(authorId: string): Pr
     intended_role: author.role,
     invited_by_id: me.id,
   });
+  const mailSent = await dispatchInviteMail(invite);
   revalidateAdminPaths();
-  return invite;
+  return { ...invite, mailSent };
 }
 
 async function generateToken(): Promise<string> {

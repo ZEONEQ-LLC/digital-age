@@ -26,6 +26,7 @@ type SuccessResult = {
   email: string;
   display_name: string;
   intended_role: "author" | "editor";
+  mailSent: boolean;
 };
 
 const roleStyles: Record<AuthorRole, { bg: string; color: string; label: string }> = {
@@ -84,12 +85,13 @@ export default function AdminAuthorsClient({ initialAuthors, inviterName }: Prop
     setModalError(null);
     startModalTransition(async () => {
       try {
-        const { invite } = await createAuthorWithInvite(modalForm);
+        const { invite, mailSent } = await createAuthorWithInvite(modalForm);
         setModalSuccess({
           token: invite.token,
           email: invite.email,
           display_name: invite.display_name ?? modalForm.display_name,
           intended_role: modalForm.intended_role,
+          mailSent,
         });
         setModalMode("success");
         router.refresh();
@@ -346,7 +348,20 @@ export default function AdminAuthorsClient({ initialAuthors, inviterName }: Prop
         <div className="a-adm-overlay" onClick={closeModal}>
           <div className="a-adm-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Author angelegt</h3>
-            <p className="lead">Einladung für <strong>{modalSuccess.email}</strong> wurde erzeugt. Kopiere den Text und sende ihn per Mail/Chat.</p>
+            <p className="lead">
+              {modalSuccess.mailSent ? (
+                <>
+                  Einladungs-Mail an <strong>{modalSuccess.email}</strong>{" "}
+                  versendet. URL/Text bleiben unten als Backup-Kanal.
+                </>
+              ) : (
+                <>
+                  Einladung für <strong>{modalSuccess.email}</strong> wurde
+                  erzeugt, der Mail-Versand ist fehlgeschlagen. Bitte den Text
+                  oder die URL unten manuell senden.
+                </>
+              )}
+            </p>
             <div className="a-adm-url-box">{inviteUrlFor(modalSuccess.token)}</div>
             <div className="a-adm-modal-actions">
               <button
@@ -404,6 +419,7 @@ function EditAuthorDrawer({ author, inviterName, onClose, onSaved, onDeleted }: 
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [generatedInviteToken, setGeneratedInviteToken] = useState<string | null>(null);
+  const [generatedInviteMailSent, setGeneratedInviteMailSent] = useState<boolean>(false);
 
   function save() {
     setError(null);
@@ -452,6 +468,7 @@ function EditAuthorDrawer({ author, inviterName, onClose, onSaved, onDeleted }: 
       try {
         const invite = await generateInviteForExistingPlaceholder(author.id);
         setGeneratedInviteToken(invite.token);
+        setGeneratedInviteMailSent(invite.mailSent);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       }
@@ -482,7 +499,11 @@ function EditAuthorDrawer({ author, inviterName, onClose, onSaved, onDeleted }: 
           <div style={{ background: "rgba(255,140,66,0.10)", border: "1px solid rgba(255,140,66,0.3)", borderRadius: 4, padding: 12, marginBottom: 20, fontSize: 12, color: "var(--da-orange)" }}>
             Placeholder-Author (noch kein Login). {generatedInviteToken ? (
               <>
-                <div style={{ marginTop: 8 }}>Neue Einladung:</div>
+                <div style={{ marginTop: 8 }}>
+                  {generatedInviteMailSent
+                    ? `Einladungs-Mail an ${author.email} versendet. URL/Text bleiben als Backup.`
+                    : "Einladung erzeugt, Mail-Versand fehlgeschlagen. Bitte URL/Text manuell senden:"}
+                </div>
                 <div className="a-adm-url-box" style={{ marginTop: 6, marginBottom: 6 }}>{inviteUrlFor(generatedInviteToken)}</div>
                 <div style={{ display: "flex", gap: 6 }}>
                   <button className="a-adm-btn-secondary" onClick={() => navigator.clipboard.writeText(inviteUrlFor(generatedInviteToken))}>Nur URL</button>
