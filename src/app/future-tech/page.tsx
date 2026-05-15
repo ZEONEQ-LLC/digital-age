@@ -74,7 +74,6 @@ export default async function FutureTechPage() {
         trendingTags={trendingTags}
         authors={authors}
         topTags={topTags}
-        newsletter={{ title: "Future Tech — wöchentlich", rhythm: "Jeden Donnerstag. Kein Spam." }}
         accentColor="purple"
       />
       <div style={{ height: "var(--sp-20)" }} />

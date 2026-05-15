@@ -517,6 +517,93 @@ Tag-System komplett (T1 Foundation, T2 Public-Frontend, T3 Admin).
   authors-Query (`user_id IN (...)` → `display_name`), weil
   `auth.users` nicht direkt joinbar ist.
 
+### Newsletter-Backend (Phase 9)
+
+DSGVO-konformes Backend für Newsletter-Anmeldungen. Confirmation-Flow ist
+schema-bereit (Token wird pro Subscriber generiert), aber **inaktiv** bis
+Resend in einem späteren PR aufgeschaltet wird — alle Anmeldungen bleiben
+vorerst `status='pending'`.
+
+- **Tabelle `newsletter_subscribers`** (Migration `20260515150547_newsletter.sql`):
+  - `email` ist UNIQUE, beim Insert lowercase-normalisiert in der Server Action,
+    plus zusätzlicher Index auf `lower(email)` für case-insensitive Lookups.
+  - `email_domain` ist eine **STORED Generated Column**
+    `lower(split_part(email,'@',2))` — automatisch beim Insert berechnet.
+    Postgres 12+, Supabase-supported. In TS-Types erscheint sie als
+    optionales Insert-Feld; wir setzen es nie und überlassen es der DB.
+  - `status` check (`pending` / `confirmed` / `unsubscribed`)
+  - `source` check (`footer` / `inline` / `full` / `sidebar`)
+  - `consent_at` + `consent_text` als DSGVO-Beweispflicht: wer hat WANN
+    welchen WORTLAUT abgesegnet (CONSENT_TEXT-Konstanten in
+    `NewsletterSignup.tsx`).
+  - `ip_hash` ist die SHA-256-gehashte IP mit Server-Salt
+    (`NEWSLETTER_IP_HASH_SALT`), nie Klartext.
+  - `confirmation_token` wird pro Insert generiert, bleibt unbenutzt bis
+    Resend-Flow kommt.
+
+- **Tabelle `newsletter_signup_attempts`** (gleiche Migration): nur für
+  serverseitiges Rate-Limiting. Index auf `(ip_hash, attempted_at DESC)`.
+  RLS aktiv, KEINE Policies — nur Service-Role-Client (Server Action)
+  schreibt + liest. Cleanup opportunistisch: bei jedem Insert werden
+  Einträge >24h alt mit-gelöscht (kein Cron).
+
+- **RLS:** SELECT/UPDATE auf `newsletter_subscribers` nur für Editor
+  (`is_editor()` aus T1-Migration). KEIN DELETE-Policy — Unsubscribe
+  setzt nur `status='unsubscribed'` + `unsubscribed_at`. Subscriber-
+  History bleibt für Audit. Inserts laufen ausschliesslich über die
+  Server Action mit Service-Role-Key, der RLS bypasst.
+
+- **Server Action `subscribeToNewsletter`**
+  (`src/lib/newsletter/subscribe.ts`):
+  - Honeypot-Check (`honeypot`-Feld in allen Form-Varianten, hidden via
+    `position: absolute; left: -9999px`) — gefüllt = Bot → silent success.
+  - Email-Validation: `^[^\s@]+@[^\s@]+\.[^\s@]+$`, max 320 Zeichen, lowercase.
+  - Consent-Check: `consent !== true` → Error.
+  - Rate-Limit pro IP-Hash: ≤5/1h und ≤20/24h. Über-Limit → silent success.
+  - On unique-Conflict (Duplikat-Email): silent success (Privacy:
+    keine Email-Enumeration via Probe-Requests).
+  - Nutzt `createServiceClient()` aus `src/lib/supabase/service.ts`
+    (`SUPABASE_SERVICE_ROLE_KEY`), nicht den ssr-Client. RLS-bypass ist
+    absichtlich, da keine anon-INSERT-Policy existiert.
+
+- **Komponente `NewsletterSignup.tsx`**: 4 Varianten (compact = Footer,
+  inline = Artikel-CTA, full = `/newsletter`, sidebar = TopicListing).
+  Alle haben Honeypot + Einwilligungs-Checkbox + Datenschutz-Link.
+  `consentText` ist als Konstante pro Variant gepflegt und wird mit dem
+  Insert persistiert. Submit-Button bleibt disabled bis Email valid +
+  Checkbox checked. Success-Verhalten:
+  - `full` / `inline`: Redirect auf `/newsletter/danke`.
+  - `compact` / `sidebar`: Inline-Success-Message (Footer-/Sidebar-Redirect
+    wäre für den User unangenehm).
+
+- **`TopicListing`-Sidebar**: hardcoded Form weg, `<NewsletterSignup
+  variant="sidebar" />` rein. Damit hat die Sidebar-Anmeldung die gleiche
+  DSGVO-Behandlung wie die anderen Touchpoints. Der bisher unused
+  `newsletter`-Prop auf `TopicListing` wurde gestrichen, ebenso in
+  `/ki-im-business` und `/future-tech`.
+
+- **`/newsletter/danke`-Copy** angepasst auf "Wir haben deine Anmeldung
+  erhalten. Sobald wir den E-Mail-Versand aufschalten, schicken wir dir
+  eine Bestätigungs-Mail…" — kein "wir haben dir eine Mail geschickt"
+  mehr, solange Resend noch nicht da ist.
+
+- **Admin-View `/autor/admin/newsletter`** (Editor-only via
+  `(suite)/admin/layout.tsx`-Gate):
+  - Status-Tabs (Alle / Pending / Confirmed / Unsubscribed) mit Counts.
+  - URL-State via `?status=...&sort=...` (router.push).
+  - Sortierung: `created_at` desc (default), `email` asc, `status` asc.
+  - Tabelle Desktop / Card-Layout <768px.
+  - **CSV-Export** client-seitig: aktuell sichtbare gefilterte Rows,
+    Filename `newsletter-subscribers-<YYYY-MM-DD>-<status>.csv`.
+  - **Unsubscribe-Action** (`unsubscribeSubscriber` Server Action) mit
+    Confirm-Dialog. Setzt nur `status='unsubscribed'` + Timestamp, löscht
+    nichts.
+
+- **Env-Variable** `NEWSLETTER_IP_HASH_SALT` (32-byte hex, z.B.
+  `openssl rand -hex 32`) muss in Vercel + `.env.local` gesetzt sein.
+  Ohne Salt wird kein IP-Hash gespeichert und das Rate-Limit greift
+  pro-Request (nicht pro-IP).
+
 ### Invite-Flow (PR B)
 
 **Pragma:** Editor generiert Token, kopiert URL und versendet sie manuell
