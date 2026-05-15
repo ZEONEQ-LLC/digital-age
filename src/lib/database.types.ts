@@ -466,6 +466,75 @@ export type Database = {
           },
         ]
       }
+      newsletter_signup_attempts: {
+        Row: {
+          attempted_at: string
+          id: string
+          ip_hash: string
+        }
+        Insert: {
+          attempted_at?: string
+          id?: string
+          ip_hash: string
+        }
+        Update: {
+          attempted_at?: string
+          id?: string
+          ip_hash?: string
+        }
+        Relationships: []
+      }
+      newsletter_subscribers: {
+        Row: {
+          confirmation_token: string | null
+          confirmed_at: string | null
+          consent_at: string
+          consent_text: string
+          created_at: string
+          email: string
+          email_domain: string | null
+          id: string
+          ip_hash: string | null
+          source: string
+          status: string
+          unsubscribed_at: string | null
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          confirmation_token?: string | null
+          confirmed_at?: string | null
+          consent_at?: string
+          consent_text: string
+          created_at?: string
+          email: string
+          email_domain?: string | null
+          id?: string
+          ip_hash?: string | null
+          source: string
+          status?: string
+          unsubscribed_at?: string | null
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          confirmation_token?: string | null
+          confirmed_at?: string | null
+          consent_at?: string
+          consent_text?: string
+          created_at?: string
+          email?: string
+          email_domain?: string | null
+          id?: string
+          ip_hash?: string | null
+          source?: string
+          status?: string
+          unsubscribed_at?: string | null
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       podcasts: {
         Row: {
           apple_podcasts_url: string | null

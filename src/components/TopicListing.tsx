@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import ArticleListRow, { type ListArticle } from "./ArticleListRow";
+import NewsletterSignup from "./NewsletterSignup";
 
 type Accent = "green" | "orange" | "purple";
 
@@ -34,7 +35,6 @@ export type TopicListingProps = {
   trendingTags: string[];
   authors: AuthorSpotlight[];
   topTags?: TopTagItem[];
-  newsletter: { title: string; rhythm: string };
   accentColor?: Accent;
 };
 
@@ -50,7 +50,6 @@ export default function TopicListing({
   trendingTags,
   authors,
   topTags = [],
-  newsletter,
   accentColor = "green",
 }: TopicListingProps) {
   const accent = accentVar[accentColor];
@@ -248,55 +247,6 @@ export default function TopicListing({
         .tl-author__role { color: var(--da-muted); font-size: 11px; }
         .tl-author__count { color: var(--accent); font-size: 11px; font-family: var(--da-font-mono); flex-shrink: 0; }
 
-        .tl-newsletter {
-          background: var(--da-card);
-          border: 1px solid var(--accent);
-          border-radius: var(--r-lg);
-          padding: 20px;
-        }
-        .tl-newsletter__overline {
-          color: var(--accent);
-          font-family: var(--da-font-mono);
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          margin-bottom: 8px;
-        }
-        .tl-newsletter__title {
-          color: var(--da-text);
-          font-family: var(--da-font-display);
-          font-size: var(--fs-body);
-          font-weight: 700;
-          line-height: 1.4;
-          margin-bottom: 6px;
-        }
-        .tl-newsletter__sub { color: var(--da-muted); font-size: var(--fs-meta); line-height: 1.5; margin-bottom: 16px; }
-        .tl-newsletter__input {
-          width: 100%;
-          background: var(--da-dark);
-          color: var(--da-text);
-          border: 1px solid var(--da-border);
-          border-radius: var(--r-sm);
-          padding: 9px 12px;
-          font-size: var(--fs-body-sm);
-          font-family: var(--da-font-body);
-          margin-bottom: 8px;
-        }
-        .tl-newsletter__btn {
-          width: 100%;
-          background: var(--accent);
-          color: var(--da-dark);
-          border: none;
-          padding: 10px;
-          border-radius: var(--r-sm);
-          font-size: var(--fs-body-sm);
-          font-weight: 700;
-          cursor: pointer;
-          transition: filter var(--t-fast);
-        }
-        .tl-newsletter__btn:hover { filter: brightness(1.08); }
-
         .tl-feed-head {
           display: flex; align-items: center; justify-content: space-between;
           margin-bottom: var(--sp-4);
@@ -468,13 +418,7 @@ export default function TopicListing({
               ))}
             </div>
 
-            <div className="tl-newsletter">
-              <p className="tl-newsletter__overline">Newsletter</p>
-              <p className="tl-newsletter__title">{newsletter.title}</p>
-              <p className="tl-newsletter__sub">{newsletter.rhythm}</p>
-              <input type="email" placeholder="deine@email.ch" className="tl-newsletter__input" />
-              <button type="button" className="tl-newsletter__btn">Abonnieren →</button>
-            </div>
+            <NewsletterSignup variant="sidebar" />
           </aside>
         )}
 

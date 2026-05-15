@@ -74,7 +74,6 @@ export default async function KIBusinessPage() {
         trendingTags={trendingTags}
         authors={authors}
         topTags={topTags}
-        newsletter={{ title: "KI & Business — wöchentlich", rhythm: "Jeden Montag. Kein Spam." }}
         accentColor="green"
       />
       <div style={{ height: "var(--sp-20)" }} />
