@@ -16,9 +16,11 @@ type BlockReaderProps = {
 // Source-Marker `[^N]` linkt direkt auf die externe URL der Quelle, falls
 // vorhanden. Fallback: Anchor auf das Source-Liste-Item am Article-Ende
 // (`#source-N`).
+type RenderInner = (text: string) => ReactNode;
+
 type Pattern = {
   re: RegExp;
-  render: (m: RegExpExecArray, key: number) => ReactNode;
+  render: (m: RegExpExecArray, key: number, renderInner: RenderInner) => ReactNode;
 };
 
 function buildPatterns(sourceUrlByDisplay: Map<number, string>): Pattern[] {
@@ -26,6 +28,7 @@ function buildPatterns(sourceUrlByDisplay: Map<number, string>): Pattern[] {
     {
       re: /\[\^(\d+)\]/,
       render: (m, key) => {
+        // Source-Refs haben keinen Inhalt zum Rekursieren — nur die Zahl.
         const n = m[1];
         const url = sourceUrlByDisplay.get(parseInt(n, 10));
         if (url) {
@@ -53,23 +56,23 @@ function buildPatterns(sourceUrlByDisplay: Map<number, string>): Pattern[] {
     },
     {
       re: /\[\[([^\]]+)\]\]\(([^)]+)\)/,
-      render: (m, key) => (
+      render: (m, key, renderInner) => (
         <Link key={key} href={`/artikel/${m[1]}`} className="internal-link">
-          {m[2]}
+          {renderInner(m[2])}
         </Link>
       ),
     },
     {
       re: /\[([^\]]+)\]\(([^)]+)\)/,
-      render: (m, key) => (
+      render: (m, key, renderInner) => (
         <a key={key} href={m[2]} target="_blank" rel="noopener noreferrer">
-          {m[1]}
+          {renderInner(m[1])}
         </a>
       ),
     },
     {
       re: /\{\{(g|o)\}\}([\s\S]*?)\{\{\/\1\}\}/,
-      render: (m, key) => (
+      render: (m, key, renderInner) => (
         <mark
           key={key}
           className={m[1] === "g" ? "hl-green" : "hl-orange"}
@@ -81,29 +84,29 @@ function buildPatterns(sourceUrlByDisplay: Map<number, string>): Pattern[] {
             fontWeight: 600,
           }}
         >
-          {m[2]}
+          {renderInner(m[2])}
         </mark>
       ),
     },
     {
       re: /\{\{(lg|xl)\}\}([\s\S]*?)\{\{\/\1\}\}/,
-      render: (m, key) => (
+      render: (m, key, renderInner) => (
         <span
           key={key}
           className={`size-${m[1]}`}
           style={{ fontSize: m[1] === "xl" ? "1.5em" : "1.2em" }}
         >
-          {m[2]}
+          {renderInner(m[2])}
         </span>
       ),
     },
     {
       re: /\*\*([\s\S]+?)\*\*/,
-      render: (m, key) => <strong key={key}>{m[1]}</strong>,
+      render: (m, key, renderInner) => <strong key={key}>{renderInner(m[1])}</strong>,
     },
     {
       re: /_([^_\n]+)_/,
-      render: (m, key) => <em key={key}>{m[1]}</em>,
+      render: (m, key, renderInner) => <em key={key}>{renderInner(m[1])}</em>,
     },
   ];
 }
@@ -129,6 +132,10 @@ function renderInline(content: string, patterns: Pattern[]): ReactNode[] {
   const nodes: ReactNode[] = [];
   let rest = content;
   let key = 0;
+  // Rekursions-Callback: lässt jeden Pattern auf seine Capture-Gruppe
+  // erneut den Parser laufen, damit verschachtelte Marker wie
+  // `_**bold inside italic**_` korrekt gerendert werden.
+  const renderInner: RenderInner = (text) => renderInline(text, patterns);
 
   while (rest.length > 0) {
     let bestIdx = -1;
@@ -152,7 +159,7 @@ function renderInline(content: string, patterns: Pattern[]): ReactNode[] {
     if (bestIdx > 0) {
       nodes.push(rest.slice(0, bestIdx));
     }
-    nodes.push(patterns[bestPatternIdx].render(bestMatch, key++));
+    nodes.push(patterns[bestPatternIdx].render(bestMatch, key++, renderInner));
     rest = rest.slice(bestIdx + bestMatch[0].length);
   }
 
@@ -213,16 +220,25 @@ function renderBlock(
     renderInline(applySourceMapping(text, sourceMapping), patterns);
   switch (b.type) {
     case "heading": {
-      const style = { scrollMarginTop: "calc(var(--nav-h) + 80px)" } as const;
+      const style = {
+        scrollMarginTop: "calc(var(--nav-h) + 80px)",
+        ...(b.alignment ? { textAlign: b.alignment } : {}),
+      } as React.CSSProperties;
       if (b.level === 2) return <h2 id={b.id} style={style}>{inline(b.content)}</h2>;
       if (b.level === 3) return <h3 id={b.id} style={style}>{inline(b.content)}</h3>;
       return <h4 id={b.id} style={style}>{inline(b.content)}</h4>;
     }
     case "paragraph":
-      return <p>{inline(b.content)}</p>;
+      return (
+        <p style={b.alignment ? { textAlign: b.alignment } : undefined}>
+          {inline(b.content)}
+        </p>
+      );
     case "quote":
       return (
-        <blockquote>
+        <blockquote
+          style={b.alignment ? { textAlign: b.alignment } : undefined}
+        >
           <span>{inline(b.content)}</span>
           {b.attribution && (
             <footer style={{ display: "block", marginTop: 12, color: "var(--da-muted)", fontStyle: "normal", fontSize: 14 }}>
@@ -233,11 +249,11 @@ function renderBlock(
       );
     case "list":
       return b.ordered ? (
-        <ol>
+        <ol style={b.alignment ? { textAlign: b.alignment } : undefined}>
           {b.items.map((it, i) => <li key={i}>{inline(it)}</li>)}
         </ol>
       ) : (
-        <ul>
+        <ul style={b.alignment ? { textAlign: b.alignment } : undefined}>
           {b.items.map((it, i) => <li key={i}>{inline(it)}</li>)}
         </ul>
       );

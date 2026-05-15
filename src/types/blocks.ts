@@ -27,11 +27,18 @@ export type DividerVariant = "full" | "short";
 export type ImageSize = "small" | "normal" | "full";
 export type ImageAlignment = "left" | "center" | "right";
 
+// Text-Block-Alignment. `undefined` = default (linksbündig). `justify` = Blocksatz.
+// Persistiert pro Block in body_blocks; body_md verliert das Feld beim Export
+// (Markdown hat kein natives Alignment). Da body_blocks Source-of-Truth ist,
+// ist das ok — Legacy-Artikel ohne body_blocks fallen via markdownToBlocks
+// auf linksbündig zurück.
+export type TextAlignment = "left" | "center" | "right" | "justify";
+
 export type Block =
-  | { id: string; type: "heading"; level: 2 | 3 | 4; content: string }
-  | { id: string; type: "paragraph"; content: string }
-  | { id: string; type: "quote"; content: string; attribution?: string }
-  | { id: string; type: "list"; items: string[]; ordered: boolean }
+  | { id: string; type: "heading"; level: 2 | 3 | 4; content: string; alignment?: TextAlignment }
+  | { id: string; type: "paragraph"; content: string; alignment?: TextAlignment }
+  | { id: string; type: "quote"; content: string; attribution?: string; alignment?: TextAlignment }
+  | { id: string; type: "list"; items: string[]; ordered: boolean; alignment?: TextAlignment }
   | { id: string; type: "code"; language?: string; content: string }
   | {
       id: string;

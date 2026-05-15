@@ -875,6 +875,42 @@ einer eigenen Phase. Authors sehen die gerenderte Markup in der
 **Vorschau-Tab** im Editor. Hinweis-Banner im Visual-Tab macht das
 transparent.
 
+**Editor-Polish (Phase 8c-2):**
+- **Block-Tools-Grid:** Move-Up/Down/Add/Delete als 2×2-Grid links neben
+  jedem Block (statt horizontaler Reihe). Reihenfolge: oben ↑/↓, unten +/×.
+- **Inline-Toggle-Stack:** `apply()` in `InlineToolbarTextarea` peelt
+  bekannte Wrap-Pairs (`**`, `_`, `{{g}}`, `{{o}}`, `{{lg}}`, `{{xl}}`)
+  sowohl INNERHALB der Selektion (User hat die Wrapper mit-markiert,
+  z.B. nach vorherigem Bold-Klick) als auch AUSSERHALB. Beide Richtungen
+  fliessen in einen Stack zusammen, dann wird das Toggle-Target
+  addiert (als äusserster) oder entfernt. Damit funktionieren
+  Kombinationen wie Bold+Italic+Highlight additiv ohne Doppelwraps.
+  Mutex-Gruppen: Green ↔ Orange (Highlight) und Large ↔ XL (Font-Size)
+  sind jeweils Alternativen — Setzen des einen entfernt das andere.
+- **Selektion-nach-Wrap** umfasst den GESAMTEN emittierten Bereich inkl.
+  aller Wrapper. Damit erkennt der nächste Toolbar-Klick die Wraps
+  innerhalb der Selektion und kann additiv arbeiten oder togglen.
+- **Format-Reset-Button** ganz rechts in der FloatingToolbar (Tx-Icon):
+  baut mit leerem Stack neu auf → strippt ALLE bekannten Wraps um die
+  Selektion in einem Durchgang, egal wie verschachtelt. Block-Alignment
+  bleibt unberührt (lebt im Block-Objekt, nicht im Text).
+- **Block-Tools-Hover-Bridge:** Das Tool-Set links neben jedem Block hat
+  `paddingRight: 16` als unsichtbare Hit-Area, die die 16px-Lücke zur
+  Block-Linkskante überbrückt. Sonst feuert beim Wechsel vom Block-
+  Inhalt zum Tool-Set ein `mouseleave` und die Tools verschwinden bevor
+  der User klicken kann.
+- **Text-Alignment-Buttons** zwischen Italic und Link-Pfeil (Separator
+  davor). Vier Optionen: Links / Zentriert / Rechts / Blocksatz. Wirkt
+  auf den ganzen Block (paragraph/quote — heading/list haben keine
+  FloatingToolbar). Persistiert via `Block.alignment?: TextAlignment`
+  in body_blocks; body_md verliert das Feld beim Export (akzeptabel —
+  body_blocks ist Source-of-Truth). BlockReader rendert
+  `style={{textAlign}}` direkt im jeweiligen Element.
+- **List-Spacing** in `.article-body ul/ol`: margin-top `-12px`
+  (zieht Listen näher an vorherigen Block), margin-bottom `20px`,
+  li.margin-bottom `6px`. Scope ist `.article-body` — andere Listen
+  (Nav, Sidebars) bleiben unverändert.
+
 **Source-System (SourceList):**
 - Quellen in `BlockDocument.sources: Source[]`, jede mit stabiler ID.
 - Inline-Marker `[^N]` ist 1-indexed und referenziert `sources[N-1]`.
