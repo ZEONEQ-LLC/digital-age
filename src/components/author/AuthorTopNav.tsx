@@ -22,6 +22,7 @@ const adminItems: NavItem[] = [
   { id: "admin-invites", label: "Einladungen", href: "/autor/admin/einladungen", icon: "✉" },
   { id: "admin-prompts",  label: "Prompts Admin",  href: "/autor/admin/prompts",  icon: "❖" },
   { id: "admin-startups", label: "Startups", href: "/autor/admin/startups", icon: "⊞" },
+  { id: "admin-tags",     label: "Tags",     href: "/autor/admin/tags",     icon: "#" },
 ];
 
 type AuthorTopNavProps = {

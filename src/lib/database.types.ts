@@ -579,6 +579,50 @@ export type Database = {
           },
         ]
       }
+      tag_audit_log: {
+        Row: {
+          affected_article_ids: string[] | null
+          id: string
+          merged_into_tag_id: string | null
+          operation: string
+          performed_at: string
+          performed_by: string | null
+          tag_id: string | null
+          tag_name_after: string | null
+          tag_name_before: string
+        }
+        Insert: {
+          affected_article_ids?: string[] | null
+          id?: string
+          merged_into_tag_id?: string | null
+          operation: string
+          performed_at?: string
+          performed_by?: string | null
+          tag_id?: string | null
+          tag_name_after?: string | null
+          tag_name_before: string
+        }
+        Update: {
+          affected_article_ids?: string[] | null
+          id?: string
+          merged_into_tag_id?: string | null
+          operation?: string
+          performed_at?: string
+          performed_by?: string | null
+          tag_id?: string | null
+          tag_name_after?: string | null
+          tag_name_before?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tag_audit_log_merged_into_tag_id_fkey"
+            columns: ["merged_into_tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tags: {
         Row: {
           created_at: string
@@ -613,6 +657,7 @@ export type Database = {
         Returns: boolean
       }
       current_author_id: { Args: never; Returns: string }
+      delete_tag: { Args: { p_tag_id: string }; Returns: Json }
       get_invite_by_token: {
         Args: { p_token: string }
         Returns: {
@@ -639,6 +684,14 @@ export type Database = {
       }
       increment_prompt_uses: { Args: { p_id: string }; Returns: undefined }
       is_editor: { Args: never; Returns: boolean }
+      merge_tags: {
+        Args: { p_from_id: string; p_to_id: string }
+        Returns: Json
+      }
+      rename_tag: {
+        Args: { p_new_name: string; p_tag_id: string }
+        Returns: Json
+      }
       suggest_startup_slug: { Args: { p_name: string }; Returns: string }
     }
     Enums: {
