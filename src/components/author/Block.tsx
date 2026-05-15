@@ -554,6 +554,11 @@ export default function Block({
           gridAutoRows: "auto",
           gap: 4,
           alignItems: "center",
+          // Hit-Area nach rechts bis zur Block-Linkskante verlängern (16px
+          // Lücke zwischen Tool-Set und Block-Inhalt), damit der Mauszeiger
+          // beim Wechsel vom Block zum Tool-Set keine Dead-Zone trifft und
+          // den onMouseLeave des Parents auslöst.
+          paddingRight: 16,
           zIndex: 5,
         }}
       >
