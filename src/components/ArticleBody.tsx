@@ -36,10 +36,10 @@ export default function ArticleBody({ children }: { children: React.ReactNode })
           border-radius: 0 var(--r-lg) var(--r-lg) 0;
         }
         .article-body ul,
-        .article-body ol { margin: 0 0 28px 28px; padding: 0; }
+        .article-body ol { margin: -12px 0 20px 28px; padding: 0; }
         .article-body ul { list-style: disc outside; }
         .article-body ol { list-style: decimal outside; }
-        .article-body li { margin-bottom: 10px; padding-left: 4px; }
+        .article-body li { margin-bottom: 6px; padding-left: 4px; }
         .article-body strong { color: var(--da-text); font-weight: 600; }
         .article-body code {
           background: var(--da-card);

@@ -213,16 +213,25 @@ function renderBlock(
     renderInline(applySourceMapping(text, sourceMapping), patterns);
   switch (b.type) {
     case "heading": {
-      const style = { scrollMarginTop: "calc(var(--nav-h) + 80px)" } as const;
+      const style = {
+        scrollMarginTop: "calc(var(--nav-h) + 80px)",
+        ...(b.alignment ? { textAlign: b.alignment } : {}),
+      } as React.CSSProperties;
       if (b.level === 2) return <h2 id={b.id} style={style}>{inline(b.content)}</h2>;
       if (b.level === 3) return <h3 id={b.id} style={style}>{inline(b.content)}</h3>;
       return <h4 id={b.id} style={style}>{inline(b.content)}</h4>;
     }
     case "paragraph":
-      return <p>{inline(b.content)}</p>;
+      return (
+        <p style={b.alignment ? { textAlign: b.alignment } : undefined}>
+          {inline(b.content)}
+        </p>
+      );
     case "quote":
       return (
-        <blockquote>
+        <blockquote
+          style={b.alignment ? { textAlign: b.alignment } : undefined}
+        >
           <span>{inline(b.content)}</span>
           {b.attribution && (
             <footer style={{ display: "block", marginTop: 12, color: "var(--da-muted)", fontStyle: "normal", fontSize: 14 }}>
@@ -233,11 +242,11 @@ function renderBlock(
       );
     case "list":
       return b.ordered ? (
-        <ol>
+        <ol style={b.alignment ? { textAlign: b.alignment } : undefined}>
           {b.items.map((it, i) => <li key={i}>{inline(it)}</li>)}
         </ol>
       ) : (
-        <ul>
+        <ul style={b.alignment ? { textAlign: b.alignment } : undefined}>
           {b.items.map((it, i) => <li key={i}>{inline(it)}</li>)}
         </ul>
       );

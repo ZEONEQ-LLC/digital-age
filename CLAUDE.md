@@ -875,6 +875,30 @@ einer eigenen Phase. Authors sehen die gerenderte Markup in der
 **Vorschau-Tab** im Editor. Hinweis-Banner im Visual-Tab macht das
 transparent.
 
+**Editor-Polish (Phase 8c-2):**
+- **Block-Tools-Grid:** Move-Up/Down/Add/Delete als 2×2-Grid links neben
+  jedem Block (statt horizontaler Reihe). Reihenfolge: oben ↑/↓, unten +/×.
+- **Inline-Toggle-Stack:** `apply()` in `InlineToolbarTextarea` peelt
+  bekannte Wrap-Pairs (`**`, `_`, `{{g}}`, `{{o}}`, `{{lg}}`, `{{xl}}`)
+  rekursiv um die Selektion herum, prüft ob das Toggle-Ziel im Stack
+  steckt, und addiert/entfernt es. Damit funktionieren Kombinationen
+  wie Bold+Italic+Highlight ohne Doppelwraps. Mutex-Gruppen:
+  Green ↔ Orange (Highlight) und Large ↔ XL (Font-Size) sind
+  jeweils Alternativen — Setzen des einen entfernt das andere.
+- **Format-Reset-Button** ganz rechts in der FloatingToolbar (Tx-Icon):
+  strippt ALLE bekannten Wraps um die Selektion. Block-Alignment bleibt.
+- **Text-Alignment-Buttons** zwischen Italic und Link-Pfeil (Separator
+  davor). Vier Optionen: Links / Zentriert / Rechts / Blocksatz. Wirkt
+  auf den ganzen Block (paragraph/quote — heading/list haben keine
+  FloatingToolbar). Persistiert via `Block.alignment?: TextAlignment`
+  in body_blocks; body_md verliert das Feld beim Export (akzeptabel —
+  body_blocks ist Source-of-Truth). BlockReader rendert
+  `style={{textAlign}}` direkt im jeweiligen Element.
+- **List-Spacing** in `.article-body ul/ol`: margin-top `-12px`
+  (zieht Listen näher an vorherigen Block), margin-bottom `20px`,
+  li.margin-bottom `6px`. Scope ist `.article-body` — andere Listen
+  (Nav, Sidebars) bleiben unverändert.
+
 **Source-System (SourceList):**
 - Quellen in `BlockDocument.sources: Source[]`, jede mit stabiler ID.
 - Inline-Marker `[^N]` ist 1-indexed und referenziert `sources[N-1]`.

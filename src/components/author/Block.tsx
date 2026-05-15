@@ -139,10 +139,17 @@ export default function Block({
       return (
         <InlineToolbarTextarea
           rows={Math.max(2, block.content.split("\n").length)}
-          style={{ ...baseInput, fontSize: 15, color: "var(--da-text-strong)" }}
+          style={{
+            ...baseInput,
+            fontSize: 15,
+            color: "var(--da-text-strong)",
+            textAlign: block.alignment ?? "left",
+          }}
           value={block.content}
           placeholder="Schreib hier… **bold**, _italic_, [link](url), Selektion + Floating-Toolbar für Highlights"
           onChange={(content) => onChange({ ...block, content })}
+          alignment={block.alignment}
+          onSetAlignment={(a) => onChange({ ...block, alignment: a })}
           onRequestArticlePick={onRequestArticlePick}
           onRequestSourcePick={onRequestSourcePick}
         />
@@ -153,10 +160,18 @@ export default function Block({
         <div style={{ borderLeft: "3px solid var(--da-green)", paddingLeft: 16 }}>
           <InlineToolbarTextarea
             rows={2}
-            style={{ ...baseInput, fontSize: 18, fontStyle: "italic", color: "var(--da-text)" }}
+            style={{
+              ...baseInput,
+              fontSize: 18,
+              fontStyle: "italic",
+              color: "var(--da-text)",
+              textAlign: block.alignment ?? "left",
+            }}
             value={block.content}
             placeholder="Zitat…"
             onChange={(content) => onChange({ ...block, content })}
+            alignment={block.alignment}
+            onSetAlignment={(a) => onChange({ ...block, alignment: a })}
             onRequestArticlePick={onRequestArticlePick}
             onRequestSourcePick={onRequestSourcePick}
           />
@@ -534,7 +549,9 @@ export default function Block({
           position: "absolute",
           left: -64,
           top: 12,
-          display: hov ? "flex" : "none",
+          display: hov ? "grid" : "none",
+          gridTemplateColumns: "repeat(2, auto)",
+          gridAutoRows: "auto",
           gap: 4,
           alignItems: "center",
           zIndex: 5,
