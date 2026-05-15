@@ -11,9 +11,11 @@ import type { Source } from "@/types/blocks";
 // Renumbering, weil dieser Komponente das Block-Kontext fehlt). Externe URL
 // wird genutzt falls vorhanden, sonst Anchor `#source-N`.
 
+type RenderInner = (text: string) => ReactNode;
+
 type Pattern = {
   re: RegExp;
-  render: (m: RegExpExecArray, key: number) => ReactNode;
+  render: (m: RegExpExecArray, key: number, renderInner: RenderInner) => ReactNode;
 };
 
 function buildPatterns(sourceUrlByN: Map<number, string>): Pattern[] {
@@ -21,6 +23,7 @@ function buildPatterns(sourceUrlByN: Map<number, string>): Pattern[] {
     {
       re: /\[\^(\d+)\]/,
       render: (m, key) => {
+        // Source-Refs: keine Capture-Gruppe zum Rekursieren.
         const n = m[1];
         const url = sourceUrlByN.get(parseInt(n, 10));
         if (url) {
@@ -48,23 +51,23 @@ function buildPatterns(sourceUrlByN: Map<number, string>): Pattern[] {
     },
     {
       re: /\[\[([^\]]+)\]\]\(([^)]+)\)/,
-      render: (m, key) => (
+      render: (m, key, renderInner) => (
         <Link key={key} href={`/artikel/${m[1]}`} className="internal-link">
-          {m[2]}
+          {renderInner(m[2])}
         </Link>
       ),
     },
     {
       re: /\[([^\]]+)\]\(([^)]+)\)/,
-      render: (m, key) => (
+      render: (m, key, renderInner) => (
         <a key={key} href={m[2]} target="_blank" rel="noopener noreferrer">
-          {m[1]}
+          {renderInner(m[1])}
         </a>
       ),
     },
     {
       re: /\{\{(g|o)\}\}([\s\S]*?)\{\{\/\1\}\}/,
-      render: (m, key) => (
+      render: (m, key, renderInner) => (
         <mark
           key={key}
           className={m[1] === "g" ? "hl-green" : "hl-orange"}
@@ -76,29 +79,29 @@ function buildPatterns(sourceUrlByN: Map<number, string>): Pattern[] {
             fontWeight: 600,
           }}
         >
-          {m[2]}
+          {renderInner(m[2])}
         </mark>
       ),
     },
     {
       re: /\{\{(lg|xl)\}\}([\s\S]*?)\{\{\/\1\}\}/,
-      render: (m, key) => (
+      render: (m, key, renderInner) => (
         <span
           key={key}
           className={`size-${m[1]}`}
           style={{ fontSize: m[1] === "xl" ? "1.5em" : "1.2em" }}
         >
-          {m[2]}
+          {renderInner(m[2])}
         </span>
       ),
     },
     {
       re: /\*\*([\s\S]+?)\*\*/,
-      render: (m, key) => <strong key={key}>{m[1]}</strong>,
+      render: (m, key, renderInner) => <strong key={key}>{renderInner(m[1])}</strong>,
     },
     {
       re: /_([^_\n]+)_/,
-      render: (m, key) => <em key={key}>{m[1]}</em>,
+      render: (m, key, renderInner) => <em key={key}>{renderInner(m[1])}</em>,
     },
   ];
 }
@@ -107,6 +110,8 @@ function renderTokens(content: string, patterns: Pattern[]): ReactNode[] {
   const nodes: ReactNode[] = [];
   let rest = content;
   let key = 0;
+  // Rekursions-Callback für verschachtelte Marker (z.B. `_**text**_`).
+  const renderInner: RenderInner = (text) => renderTokens(text, patterns);
 
   while (rest.length > 0) {
     let bestIdx = -1;
@@ -129,7 +134,7 @@ function renderTokens(content: string, patterns: Pattern[]): ReactNode[] {
     if (bestIdx > 0) {
       nodes.push(rest.slice(0, bestIdx));
     }
-    nodes.push(patterns[bestPatternIdx].render(bestMatch, key++));
+    nodes.push(patterns[bestPatternIdx].render(bestMatch, key++, renderInner));
     rest = rest.slice(bestIdx + bestMatch[0].length);
   }
   return nodes;
