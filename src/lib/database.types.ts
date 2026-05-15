@@ -468,16 +468,19 @@ export type Database = {
       }
       newsletter_signup_attempts: {
         Row: {
+          action: string
           attempted_at: string
           id: string
           ip_hash: string
         }
         Insert: {
+          action?: string
           attempted_at?: string
           id?: string
           ip_hash: string
         }
         Update: {
+          action?: string
           attempted_at?: string
           id?: string
           ip_hash?: string
@@ -486,6 +489,7 @@ export type Database = {
       }
       newsletter_subscribers: {
         Row: {
+          confirmation_expires_at: string
           confirmation_token: string | null
           confirmed_at: string | null
           consent_at: string
@@ -502,6 +506,7 @@ export type Database = {
           user_agent: string | null
         }
         Insert: {
+          confirmation_expires_at?: string
           confirmation_token?: string | null
           confirmed_at?: string | null
           consent_at?: string
@@ -518,6 +523,7 @@ export type Database = {
           user_agent?: string | null
         }
         Update: {
+          confirmation_expires_at?: string
           confirmation_token?: string | null
           confirmed_at?: string | null
           consent_at?: string

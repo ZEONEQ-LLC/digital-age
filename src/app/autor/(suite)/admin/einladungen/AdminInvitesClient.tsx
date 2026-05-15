@@ -48,6 +48,7 @@ export default function AdminInvitesClient({ initialInvites }: Props) {
   const invites = initialInvites;
   const [filter, setFilter] = useState<FilterKey>("pending");
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
@@ -90,10 +91,18 @@ export default function AdminInvitesClient({ initialInvites }: Props) {
 
   function doResend(id: string) {
     setError(null);
+    setInfo(null);
     setPendingId(id);
     startTransition(async () => {
       try {
-        await resendInvite(id);
+        const result = await resendInvite(id);
+        if (result.mailSent) {
+          setInfo(`Einladung an ${result.email} versendet.`);
+        } else {
+          setInfo(
+            `Token erneuert. Mail-Versand fehlgeschlagen — bitte Clipboard-Copy nutzen.`,
+          );
+        }
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -174,6 +183,23 @@ export default function AdminInvitesClient({ initialInvites }: Props) {
       `}</style>
 
       {error && <div className="a-inv-error">{error}</div>}
+      {info && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            background: "rgba(50,255,126,0.12)",
+            border: "1px solid var(--da-green)",
+            color: "var(--da-text)",
+            padding: "10px 14px",
+            borderRadius: 4,
+            fontSize: 13,
+            marginBottom: 14,
+          }}
+        >
+          {info}
+        </div>
+      )}
 
       <div className="a-inv-filter">
         {filterOrder.map((k) => (

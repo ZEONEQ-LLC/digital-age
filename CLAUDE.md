@@ -604,6 +604,106 @@ vorerst `status='pending'`.
   Ohne Salt wird kein IP-Hash gespeichert und das Rate-Limit greift
   pro-Request (nicht pro-IP).
 
+### Resend-Integration (Phase 10)
+
+Aktiver Email-Versand für Newsletter-Lifecycle + Invite-Automation. React-
+Email als Template-Stack. Auth-Magic-Link-Mails laufen separat über
+Supabase Custom SMTP (Dashboard-Config), nicht über diese Integration.
+
+- **Migration `20260515173722_newsletter_token_expiry_and_rate_limit_action.sql`:**
+  - Neue Spalte `newsletter_subscribers.confirmation_expires_at timestamptz
+    NOT NULL DEFAULT now() + interval '7 days'`. Keine Generated Column —
+    Postgres lehnt `timestamptz + interval` als STABLE statt IMMUTABLE ab.
+    `created_at` und `confirmation_expires_at` haben beide `now()` als
+    Default und sehen denselben Transaktions-`now()`-Wert beim Insert,
+    differieren also exakt um 7 Tage.
+  - Partial-Index nur auf `WHERE status='pending'`.
+  - `newsletter_signup_attempts.action` mit CHECK in (`subscribe`,
+    `unsubscribe`) damit beide Rate-Limit-Pools sauber getrennt sind.
+    Composite-Index `(action, ip_hash, attempted_at DESC)`.
+
+- **Email-Templates** (`src/emails/`):
+  - `_layout.tsx` ist die geteilte Basis: Light-Default-Styles inline +
+    Dark-Override per `@media (prefers-color-scheme: dark)` im `<Head>`
+    mit `!important` auf jeder Color-Property (Inline-Styles haben sonst
+    höhere Spezifität). Semantische Klassen `.heading`, `.text-primary`,
+    `.text-muted`, `.cta-button`, `.accent-link`, `.hint-box`,
+    `.hint-strong`, `.hint-text`, `.footer-text`, `.url-text`,
+    `.divider`. Color-Scheme-Meta-Tags + Outlook-Web-Hard-Dark-Mode-
+    Schutz via `[data-ogsc]`-Selector. Wiederverwendbare Subkomponenten
+    `Heading`, `Paragraph`, `CtaButton`, `HintBox`, `UrlFallback`. Text-
+    Logo statt Bild (`digital-age` + Accent-`.ch`).
+  - `NewsletterConfirmation.tsx` — Subject "Bestätige deine Anmeldung
+    bei digital-age", 7-Tage-Hinweis.
+  - `NewsletterWelcome.tsx` — Subject "Willkommen bei digital-age", CTA
+    auf `/` (Homepage = beste Discovery), Unsubscribe-Link im Footer-
+    Bereich mit demselben Token.
+  - `AuthorInvite.tsx` — Subject "Einladung: Werde Autor bei digital-age",
+    14-Tage-Hinweis, Rolle wird im Text genannt.
+
+- **Mail-Versand-Modul** `src/lib/newsletter/mail.ts`:
+  - `import "server-only"` erzwingt Server-Kontext.
+  - `sendConfirmationMail`, `sendWelcomeMail`, `sendInviteMail` rendern
+    das jeweilige React-Email-Template via `@react-email/render` und
+    versenden über Resend SDK.
+  - Fehler werden geloggt, NICHT geworfen — Caller bekommt
+    `{ ok: false, error }` zurück und entscheidet selbst (z.B. Subscriber
+    bleibt `pending`, Editor sieht Clipboard-Fallback).
+  - `SITE_URL` aus `NEXT_PUBLIC_SITE_URL`, sonst Preview-Fallback.
+
+- **Newsletter-Lifecycle:**
+  - `subscribeToNewsletter` selektiert nach Insert den
+    `confirmation_token` zurück und ruft `sendConfirmationMail`. Bei
+    Mail-Failure bleibt der Subscriber als `pending` — User sieht
+    trotzdem Success-UI (Privacy: kein Email-Enumeration-Vector).
+  - Route `/newsletter/confirm/[token]/page.tsx`: Service-Role-Lookup,
+    UUID-Format-Check, Status-Check (pending → confirmed +
+    `confirmed_at`, idempotent bei bereits confirmed, Redirect zu
+    `/newsletter/abgelaufen` bei unbekannt/expired/unsubscribed),
+    `sendWelcomeMail` fire-and-forget.
+  - Route `/newsletter/abmelden/[token]/page.tsx`: Server-Component
+    lookt Subscriber + maskiert Email (`r***@zeoneq.com`-Pattern). Bei
+    bereits unsubscribed direkter Redirect auf `/newsletter/abgemeldet`.
+    Confirm-Button als Client-Component → ruft
+    `unsubscribeByToken`-Server-Action.
+  - `unsubscribeByToken` (`src/lib/newsletter/unsubscribePublic.ts`):
+    UUID-Check, Rate-Limit (10 Versuche / IP / 1h via
+    `action='unsubscribe'` in `newsletter_signup_attempts`), Setzt
+    `status='unsubscribed'` + `unsubscribed_at`. Kein Expiry-Check —
+    Abmeldung muss jederzeit funktionieren (DSGVO).
+  - Bestätigungs-Pages `/newsletter/bestaetigt`, `/newsletter/abgelaufen`,
+    `/newsletter/abgemeldet` als statische Server-Pages, gleicher
+    Look-and-Feel wie `/newsletter/danke`.
+  - `/newsletter/danke` Copy auf "Bestätigungs-Mail ist unterwegs" +
+    7-Tage-Hinweis aktualisiert.
+
+- **Admin-View Erweiterung** (`/autor/admin/newsletter`):
+  - Neue Spalte "Expiry" für Pending-Rows (`<24h`, `1 Tag`, `5 Tage`,
+    `Abgelaufen`-Status mit Farbcode). Confirmed/Unsubscribed: "—".
+  - CSV-Export bekommt `confirmation_expires_at` mit dazu.
+  - Mobile-Card zeigt Expiry-Hint nur bei Pending.
+
+- **Invite-Automation:**
+  - `dispatchInviteMail`-Helper in `inviteActions.ts` ruft
+    `sendInviteMail` und fängt Errors als `mailSent: false`.
+  - `createInvite`, `createAuthorWithInvite`, `resendInvite`,
+    `generateInviteForExistingPlaceholder` returnen jetzt zusätzlich
+    `mailSent: boolean`. DB-Insert bleibt erfolgreich, auch wenn der
+    Mail-Versand scheitert — Token bleibt nutzbar.
+  - `AdminInvitesClient.tsx` zeigt `info`-Banner mit "Einladung versendet"
+    bzw. "Mail-Versand fehlgeschlagen, Clipboard-Copy nutzen".
+  - `AdminAuthorsClient.tsx` zeigt im Success-Modal von
+    `createAuthorWithInvite` und im Placeholder-Banner von
+    `generateInviteForExistingPlaceholder` den Mail-Status; Clipboard-
+    Buttons bleiben sichtbar als Fallback-Kanal.
+
+- **Env-Variablen** (alle in Vercel als `Sensitive` markiert):
+  - `RESEND_API_KEY` — Resend API-Key
+  - `NEWSLETTER_FROM_EMAIL` — z.B. `digital-age <redaktion@digital-age.ch>`
+  - `NEWSLETTER_REPLY_TO` — z.B. `digital-age@zeoneq.com`
+  - `NEXT_PUBLIC_SITE_URL` — Public, Production-Domain; Fallback ist die
+    Preview-URL.
+
 ### Invite-Flow (PR B)
 
 **Pragma:** Editor generiert Token, kopiert URL und versendet sie manuell

@@ -3,6 +3,7 @@
 import crypto from "node:crypto";
 import { headers } from "next/headers";
 import { createServiceClient } from "@/lib/supabase/service";
+import { sendConfirmationMail } from "@/lib/newsletter/mail";
 
 export type SubscribeSource = "footer" | "inline" | "full" | "sidebar";
 
@@ -116,14 +117,20 @@ export async function subscribeToNewsletter(
   // Insert in newsletter_subscribers. Bei Unique-Conflict auf email
   // (Duplikat) returnen wir silent success — kein Hinweis "diese Email
   // ist bereits angemeldet" (Privacy: keine Email-Enumeration).
-  const { error } = await supabase.from("newsletter_subscribers").insert({
-    email,
-    status: "pending",
-    source: input.source,
-    consent_text: input.consentText,
-    ip_hash: ipHash,
-    user_agent: userAgent,
-  });
+  // `confirmation_token` wird vom DB-Default generiert; via `.select()`
+  // holen wir's zurück, um direkt die Confirmation-Mail zu versenden.
+  const { data: inserted, error } = await supabase
+    .from("newsletter_subscribers")
+    .insert({
+      email,
+      status: "pending",
+      source: input.source,
+      consent_text: input.consentText,
+      ip_hash: ipHash,
+      user_agent: userAgent,
+    })
+    .select("confirmation_token")
+    .single();
 
   if (error) {
     // 23505 = unique_violation (Postgres). Silent success.
@@ -131,6 +138,14 @@ export async function subscribeToNewsletter(
       return { success: true };
     }
     return { success: false, message: "Etwas ist schiefgelaufen. Bitte später nochmal versuchen." };
+  }
+
+  // Mail-Versand bewusst NICHT als hard fail: wenn Resend kaputt ist,
+  // bleibt der Subscriber als `pending` in der DB und der User sieht
+  // trotzdem Success-UI (Privacy: keine Email-Enumeration via Mail-Errors).
+  // Editor kann Pending-Rows später manuell antriggern (Follow-up-PR).
+  if (inserted?.confirmation_token) {
+    await sendConfirmationMail({ email, token: inserted.confirmation_token });
   }
 
   return { success: true };

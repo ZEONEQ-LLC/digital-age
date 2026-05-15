@@ -67,7 +67,7 @@ export default async function AdminNewsletterPage({
   let query = supabase
     .from("newsletter_subscribers")
     .select(
-      "id, email, email_domain, status, source, consent_at, confirmed_at, unsubscribed_at, created_at",
+      "id, email, email_domain, status, source, consent_at, confirmed_at, unsubscribed_at, created_at, confirmation_expires_at",
     );
   if (status !== "all") query = query.eq("status", status);
   if (sort === "email") {
@@ -90,6 +90,7 @@ export default async function AdminNewsletterPage({
     confirmedAt: r.confirmed_at,
     unsubscribedAt: r.unsubscribed_at,
     createdAt: r.created_at,
+    confirmationExpiresAt: r.confirmation_expires_at,
   }));
 
   return (
