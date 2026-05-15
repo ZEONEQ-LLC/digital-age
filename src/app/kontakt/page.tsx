@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Footer from "@/components/Footer";
 import NewsTicker from "@/components/NewsTicker";
 import PageHero from "@/components/PageHero";
+import { submitContactMessage } from "@/lib/contact/submit";
 
 type Topic = "" | "allgemein" | "werbung" | "kooperation" | "feedback" | "presse" | "sonstiges";
 
@@ -78,6 +79,9 @@ export default function KontaktPage() {
   const [data, setData] = useState<ContactFormState>(empty);
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState("");
+  const [pending, startTransition] = useTransition();
 
   useEffect(() => {
     if (submitted) window.scrollTo({ top: 0, behavior: "smooth" });
@@ -125,13 +129,33 @@ export default function KontaktPage() {
       return;
     }
     setErrors({});
-    console.log("[Contact form — backend not yet wired]", data);
-    setSubmitted(true);
+    setServerError(null);
+    startTransition(async () => {
+      const result = await submitContactMessage({
+        name: data.name,
+        email: data.email,
+        topic: data.topic,
+        organization: data.organization,
+        message: data.message,
+        privacyAccepted: data.privacyAccepted,
+        honeypot,
+      });
+      if (!result.ok) {
+        if (result.fieldErrors) {
+          setErrors(result.fieldErrors as typeof errors);
+        }
+        setServerError(result.message);
+        return;
+      }
+      setSubmitted(true);
+    });
   };
 
   const reset = () => {
     setData(empty);
     setErrors({});
+    setHoneypot("");
+    setServerError(null);
     setSubmitted(false);
   };
 
@@ -233,29 +257,10 @@ export default function KontaktPage() {
             >
               Vielen Dank!
             </h2>
-            <p style={{ color: "var(--da-muted)", fontSize: 15, lineHeight: 1.65 }}>
-              Deine Nachricht wurde clientseitig validiert.
+            <p style={{ color: "var(--da-muted)", fontSize: 15, lineHeight: 1.65, marginBottom: 24 }}>
+              Deine Nachricht ist bei der Redaktion. Wir melden uns innert 5 Werktagen
+              an deine angegebene E-Mail-Adresse.
             </p>
-
-            <div className="ko-success__notice">
-              <p
-                style={{
-                  color: "var(--da-orange)",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  fontFamily: "var(--da-font-mono)",
-                  marginBottom: 8,
-                }}
-              >
-                Hinweis
-              </p>
-              <p style={{ color: "var(--da-text-strong)", fontSize: 14, lineHeight: 1.6 }}>
-                Das Backend für den Email-Versand ist aktuell noch nicht aktiv — deine Nachricht wurde
-                <strong> nicht versendet</strong>. Wir aktivieren das Formular in Kürze.
-              </p>
-            </div>
 
             <p style={{ color: "var(--da-muted)", fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
               Falls du einen Artikel einreichen möchtest, nutze bitte direkt unseren Pitch-Flow →{" "}
@@ -424,8 +429,53 @@ export default function KontaktPage() {
                 {errors.privacyAccepted && <p style={errorStyle}>{errors.privacyAccepted}</p>}
               </div>
 
-              <button type="submit" className="ko-submit">
-                Nachricht senden →
+              {/* Honeypot — Bots tippen Inputs aller Art, echte User sehen es nicht. */}
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  left: "-9999px",
+                  width: 1,
+                  height: 1,
+                  overflow: "hidden",
+                }}
+              >
+                <label>
+                  Website
+                  <input
+                    type="text"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={honeypot}
+                    onChange={(e) => setHoneypot(e.target.value)}
+                  />
+                </label>
+              </div>
+
+              {serverError && (
+                <div
+                  role="alert"
+                  style={{
+                    background: "rgba(255,107,107,0.10)",
+                    border: "1px solid #ff6b6b",
+                    borderRadius: 4,
+                    padding: "10px 14px",
+                    color: "#ff8e8e",
+                    fontSize: 13,
+                    marginBottom: 14,
+                  }}
+                >
+                  {serverError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="ko-submit"
+                disabled={pending}
+                style={{ opacity: pending ? 0.7 : 1, cursor: pending ? "wait" : "pointer" }}
+              >
+                {pending ? "Sende…" : "Nachricht senden →"}
               </button>
             </form>
 
