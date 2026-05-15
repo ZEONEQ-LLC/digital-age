@@ -85,8 +85,18 @@ const HEAD_CSS = `
   }
 `;
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://digital-age-v2-eight.vercel.app";
+// Identische Resolve-Logik wie in `src/lib/newsletter/mail.ts`. Hier
+// dupliziert (statt Import), weil das Layout in einem reinen render()-Pass
+// genutzt wird und keine Server-Action-Modul-Boundary überschreitet.
+function resolveSiteUrl(): string {
+  const raw =
+    process.env.NEWSLETTER_SITE_URL?.trim() ||
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
+    "https://digital-age-v2-eight.vercel.app";
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  return withScheme.replace(/\/+$/, "");
+}
+const SITE_URL = resolveSiteUrl();
 
 const FONT_BODY = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 const FONT_DISPLAY = "'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";

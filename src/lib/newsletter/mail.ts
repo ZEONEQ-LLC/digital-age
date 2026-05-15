@@ -13,10 +13,30 @@ import AuthorInvite, {
   SUBJECT as INVITE_SUBJECT,
 } from "@/emails/AuthorInvite";
 
-// SITE_URL aus Env, sonst Vercel-Preview-Fallback. Wird im Resend-Mailing
-// für absolute Links genutzt (Confirmation, Unsubscribe, Invite, CTA).
-export const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://digital-age-v2-eight.vercel.app";
+// SITE_URL für Mails. Robust gegen die Fallstricke:
+//   - `??` greift nur bei undefined; ein leer-gesetztes Env-Var (`""`)
+//     würde durchschlagen und zu relativen Pfaden in der Mail führen,
+//     die der Mail-Client mit `x-webdoc://` prefixed.
+//   - Ein Wert ohne Scheme (z.B. `digital-age.ch`) erzeugt im
+//     Mail-Client ebenfalls einen kaputten Link. Wir prependen `https://`
+//     wenn das Scheme fehlt.
+//   - Trailing-Slash entfernen, sonst werden Pfade `//newsletter/...`
+//     zusammengesetzt.
+//
+// Reihenfolge:
+//   1. NEWSLETTER_SITE_URL (server-only Override, kein NEXT_PUBLIC-Inlining)
+//   2. NEXT_PUBLIC_SITE_URL (wird beim Build inlined, server+client)
+//   3. Production-Fallback
+function resolveSiteUrl(): string {
+  const raw =
+    process.env.NEWSLETTER_SITE_URL?.trim() ||
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
+    "https://digital-age-v2-eight.vercel.app";
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  return withScheme.replace(/\/+$/, "");
+}
+
+export const SITE_URL = resolveSiteUrl();
 
 function getResend(): Resend | null {
   const key = process.env.RESEND_API_KEY;
@@ -84,6 +104,11 @@ export async function sendConfirmationMail(args: {
   token: string;
 }): Promise<SendResult> {
   const confirmationUrl = `${SITE_URL}/newsletter/confirm/${args.token}`;
+  // Temporäres Debug-Log — kann wieder raus sobald Bug verifiziert behoben.
+  console.log("[newsletter] NEWSLETTER_SITE_URL env:", JSON.stringify(process.env.NEWSLETTER_SITE_URL));
+  console.log("[newsletter] NEXT_PUBLIC_SITE_URL env:", JSON.stringify(process.env.NEXT_PUBLIC_SITE_URL));
+  console.log("[newsletter] resolved SITE_URL:", SITE_URL);
+  console.log("[newsletter] confirmationUrl:", confirmationUrl);
   return renderAndSend({
     to: args.email,
     subject: CONFIRMATION_SUBJECT,
@@ -97,6 +122,7 @@ export async function sendWelcomeMail(args: {
   token: string;
 }): Promise<SendResult> {
   const unsubscribeUrl = `${SITE_URL}/newsletter/abmelden/${args.token}`;
+  console.log("[newsletter] unsubscribeUrl:", unsubscribeUrl);
   return renderAndSend({
     to: args.email,
     subject: WELCOME_SUBJECT,
@@ -112,6 +138,7 @@ export async function sendInviteMail(args: {
   intendedRole?: "author" | "editor";
 }): Promise<SendResult> {
   const inviteUrl = `${SITE_URL}/onboarding?token=${args.token}`;
+  console.log("[newsletter] inviteUrl:", inviteUrl);
   return renderAndSend({
     to: args.email,
     subject: INVITE_SUBJECT,
