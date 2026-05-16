@@ -826,6 +826,57 @@ Migration** in diesem PR.
   - Disable-Logic: nur während laufender Action (`busyId !== null`),
     nicht mehr abhängig von Textarea-Inhalt.
 
+### Article-Workflow-Mail (Phase 10d — Block 3)
+
+Mail-Aktivierung für die zwei Status-Übergänge im Article-Workflow.
+Damit ist die Mail-Logik-Trilogie (Block 1 Kontakt/Pitch, Block 2
+Submission-Lifecycle, Block 3 Article-Workflow) komplett.
+
+- **Templates** (`src/emails/`):
+  - `ArticleSubmittedForReview.tsx` — Editor-Notification mit Reply-To
+    = Author-Email. Admin-CTA zeigt auf Listing-Page
+    `/autor/admin/artikel` (anon-RLS-safe, Lehre aus PR #55).
+  - `ArticlePublished.tsx` — Author-Notification mit CTA auf
+    `/artikel/[slug]`. Freundlicher Stil wie PromptApproved.
+  - Beide über `_layout.tsx` (Light/Dark, kein `<Tailwind>`-Wrapper —
+    Lehre aus PR #51).
+
+- **Mail-Dispatch** (`src/lib/articles/mail.ts`): zwei Funktionen
+  `sendArticleSubmittedForReviewNotification` +
+  `sendArticlePublishedNotification`. Try/catch um render+send,
+  `[article]`-Log-Prefix. Pattern identisch mit submissions/contact/pitch.
+
+- **`submitForReview` erweitert:**
+  - Status- + Title- + Author-Email-Read in einer Query (Embed
+    `author:authors(display_name, email)`).
+  - Bestehender Status-Guard "nur draft" macht den Doppel-Submit-Schutz
+    inherent — Mail wird genau bei erfolgreichem draft → in_review
+    versendet.
+  - Wenn `author.email` oder `title` aus irgendeinem Grund fehlt: skip,
+    `console.log` mit articleId, kein Error.
+  - Mail-Failure ist nicht-kritisch (Status-Update bleibt durch).
+
+- **`publishArticle` erweitert:**
+  - **Idempotenz-Signal:** `published_at != null` vor dem Update.
+    Wenn der Artikel schon mal live war → kein Re-Send der Author-
+    Mail. Deckt sowohl Re-Publish-after-Edit als auch den
+    archived→published-Edge-Case sauber ab (Submitter wurde schon
+    einmal benachrichtigt).
+  - Author-Daten via Embed `author:authors(display_name, email)` aus
+    der `current`-Query. Skip-Pfad mit Log wenn `email`, `slug` oder
+    `title` fehlt — defensiv, weil `authors.email` zwar NOT NULL ist,
+    aber Daten-Drift bzw. zukünftige Gast-Authors ohne Mail-Adresse
+    sauber abgefangen werden sollen.
+  - Mail-Failure nicht-kritisch (published-Status bleibt).
+
+- **Bewusst nicht in diesem PR:**
+  - `archiveArticle`-Notification (Entscheidung: kein Mail-Versand).
+  - Article-Reject-mit-Feedback-Mail (Reject-Flow existiert gar nicht
+    im Schema — `article_status` hat kein `rejected`-Wert).
+  - Gast-Author-Logik (separater Folge-PR). Wenn der Gast-Author-Flow
+    später kommt, kann er die bestehende `email`-Skip-Logik
+    weiterverwenden.
+
 ### Invite-Flow (PR B)
 
 **Pragma:** Editor generiert Token, kopiert URL und versendet sie manuell

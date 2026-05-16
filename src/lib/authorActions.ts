@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { deleteAllArticleImages } from "@/lib/storageActions";
 import { renderBlockDocumentToMarkdown } from "@/lib/blockDocumentMarkdown";
+import {
+  sendArticlePublishedNotification,
+  sendArticleSubmittedForReviewNotification,
+} from "@/lib/articles/mail";
 import { emptyBlockDocument, type BlockDocument } from "@/types/blocks";
 import type { Database, Json } from "@/lib/database.types";
 
@@ -223,9 +227,13 @@ export async function submitForReview(id: string): Promise<ArticleRow> {
   const supabase = await createClient();
   await requireCurrentAuthor();
 
+  // Status-Check + Author-Daten in einer Query, damit wir nach erfolgreichem
+  // Update direkt für die Editor-Notification weiterarbeiten können. Der
+  // Action-Guard "nur draft" macht den Doppel-Submit-Schutz inherent: bei
+  // Doppelklick fliegt der zweite Aufruf raus bevor er Mails versenden kann.
   const { data: current } = await supabase
     .from("articles")
-    .select("status")
+    .select("status, title, author:authors(display_name, email)")
     .eq("id", id)
     .single();
   if (current?.status !== "draft") {
@@ -239,6 +247,25 @@ export async function submitForReview(id: string): Promise<ArticleRow> {
     .select("*")
     .single();
   if (error) throw error;
+
+  // Editor-Notification fire-and-await. Failure ist nicht-kritisch
+  // (Status-Update bleibt durch, Editor sieht im Admin trotzdem).
+  const author = (current.author ?? null) as {
+    display_name: string;
+    email: string;
+  } | null;
+  if (author?.email && current.title) {
+    await sendArticleSubmittedForReviewNotification({
+      title: current.title,
+      authorName: author.display_name,
+      authorEmail: author.email,
+    });
+  } else {
+    console.log(
+      `[article] no author email or title, skipping review notification, articleId=${id}`,
+    );
+  }
+
   revalidatePath("/autor/artikel");
   revalidatePath(`/autor/artikel/${id}`);
   return data;
@@ -249,14 +276,19 @@ export async function publishArticle(id: string): Promise<ArticleRow> {
   const me = await requireCurrentAuthor();
   if (me.role !== "editor") throw new Error("Nur Editors können publishen.");
 
+  // Idempotenz-Signal: published_at wird nur beim ersten Publish gesetzt
+  // (bestehende Logik). Wenn es vorher schon einen Wert hatte, war der
+  // Artikel mindestens einmal live → keine zweite "ist veröffentlicht"-
+  // Mail. Deckt Re-Publish-after-Edit UND archived→published-Edge-Case ab.
   const { data: current } = await supabase
     .from("articles")
-    .select("published_at")
+    .select("published_at, slug, title, author:authors(display_name, email)")
     .eq("id", id)
     .single();
+  const wasPublishedBefore = current?.published_at != null;
 
   const patch: Partial<ArticleRow> = { status: "published" };
-  if (!current?.published_at) {
+  if (!wasPublishedBefore) {
     patch.published_at = new Date().toISOString();
   }
 
@@ -267,6 +299,30 @@ export async function publishArticle(id: string): Promise<ArticleRow> {
     .select("*")
     .single();
   if (error) throw error;
+
+  // Author-Notification nur beim ERSTEN Publish, und nur wenn Author-Email
+  // vorhanden ist. authors.email ist im Schema NOT NULL — der Skip-Pfad
+  // ist defensiv für den Fall dass mal jemand Daten manuell manipuliert
+  // oder ein zukünftiger Gast-Author ohne Mail-Adresse existiert.
+  if (!wasPublishedBefore) {
+    const author = (current?.author ?? null) as {
+      display_name: string;
+      email: string | null;
+    } | null;
+    if (author?.email && current?.slug && current?.title) {
+      await sendArticlePublishedNotification({
+        authorEmail: author.email,
+        authorName: author.display_name,
+        title: current.title,
+        slug: current.slug,
+      });
+    } else {
+      console.log(
+        `[article] no author email or slug/title, skipping publish notification, articleId=${id}`,
+      );
+    }
+  }
+
   revalidatePath("/autor/artikel");
   revalidatePath(`/autor/artikel/${id}`);
   revalidatePath("/");
