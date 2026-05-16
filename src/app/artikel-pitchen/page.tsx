@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import NewsTicker from "@/components/NewsTicker";
-// TODO Session F+: echte anonyme-Pitch-Persistierung. Aktuell zeigt das Formular
-// nur die Success-UI, ohne Daten in die DB zu schreiben — ein RLS-geschützter
-// anonymous-insert braucht eigenes Design (rate limit, email confirm, etc.).
+import { submitArticlePitch } from "@/lib/pitch/submit";
 
 type FormState = {
   title: string;
@@ -77,8 +75,11 @@ const MAX_BODY = 10000;
 
 export default function PitchPage() {
   const [data, setData] = useState<FormState>(empty);
-  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [honeypot, setHoneypot] = useState("");
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const submitting = pending;
 
   useEffect(() => {
     if (submitted) window.scrollTo({ top: 0, behavior: "smooth" });
@@ -108,15 +109,34 @@ export default function PitchPage() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!allValid) return;
-    setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
+    setServerError(null);
+    startTransition(async () => {
+      const result = await submitArticlePitch({
+        title: data.title,
+        excerpt: data.excerpt,
+        category: data.category,
+        bodyMd: data.contentMd,
+        authorName: data.authorName,
+        authorEmail: data.authorEmail,
+        authorRole: data.authorRole,
+        authorBio: data.authorBio,
+        authorWebsite: data.authorWebsite,
+        original: data.original,
+        editorial: data.editorial,
+        honeypot,
+      });
+      if (!result.ok) {
+        setServerError(result.message);
+        return;
+      }
       setSubmitted(true);
-    }, 800);
+    });
   };
 
   const reset = () => {
     setData(empty);
+    setHoneypot("");
+    setServerError(null);
     setSubmitted(false);
   };
 
@@ -604,6 +624,46 @@ export default function PitchPage() {
                   </label>
                 </div>
               </div>
+
+              {/* Honeypot — hidden für User, von Bots oft ausgefüllt. */}
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  left: "-9999px",
+                  width: 1,
+                  height: 1,
+                  overflow: "hidden",
+                }}
+              >
+                <label>
+                  Website
+                  <input
+                    type="text"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={honeypot}
+                    onChange={(e) => setHoneypot(e.target.value)}
+                  />
+                </label>
+              </div>
+
+              {serverError && (
+                <div
+                  role="alert"
+                  style={{
+                    background: "rgba(255,107,107,0.10)",
+                    border: "1px solid #ff6b6b",
+                    borderRadius: 4,
+                    padding: "10px 14px",
+                    color: "#ff8e8e",
+                    fontSize: 13,
+                    marginBottom: 14,
+                  }}
+                >
+                  {serverError}
+                </div>
+              )}
 
               <div>
                 <button

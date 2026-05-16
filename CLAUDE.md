@@ -704,6 +704,71 @@ Supabase Custom SMTP (Dashboard-Config), nicht über diese Integration.
   - `NEXT_PUBLIC_SITE_URL` — Public, Production-Domain; Fallback ist die
     Preview-URL.
 
+### Form-Mail-Logic (Phase 10b — Kontakt + Pitch)
+
+- Vorher reine UI-Mocks. `/kontakt` und `/artikel-pitchen` schreiben jetzt
+  in DB und versenden Mails über Resend. Block 2 (AI-Prompt + Swiss-AI
+  Submission-Lifecycle) und Block 3 (Article-Workflow) folgen in eigenen PRs.
+
+- **Migration `20260515220741_contact_messages_and_article_pitches.sql`:**
+  - `contact_messages` (name/email/topic/organization/message/ip_hash/
+    status/notes/timestamps). Status: `new`/`replied`/`archived`.
+  - `article_pitches` mit reichem Schema, das den bestehenden 3-Step-Form
+    abbildet (title, excerpt, body_md, category, author_*, author_website).
+    Status: `new`/`reviewing`/`accepted`/`rejected`. `original`+`editorial`-
+    Checkboxen sind reine Acceptance-Gates (Form-Validation), NICHT persistiert.
+  - RLS: Editor-only SELECT/UPDATE, kein public-read/delete. Inserts laufen
+    via Service-Role aus den Server Actions.
+  - Rate-Limit-Tabelle `newsletter_signup_attempts.action`-CHECK erweitert
+    um `contact` + `pitch`.
+
+- **Shared Rate-Limit-Helper** (`src/lib/rate-limit.ts`): `hashIp`,
+  `getRequestContext`, `checkRateLimit(action, perHour, perDay)`, `logAttempt`.
+  Filtert immer nach `action` damit Pools sich nicht gegenseitig blockieren.
+  Verwendet von neuen Contact/Pitch-Submits. Bestehende `subscribe`/
+  `unsubscribe`-Pfade bleiben mit ihrer inline-Logik (kein Refactor in
+  diesem PR — risikoarm).
+
+- **Server Actions:**
+  - `src/lib/contact/submit.ts → submitContactMessage(input)` —
+    Honeypot, Inline-Validation (Email/Min/Max), Rate-Limit 5/h+20/24h,
+    DB-Insert, Editor-Notification-Mail. Bei Mail-Failure bleibt
+    DB-Row (Editor sieht im Admin).
+  - `src/lib/pitch/submit.ts → submitArticlePitch(input)` —
+    analog. Mail-Versand parallel via `Promise.allSettled`:
+    Editor-Notification (Reply-To = Pitcher-Email) UND
+    Submitter-Confirmation.
+  - `src/lib/contact/adminActions.ts → updateContactStatus`,
+    `updateContactNotes` (Editor-only).
+  - `src/lib/pitch/adminActions.ts → updatePitchStatus`,
+    `updatePitchNotes` (Editor-only). Status-Changes versenden **noch
+    keine** Submitter-Mails — kommt mit Block 2.
+
+- **Email-Templates** (`src/emails/`):
+  - `ContactNotification.tsx` — Editor-Notification, Reply-To = Absender.
+  - `PitchNotification.tsx` — Editor-Notification mit Body-Preview
+    (max 1500 Zeichen, voller Text im Admin).
+  - `PitchConfirmation.tsx` — Submitter-Bestätigung. Kein CTA-Button (kein
+    nächster Schritt), Reply-To = `digital-age@zeoneq.com`.
+  - Alle drei nutzen `_layout.tsx` mit Light-Default + Dark-Override.
+
+- **Form-Komponenten** (`/kontakt` und `/artikel-pitchen`): bestehende
+  State-/Validation-Logik beibehalten, Mock-Submit ersetzt durch
+  Server-Action-Call via `useTransition`. Honeypot-Feld
+  (`position: absolute; left: -9999px`), Server-Error-Banner bei
+  Validation-Errors aus dem Server, Pending-State auf dem Submit-Button.
+
+- **Admin-Views:**
+  - `/autor/admin/nachrichten` mit Status-Tabs (Alle/Neu/Beantwortet/
+    Archiviert), Detail-Modal mit Notes-Textarea (auto-save onBlur),
+    Status-Actions, `mailto:`-CTA für Direktantwort.
+  - `/autor/admin/pitches` analog mit zusätzlichen Status-Stufen (Neu/In
+    Review/Akzeptiert/Abgelehnt) und reichem Detail-Modal (Abstract,
+    Volltext-Markdown, Bio, Author-Website).
+  - Sidebar+TopNav haben Nav-Links mit Icons. **Badge-Counter für
+    `status='new'` ist NICHT in diesem PR** (würde Sidebar-Datenfluss
+    von Server-Component umbauen erfordern — Follow-up).
+
 ### Invite-Flow (PR B)
 
 **Pragma:** Editor generiert Token, kopiert URL und versendet sie manuell

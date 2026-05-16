@@ -199,6 +199,60 @@ export type Database = {
           },
         ]
       }
+      article_pitches: {
+        Row: {
+          author_bio: string
+          author_email: string
+          author_name: string
+          author_role: string | null
+          author_website: string | null
+          body_md: string
+          category: string | null
+          created_at: string
+          editor_notes: string | null
+          excerpt: string
+          id: string
+          ip_hash: string | null
+          reviewed_at: string | null
+          status: string
+          title: string
+        }
+        Insert: {
+          author_bio: string
+          author_email: string
+          author_name: string
+          author_role?: string | null
+          author_website?: string | null
+          body_md: string
+          category?: string | null
+          created_at?: string
+          editor_notes?: string | null
+          excerpt: string
+          id?: string
+          ip_hash?: string | null
+          reviewed_at?: string | null
+          status?: string
+          title: string
+        }
+        Update: {
+          author_bio?: string
+          author_email?: string
+          author_name?: string
+          author_role?: string | null
+          author_website?: string | null
+          body_md?: string
+          category?: string | null
+          created_at?: string
+          editor_notes?: string | null
+          excerpt?: string
+          id?: string
+          ip_hash?: string | null
+          reviewed_at?: string | null
+          status?: string
+          title?: string
+        }
+        Relationships: []
+      }
       article_tags: {
         Row: {
           article_id: string
@@ -406,6 +460,48 @@ export type Database = {
           name_de?: string
           name_en?: string | null
           slug?: string
+        }
+        Relationships: []
+      }
+      contact_messages: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          ip_hash: string | null
+          message: string
+          name: string
+          notes: string | null
+          organization: string | null
+          replied_at: string | null
+          status: string
+          topic: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          ip_hash?: string | null
+          message: string
+          name: string
+          notes?: string | null
+          organization?: string | null
+          replied_at?: string | null
+          status?: string
+          topic: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          ip_hash?: string | null
+          message?: string
+          name?: string
+          notes?: string | null
+          organization?: string | null
+          replied_at?: string | null
+          status?: string
+          topic?: string
         }
         Relationships: []
       }
