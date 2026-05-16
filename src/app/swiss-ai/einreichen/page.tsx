@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import NewsTicker from "@/components/NewsTicker";
 import Footer from "@/components/Footer";
@@ -169,6 +169,13 @@ export default function EinreichenPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, startSubmitting] = useTransition();
+
+  // Nach erfolgreichem Submit nach oben scrollen, damit die Success-Card
+  // sichtbar wird. Der 3-Step-Form ist lang — ohne Auto-Scroll bleibt der
+  // User unten und sieht die Bestätigung nicht.
+  useEffect(() => {
+    if (submitted) window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [submitted]);
 
   const update = <K extends keyof FormData>(key: K, val: FormData[K]) => {
     setData((d) => ({ ...d, [key]: val }));

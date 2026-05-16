@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import NewsTicker from "@/components/NewsTicker";
 import Footer from "@/components/Footer";
@@ -66,6 +66,13 @@ export default function PromptEinreichenPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, startSubmitting] = useTransition();
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Nach erfolgreichem Submit nach oben scrollen, damit die Success-Card
+  // sichtbar wird. Bei langem Form-Layout bleibt der User sonst unten und
+  // sieht die Bestätigung nicht — Doppel-Submit-Risiko.
+  useEffect(() => {
+    if (submitted) window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [submitted]);
 
   const set = <K extends keyof FormData>(k: K, v: FormData[K]) => {
     setData((d) => ({ ...d, [k]: v }));
