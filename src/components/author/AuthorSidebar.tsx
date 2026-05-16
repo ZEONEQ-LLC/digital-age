@@ -78,7 +78,28 @@ export default function AuthorSidebar({ author }: AuthorSidebarProps) {
         .a-sb__chip { display: flex; align-items: center; gap: 10px; padding: 10px 8px; margin-bottom: 22px; }
         .a-sb__chip-name { color: var(--da-text); font-size: 12px; font-weight: 600; }
         .a-sb__chip-role { color: var(--da-faint); font-size: 10px; }
-        .a-sb__nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+        /* min-height: 0 ist entscheidend — flex children verweigern sonst
+         * unter ihre Content-Size zu schrumpfen und der overflow-Scroll
+         * triggert nie. Brand + Chip oben und .a-sb__foot unten bleiben
+         * als flex-Geschwister gepinnt, nur die Nav-Liste scrollt. */
+        .a-sb__nav {
+          display: flex; flex-direction: column; gap: 2px;
+          flex: 1 1 0;
+          min-height: 0;
+          overflow-y: auto;
+          /* Scrollbar dezent — Brand-konform dark. */
+          scrollbar-width: thin;
+          scrollbar-color: var(--da-border) transparent;
+        }
+        .a-sb__nav::-webkit-scrollbar { width: 6px; }
+        .a-sb__nav::-webkit-scrollbar-track { background: transparent; }
+        .a-sb__nav::-webkit-scrollbar-thumb {
+          background: var(--da-border);
+          border-radius: 3px;
+        }
+        .a-sb__nav::-webkit-scrollbar-thumb:hover {
+          background: var(--da-muted-soft);
+        }
         .a-sb__section {
           margin-top: 18px; padding: 0 12px 6px;
           color: var(--da-faint); font-family: var(--da-font-mono);
