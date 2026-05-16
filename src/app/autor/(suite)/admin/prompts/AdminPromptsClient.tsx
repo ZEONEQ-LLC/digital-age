@@ -75,11 +75,12 @@ export default function AdminPromptsClient({ initialPrompts }: Props) {
 
   function submitReject() {
     if (!rejectFor) return;
-    if (!rejectReason.trim()) return;
     const id = rejectFor.id;
-    const reason = rejectReason;
+    // Reason ist jetzt optional — leerer Wert wird auf null normalisiert
+    // und der Submitter bekommt einen generischen Text in der Mail.
+    const reason = rejectReason.trim();
     setRejectFor(null);
-    wrap(id, async () => { await rejectPrompt(id, reason); });
+    wrap(id, async () => { await rejectPrompt(id, reason || null); });
   }
 
   return (
@@ -298,18 +299,27 @@ export default function AdminPromptsClient({ initialPrompts }: Props) {
             <h3>Prompt ablehnen</h3>
             <p className="meta">{rejectFor.title}</p>
             <div className="ap-modal__block">
-              <p className="ap-modal__label">Grund (intern, wird gespeichert)</p>
+              <p className="ap-modal__label">
+                Grund — wird dem Submitter in der Mail mitgeteilt (optional)
+              </p>
               <textarea
                 className="ap-textarea"
                 rows={4}
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="z.B. Off-Topic, qualitativ zu dünn, spammy …"
+                placeholder="Optionaler Grund für den Submitter — leer lassen für Standard-Text."
+                maxLength={500}
               />
             </div>
             <div className="ap-modal__actions">
               <button className="ap-btn" onClick={() => setRejectFor(null)}>Abbrechen</button>
-              <button className="ap-btn ap-btn--danger" onClick={submitReject} disabled={!rejectReason.trim()}>Ablehnen</button>
+              <button
+                className="ap-btn ap-btn--danger"
+                onClick={submitReject}
+                disabled={busyId !== null}
+              >
+                Ablehnen &amp; benachrichtigen
+              </button>
             </div>
           </div>
         </div>

@@ -769,6 +769,63 @@ Supabase Custom SMTP (Dashboard-Config), nicht über diese Integration.
     `status='new'` ist NICHT in diesem PR** (würde Sidebar-Datenfluss
     von Server-Component umbauen erfordern — Follow-up).
 
+### Submission-Lifecycle-Mail (Phase 10c — Prompts + Startups)
+
+Mail-Aktivierung für die zwei Public-Submission-Flows. Drei Trigger-
+Punkte pro Flow: Submit (Confirmation + Editor-Notification), Approve
+(Approval-Mail mit Live-Link), Reject (Reject-Mail mit optionalem
+Grund). Schema-Differenz zur Spec-Skizze: Status-Werte sind
+`pending|published|featured|rejected|archived` — "Approved" = published
+ODER featured. Beide Tables hatten bereits `rejection_reason` → **keine
+Migration** in diesem PR.
+
+- **Mail-Templates** (`src/emails/`):
+  - `PromptSubmissionConfirmation.tsx`, `PromptApproved.tsx` (CTA-Link
+    auf `/ai-prompts/[id]` — Prompts sind ID-based, nicht slug-based),
+    `PromptRejected.tsx`.
+  - `StartupSubmissionConfirmation.tsx`, `StartupApproved.tsx` (CTA-Link
+    auf `/swiss-ai/[slug]`), `StartupRejected.tsx`.
+  - `SubmissionNotification.tsx` — generisch via `type: "prompt" |
+    "startup"`-Discriminator. Subject + Admin-Link via type. Reply-To =
+    Submitter-Email damit der Editor mit einem Klick direkt antworten
+    kann.
+  - Rejected-Templates zeigen den Grund in einer HintBox, fallen bei
+    leerem Grund auf generic-Text zurück ("Leider passt aktuell nicht
+    in unsere Sammlung").
+
+- **Mail-Dispatch** (`src/lib/submissions/mail.ts`): 4 Funktionen mit
+  `SubmissionType`-Discriminator. Identischer try/catch-Pattern wie
+  `contact/mail.ts` (Render-Errors + Resend-Errors gemeinsam, Lehre aus
+  PR #51).
+
+- **Submit-Actions** (`submitPromptExternal`, `submitStartupExternal`):
+  nach Insert werden Confirmation + Notification parallel via
+  `Promise.allSettled` versendet. Failure ist nicht-kritisch (DB-Insert
+  durch, Editor sieht im Admin). KEIN `.select()` nach Insert — anon
+  hat keine SELECT-Policy für pending-Rows; Editor-Notification-CTA
+  zeigt auf die Listing-Page (`/autor/admin/prompts` bzw.
+  `/autor/admin/startups`), nicht auf eine konkrete Detail-Row.
+
+- **Approve/Reject-Actions:**
+  - **Idempotenz:** vor jedem Update wird der aktuelle Status + die
+    Submitter-Daten gelesen. Wenn schon im Ziel-Status → kein
+    Re-Send der Mail (Doppel-Klick-Schutz). Approve = bereits
+    published/featured → skip. Reject = bereits rejected → skip.
+  - **Reject-Signatur**: `reason?: string | null` ist jetzt optional
+    (vorher: erzwang non-empty). Leerer/null-Wert → `null` in DB +
+    Submitter bekommt generic-Mail-Text.
+  - **Submitter-Email-Check**: wenn `submitter_email` null/leer ist
+    (z.B. Author-interner Prompt), wird die Submitter-Mail
+    übersprungen ohne Error. Editor-Notification + DB-Update laufen
+    trotzdem.
+
+- **Admin-UI** (`/autor/admin/prompts`, `/autor/admin/startups`):
+  - Reject-Modal-Textarea: Label umgestellt auf "Grund — wird dem
+    Submitter in der Mail mitgeteilt (optional)". `maxLength=500`.
+  - Button-Label: "Ablehnen & benachrichtigen" (statt nur "Ablehnen").
+  - Disable-Logic: nur während laufender Action (`busyId !== null`),
+    nicht mehr abhängig von Textarea-Inhalt.
+
 ### Invite-Flow (PR B)
 
 **Pragma:** Editor generiert Token, kopiert URL und versendet sie manuell

@@ -2,6 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import {
+  sendSubmissionApproved,
+  sendSubmissionConfirmation,
+  sendSubmissionNotification,
+  sendSubmissionRejected,
+} from "@/lib/submissions/mail";
 import type { Database } from "@/lib/database.types";
 
 type PromptRow = Database["public"]["Tables"]["ai_prompts"]["Row"];
@@ -183,9 +189,14 @@ export async function submitPromptExternal(input: ExternalSubmitInput): Promise<
   if (!email) throw new Error("E-Mail ist erforderlich.");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("E-Mail-Format ungültig.");
 
+  const title = input.title.trim();
   const supabase = await createClient();
+  // Kein .select() nach insert — anon hat keine SELECT-Policy auf pending-
+  // Rows. Wir brauchen aber die row-id eh nicht für Mail-Dispatch: der
+  // Editor-Notification-Link zeigt auf die Listing-Page /autor/admin/prompts,
+  // nicht auf eine konkrete Detail-Row.
   const { error } = await supabase.from("ai_prompts").insert({
-    title: input.title.trim(),
+    title,
     prompt_text: input.prompt_text.trim(),
     context: input.context.trim(),
     example_output: input.example_output?.trim() || null,
@@ -199,17 +210,49 @@ export async function submitPromptExternal(input: ExternalSubmitInput): Promise<
     author_id: null,
   });
   if (error) throw error;
+
+  // Mail-Versand fire-and-await. Beide Mails parallel; Failure ist
+  // nicht-kritisch (DB-Insert ist durch, Editor sieht im Admin). Pattern
+  // wie bei contact/pitch.
+  await Promise.allSettled([
+    sendSubmissionConfirmation({
+      type: "prompt",
+      email,
+      name,
+      title,
+    }),
+    sendSubmissionNotification({
+      type: "prompt",
+      title,
+      submitterName: name,
+      submitterEmail: email,
+    }),
+  ]);
+
   revalidatePath("/autor/admin/prompts");
 }
 
 export async function approvePrompt(id: string, opts?: { feature?: boolean }): Promise<void> {
   const me = await requireEditor();
   const supabase = await createClient();
+  const targetStatus = opts?.feature ? "featured" : "published";
+
+  // Idempotenz: aktuellen Status + Submitter-Daten VOR dem Update lesen.
+  // Wenn schon im Ziel-Status → kein Re-Send der Approval-Mail (Doppel-
+  // Klick-Schutz).
+  const { data: current } = await supabase
+    .from("ai_prompts")
+    .select("status, submitter_email, submitter_name, title")
+    .eq("id", id)
+    .maybeSingle();
+  const alreadyApproved =
+    current?.status === "published" || current?.status === "featured";
+
   const now = new Date().toISOString();
   const { error } = await supabase
     .from("ai_prompts")
     .update({
-      status: opts?.feature ? "featured" : "published",
+      status: targetStatus,
       reviewed_by_id: me.id,
       reviewed_at: now,
       published_at: now,
@@ -217,24 +260,71 @@ export async function approvePrompt(id: string, opts?: { feature?: boolean }): P
     })
     .eq("id", id);
   if (error) throw error;
+
+  // Mail nur bei echtem Statuswechsel auf approved + vorhandener
+  // Submitter-Email (Author-interne Prompts haben submitter_email=null).
+  if (
+    !alreadyApproved &&
+    current?.submitter_email &&
+    current?.submitter_name &&
+    current?.title
+  ) {
+    await sendSubmissionApproved({
+      type: "prompt",
+      email: current.submitter_email,
+      name: current.submitter_name,
+      title: current.title,
+      liveUrl: `/ai-prompts/${id}`,
+    });
+  }
+
   revalidateAll();
 }
 
-export async function rejectPrompt(id: string, reason: string): Promise<void> {
+export async function rejectPrompt(
+  id: string,
+  reason?: string | null,
+): Promise<void> {
   const me = await requireEditor();
-  const r = reason.trim();
-  if (!r) throw new Error("Rejection-Grund erforderlich.");
   const supabase = await createClient();
+  // Reason ist jetzt optional (Spec): leer/null → null in DB, Submitter
+  // bekommt generic-Mail-Text statt eingebetteten Grund.
+  const r = (reason ?? "").trim();
+  const reasonValue = r === "" ? null : r;
+
+  const { data: current } = await supabase
+    .from("ai_prompts")
+    .select("status, submitter_email, submitter_name, title")
+    .eq("id", id)
+    .maybeSingle();
+  const alreadyRejected = current?.status === "rejected";
+
   const { error } = await supabase
     .from("ai_prompts")
     .update({
       status: "rejected",
       reviewed_by_id: me.id,
       reviewed_at: new Date().toISOString(),
-      rejection_reason: r,
+      rejection_reason: reasonValue,
     })
     .eq("id", id);
   if (error) throw error;
+
+  if (
+    !alreadyRejected &&
+    current?.submitter_email &&
+    current?.submitter_name &&
+    current?.title
+  ) {
+    await sendSubmissionRejected({
+      type: "prompt",
+      email: current.submitter_email,
+      name: current.submitter_name,
+      title: current.title,
+      reason: reasonValue,
+    });
+  }
+
   revalidateAll();
 }
 

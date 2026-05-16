@@ -2,6 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import {
+  sendSubmissionApproved,
+  sendSubmissionConfirmation,
+  sendSubmissionNotification,
+  sendSubmissionRejected,
+} from "@/lib/submissions/mail";
 import type { Database } from "@/lib/database.types";
 
 type StartupRow = Database["public"]["Tables"]["ai_startups"]["Row"];
@@ -131,12 +137,42 @@ export async function submitStartupExternal(input: ExternalStartupSubmitInput): 
       status: "pending",
     });
   if (error) throw error;
+
+  // Mail-Versand parallel — Failure ist nicht-kritisch (Editor sieht im
+  // Admin). Editor-Notification verlinkt auf Listing-Page; konkrete
+  // Detail-Row braucht keinen Slug (Admin filtert nach pending).
+  await Promise.allSettled([
+    sendSubmissionConfirmation({
+      type: "startup",
+      email: submitterEmail,
+      name: submitterName,
+      title: name,
+    }),
+    sendSubmissionNotification({
+      type: "startup",
+      title: name,
+      submitterName,
+      submitterEmail,
+    }),
+  ]);
+
   revalidatePath("/autor/admin/startups");
 }
 
 export async function approveStartup(id: string, opts?: { feature?: boolean }): Promise<void> {
   const me = await requireEditor();
   const supabase = await createClient();
+
+  // Idempotenz: aktuellen Status + Submitter-Daten + Slug VOR dem Update
+  // lesen. Slug brauchen wir für die Live-URL in der Approval-Mail.
+  const { data: current } = await supabase
+    .from("ai_startups")
+    .select("status, submitter_email, submitter_name, name, slug")
+    .eq("id", id)
+    .maybeSingle();
+  const alreadyApproved =
+    current?.status === "published" || current?.status === "featured";
+
   const now = new Date().toISOString();
   try {
     const { error } = await supabase
@@ -153,24 +189,69 @@ export async function approveStartup(id: string, opts?: { feature?: boolean }): 
   } catch (err) {
     wrapSpotlightError(err);
   }
+
+  if (
+    !alreadyApproved &&
+    current?.submitter_email &&
+    current?.submitter_name &&
+    current?.name &&
+    current?.slug
+  ) {
+    await sendSubmissionApproved({
+      type: "startup",
+      email: current.submitter_email,
+      name: current.submitter_name,
+      title: current.name,
+      liveUrl: `/swiss-ai/${current.slug}`,
+    });
+  }
+
   revalidateAll();
 }
 
-export async function rejectStartup(id: string, reason: string): Promise<void> {
+export async function rejectStartup(
+  id: string,
+  reason?: string | null,
+): Promise<void> {
   const me = await requireEditor();
-  const r = reason.trim();
-  if (!r) throw new Error("Ablehnungsgrund erforderlich.");
+  // Reason ist jetzt optional (Spec): leer/null → null in DB, Submitter
+  // bekommt generic-Mail-Text statt eingebetteten Grund.
+  const r = (reason ?? "").trim();
+  const reasonValue = r === "" ? null : r;
   const supabase = await createClient();
+
+  const { data: current } = await supabase
+    .from("ai_startups")
+    .select("status, submitter_email, submitter_name, name")
+    .eq("id", id)
+    .maybeSingle();
+  const alreadyRejected = current?.status === "rejected";
   const { error } = await supabase
     .from("ai_startups")
     .update({
       status: "rejected",
       reviewed_by_id: me.id,
       reviewed_at: new Date().toISOString(),
-      rejection_reason: r,
+      rejection_reason: reasonValue,
     })
     .eq("id", id);
   if (error) throw error;
+
+  if (
+    !alreadyRejected &&
+    current?.submitter_email &&
+    current?.submitter_name &&
+    current?.name
+  ) {
+    await sendSubmissionRejected({
+      type: "startup",
+      email: current.submitter_email,
+      name: current.submitter_name,
+      title: current.name,
+      reason: reasonValue,
+    });
+  }
+
   revalidateAll();
 }
 
