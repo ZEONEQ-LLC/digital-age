@@ -140,11 +140,12 @@ export default function AdminStartupsClient({ initialStartups }: Props) {
 
   function submitReject() {
     if (!rejectFor) return;
-    if (!rejectReason.trim()) return;
     const id = rejectFor.id;
-    const reason = rejectReason;
+    // Reason ist jetzt optional — leerer Wert wird in der Server Action
+    // auf null normalisiert, Submitter bekommt generic-Mail.
+    const reason = rejectReason.trim();
     setRejectFor(null);
-    wrap(id, async () => { await rejectStartup(id, reason); });
+    wrap(id, async () => { await rejectStartup(id, reason || null); });
   }
 
   function openEdit(s: StartupRow) {
@@ -479,18 +480,23 @@ export default function AdminStartupsClient({ initialStartups }: Props) {
             <h3>Startup ablehnen</h3>
             <p className="meta">{rejectFor.name}</p>
             <div className="as-modal__block">
-              <p className="as-modal__label">Grund (intern, wird gespeichert)</p>
+              <p className="as-modal__label">
+                Grund — wird dem Submitter in der Mail mitgeteilt (optional)
+              </p>
               <textarea
                 className="as-textarea"
                 rows={4}
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="z.B. Nicht Schweiz-relevant, qualitativ zu dünn, …"
+                placeholder="Optionaler Grund für den Submitter — leer lassen für Standard-Text."
+                maxLength={500}
               />
             </div>
             <div className="as-modal__actions">
               <button className="as-btn" onClick={() => setRejectFor(null)}>Abbrechen</button>
-              <button className="as-btn as-btn--danger" onClick={submitReject} disabled={!rejectReason.trim()}>Ablehnen</button>
+              <button className="as-btn as-btn--danger" onClick={submitReject} disabled={busyId !== null}>
+                Ablehnen &amp; benachrichtigen
+              </button>
             </div>
           </div>
         </div>
