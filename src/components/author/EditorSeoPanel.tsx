@@ -1,7 +1,10 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import AuthorCard from "./AuthorCard";
 import MonoCaption from "./MonoCaption";
+import { suggestSeoTitle } from "@/lib/ai/seoActions";
+import type { AiErrorKind } from "@/lib/ai/types";
 
 export type SeoState = {
   title: string;
@@ -13,6 +16,11 @@ export type SeoState = {
 type EditorSeoPanelProps = {
   seo: SeoState;
   onChange: (next: SeoState) => void;
+  // Live-Editor-State aus dem Parent EditorClient — wird von den AI-
+  // Anbindungen benötigt. Aktuell nutzt nur der SEO-Titel-Button beides;
+  // Pilot-Pattern für die anderen sieben AI-Buttons in Folge-PRs.
+  articleTitle?: string;
+  articleBodyText?: string;
 };
 
 const inputStyle: React.CSSProperties = {
@@ -26,7 +34,7 @@ const inputStyle: React.CSSProperties = {
   fontFamily: "inherit",
 };
 
-const aiBtnStyle: React.CSSProperties = {
+const aiBtnStyleBase: React.CSSProperties = {
   background: "rgba(220,214,247,0.1)",
   color: "var(--da-purple)",
   border: "1px solid var(--da-purple)",
@@ -34,28 +42,61 @@ const aiBtnStyle: React.CSSProperties = {
   padding: "5px 10px",
   fontSize: 11,
   fontWeight: 600,
-  cursor: "not-allowed",
   display: "inline-flex",
   alignItems: "center",
   gap: 5,
-  opacity: 0.6,
   fontFamily: "inherit",
 };
 
 const AI_TOOLTIP = "AI-Features kommen in einer späteren Phase";
 
-function AiButton({ ariaLabel }: { ariaLabel: string }) {
+// Subkomponente bleibt rückwärtskompatibel: ohne `onClick`-Prop verhält sie
+// sich wie vorher (disabled, Standard-Tooltip). Mit `onClick`-Prop wird sie
+// interaktiv, mit Loading-Indikator. Die sieben Buttons, die in A1b-1 nicht
+// verdrahtet werden, lassen `onClick` weg → bleiben unverändert disabled.
+function AiButton({
+  ariaLabel,
+  onClick,
+  loading,
+}: {
+  ariaLabel: string;
+  onClick?: () => void;
+  loading?: boolean;
+}) {
+  const interactive = typeof onClick === "function";
+  const isDisabled = !interactive || loading === true;
   return (
     <button
       type="button"
-      disabled
-      title={AI_TOOLTIP}
+      disabled={isDisabled}
+      title={interactive ? undefined : AI_TOOLTIP}
       aria-label={ariaLabel}
-      style={aiBtnStyle}
+      onClick={interactive ? onClick : undefined}
+      style={{
+        ...aiBtnStyleBase,
+        cursor: isDisabled ? "not-allowed" : "pointer",
+        opacity: isDisabled ? 0.6 : 1,
+      }}
     >
-      ✨ AI
+      {loading ? "⏳" : "✨"} AI
     </button>
   );
+}
+
+// Mapping AI-Fehler → nutzerfreundliche deutsche Meldung.
+function errorMessageFor(kind: AiErrorKind): string {
+  switch (kind) {
+    case "rate_limit":
+      return "Limit erreicht, später erneut versuchen.";
+    case "auth":
+    case "config":
+      return "AI aktuell nicht verfügbar.";
+    case "timeout":
+      return "Zeitüberschreitung — bitte erneut versuchen.";
+    case "unknown":
+    default:
+      return "Vorschlag konnte nicht erstellt werden.";
+  }
 }
 
 function labelRow(label: string, len: number, ok: boolean, ranges?: string) {
@@ -76,7 +117,49 @@ function labelRow(label: string, len: number, ok: boolean, ranges?: string) {
   );
 }
 
-export default function EditorSeoPanel({ seo, onChange }: EditorSeoPanelProps) {
+export default function EditorSeoPanel({
+  seo,
+  onChange,
+  articleTitle = "",
+  articleBodyText = "",
+}: EditorSeoPanelProps) {
+  // AI-State NUR für den SEO-Titel-Pilot (A1b-1). Die anderen drei AI-
+  // Buttons (Description/Slug/Keyword) und die vier in EditorSidebar
+  // bleiben unverändert disabled, kein Handler.
+  const [titleSuggestion, setTitleSuggestion] = useState<string | null>(null);
+  const [titleSuggestError, setTitleSuggestError] = useState<string | null>(
+    null,
+  );
+  const [titleSuggestPending, startTitleSuggestTransition] = useTransition();
+
+  function handleSuggestSeoTitle() {
+    setTitleSuggestion(null);
+    setTitleSuggestError(null);
+    startTitleSuggestTransition(async () => {
+      const result = await suggestSeoTitle({
+        title: articleTitle,
+        bodyText: articleBodyText,
+      });
+      if (!result.ok) {
+        setTitleSuggestError(errorMessageFor(result.kind));
+        return;
+      }
+      const text = result.text.trim();
+      if (text === "") {
+        setTitleSuggestError("Leere Antwort vom Modell.");
+        return;
+      }
+      setTitleSuggestion(text);
+    });
+  }
+
+  function applyTitleSuggestion() {
+    if (!titleSuggestion) return;
+    set("title", titleSuggestion);
+    setTitleSuggestion(null);
+    setTitleSuggestError(null);
+  }
+
   const titleLen = seo.title.length;
   const descLen = seo.description.length;
   const titleOk = titleLen >= 50 && titleLen <= 60;
@@ -165,8 +248,100 @@ export default function EditorSeoPanel({ seo, onChange }: EditorSeoPanelProps) {
               onChange={(e) => set("title", e.target.value)}
               placeholder="Titel für Google & Social"
             />
-            <AiButton ariaLabel="AI-Vorschlag für Titel" />
+            <AiButton
+              ariaLabel="AI-Vorschlag für Titel"
+              onClick={handleSuggestSeoTitle}
+              loading={titleSuggestPending}
+            />
           </div>
+          {titleSuggestError && (
+            <p
+              role="alert"
+              style={{
+                color: "#ff8e8e",
+                fontSize: 12,
+                marginTop: 8,
+                fontFamily: "var(--da-font-mono)",
+              }}
+            >
+              {titleSuggestError}
+            </p>
+          )}
+          {titleSuggestion && (
+            <div
+              style={{
+                marginTop: 10,
+                background: "rgba(220,214,247,0.08)",
+                border: "1px solid var(--da-purple)",
+                borderRadius: 4,
+                padding: 12,
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+              }}
+            >
+              <p
+                style={{
+                  color: "var(--da-purple)",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  fontFamily: "var(--da-font-mono)",
+                  margin: 0,
+                }}
+              >
+                Vorschlag
+              </p>
+              <p
+                style={{
+                  color: "var(--da-text)",
+                  fontSize: 14,
+                  lineHeight: 1.5,
+                  margin: 0,
+                  wordBreak: "break-word",
+                }}
+              >
+                {titleSuggestion}
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={applyTitleSuggestion}
+                  style={{
+                    background: "var(--da-purple)",
+                    color: "var(--da-dark)",
+                    border: "none",
+                    borderRadius: 3,
+                    padding: "6px 12px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  Übernehmen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTitleSuggestion(null)}
+                  style={{
+                    background: "transparent",
+                    color: "var(--da-muted-soft)",
+                    border: "1px solid var(--da-border)",
+                    borderRadius: 3,
+                    padding: "6px 12px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  Verwerfen
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={{ marginBottom: 18 }}>
