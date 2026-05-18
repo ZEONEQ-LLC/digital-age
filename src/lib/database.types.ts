@@ -199,9 +199,6 @@ export type Database = {
           },
         ]
       }
-      // ── PHASE 11 / A1a: manuell ergänzt, bis `npx supabase db push` +
-      // `gen types` durchgelaufen sind. Danach wird dieser Block beim
-      // nächsten Type-Regen automatisch identisch durch das CLI überschrieben.
       ai_usage_log: {
         Row: {
           author_id: string
@@ -243,7 +240,6 @@ export type Database = {
           },
         ]
       }
-      // ── /PHASE 11 manueller Block
       article_pitches: {
         Row: {
           author_bio: string
@@ -1103,3 +1099,4 @@ export const Constants = {
     },
   },
 } as const
+
