@@ -6,10 +6,18 @@
 // hinzukommen — KEINE Provider-Registry, solange es nur einen gibt.
 
 // Logisches Task-Tag. Wird in `ai_usage_log.task` persistiert für spätere
-// Auswertung (Kosten pro Use-Case). Aktuell nur Smoke-Test — echte Tasks
-// (z.B. "seo_title", "summary") kommen mit den Editor-Buttons in späteren
-// PRs hinzu.
-export type AiTask = "smoke_test";
+// Auswertung (Kosten pro Use-Case). Die acht Werte korrespondieren 1:1
+// mit den AI-Buttons im Author-Editor (vier in der EditorSidebar + vier
+// im EditorSeoPanel) und werden in A1b-1 an die Buttons verdrahtet.
+export type AiTask =
+  | "title_variants"
+  | "tone_check"
+  | "summary"
+  | "seo_title"
+  | "seo_description"
+  | "seo_slug"
+  | "seo_keyword"
+  | "closing_paragraph";
 
 export type LLMParams = {
   system: string;
