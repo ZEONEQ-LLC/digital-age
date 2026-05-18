@@ -199,6 +199,47 @@ export type Database = {
           },
         ]
       }
+      ai_usage_log: {
+        Row: {
+          author_id: string
+          created_at: string
+          id: string
+          input_tokens: number
+          model: string
+          output_tokens: number
+          provider: string
+          task: string
+        }
+        Insert: {
+          author_id: string
+          created_at?: string
+          id?: string
+          input_tokens?: number
+          model: string
+          output_tokens?: number
+          provider: string
+          task: string
+        }
+        Update: {
+          author_id?: string
+          created_at?: string
+          id?: string
+          input_tokens?: number
+          model?: string
+          output_tokens?: number
+          provider?: string
+          task?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_log_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_pitches: {
         Row: {
           author_bio: string
@@ -1058,3 +1099,4 @@ export const Constants = {
     },
   },
 } as const
+

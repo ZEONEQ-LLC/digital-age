@@ -877,6 +877,97 @@ Submission-Lifecycle, Block 3 Article-Workflow) komplett.
     später kommt, kann er die bestehende `email`-Skip-Logik
     weiterverwenden.
 
+### Phase 11 — AI-Infrastruktur (A1a)
+
+Fundament für AI-gestützte Editor-Features. Reines Plumbing: ein Provider,
+eine zentrale Aufruf-Funktion, ein kombinierter Rate-Limit-+-Kosten-Store.
+Keine Editor-Buttons verdrahtet (das ist eigener späterer Task), kein
+zweiter Provider, kein Streaming, keine Task→Modell-Verzweigung.
+
+- **SDK:** `@anthropic-ai/sdk` (offiziell). Kein roher `fetch`.
+
+- **Provider-Adapter** (`src/lib/ai/`):
+  - `types.ts` — `LLMParams`, `AiTask` (aktuell nur `"smoke_test"`, echte
+    Tasks kommen später), `AiResult` (Discriminated Union success vs
+    `{ kind: "config" | "auth" | "rate_limit" | "timeout" | "unknown" }`),
+    `LLMProvider`-Interface.
+  - `providers/anthropic.ts` — `AnthropicProvider` mit non-streaming
+    `messages.create`, 30s-Hard-Timeout via AbortController, Fehler-
+    Mapping (401/403→auth, 429→rate_limit, AbortError→timeout, fehlende
+    Env→config, Rest→unknown). Roher SDK-Fehler wird **nur server-side
+    geloggt**, nie im `AiResult`-Payload nach aussen gegeben. Der
+    API-Key wird niemals geloggt.
+  - `client.ts` (`"use server"`) — `callLLM(params)` ist der einzige
+    legitime Einstiegspunkt. Ablauf: (1) Author-ID via Supabase-Server-
+    Client auflösen (Pattern aus authorActions), (2) `checkAiRateLimit`
+    VOR Provider-Call, bei `allowed:false` → sofortiger `rate_limit`-
+    Result ohne Call, (3) Provider-Call, (4) `logAiUsage` bei jedem
+    tatsächlich erfolgten Provider-Outcome (success/auth/rate_limit-vom-
+    Provider/timeout/unknown), **NICHT** bei config-Fehlern (kein Call
+    = keine Kosten).
+  - **Naht ist das Interface, nicht eine Registry.** Provider-Registry
+    kommt erst bei zweitem Provider.
+
+- **DB-Tabelle `ai_usage_log`** (Migration
+  `20260518090731_ai_usage_log.sql`):
+  - Spalten: `id, author_id (FK→authors), task, provider, model,
+    input_tokens, output_tokens, created_at`.
+  - Composite-Index `(author_id, created_at DESC)` für Rate-Limit-
+    Sliding-Window-Query.
+  - RLS aktiv ohne Policies → ausschliesslich Service-Role-Zugriff.
+    Client kann nicht lesen oder schreiben.
+  - Rollback-Statement als auskommentierter Kommentar im Migrations-File.
+
+- **Rate-Limit + Logging** (`src/lib/ai/rateLimit.ts`):
+  - `checkAiRateLimit(authorId)` zählt Zeilen im 1h-Sliding-Window,
+    Limit hartkodiert auf **20 Calls/Stunde pro Author**. Bei
+    Überschreitung Returnt zusätzlich `retryAfterSeconds` (errechnet
+    aus dem ältesten Eintrag im Window).
+  - `logAiUsage({...})` inserted eine Zeile in `ai_usage_log` —
+    derselbe Insert dient sowohl als Rate-Limit-Zähler als auch als
+    Kosten-Hauptbuch-Eintrag.
+
+- **Pragmatische Abweichungen vom bestehenden `rate-limit.ts`**
+  (eigener Limiter statt Erweiterung):
+  - **Identifier**: Author-ID (authentifizierter Editor-Kontext) statt
+    IP-Hash. Andere Use-Case-Klasse — User-Quoten vs Anti-Spam.
+  - **Storage**: eigene Tabelle `ai_usage_log` statt
+    `newsletter_signup_attempts` — getrennte Identifier-Klassen, andere
+    Retention.
+  - **Kein 24h-Auto-Cleanup** (bewusst anders als
+    `newsletter_signup_attempts`). Grund: `ai_usage_log` ist
+    persistenter Kosten-Hauptbuch, Historie muss erhalten bleiben für
+    spätere Kosten-Auswertung. Ein Long-Term-Cleanup für >365 Tage
+    alte Zeilen ist nur als auskommentierter Vorschlag im File
+    dokumentiert, nicht aktiv.
+  - `src/lib/rate-limit.ts` und `newsletter_signup_attempts` wurden
+    NICHT angefasst.
+
+- **Smoke-Test (TEMPORAER, wird in A1b entfernt):**
+  - `src/lib/ai/smokeTest.ts` (`"use server"`): `runAiSmokeTest()` ruft
+    `callLLM` mit System `"Antworte mit genau dem Wort: OK"`,
+    Prompt `"Ping"`, `maxTokens: 16`, `task: "smoke_test"`.
+  - `/autor/ai-test` (innerhalb `(suite)/`-Route-Group, damit der
+    bestehende Auth-Gate greift). Button löst die Action aus, zeigt
+    Provider/Model/Token-Counts bei Erfolg, Kind+Message bei Fehler.
+  - Beide Dateien haben einen `TEMPORAER`-Header-Kommentar. A1b
+    entfernt diese komplett.
+
+- **Env-Variablen** (in Vercel als Sensitive anlegen — `.env.example`
+  hat Platzhalter):
+  - `ANTHROPIC_API_KEY` — Provider-Key. Niemals committen.
+  - `ANTHROPIC_MODEL` — globale Default-Modell-Wahl
+    (z.B. `claude-haiku-4-5`). Task→Modell-Verzweigung ist explizit
+    out-of-scope für A1a.
+
+- **Manuelle Type-Ergänzung in `database.types.ts`:** der
+  `ai_usage_log`-Type ist temporär manuell im Public-Tables-Block
+  eingefügt (mit `// ── PHASE 11`-Markern), weil die Migration zum
+  Zeitpunkt des PR noch nicht via `supabase db push` deployed war.
+  Nach DB-Push + erneutem `gen types` wird der Block automatisch
+  identisch durch das CLI überschrieben — die Marker dürfen dann
+  entfernt werden.
+
 ### Invite-Flow (PR B)
 
 **Pragma:** Editor generiert Token, kopiert URL und versendet sie manuell
