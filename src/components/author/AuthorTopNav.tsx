@@ -26,6 +26,7 @@ const adminItems: NavItem[] = [
   { id: "admin-newsletter", label: "Newsletter", href: "/autor/admin/newsletter", icon: "✉" },
   { id: "admin-nachrichten", label: "Nachrichten", href: "/autor/admin/nachrichten", icon: "✎" },
   { id: "admin-pitches", label: "Pitches", href: "/autor/admin/pitches", icon: "✦" },
+  { id: "admin-ai-config", label: "AI-Konfiguration", href: "/autor/admin/ai-config", icon: "✨" },
 ];
 
 type AuthorTopNavProps = {

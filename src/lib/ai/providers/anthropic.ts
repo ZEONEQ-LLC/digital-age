@@ -33,7 +33,7 @@ function classifyError(err: unknown): { kind: AiErrorKind; message: string } {
 export class AnthropicProvider implements LLMProvider {
   async generate(params: LLMParams): Promise<AiResult> {
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    const model = process.env.ANTHROPIC_MODEL;
+    const model = params.model ?? process.env.ANTHROPIC_MODEL;
     if (!apiKey || !model) {
       // Niemals den Key-Wert loggen, nur die fehlende Variable benennen.
       console.error(
