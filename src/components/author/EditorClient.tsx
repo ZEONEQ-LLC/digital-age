@@ -158,7 +158,11 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     setMode("visual");
   }
 
-  const wordCount = useMemo(() => {
+  // Plain-Text-Aggregation des Body-Inhalts: Block-Tree (Visual) ODER
+  // Markdown-Fallback (Legacy). Inline-Marker werden mit-genommen — für
+  // AI-Kontext akzeptabel, der LLM ignoriert sie ohnehin. Dient zwei
+  // Zwecken: wordCount + AI-Server-Action-Input (z.B. SEO-Titel-Vorschlag).
+  const bodyText = useMemo(() => {
     const blocks: Block[] = doc?.blocks ?? [];
     const blockText = blocks.reduce((acc, b) => {
       if (b.type === "list") return acc + " " + b.items.join(" ");
@@ -173,9 +177,13 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       return acc + " " + b.content;
     }, "");
     const fallback = doc ? "" : markdown;
-    const text = blockText + " " + fallback + " " + title + " " + excerpt;
+    return (blockText + " " + fallback).trim();
+  }, [doc, markdown]);
+
+  const wordCount = useMemo(() => {
+    const text = bodyText + " " + title + " " + excerpt;
     return text.split(/\s+/).filter(Boolean).length;
-  }, [doc, markdown, title, excerpt]);
+  }, [bodyText, title, excerpt]);
 
   const readMinutes = Math.max(1, Math.round(wordCount / 200));
 
@@ -835,7 +843,12 @@ export default function EditorClient({ article, revisions, categories, isEditor,
 
       {tab === "seo" && (
         <div style={{ maxWidth: 720 }}>
-          <EditorSeoPanel seo={seo} onChange={setSeo} />
+          <EditorSeoPanel
+            seo={seo}
+            onChange={setSeo}
+            articleTitle={title}
+            articleBodyText={bodyText}
+          />
         </div>
       )}
 
