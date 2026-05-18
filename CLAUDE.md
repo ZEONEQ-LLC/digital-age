@@ -887,8 +887,10 @@ zweiter Provider, kein Streaming, keine Task→Modell-Verzweigung.
 - **SDK:** `@anthropic-ai/sdk` (offiziell). Kein roher `fetch`.
 
 - **Provider-Adapter** (`src/lib/ai/`):
-  - `types.ts` — `LLMParams`, `AiTask` (aktuell nur `"smoke_test"`, echte
-    Tasks kommen später), `AiResult` (Discriminated Union success vs
+  - `types.ts` — `LLMParams`, `AiTask` (acht Werte, 1:1 mit den
+    Editor-Buttons: `title_variants`, `tone_check`, `summary`,
+    `seo_title`, `seo_description`, `seo_slug`, `seo_keyword`,
+    `closing_paragraph`), `AiResult` (Discriminated Union success vs
     `{ kind: "config" | "auth" | "rate_limit" | "timeout" | "unknown" }`),
     `LLMProvider`-Interface.
   - `providers/anthropic.ts` — `AnthropicProvider` mit non-streaming
@@ -943,15 +945,52 @@ zweiter Provider, kein Streaming, keine Task→Modell-Verzweigung.
   - `src/lib/rate-limit.ts` und `newsletter_signup_attempts` wurden
     NICHT angefasst.
 
-- **Smoke-Test (TEMPORAER, wird in A1b entfernt):**
-  - `src/lib/ai/smokeTest.ts` (`"use server"`): `runAiSmokeTest()` ruft
-    `callLLM` mit System `"Antworte mit genau dem Wort: OK"`,
-    Prompt `"Ping"`, `maxTokens: 16`, `task: "smoke_test"`.
-  - `/autor/ai-test` (innerhalb `(suite)/`-Route-Group, damit der
-    bestehende Auth-Gate greift). Button löst die Action aus, zeigt
-    Provider/Model/Token-Counts bei Erfolg, Kind+Message bei Fehler.
-  - Beide Dateien haben einen `TEMPORAER`-Header-Kommentar. A1b
-    entfernt diese komplett.
+### Phase 11 — AI-Konfiguration (A1b-0)
+
+DB-gepflegte Konfiguration als Singleton, gepflegt von Editor-Rolle,
+gelesen von `callLLM` zur Laufzeit. Ersetzt die starre `ANTHROPIC_MODEL`-
+Env als Default-Quelle (Env bleibt Fallback).
+
+- **DB-Tabelle `ai_config`** (Migration `20260518121905_ai_config.sql`):
+  Singleton mit `id text primary key default 'global' check (id =
+  'global')` (erzwingt genau eine Row). Spalten: `system_prompt text
+  not null default ''`, `default_model text not null`,
+  `task_model_overrides jsonb not null default '{}'`, `updated_at`,
+  `updated_by uuid → authors(id) on delete set null`. Migration seedet
+  die eine Row mit `default_model='claude-haiku-4-5'` (idempotent via
+  `on conflict (id) do nothing`).
+- **RLS-Pattern:** SELECT für alle eingeloggten Authors (`using (true)`),
+  INSERT/UPDATE nur Editor via `public.is_editor()`-Helper. KEINE
+  DELETE-Policy — Singleton soll nicht löschbar sein.
+- **Config-Resolver** `src/lib/ai/config.ts → resolveLLMConfig(params)`:
+  liest die `global`-Row über den bestehenden Supabase-Auth-Server-Client
+  (kein Service-Role), merged `system_prompt` (DB zuerst, dann Caller-
+  System, getrennt durch `"\n\n"` falls beide nicht leer), wählt Modell
+  per `task_model_overrides[params.task] ?? default_model`. Defensiv:
+  Overrides-Keys, die nicht in `AiTask` sind, werden ignoriert.
+- **Fehlerverhalten:** Wenn der DB-Read fehlschlägt (Tabelle fehlt,
+  Service down, RLS unerwartet, 0 Rows): graceful Fallback —
+  `params.system` bleibt der Caller-Wert, `params.model` bleibt unset
+  (Provider fällt auf `process.env.ANTHROPIC_MODEL` zurück). Ein
+  `console.warn` mit Kennung `[ai-config] resolve failed/threw, falling
+  back to env` wird emittiert (kein Secret-Leak). `callLLM` returnt
+  NICHT `kind:"config"` — Config-Fehlen ist kein Abbruchgrund.
+- **Provider-Naht:** `LLMParams.model?: string` neu (optional).
+  `AnthropicProvider.generate` liest `params.model ?? process.env.
+  ANTHROPIC_MODEL` (eine einzige Zeile angepasst, alles andere am
+  A1a-Pfad unangetastet: Fehler-Mapping, Timeout, API-Key-Read, Logging-
+  Branches).
+- **Editor-UI** `/autor/admin/ai-config` (`(suite)/admin/*`-Layout
+  doppelschicht-gegated): Textarea für Systemprompt, Input für Default-
+  Modell, ein Override-Input pro `AiTask`-Wert (leer = Default).
+  Speichern via Server Action `saveAiConfig`, die zusätzlich zur RLS
+  Editor-Auth prüft und Nicht-Editoren mit klarer Message abweist statt
+  rohen RLS-Errors zu zeigen. Nav-Items in `AuthorSidebar` + `AuthorTopNav`
+  (`id: admin-ai-config`).
+- **Kein Cache:** Config wird bei jedem `callLLM` frisch gelesen
+  (bewusste Entscheidung — Anthropic-Call-Latenz dominiert; DB-Read mit
+  `single()` ist ~20–50 ms; Worker-übergreifende Cache-Invalidierung
+  hätte realen Komplexitätskosten ohne messbaren Nutzen).
 
 - **Env-Variablen** (in Vercel als Sensitive anlegen — `.env.example`
   hat Platzhalter):

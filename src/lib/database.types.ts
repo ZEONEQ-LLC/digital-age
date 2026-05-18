@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_config: {
+        Row: {
+          default_model: string
+          id: string
+          system_prompt: string
+          task_model_overrides: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          default_model: string
+          id?: string
+          system_prompt?: string
+          task_model_overrides?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          default_model?: string
+          id?: string
+          system_prompt?: string
+          task_model_overrides?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_config_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_prompts: {
         Row: {
           author_id: string | null
@@ -1099,4 +1134,3 @@ export const Constants = {
     },
   },
 } as const
-

@@ -24,6 +24,12 @@ export type LLMParams = {
   prompt: string;
   maxTokens: number;
   task: AiTask;
+  // Optionales Modell-Override pro Call. Wenn gesetzt, nutzt der
+  // Provider diesen Wert statt `process.env.ANTHROPIC_MODEL`. Wird vom
+  // Config-Resolver in `callLLM` befüllt (DB → task_model_overrides ↦
+  // default_model). Bleibt undefined bei Direkt-Callern oder Config-
+  // Resolve-Failure (dann Env-Fallback im Provider).
+  model?: string;
 };
 
 // Discriminated Union: success vs structured error. Hält das Aufrufer-Code

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { resolveLLMConfig } from "@/lib/ai/config";
 import { AnthropicProvider } from "@/lib/ai/providers/anthropic";
 import { checkAiRateLimit, logAiUsage } from "@/lib/ai/rateLimit";
 import type { AiResult, LLMParams, LLMProvider } from "@/lib/ai/types";
@@ -57,7 +58,13 @@ export async function callLLM(params: LLMParams): Promise<AiResult> {
     };
   }
 
-  const result = await provider.generate(params);
+  // Config-Resolver: merged Caller-`params` mit der DB-Singleton-Config
+  // (ai_config.global). Bei Failure graceful fallback auf Caller-Werte +
+  // Env (Provider liest dann ANTHROPIC_MODEL). Kein Throw, kein
+  // kind:"config" — Config-Fehlen ist kein Abbruchgrund.
+  const resolved = await resolveLLMConfig(params);
+
+  const result = await provider.generate(resolved);
 
   // Provider-Konfig-Fehler bedeutet, dass kein Call passiert ist — also
   // auch keine Kosten anfielen, kein Log. Alle anderen Outcomes loggen.
