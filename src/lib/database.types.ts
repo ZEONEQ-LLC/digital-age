@@ -199,6 +199,51 @@ export type Database = {
           },
         ]
       }
+      // ── PHASE 11 / A1a: manuell ergänzt, bis `npx supabase db push` +
+      // `gen types` durchgelaufen sind. Danach wird dieser Block beim
+      // nächsten Type-Regen automatisch identisch durch das CLI überschrieben.
+      ai_usage_log: {
+        Row: {
+          author_id: string
+          created_at: string
+          id: string
+          input_tokens: number
+          model: string
+          output_tokens: number
+          provider: string
+          task: string
+        }
+        Insert: {
+          author_id: string
+          created_at?: string
+          id?: string
+          input_tokens?: number
+          model: string
+          output_tokens?: number
+          provider: string
+          task: string
+        }
+        Update: {
+          author_id?: string
+          created_at?: string
+          id?: string
+          input_tokens?: number
+          model?: string
+          output_tokens?: number
+          provider?: string
+          task?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_log_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      // ── /PHASE 11 manueller Block
       article_pitches: {
         Row: {
           author_bio: string
