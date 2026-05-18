@@ -53,7 +53,7 @@ export async function callLLM(params: LLMParams): Promise<AiResult> {
     return {
       ok: false,
       kind: "rate_limit",
-      message: `daily author limit reached, retry in ${decision.retryAfterSeconds}s`,
+      message: `hourly author limit reached, retry in ${decision.retryAfterSeconds}s`,
     };
   }
 
