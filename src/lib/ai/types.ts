@@ -21,7 +21,12 @@ export type AiTask =
   // Master-Button "SEO generieren" — 1 LLM-Call liefert 5 Felder als JSON
   // (Themenprofil, Focus-Keyword, 3 Title-Kandidaten, Meta-Description,
   // Slug-Vorschlag). Ersetzt die seo_title-Pilot-Verdrahtung im UI.
-  | "seo_pipeline";
+  | "seo_pipeline"
+  // Read-only SEO-Analyse von H1 + erster Absatz + Focus-Keyword. Liefert
+  // 3–6 strukturierte Empfehlungen (severity + category + finding +
+  // recommendation). Ändert nichts am Artikel — eigener UI-Button im
+  // SEO-Tab unter der Pipeline-Card.
+  | "seo_review";
 
 export type LLMParams = {
   system: string;
