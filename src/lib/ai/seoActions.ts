@@ -303,7 +303,26 @@ function buildSeoReviewSystem(locale: "de-CH" | "en"): string {
     "  ]",
     "}",
     "",
+    "WORTLIMITS — STRIKT EINHALTEN, KEINE AUSNAHMEN:",
+    "  - overallAssessment: maximal 15 Wörter, ein Satz.",
+    "  - finding: maximal 20 Wörter pro Item, ein Satz.",
+    "  - recommendation: maximal 25 Wörter pro Item, ein bis zwei Sätze.",
+    "Überschreite NIEMALS diese Limits. Wenn du nicht alles unterbringst: kürze, statt zu rambeln.",
+    "",
     "Keine generischen Tipps. Jede Empfehlung muss sich auf den konkreten Text beziehen, den du gerade siehst.",
+    "",
+    "BEISPIEL für gewünschte Kürze (en):",
+    "{",
+    '  "overallAssessment": "Strong opening but weak keyword placement.",',
+    '  "suggestions": [',
+    "    {",
+    '      "severity": "critical",',
+    '      "category": "keyword",',
+    '      "finding": "Focus-Keyword fehlt im ersten Absatz komplett.",',
+    '      "recommendation": "Keyword innerhalb der ersten 30 Wörter natürlich einbauen, idealerweise im ersten Satz."',
+    "    }",
+    "  ]",
+    "}",
   ].join("\n");
 }
 
@@ -429,7 +448,7 @@ export async function analyzeSeoEntry(args: {
       firstParagraph: args.firstParagraph,
       focusKeyword: args.focusKeyword,
     }),
-    maxTokens: 500,
+    maxTokens: 1200,
     task: "seo_review",
   });
 
