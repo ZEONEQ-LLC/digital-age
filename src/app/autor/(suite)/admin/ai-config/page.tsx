@@ -12,6 +12,7 @@ const TASK_LABELS: Record<AiTask, string> = {
   seo_slug: "URL-Slug",
   seo_keyword: "Focus Keyword",
   closing_paragraph: "Schluss-Absatz",
+  seo_pipeline: "SEO-Pipeline (Master)",
 };
 
 export default async function AiConfigPage() {

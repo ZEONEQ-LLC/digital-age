@@ -17,7 +17,11 @@ export type AiTask =
   | "seo_description"
   | "seo_slug"
   | "seo_keyword"
-  | "closing_paragraph";
+  | "closing_paragraph"
+  // Master-Button "SEO generieren" — 1 LLM-Call liefert 5 Felder als JSON
+  // (Themenprofil, Focus-Keyword, 3 Title-Kandidaten, Meta-Description,
+  // Slug-Vorschlag). Ersetzt die seo_title-Pilot-Verdrahtung im UI.
+  | "seo_pipeline";
 
 export type LLMParams = {
   system: string;
@@ -48,6 +52,7 @@ export type AiErrorKind =
   | "auth" // 401 vom Provider
   | "rate_limit" // 429 vom Provider ODER eigener Author-Limiter
   | "timeout" // Netzwerk-Timeout / abort
+  | "invalid_json" // Antwort liess sich nicht zu erwartetem Schema parsen
   | "unknown"; // alles andere — Provider-Details bleiben in Server-Logs
 
 export type AiResultError = {
