@@ -124,15 +124,35 @@ function stripCodeFence(raw: string): string {
     .trim();
 }
 
+// Truncation für Raw-Response-Logging. 2000 Zeichen reichen, um typische
+// Drift zu sehen (Codeblock-Wrapper, Vorrede, Modell-Markdown), ohne die
+// Vercel-Logs zu fluten.
+const RAW_LOG_MAX = 2000;
+function truncateForLog(s: string): string {
+  return s.length > RAW_LOG_MAX ? `${s.slice(0, RAW_LOG_MAX)}…[truncated]` : s;
+}
+
 function parseSeoFields(raw: string): SeoFields | null {
   const text = stripCodeFence(raw);
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
-  } catch {
+  } catch (err) {
+    console.error(
+      "[seo-pipeline] JSON.parse failed:",
+      err instanceof Error ? err.message : String(err),
+      "| raw:",
+      truncateForLog(raw),
+    );
     return null;
   }
-  if (!parsed || typeof parsed !== "object") return null;
+  if (!parsed || typeof parsed !== "object") {
+    console.error(
+      "[seo-pipeline] Schema validation failed (missing or wrong type): top-level not an object | raw:",
+      truncateForLog(raw),
+    );
+    return null;
+  }
   const p = parsed as Record<string, unknown>;
 
   const themenprofil = typeof p.themenprofil === "string" ? p.themenprofil : null;
@@ -152,6 +172,21 @@ function parseSeoFields(raw: string): SeoFields | null {
     titles.length !== 3 ||
     !titles.every((t): t is string => typeof t === "string")
   ) {
+    console.error(
+      "[seo-pipeline] Schema validation failed (missing or wrong type):",
+      JSON.stringify({
+        themenprofil: typeof p.themenprofil,
+        focusKeyword: typeof p.focusKeyword,
+        metaDescription: typeof p.metaDescription,
+        slugSuggestion: typeof p.slugSuggestion,
+        titleCandidatesIsArray: Array.isArray(p.titleCandidates),
+        titleCandidatesLength: Array.isArray(p.titleCandidates)
+          ? p.titleCandidates.length
+          : null,
+      }),
+      "| raw:",
+      truncateForLog(raw),
+    );
     return null;
   }
 
@@ -291,28 +326,82 @@ function parseSeoReview(raw: string): SeoReview | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
-  } catch {
+  } catch (err) {
+    console.error(
+      "[seo-review] JSON.parse failed:",
+      err instanceof Error ? err.message : String(err),
+      "| raw:",
+      truncateForLog(raw),
+    );
     return null;
   }
-  if (!parsed || typeof parsed !== "object") return null;
+  if (!parsed || typeof parsed !== "object") {
+    console.error(
+      "[seo-review] Schema validation failed (missing or wrong type): top-level not an object | raw:",
+      truncateForLog(raw),
+    );
+    return null;
+  }
   const p = parsed as Record<string, unknown>;
 
   const overall = typeof p.overallAssessment === "string" ? p.overallAssessment : null;
   const sugs = Array.isArray(p.suggestions) ? p.suggestions : null;
-  if (overall === null || sugs === null || sugs.length === 0) return null;
+  if (overall === null || sugs === null || sugs.length === 0) {
+    console.error(
+      "[seo-review] Schema validation failed (missing or wrong type):",
+      JSON.stringify({
+        overallAssessment: typeof p.overallAssessment,
+        suggestionsIsArray: Array.isArray(p.suggestions),
+        suggestionsLength: Array.isArray(p.suggestions)
+          ? p.suggestions.length
+          : null,
+      }),
+      "| raw:",
+      truncateForLog(raw),
+    );
+    return null;
+  }
 
   const validated: SeoReviewSuggestion[] = [];
-  for (const item of sugs) {
-    if (!item || typeof item !== "object") return null;
+  for (let i = 0; i < sugs.length; i++) {
+    const item = sugs[i];
+    if (!item || typeof item !== "object") {
+      console.error(
+        `[seo-review] Schema validation failed (missing or wrong type): suggestions[${i}] not an object | raw:`,
+        truncateForLog(raw),
+      );
+      return null;
+    }
     const s = item as Record<string, unknown>;
     if (
       typeof s.severity !== "string" ||
       typeof s.category !== "string" ||
       typeof s.finding !== "string" ||
-      typeof s.recommendation !== "string" ||
+      typeof s.recommendation !== "string"
+    ) {
+      console.error(
+        `[seo-review] Schema validation failed (missing or wrong type): suggestions[${i}]`,
+        JSON.stringify({
+          severity: typeof s.severity,
+          category: typeof s.category,
+          finding: typeof s.finding,
+          recommendation: typeof s.recommendation,
+        }),
+        "| raw:",
+        truncateForLog(raw),
+      );
+      return null;
+    }
+    if (
       !REVIEW_SEVERITIES.has(s.severity as SeoReviewSeverity) ||
       !REVIEW_CATEGORIES.has(s.category as SeoReviewCategory)
     ) {
+      console.error(
+        `[seo-review] Enum check failed: suggestions[${i}]`,
+        JSON.stringify({ severity: s.severity, category: s.category }),
+        "| raw:",
+        truncateForLog(raw),
+      );
       return null;
     }
     validated.push({
