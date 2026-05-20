@@ -865,8 +865,10 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           <EditorSeoPanel
             seo={seo}
             onChange={setSeo}
+            articleId={article.id}
             articleTitle={title}
             articleBodyText={bodyText}
+            locale={locale}
           />
         </div>
       )}

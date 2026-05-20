@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import AuthorCard from "./AuthorCard";
 import MonoCaption from "./MonoCaption";
-import { suggestSeoTitle } from "@/lib/ai/seoActions";
+import { generateSeoFields, type SeoFields } from "@/lib/ai/seoActions";
 import type { AiErrorKind } from "@/lib/ai/types";
 
 export type SeoState = {
@@ -16,11 +16,10 @@ export type SeoState = {
 type EditorSeoPanelProps = {
   seo: SeoState;
   onChange: (next: SeoState) => void;
-  // Live-Editor-State aus dem Parent EditorClient — wird von den AI-
-  // Anbindungen benötigt. Aktuell nutzt nur der SEO-Titel-Button beides;
-  // Pilot-Pattern für die anderen sieben AI-Buttons in Folge-PRs.
+  articleId: string;
   articleTitle?: string;
   articleBodyText?: string;
+  locale: "de-CH" | "en";
 };
 
 const inputStyle: React.CSSProperties = {
@@ -34,6 +33,9 @@ const inputStyle: React.CSSProperties = {
   fontFamily: "inherit",
 };
 
+// AiButton bleibt rückwärtskompatibel: ohne `onClick`-Prop disabled mit
+// Standard-Tooltip. Die sieben anderen AI-Stub-Buttons (4 in EditorSidebar,
+// 3 hier im Panel für Description/Slug/Keyword) lassen den Prop weg.
 const aiBtnStyleBase: React.CSSProperties = {
   background: "rgba(220,214,247,0.1)",
   color: "var(--da-purple)",
@@ -50,10 +52,6 @@ const aiBtnStyleBase: React.CSSProperties = {
 
 const AI_TOOLTIP = "AI-Features kommen in einer späteren Phase";
 
-// Subkomponente bleibt rückwärtskompatibel: ohne `onClick`-Prop verhält sie
-// sich wie vorher (disabled, Standard-Tooltip). Mit `onClick`-Prop wird sie
-// interaktiv, mit Loading-Indikator. Die sieben Buttons, die in A1b-1 nicht
-// verdrahtet werden, lassen `onClick` weg → bleiben unverändert disabled.
 function AiButton({
   ariaLabel,
   onClick,
@@ -83,7 +81,7 @@ function AiButton({
   );
 }
 
-// Mapping AI-Fehler → nutzerfreundliche deutsche Meldung.
+// AiErrorKind plus "invalid_json" deutsche Texte.
 function errorMessageFor(kind: AiErrorKind): string {
   switch (kind) {
     case "rate_limit":
@@ -93,9 +91,11 @@ function errorMessageFor(kind: AiErrorKind): string {
       return "AI aktuell nicht verfügbar.";
     case "timeout":
       return "Zeitüberschreitung — bitte erneut versuchen.";
+    case "invalid_json":
+      return "Antwort konnte nicht ausgelesen werden. Bitte erneut versuchen.";
     case "unknown":
     default:
-      return "Vorschlag konnte nicht erstellt werden.";
+      return "Vorschläge konnten nicht erstellt werden.";
   }
 }
 
@@ -117,47 +117,115 @@ function labelRow(label: string, len: number, ok: boolean, ranges?: string) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Subkomponenten für die Vorschlags-Boxen
+// ─────────────────────────────────────────────────────────────────────────
+
+const suggestionBoxStyle: React.CSSProperties = {
+  background: "rgba(220,214,247,0.08)",
+  border: "1px solid var(--da-purple)",
+  borderRadius: 4,
+  padding: 12,
+  display: "flex",
+  flexDirection: "column",
+  gap: 8,
+};
+
+const suggestionCaptionStyle: React.CSSProperties = {
+  color: "var(--da-purple)",
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: "0.12em",
+  textTransform: "uppercase",
+  fontFamily: "var(--da-font-mono)",
+  margin: 0,
+};
+
+const acceptBtnStyle: React.CSSProperties = {
+  background: "var(--da-purple)",
+  color: "var(--da-dark)",
+  border: "none",
+  borderRadius: 3,
+  padding: "6px 12px",
+  fontSize: 12,
+  fontWeight: 700,
+  cursor: "pointer",
+  fontFamily: "inherit",
+};
+
+const dismissBtnStyle: React.CSSProperties = {
+  background: "transparent",
+  color: "var(--da-muted-soft)",
+  border: "1px solid var(--da-border)",
+  borderRadius: 3,
+  padding: "6px 12px",
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: "pointer",
+  fontFamily: "inherit",
+};
+
+function CountChip({ value, ideal }: { value: number; ideal?: [number, number] }) {
+  const ok = ideal ? value >= ideal[0] && value <= ideal[1] : true;
+  const color = ok ? "var(--da-green)" : "var(--da-orange)";
+  return (
+    <span
+      style={{
+        color,
+        fontSize: 11,
+        fontFamily: "var(--da-font-mono)",
+      }}
+    >
+      {value}
+      {ideal && ` · ideal ${ideal[0]}–${ideal[1]}`}
+    </span>
+  );
+}
+
 export default function EditorSeoPanel({
   seo,
   onChange,
+  articleId,
   articleTitle = "",
   articleBodyText = "",
+  locale,
 }: EditorSeoPanelProps) {
-  // AI-State NUR für den SEO-Titel-Pilot (A1b-1). Die anderen drei AI-
-  // Buttons (Description/Slug/Keyword) und die vier in EditorSidebar
-  // bleiben unverändert disabled, kein Handler.
-  const [titleSuggestion, setTitleSuggestion] = useState<string | null>(null);
-  const [titleSuggestError, setTitleSuggestError] = useState<string | null>(
-    null,
-  );
-  const [titleSuggestPending, startTitleSuggestTransition] = useTransition();
+  // Master-Pipeline-State: Vorschläge + Loading + Error.
+  // `dismissedKeys` trackt, welche Boxen der User per Verwerfen geschlossen
+  // hat. Übernehmen schliesst nicht zwingend — der User sieht weiter den
+  // Vergleich (z.B. 3 Titel-Kandidaten). Eine "Übernehmen"-Aktion auf einem
+  // Title-Kandidaten dismisst das gesamte Title-Set, weil dann eine
+  // konkrete Auswahl getroffen wurde.
+  const [pipelineFields, setPipelineFields] = useState<SeoFields | null>(null);
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
+  const [pipelinePending, startPipelineTransition] = useTransition();
+  const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(new Set());
 
-  function handleSuggestSeoTitle() {
-    setTitleSuggestion(null);
-    setTitleSuggestError(null);
-    startTitleSuggestTransition(async () => {
-      const result = await suggestSeoTitle({
-        title: articleTitle,
-        bodyText: articleBodyText,
-      });
-      if (!result.ok) {
-        setTitleSuggestError(errorMessageFor(result.kind));
-        return;
-      }
-      const text = result.text.trim();
-      if (text === "") {
-        setTitleSuggestError("Leere Antwort vom Modell.");
-        return;
-      }
-      setTitleSuggestion(text);
+  function dismiss(key: string) {
+    setDismissedKeys((prev) => {
+      const next = new Set(prev);
+      next.add(key);
+      return next;
     });
   }
 
-  function applyTitleSuggestion() {
-    if (!titleSuggestion) return;
-    set("title", titleSuggestion);
-    setTitleSuggestion(null);
-    setTitleSuggestError(null);
+  function handleGenerate() {
+    setPipelineError(null);
+    setPipelineFields(null);
+    setDismissedKeys(new Set());
+    startPipelineTransition(async () => {
+      const result = await generateSeoFields({
+        title: articleTitle,
+        bodyText: articleBodyText,
+        locale,
+        articleId,
+      });
+      if (!result.ok) {
+        setPipelineError(errorMessageFor(result.error));
+        return;
+      }
+      setPipelineFields(result.fields);
+    });
   }
 
   const titleLen = seo.title.length;
@@ -183,8 +251,286 @@ export default function EditorSeoPanel({
 
   const set = <K extends keyof SeoState>(k: K, v: SeoState[K]) => onChange({ ...seo, [k]: v });
 
+  const showThemenprofil = pipelineFields && !dismissedKeys.has("themenprofil");
+  const showKeyword = pipelineFields && !dismissedKeys.has("keyword");
+  const showTitles = pipelineFields && !dismissedKeys.has("titles");
+  const showDescription = pipelineFields && !dismissedKeys.has("description");
+  const showSlug = pipelineFields && !dismissedKeys.has("slug");
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      {/* Master-Button — prominent oben im Tab. */}
+      <AuthorCard padding={20} accent="var(--da-purple)">
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+          }}
+        >
+          <div>
+            <MonoCaption>AI-Pipeline</MonoCaption>
+            <p style={{ color: "var(--da-muted)", fontSize: 13, marginTop: 6, lineHeight: 1.5 }}>
+              Generiert mit einem Klick Themenprofil, Focus-Keyword, drei
+              Title-Kandidaten, Meta-Description und Slug-Vorschlag.
+              Sprache richtet sich nach der Artikel-Locale ({locale}).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={pipelinePending}
+            style={{
+              background: "var(--da-purple)",
+              color: "var(--da-dark)",
+              border: "none",
+              borderRadius: 4,
+              padding: "12px 18px",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: pipelinePending ? "not-allowed" : "pointer",
+              opacity: pipelinePending ? 0.7 : 1,
+              fontFamily: "inherit",
+              alignSelf: "flex-start",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            {pipelinePending ? "⏳ Generiere SEO-Vorschläge…" : "✨ SEO generieren"}
+          </button>
+          {pipelineError && (
+            <p
+              role="alert"
+              style={{
+                color: "#ff8e8e",
+                fontSize: 12,
+                margin: 0,
+                fontFamily: "var(--da-font-mono)",
+              }}
+            >
+              {pipelineError}
+            </p>
+          )}
+        </div>
+      </AuthorCard>
+
+      {/* Vorschlags-Boxen — erscheinen nur nach erfolgreichem Generate. */}
+      {pipelineFields && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {showThemenprofil && (
+            <div style={suggestionBoxStyle}>
+              <p style={suggestionCaptionStyle}>Themenprofil (intern)</p>
+              <p
+                style={{
+                  color: "var(--da-text)",
+                  fontSize: 13,
+                  lineHeight: 1.6,
+                  margin: 0,
+                }}
+              >
+                {pipelineFields.themenprofil}
+              </p>
+              <p style={{ color: "var(--da-muted-soft)", fontSize: 11, margin: 0 }}>
+                Nicht persistiert — nur als Orientierung.
+              </p>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => dismiss("themenprofil")}
+                  style={dismissBtnStyle}
+                >
+                  Schliessen
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showKeyword && (
+            <div style={suggestionBoxStyle}>
+              <p style={suggestionCaptionStyle}>Focus-Keyword</p>
+              <p
+                style={{
+                  color: "var(--da-text)",
+                  fontSize: 15,
+                  fontWeight: 600,
+                  margin: 0,
+                }}
+              >
+                {pipelineFields.focusKeyword}
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    set("keyword", pipelineFields.focusKeyword);
+                    dismiss("keyword");
+                  }}
+                  style={acceptBtnStyle}
+                >
+                  Übernehmen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dismiss("keyword")}
+                  style={dismissBtnStyle}
+                >
+                  Verwerfen
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showTitles && (
+            <div style={suggestionBoxStyle}>
+              <p style={suggestionCaptionStyle}>Title-Kandidaten (50–60 Zeichen)</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {pipelineFields.titleCandidates.map((cand, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      background: "var(--da-dark)",
+                      border: "1px solid var(--da-border)",
+                      borderRadius: 3,
+                      padding: 10,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "baseline",
+                        gap: 12,
+                      }}
+                    >
+                      <p
+                        style={{
+                          color: "var(--da-text)",
+                          fontSize: 13,
+                          lineHeight: 1.45,
+                          margin: 0,
+                          wordBreak: "break-word",
+                          flex: 1,
+                        }}
+                      >
+                        {cand}
+                      </p>
+                      <CountChip value={cand.length} ideal={[50, 60]} />
+                    </div>
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          set("title", cand);
+                          dismiss("titles");
+                        }}
+                        style={acceptBtnStyle}
+                      >
+                        Übernehmen
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => dismiss("titles")}
+                  style={dismissBtnStyle}
+                >
+                  Alle verwerfen
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showDescription && (
+            <div style={suggestionBoxStyle}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  gap: 12,
+                }}
+              >
+                <p style={suggestionCaptionStyle}>Meta-Description</p>
+                <CountChip value={pipelineFields.metaDescription.length} ideal={[140, 160]} />
+              </div>
+              <p
+                style={{
+                  color: "var(--da-text)",
+                  fontSize: 13,
+                  lineHeight: 1.55,
+                  margin: 0,
+                  wordBreak: "break-word",
+                }}
+              >
+                {pipelineFields.metaDescription}
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    set("description", pipelineFields.metaDescription);
+                    dismiss("description");
+                  }}
+                  style={acceptBtnStyle}
+                >
+                  Übernehmen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dismiss("description")}
+                  style={dismissBtnStyle}
+                >
+                  Verwerfen
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showSlug && (
+            <div style={suggestionBoxStyle}>
+              <p style={suggestionCaptionStyle}>Slug-Vorschlag</p>
+              <p
+                style={{
+                  color: "var(--da-text)",
+                  fontSize: 14,
+                  margin: 0,
+                  fontFamily: "var(--da-font-mono)",
+                  wordBreak: "break-word",
+                }}
+              >
+                digital-age.ch/artikel/{pipelineFields.slugSuggestion}
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    set("slug", pipelineFields.slugSuggestion);
+                    dismiss("slug");
+                  }}
+                  style={acceptBtnStyle}
+                >
+                  Übernehmen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dismiss("slug")}
+                  style={dismissBtnStyle}
+                >
+                  Verwerfen
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <AuthorCard padding={20} accent={scoreColor}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div
@@ -248,100 +594,8 @@ export default function EditorSeoPanel({
               onChange={(e) => set("title", e.target.value)}
               placeholder="Titel für Google & Social"
             />
-            <AiButton
-              ariaLabel="AI-Vorschlag für Titel"
-              onClick={handleSuggestSeoTitle}
-              loading={titleSuggestPending}
-            />
+            <AiButton ariaLabel="AI-Vorschlag für Titel" />
           </div>
-          {titleSuggestError && (
-            <p
-              role="alert"
-              style={{
-                color: "#ff8e8e",
-                fontSize: 12,
-                marginTop: 8,
-                fontFamily: "var(--da-font-mono)",
-              }}
-            >
-              {titleSuggestError}
-            </p>
-          )}
-          {titleSuggestion && (
-            <div
-              style={{
-                marginTop: 10,
-                background: "rgba(220,214,247,0.08)",
-                border: "1px solid var(--da-purple)",
-                borderRadius: 4,
-                padding: 12,
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-              }}
-            >
-              <p
-                style={{
-                  color: "var(--da-purple)",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  fontFamily: "var(--da-font-mono)",
-                  margin: 0,
-                }}
-              >
-                Vorschlag
-              </p>
-              <p
-                style={{
-                  color: "var(--da-text)",
-                  fontSize: 14,
-                  lineHeight: 1.5,
-                  margin: 0,
-                  wordBreak: "break-word",
-                }}
-              >
-                {titleSuggestion}
-              </p>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  type="button"
-                  onClick={applyTitleSuggestion}
-                  style={{
-                    background: "var(--da-purple)",
-                    color: "var(--da-dark)",
-                    border: "none",
-                    borderRadius: 3,
-                    padding: "6px 12px",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  Übernehmen
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTitleSuggestion(null)}
-                  style={{
-                    background: "transparent",
-                    color: "var(--da-muted-soft)",
-                    border: "1px solid var(--da-border)",
-                    borderRadius: 3,
-                    padding: "6px 12px",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  Verwerfen
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         <div style={{ marginBottom: 18 }}>
