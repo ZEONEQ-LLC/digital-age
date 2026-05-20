@@ -57,6 +57,13 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   const [categoryId, setCategoryId] = useState(article.category_id);
   const [subcategory, setSubcategory] = useState(article.subcategory ?? "");
   const [tagList, setTagList] = useState<string[]>(article.tags ?? []);
+  // Sprache: bestimmt das `lang`-Attribut auf der Detail-Page und das
+  // og:locale-Meta-Tag. DB-Werte sind "de-CH" oder "en" (CHECK constraint).
+  // Fallback auf "de-CH" für die Edge-Case-TS-Lücke wenn ein Legacy-Row
+  // ohne locale-Wert ankommt — DB hat NOT NULL DEFAULT, sollte nie auftreten.
+  const [locale, setLocale] = useState<"de-CH" | "en">(
+    (article.locale as "de-CH" | "en" | null) ?? "de-CH",
+  );
   // Veröffentlichungsdatum: YYYY-MM-DD-Format für <input type="date">.
   // Bei Save wird's auf Midnight-UTC-ISO-Timestamp expandiert; null bei leer.
   const [publishedAtDate, setPublishedAtDate] = useState<string>(
@@ -206,6 +213,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       seo_description: seo.description || null,
       seo_keyword: seo.keyword || null,
       published_at: publishedAtIso,
+      locale,
     };
     if (doc) {
       // Wenn im Markdown-Modus getippt wurde: Markdown → Blocks synchronisieren
@@ -598,6 +606,17 @@ export default function EditorClient({ article, revisions, categories, isEditor,
                   onChange={setTagList}
                   placeholder="Tag suchen oder neu anlegen…"
                 />
+              </div>
+              <div>
+                <label className="a-edit-meta-label">Sprache</label>
+                <select
+                  className="a-edit-meta-select"
+                  value={locale}
+                  onChange={(e) => setLocale(e.target.value as "de-CH" | "en")}
+                >
+                  <option value="de-CH">Deutsch (Schweiz)</option>
+                  <option value="en">Englisch</option>
+                </select>
               </div>
             </div>
 
