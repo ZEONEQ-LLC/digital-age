@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -54,6 +55,52 @@ function resolveBlockDocument(article: ArticleWithFullRelations): BlockDocument 
     version: BLOCK_SCHEMA_VERSION,
     blocks: markdownToBlocks(article.body_md ?? ""),
     sources: [],
+  };
+}
+
+// OG-Locale-Format unterscheidet sich von unserem DB-Wert: OG nutzt
+// `xx_YY` (Underscore), wir speichern `de-CH` / `en`. Mapping ist hart-
+// kodiert auf die zwei aktuell unterstützten Werte — DB-CHECK verhindert
+// dass etwas anderes reinkommt.
+function ogLocale(locale: string | null | undefined): "de_CH" | "en_US" {
+  return locale === "en" ? "en_US" : "de_CH";
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const article = await getArticleBySlug(slug);
+  if (!article) return {};
+
+  const title = article.seo_title?.trim() || article.title;
+  const description =
+    article.seo_description?.trim() || article.excerpt?.trim() || undefined;
+  const canonical = `/artikel/${article.slug}`;
+  const cover = getCoverUrl(article);
+  const authorHandle = article.author?.handle ?? article.author?.slug;
+  const authors = article.author
+    ? [{ name: article.author.display_name, url: authorHandle ? `/autor/${authorHandle}` : undefined }]
+    : undefined;
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      type: "article",
+      locale: ogLocale(article.locale),
+      title,
+      description,
+      url: canonical,
+      images: cover ? [{ url: cover, alt: article.title }] : undefined,
+      authors: authors?.map((a) => a.name),
+      publishedTime: article.published_at ?? undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: cover ? [cover] : undefined,
+    },
   };
 }
 

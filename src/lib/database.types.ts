@@ -374,6 +374,7 @@ export type Database = {
           id: string
           is_featured: boolean
           is_hero: boolean
+          locale: string
           published_at: string | null
           reading_minutes: number | null
           seo_description: string | null
@@ -399,6 +400,7 @@ export type Database = {
           id?: string
           is_featured?: boolean
           is_hero?: boolean
+          locale?: string
           published_at?: string | null
           reading_minutes?: number | null
           seo_description?: string | null
@@ -424,6 +426,7 @@ export type Database = {
           id?: string
           is_featured?: boolean
           is_hero?: boolean
+          locale?: string
           published_at?: string | null
           reading_minutes?: number | null
           seo_description?: string | null

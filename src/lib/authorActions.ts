@@ -81,6 +81,7 @@ export type ArticlePatch = {
   seo_description?: string | null;
   seo_keyword?: string | null;
   published_at?: string | null;
+  locale?: "de-CH" | "en";
 };
 
 export async function saveArticle(id: string, patch: ArticlePatch): Promise<ArticleRow> {
