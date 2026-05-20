@@ -169,6 +169,20 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   // Markdown-Fallback (Legacy). Inline-Marker werden mit-genommen — für
   // AI-Kontext akzeptabel, der LLM ignoriert sie ohnehin. Dient zwei
   // Zwecken: wordCount + AI-Server-Action-Input (z.B. SEO-Titel-Vorschlag).
+  // Erster Absatz für die SEO-Review-Analyse: erster Block vom Typ
+  // 'paragraph' im Visual-Tree. Wenn der Doc null/leer ist oder kein
+  // paragraph drin: leerer String — der LLM bekommt das im Prompt und
+  // kann das als "Lead-Paragraph fehlt"-Empfehlung zurückgeben.
+  const firstParagraph = useMemo(() => {
+    const blocks: Block[] = doc?.blocks ?? [];
+    for (const b of blocks) {
+      if (b.type === "paragraph" && b.content.trim() !== "") {
+        return b.content;
+      }
+    }
+    return "";
+  }, [doc]);
+
   const bodyText = useMemo(() => {
     const blocks: Block[] = doc?.blocks ?? [];
     const blockText = blocks.reduce((acc, b) => {
@@ -868,6 +882,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             articleId={article.id}
             articleTitle={title}
             articleBodyText={bodyText}
+            articleFirstParagraph={firstParagraph}
             locale={locale}
           />
         </div>

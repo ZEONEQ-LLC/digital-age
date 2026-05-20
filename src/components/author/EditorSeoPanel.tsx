@@ -3,7 +3,14 @@
 import { useState, useTransition } from "react";
 import AuthorCard from "./AuthorCard";
 import MonoCaption from "./MonoCaption";
-import { generateSeoFields, type SeoFields } from "@/lib/ai/seoActions";
+import {
+  analyzeSeoEntry,
+  generateSeoFields,
+  type SeoFields,
+  type SeoReview,
+  type SeoReviewSeverity,
+  type SeoReviewCategory,
+} from "@/lib/ai/seoActions";
 import type { AiErrorKind } from "@/lib/ai/types";
 
 export type SeoState = {
@@ -19,6 +26,7 @@ type EditorSeoPanelProps = {
   articleId: string;
   articleTitle?: string;
   articleBodyText?: string;
+  articleFirstParagraph?: string;
   locale: "de-CH" | "en";
 };
 
@@ -182,12 +190,48 @@ function CountChip({ value, ideal }: { value: number; ideal?: [number, number] }
   );
 }
 
+// Severity- + Category-Mapping für die Review-Karten. Severity steuert
+// Streifen + Badge-Farbe, Category liefert nur das DE-Label am Badge.
+const SEVERITY_STYLE: Record<
+  SeoReviewSeverity,
+  { stripe: string; badgeBg: string; badgeFg: string; label: string }
+> = {
+  critical: {
+    stripe: "var(--da-red)",
+    badgeBg: "rgba(255,80,80,0.15)",
+    badgeFg: "var(--da-red)",
+    label: "Kritisch",
+  },
+  important: {
+    stripe: "var(--da-orange)",
+    badgeBg: "rgba(255,140,66,0.15)",
+    badgeFg: "var(--da-orange)",
+    label: "Wichtig",
+  },
+  nice_to_have: {
+    stripe: "var(--da-border)",
+    badgeBg: "rgba(160,160,160,0.12)",
+    badgeFg: "var(--da-muted)",
+    label: "Nice-to-have",
+  },
+};
+
+const CATEGORY_LABEL: Record<SeoReviewCategory, string> = {
+  keyword: "Keyword",
+  length: "Länge",
+  numbers: "Zahlen",
+  powerwords: "Powerwords",
+  hook: "Hook",
+  readability: "Lesbarkeit",
+};
+
 export default function EditorSeoPanel({
   seo,
   onChange,
   articleId,
   articleTitle = "",
   articleBodyText = "",
+  articleFirstParagraph = "",
   locale,
 }: EditorSeoPanelProps) {
   // Master-Pipeline-State: Vorschläge + Loading + Error.
@@ -200,6 +244,12 @@ export default function EditorSeoPanel({
   const [pipelineError, setPipelineError] = useState<string | null>(null);
   const [pipelinePending, startPipelineTransition] = useTransition();
   const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(new Set());
+
+  // Review-State (read-only, kein Cache). "Analysieren" erneut zu klicken
+  // ersetzt den State komplett, kein Append.
+  const [review, setReview] = useState<SeoReview | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewPending, startReviewTransition] = useTransition();
 
   function dismiss(key: string) {
     setDismissedKeys((prev) => {
@@ -226,6 +276,30 @@ export default function EditorSeoPanel({
       }
       setPipelineFields(result.fields);
     });
+  }
+
+  function handleAnalyze() {
+    setReviewError(null);
+    setReview(null);
+    startReviewTransition(async () => {
+      const result = await analyzeSeoEntry({
+        title: articleTitle,
+        firstParagraph: articleFirstParagraph,
+        focusKeyword: seo.keyword.trim() === "" ? null : seo.keyword,
+        locale,
+        articleId,
+      });
+      if (!result.ok) {
+        setReviewError(errorMessageFor(result.error));
+        return;
+      }
+      setReview(result.review);
+    });
+  }
+
+  function handleCloseReview() {
+    setReview(null);
+    setReviewError(null);
   }
 
   const titleLen = seo.title.length;
@@ -530,6 +604,163 @@ export default function EditorSeoPanel({
           )}
         </div>
       )}
+
+      {/* Verbesserungsvorschläge — read-only-Analyse */}
+      <AuthorCard padding={20}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <MonoCaption>Verbesserungsvorschläge</MonoCaption>
+            <p style={{ color: "var(--da-muted)", fontSize: 13, marginTop: 6, lineHeight: 1.5 }}>
+              Analysiert H1 und ersten Absatz nach SEO-Kriterien. Ändert nichts.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleAnalyze}
+            disabled={reviewPending}
+            style={{
+              background: "var(--da-purple)",
+              color: "var(--da-dark)",
+              border: "none",
+              borderRadius: 4,
+              padding: "12px 18px",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: reviewPending ? "not-allowed" : "pointer",
+              opacity: reviewPending ? 0.7 : 1,
+              fontFamily: "inherit",
+              alignSelf: "flex-start",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            {reviewPending ? "⏳ Analysiere…" : "✨ Analysieren"}
+          </button>
+          {reviewError && (
+            <p
+              role="alert"
+              style={{
+                color: "#ff8e8e",
+                fontSize: 12,
+                margin: 0,
+                fontFamily: "var(--da-font-mono)",
+              }}
+            >
+              {reviewError}
+            </p>
+          )}
+
+          {review && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 4 }}>
+              <div
+                style={{
+                  background: "rgba(220,214,247,0.08)",
+                  border: "1px solid var(--da-purple)",
+                  borderRadius: 4,
+                  padding: 12,
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "flex-start",
+                }}
+              >
+                <span style={{ fontSize: 18, lineHeight: 1.2 }}>✨</span>
+                <p
+                  style={{
+                    color: "var(--da-text)",
+                    fontSize: 14,
+                    lineHeight: 1.5,
+                    margin: 0,
+                    fontStyle: "italic",
+                  }}
+                >
+                  {review.overallAssessment}
+                </p>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {review.suggestions.map((s, i) => {
+                  const style = SEVERITY_STYLE[s.severity];
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        background: "var(--da-dark)",
+                        border: "1px solid var(--da-border)",
+                        borderLeft: `4px solid ${style.stripe}`,
+                        borderRadius: 3,
+                        padding: "12px 14px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                      }}
+                    >
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <span
+                          style={{
+                            background: style.badgeBg,
+                            color: style.badgeFg,
+                            fontSize: 10,
+                            fontWeight: 700,
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                            padding: "3px 8px",
+                            borderRadius: 3,
+                            fontFamily: "var(--da-font-mono)",
+                          }}
+                        >
+                          {style.label}
+                        </span>
+                        <span
+                          style={{
+                            color: "var(--da-muted)",
+                            fontSize: 10,
+                            fontFamily: "var(--da-font-mono)",
+                            letterSpacing: "0.06em",
+                          }}
+                        >
+                          {CATEGORY_LABEL[s.category]}
+                        </span>
+                      </div>
+                      <p
+                        style={{
+                          color: "var(--da-text)",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          margin: 0,
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        {s.finding}
+                      </p>
+                      <p
+                        style={{
+                          color: "var(--da-muted-soft)",
+                          fontSize: 13,
+                          margin: 0,
+                          lineHeight: 1.55,
+                        }}
+                      >
+                        {s.recommendation}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  onClick={handleCloseReview}
+                  style={dismissBtnStyle}
+                >
+                  Schliessen
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </AuthorCard>
 
       <AuthorCard padding={20} accent={scoreColor}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
