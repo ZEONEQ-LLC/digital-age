@@ -3,9 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import BlockEditor from "@/components/author/BlockEditor";
-import ArticleBody from "@/components/ArticleBody";
-import BlockReader from "@/components/BlockReader";
-import PageHero from "@/components/PageHero";
+import PageContent from "@/components/PageContent";
 import { savePage, deletePage, type PagePatch } from "@/lib/pageActions";
 import type { Database } from "@/lib/database.types";
 import type { BlockDocument } from "@/types/blocks";
@@ -209,16 +207,12 @@ export default function PageEditorClient({ page }: Props) {
 
       {tab === "preview" && (
         <div style={{ background: "var(--da-dark)", borderRadius: 6, border: "1px solid var(--da-border)" }}>
-          <PageHero
-            category={heroCategory.trim() === "" ? undefined : heroCategory}
+          <PageContent
             title={title}
-            description={lead.trim() === "" ? undefined : lead}
+            lead={lead.trim() === "" ? null : lead}
+            doc={doc}
+            showBreadcrumb={false}
           />
-          <div style={{ maxWidth: 800, margin: "0 auto", padding: "48px 32px 64px" }}>
-            <ArticleBody>
-              <BlockReader doc={doc} />
-            </ArticleBody>
-          </div>
         </div>
       )}
 

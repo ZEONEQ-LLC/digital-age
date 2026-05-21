@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import ArticleBody from "@/components/ArticleBody";
-import BlockReader from "@/components/BlockReader";
 import Footer from "@/components/Footer";
 import NewsTicker from "@/components/NewsTicker";
-import PageHero from "@/components/PageHero";
+import PageContent from "@/components/PageContent";
 import { getPublishedPageBySlug } from "@/lib/pagesApi";
 import type { BlockDocument } from "@/types/blocks";
 
@@ -29,16 +27,7 @@ export default async function Page() {
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <NewsTicker />
-      <PageHero
-        category={page.hero_category ?? undefined}
-        title={page.title}
-        description={page.lead ?? undefined}
-      />
-      <section style={{ maxWidth: 800, margin: "0 auto", padding: "48px 32px 96px" }}>
-        <ArticleBody>
-          <BlockReader doc={doc} />
-        </ArticleBody>
-      </section>
+      <PageContent title={page.title} lead={page.lead} doc={doc} />
       <Footer />
     </main>
   );
