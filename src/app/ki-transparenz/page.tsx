@@ -1,17 +1,33 @@
-import NewsTicker from "@/components/NewsTicker";
-import PageHero from "@/components/PageHero";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import Footer from "@/components/Footer";
+import NewsTicker from "@/components/NewsTicker";
+import PageContent from "@/components/PageContent";
+import { getPublishedPageBySlug } from "@/lib/pagesApi";
+import type { BlockDocument } from "@/types/blocks";
 
-export default function Page() {
+const SLUG = "ki-transparenz";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await getPublishedPageBySlug(SLUG);
+  if (!page) return {};
+  return {
+    title: page.title,
+    description: page.meta_description ?? undefined,
+    robots: page.noindex ? { index: false, follow: true } : undefined,
+  };
+}
+
+export default async function Page() {
+  const page = await getPublishedPageBySlug(SLUG);
+  if (!page) notFound();
+
+  const doc = page.body_blocks as unknown as BlockDocument;
+
   return (
-    <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
+    <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <NewsTicker />
-      <PageHero category="Transparenz" title="KI-Transparenz" description="Wie wir KI bei digital age einsetzen – offen und nachvollziehbar." />
-      <section style={{ maxWidth: "800px", margin: "0 auto", padding: "64px 32px", color: "var(--da-muted)", fontSize: "16px", lineHeight: 1.7 }}>
-        <p style={{ marginBottom: "16px" }}>Wir nutzen KI-Tools bei der Recherche, Redaktion und Content-Erstellung. Jeder Beitrag wird jedoch von Menschen geprüft und freigegeben.</p>
-        <p style={{ marginBottom: "16px" }}>News-Items, die automatisch generiert werden, sind als solche gekennzeichnet. Meinungsartikel und Analysen stammen immer von realen Autorinnen und Autoren.</p>
-        <p>Detaillierte Transparenz-Richtlinien folgen.</p>
-      </section>
+      <PageContent title={page.title} lead={page.lead} doc={doc} />
       <Footer />
     </main>
   );

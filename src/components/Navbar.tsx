@@ -5,23 +5,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const AUTHOR_SUITE_PATHS = [
-  "/autor/dashboard",
-  "/autor/artikel",
-  "/autor/statistiken",
-  "/autor/podcasts",
-  "/autor/prompts",
-  "/autor/profil",
-  "/autor/admin",
-];
-
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const pathname = usePathname() ?? "";
-  const isAuthorSuite = AUTHOR_SUITE_PATHS.some(
-    (p) => pathname === p || pathname.startsWith(p + "/")
-  );
+  // Navbar wird auf allen /autor/-Subrouten (Suite + Admin + Seiten) ausgeblendet.
+  // /autor selbst (Login-Page) zeigt weiterhin die Public-Navbar.
+  const isAuthorSuite = pathname.startsWith("/autor/") && pathname !== "/autor";
   if (isAuthorSuite) return null;
 
   return (

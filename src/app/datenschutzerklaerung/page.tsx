@@ -1,16 +1,33 @@
-import NewsTicker from "@/components/NewsTicker";
-import PageHero from "@/components/PageHero";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import Footer from "@/components/Footer";
+import NewsTicker from "@/components/NewsTicker";
+import PageContent from "@/components/PageContent";
+import { getPublishedPageBySlug } from "@/lib/pagesApi";
+import type { BlockDocument } from "@/types/blocks";
 
-export default function Page() {
+const SLUG = "datenschutzerklaerung";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await getPublishedPageBySlug(SLUG);
+  if (!page) return {};
+  return {
+    title: page.title,
+    description: page.meta_description ?? undefined,
+    robots: page.noindex ? { index: false, follow: true } : undefined,
+  };
+}
+
+export default async function Page() {
+  const page = await getPublishedPageBySlug(SLUG);
+  if (!page) notFound();
+
+  const doc = page.body_blocks as unknown as BlockDocument;
+
   return (
-    <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
+    <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <NewsTicker />
-      <PageHero category="Rechtliches" title="Datenschutzerklärung" />
-      <section style={{ maxWidth: "800px", margin: "0 auto", padding: "64px 32px", color: "var(--da-muted)", fontSize: "16px", lineHeight: 1.7 }}>
-        <p style={{ marginBottom: "16px" }}>Wir nehmen den Schutz deiner Daten ernst. Diese Seite wird in Kürze mit einer vollständigen Datenschutzerklärung ergänzt.</p>
-        <p style={{ marginBottom: "16px" }}>Bis dahin gilt: Wir erheben keine personenbezogenen Daten ausser wenn du uns aktiv kontaktierst.</p>
-      </section>
+      <PageContent title={page.title} lead={page.lead} doc={doc} />
       <Footer />
     </main>
   );

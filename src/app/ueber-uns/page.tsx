@@ -1,14 +1,33 @@
-import NewsTicker from "@/components/NewsTicker";
-import PageHero from "@/components/PageHero";
-import PagePlaceholder from "@/components/PagePlaceholder";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import Footer from "@/components/Footer";
+import NewsTicker from "@/components/NewsTicker";
+import PageContent from "@/components/PageContent";
+import { getPublishedPageBySlug } from "@/lib/pagesApi";
+import type { BlockDocument } from "@/types/blocks";
 
-export default function Page() {
+const SLUG = "ueber-uns";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await getPublishedPageBySlug(SLUG);
+  if (!page) return {};
+  return {
+    title: page.title,
+    description: page.meta_description ?? undefined,
+    robots: page.noindex ? { index: false, follow: true } : undefined,
+  };
+}
+
+export default async function Page() {
+  const page = await getPublishedPageBySlug(SLUG);
+  if (!page) notFound();
+
+  const doc = page.body_blocks as unknown as BlockDocument;
+
   return (
-    <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
+    <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <NewsTicker />
-      <PageHero category="Über uns" title="Über digital age" description="digital age ist das Magazin für Künstliche Intelligenz und Zukunftstechnologien in der DACH-Region. Wir helfen Unternehmen, KI zu verstehen und sinnvoll einzusetzen." />
-      <PagePlaceholder message="Mehr über uns folgt hier." />
+      <PageContent title={page.title} lead={page.lead} doc={doc} />
       <Footer />
     </main>
   );
