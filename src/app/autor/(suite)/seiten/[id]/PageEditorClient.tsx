@@ -200,7 +200,20 @@ export default function PageEditorClient({ page }: Props) {
 
           <div style={{ marginTop: 8 }}>
             <p style={{ ...labelStyle, marginBottom: 10 }}>Inhalt</p>
-            <BlockEditor doc={doc} onChange={setDoc} articleId={page.id} />
+            {/* Padding-Wrapper analog `.a-edit-body-card` im Article-Editor:
+                Block-Toolbar (2x2-Grid bei `left: -64px`) braucht horizontalen
+                Innenabstand >=28px, damit die linke Spalte (↑ + +) nicht
+                ausserhalb des Render-Bereichs landet. */}
+            <div
+              style={{
+                background: "var(--da-card)",
+                border: "1px solid var(--da-border)",
+                borderRadius: 8,
+                padding: 28,
+              }}
+            >
+              <BlockEditor doc={doc} onChange={setDoc} articleId={page.id} />
+            </div>
           </div>
         </div>
       )}
