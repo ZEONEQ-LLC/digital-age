@@ -1,18 +1,43 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import ArticleBody from "@/components/ArticleBody";
+import BlockReader from "@/components/BlockReader";
+import Footer from "@/components/Footer";
 import NewsTicker from "@/components/NewsTicker";
 import PageHero from "@/components/PageHero";
-import Footer from "@/components/Footer";
+import { getPublishedPageBySlug } from "@/lib/pagesApi";
+import type { BlockDocument } from "@/types/blocks";
 
-export default function Page() {
+const SLUG = "impressum";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await getPublishedPageBySlug(SLUG);
+  if (!page) return {};
+  return {
+    title: page.title,
+    description: page.meta_description ?? undefined,
+    robots: page.noindex ? { index: false, follow: true } : undefined,
+  };
+}
+
+export default async function Page() {
+  const page = await getPublishedPageBySlug(SLUG);
+  if (!page) notFound();
+
+  const doc = page.body_blocks as unknown as BlockDocument;
+
   return (
     <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <NewsTicker />
-      <PageHero category="Rechtliches" title="Impressum" />
-      <section style={{ maxWidth: "800px", margin: "0 auto", padding: "64px 32px", color: "var(--da-muted)", fontSize: "16px", lineHeight: 1.7 }}>
-        <h3 style={{ color: "var(--da-text)", fontSize: "20px", fontWeight: 600, marginBottom: "16px" }}>Herausgeber</h3>
-        <p style={{ marginBottom: "24px" }}>digital-age.ch<br />Schweiz</p>
-        <h3 style={{ color: "var(--da-text)", fontSize: "20px", fontWeight: 600, marginBottom: "16px" }}>Kontakt</h3>
-        <p style={{ marginBottom: "24px" }}>E-Mail: hello@digital-age.ch</p>
-        <p style={{ color: "var(--da-muted-soft)", fontSize: "14px" }}>Vollständige Angaben werden ergänzt.</p>
+      <PageHero
+        category={page.hero_category ?? undefined}
+        title={page.title}
+        description={page.lead ?? undefined}
+      />
+      <section style={{ maxWidth: 800, margin: "0 auto", padding: "48px 32px 96px" }}>
+        <ArticleBody>
+          <BlockReader doc={doc} />
+        </ArticleBody>
       </section>
       <Footer />
     </main>

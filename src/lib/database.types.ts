@@ -716,6 +716,51 @@ export type Database = {
         }
         Relationships: []
       }
+      pages: {
+        Row: {
+          body_blocks: Json
+          created_at: string
+          hero_category: string | null
+          id: string
+          lead: string | null
+          locale: string
+          meta_description: string | null
+          noindex: boolean
+          slug: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body_blocks?: Json
+          created_at?: string
+          hero_category?: string | null
+          id?: string
+          lead?: string | null
+          locale?: string
+          meta_description?: string | null
+          noindex?: boolean
+          slug: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body_blocks?: Json
+          created_at?: string
+          hero_category?: string | null
+          id?: string
+          lead?: string | null
+          locale?: string
+          meta_description?: string | null
+          noindex?: boolean
+          slug?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       podcasts: {
         Row: {
           apple_podcasts_url: string | null
