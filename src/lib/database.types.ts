@@ -641,6 +641,119 @@ export type Database = {
           },
         ]
       }
+      news_items: {
+        Row: {
+          category: string | null
+          generated_at: string
+          id: string
+          original_title: string
+          published_at: string
+          source_id: string
+          source_url: string
+          status: string
+          summary: string
+          teaser: string
+          title: string
+        }
+        Insert: {
+          category?: string | null
+          generated_at?: string
+          id?: string
+          original_title: string
+          published_at: string
+          source_id: string
+          source_url: string
+          status?: string
+          summary: string
+          teaser: string
+          title: string
+        }
+        Update: {
+          category?: string | null
+          generated_at?: string
+          id?: string
+          original_title?: string
+          published_at?: string
+          source_id?: string
+          source_url?: string
+          status?: string
+          summary?: string
+          teaser?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "news_items_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "news_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      news_sources: {
+        Row: {
+          country: string | null
+          created_at: string
+          default_category: string | null
+          id: string
+          is_active: boolean
+          language: string
+          name: string
+          source_type: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          default_category?: string | null
+          id?: string
+          is_active?: boolean
+          language?: string
+          name: string
+          source_type?: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          default_category?: string | null
+          id?: string
+          is_active?: boolean
+          language?: string
+          name?: string
+          source_type?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      news_ticker_config: {
+        Row: {
+          generation_prompt: string
+          id: number
+          last_refresh_at: string | null
+          last_refresh_stats: Json | null
+          updated_at: string
+        }
+        Insert: {
+          generation_prompt: string
+          id?: number
+          last_refresh_at?: string | null
+          last_refresh_stats?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          generation_prompt?: string
+          id?: number
+          last_refresh_at?: string | null
+          last_refresh_stats?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       newsletter_signup_attempts: {
         Row: {
           action: string
