@@ -121,12 +121,18 @@ export default function SettingsSection({ initial }: Props) {
           </p>
           <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
             {(["slow", "normal", "fast"] as const).map((s) => (
-              <label key={s} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+              <label key={s} htmlFor={`ticker-speed-${s}`} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
                 <input
+                  id={`ticker-speed-${s}`}
                   type="radio"
                   name="ticker_speed"
+                  value={s}
                   checked={settings.ticker_speed === s}
-                  onChange={() => setSettings({ ...settings, ticker_speed: s })}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSettings((prev) => ({ ...prev, ticker_speed: s }));
+                    }
+                  }}
                   disabled={pending}
                 />
                 <span style={{ color: "var(--da-text)", fontSize: 13 }}>{SPEED_LABELS[s]}</span>
