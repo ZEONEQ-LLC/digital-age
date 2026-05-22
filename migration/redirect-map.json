@@ -1,0 +1,483 @@
+[
+  {
+    "source": "/iot-ecosystem",
+    "destination": "/artikel/iot-ecosystem",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/was-iot-bedeutet",
+    "destination": "/artikel/was-iot-bedeutet",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/die-smarten-produkte-und-deren-wichtigsten-eigenschaften",
+    "destination": "/artikel/die-smarten-produkte-und-deren-wichtigsten-eigenschaften",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/einfuehrung-in-iot",
+    "destination": "/artikel/einfuehrung-in-iot",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/disruption-durch-mobile-internet",
+    "destination": "/artikel/disruption-durch-mobile-internet",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/konvergenz-in-mobile-business",
+    "destination": "/artikel/konvergenz-in-mobile-business",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/die-digitale-interaktion-von-unternehmen-teil-i",
+    "destination": "/artikel/die-digitale-interaktion-von-unternehmen-teil-i",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/die-digitale-interaktion-von-unternehmen-teil-ii",
+    "destination": "/artikel/die-digitale-interaktion-von-unternehmen-teil-ii",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/blockchain-of-things",
+    "destination": "/artikel/blockchain-of-things",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/monetarisierung-von-iot-anwendungen",
+    "destination": "/artikel/monetarisierung-von-iot-anwendungen",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/iot-der-schluessel-zur-kommerzialisierung-liegt-im-ecosystem",
+    "destination": "/artikel/iot-der-schluessel-zur-kommerzialisierung-liegt-im-ecosystem",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ceo-vs-mascot",
+    "destination": "/artikel/ceo-vs-mascot",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/4-ki-gesetzte-die-wir-brauchen",
+    "destination": "/artikel/4-ki-gesetzte-die-wir-brauchen",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/projektbericht-cham-ai-ch-eine-smarte-alternative-zur-offiziellen-gemeinde-website",
+    "destination": "/artikel/projektbericht-cham-ai-ch-eine-smarte-alternative-zur-offiziellen-gemeinde-website",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ai-bildung-in-botswana",
+    "destination": "/artikel/ai-bildung-in-botswana",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ki-kompetenz-fuer-unternehmen",
+    "destination": "/artikel/ki-kompetenz-fuer-unternehmen",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/starte-2025-mit-ki-chatbots-und-genai",
+    "destination": "/artikel/starte-2025-mit-ki-chatbots-und-genai",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/interoperabilitaet-fuer-iot-wie-ai-die-sprachbarrieren-zwischen-maschinen-ueberwindet",
+    "destination": "/artikel/interoperabilitaet-fuer-iot-wie-ai-die-sprachbarrieren-zwischen-maschinen-ueberwindet",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/iot-geraete-vernetzen-mit-ai-aber-richtig-warum-openai-api-nicht-die-loesung-ist",
+    "destination": "/artikel/iot-geraete-vernetzen-mit-ai-aber-richtig-warum-openai-api-nicht-die-loesung-ist",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/european-ai-act-unternehmen",
+    "destination": "/artikel/european-ai-act-unternehmen",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/texterkennung-mit-kunstlicher-intelligenz",
+    "destination": "/artikel/texterkennung-mit-kunstlicher-intelligenz",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/embracing-ai-and-automation",
+    "destination": "/artikel/embracing-ai-and-automation",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/understanding-agents-and-agentic-systems",
+    "destination": "/artikel/understanding-agents-and-agentic-systems",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/eu-ai-act-und-schweizer-unternehmen",
+    "destination": "/artikel/eu-ai-act-und-schweizer-unternehmen",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ai-in-investing-behavioral-biases",
+    "destination": "/artikel/ai-in-investing-behavioral-biases",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/700-millionen-bilder-und-ki-datenkolonialismus",
+    "destination": "/artikel/700-millionen-bilder-und-ki-datenkolonialismus",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ki-demokratie-jetzt",
+    "destination": "/artikel/ki-demokratie-jetzt",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/4-insights-redesign-banking-ai",
+    "destination": "/artikel/4-insights-redesign-banking-ai",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ki-fuer-unternehmen-risiken",
+    "destination": "/artikel/ki-fuer-unternehmen-risiken",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/schweizer-ki-souveraenitaet",
+    "destination": "/artikel/schweizer-ki-souveraenitaet",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/agentic-ai",
+    "destination": "/artikel/agentic-ai",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/agentic-ai-in-banking",
+    "destination": "/artikel/agentic-ai-in-banking",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/apples-ki-offensive",
+    "destination": "/artikel/apples-ki-offensive",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ki-benchmark",
+    "destination": "/artikel/ki-benchmark",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ki-influencer",
+    "destination": "/artikel/ki-influencer",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/enterprise-knowledge-graphs",
+    "destination": "/artikel/enterprise-knowledge-graphs",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ai-powered-compliance",
+    "destination": "/artikel/ai-powered-compliance",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ki-im-kundendienst",
+    "destination": "/artikel/ki-im-kundendienst",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/enterprise-gpt",
+    "destination": "/artikel/enterprise-gpt",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ai-efficiency-in-banking",
+    "destination": "/artikel/ai-efficiency-in-banking",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ai-in-banking",
+    "destination": "/artikel/ai-in-banking",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/agentic-ai-architecture",
+    "destination": "/artikel/agentic-ai-architecture",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ai-in-the-loop",
+    "destination": "/artikel/ai-in-the-loop",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/reusable-ai-skills",
+    "destination": "/artikel/reusable-ai-skills",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ai-co-pilots-in-banking",
+    "destination": "/artikel/ai-co-pilots-in-banking",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ai-in-banking-the-real-transformation-driver",
+    "destination": "/artikel/ai-in-banking-the-real-transformation-driver",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/data-driven-banking",
+    "destination": "/artikel/data-driven-banking",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ai-agents-as-financial-coaches-redefine-banking",
+    "destination": "/artikel/ai-agents-as-financial-coaches-redefine-banking",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ai-as-relationship-manager",
+    "destination": "/artikel/ai-as-relationship-manager",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ki-fuer-senioren",
+    "destination": "/artikel/ki-fuer-senioren",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/ai-agents-as-bank-customers",
+    "destination": "/artikel/ai-agents-as-bank-customers",
+    "type": "article",
+    "confidence": "exact"
+  },
+  {
+    "source": "/redaktion",
+    "destination": "/redaktion",
+    "type": "page",
+    "confidence": "exact",
+    "note": "Slug identisch (trailing-slash-Differenz)"
+  },
+  {
+    "source": "/datenschutzerklaerung",
+    "destination": "/datenschutzerklaerung",
+    "type": "page",
+    "confidence": "exact",
+    "note": "Slug identisch (trailing-slash-Differenz)"
+  },
+  {
+    "source": "/digital-age-kuenstliche-intelligenz-zukunftstechnologien",
+    "destination": "/",
+    "type": "page",
+    "confidence": "manual",
+    "note": "Nicht migriert / Vercel hat keine Route"
+  },
+  {
+    "source": "/blogs",
+    "destination": "/",
+    "type": "page",
+    "confidence": "manual",
+    "note": "Nicht migriert / Vercel hat keine Route"
+  },
+  {
+    "source": "/elementor-425",
+    "destination": "/",
+    "type": "page",
+    "confidence": "manual",
+    "note": "Nicht migriert / Vercel hat keine Route"
+  },
+  {
+    "source": "/social-feed",
+    "destination": "/",
+    "type": "page",
+    "confidence": "manual",
+    "note": "Nicht migriert / Vercel hat keine Route"
+  },
+  {
+    "source": "/ai-prompt-einreichen",
+    "destination": "/ai-prompts",
+    "type": "page",
+    "confidence": "manual",
+    "note": "Nicht migriert / Vercel hat keine Route"
+  },
+  {
+    "source": "/ai-prompts",
+    "destination": "/ai-prompts",
+    "type": "page",
+    "confidence": "exact",
+    "note": "Vercel-Top-Level-Route, kein DB-Page-Eintrag"
+  },
+  {
+    "source": "/kontakt",
+    "destination": "/kontakt",
+    "type": "page",
+    "confidence": "exact",
+    "note": "Vercel-Top-Level-Route, kein DB-Page-Eintrag"
+  },
+  {
+    "source": "/ki-im-business",
+    "destination": "/ki-im-business",
+    "type": "page",
+    "confidence": "exact",
+    "note": "Vercel-Top-Level-Route, kein DB-Page-Eintrag"
+  },
+  {
+    "source": "/future-tech",
+    "destination": "/future-tech",
+    "type": "page",
+    "confidence": "exact",
+    "note": "Vercel-Top-Level-Route, kein DB-Page-Eintrag"
+  },
+  {
+    "source": "/tools-and-ressources",
+    "destination": "/ki-plattformen",
+    "type": "page",
+    "confidence": "manual",
+    "note": "Nicht migriert / Vercel hat keine Route"
+  },
+  {
+    "source": "/podcasts",
+    "destination": "/podcasts",
+    "type": "page",
+    "confidence": "exact",
+    "note": "Vercel-Top-Level-Route, kein DB-Page-Eintrag"
+  },
+  {
+    "source": "/ki-plattformen",
+    "destination": "/ki-plattformen",
+    "type": "page",
+    "confidence": "exact",
+    "note": "Vercel-Top-Level-Route, kein DB-Page-Eintrag"
+  },
+  {
+    "source": "/ki-transparenz",
+    "destination": "/ki-transparenz",
+    "type": "page",
+    "confidence": "exact",
+    "note": "Slug identisch (trailing-slash-Differenz)"
+  },
+  {
+    "source": "/impressum",
+    "destination": "/impressum",
+    "type": "page",
+    "confidence": "exact",
+    "note": "Slug identisch (trailing-slash-Differenz)"
+  },
+  {
+    "source": "/ueber-uns",
+    "destination": "/ueber-uns",
+    "type": "page",
+    "confidence": "exact",
+    "note": "Slug identisch (trailing-slash-Differenz)"
+  },
+  {
+    "source": "/category/future-tech/iot_edge_ai",
+    "destination": "/future-tech",
+    "type": "category",
+    "confidence": "fuzzy",
+    "note": "WP-Sub-Kategorie → Vercel-Hauptroute"
+  },
+  {
+    "source": "/category/future-tech/blockchain_ai_daos",
+    "destination": "/future-tech",
+    "type": "category",
+    "confidence": "fuzzy",
+    "note": "WP-Sub-Kategorie → Vercel-Hauptroute"
+  },
+  {
+    "source": "/category/ki",
+    "destination": "/ki-im-business",
+    "type": "category",
+    "confidence": "exact",
+    "note": "Direkter Match"
+  },
+  {
+    "source": "/category/mobile_business",
+    "destination": "/ki-im-business",
+    "type": "category",
+    "confidence": "manual",
+    "note": "WP-Kategorie 'mobile_business' kein Vercel-Match"
+  },
+  {
+    "source": "/category/business-model-innovation",
+    "destination": "/ki-im-business",
+    "type": "category",
+    "confidence": "manual",
+    "note": "WP-Kategorie 'business-model-innovation' kein Vercel-Match"
+  },
+  {
+    "source": "/category/future-tech",
+    "destination": "/future-tech",
+    "type": "category",
+    "confidence": "exact",
+    "note": "Direkter Match"
+  },
+  {
+    "source": "/category/featured_posts",
+    "destination": "/",
+    "type": "category",
+    "confidence": "manual",
+    "note": "WP-Kategorie 'featured_posts' kein Vercel-Match"
+  },
+  {
+    "source": "/category/ki-plattform",
+    "destination": "/ki-plattformen",
+    "type": "category",
+    "confidence": "exact",
+    "note": "Direkter Match"
+  }
+]
