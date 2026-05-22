@@ -378,7 +378,8 @@ export type Database = {
           published_at: string | null
           reading_minutes: number | null
           seo_description: string | null
-          seo_keyword: string | null
+          seo_keyword_primary: string | null
+          seo_keywords_secondary: string[]
           seo_title: string | null
           slug: string
           status: Database["public"]["Enums"]["article_status"]
@@ -404,7 +405,8 @@ export type Database = {
           published_at?: string | null
           reading_minutes?: number | null
           seo_description?: string | null
-          seo_keyword?: string | null
+          seo_keyword_primary?: string | null
+          seo_keywords_secondary?: string[]
           seo_title?: string | null
           slug: string
           status?: Database["public"]["Enums"]["article_status"]
@@ -430,7 +432,8 @@ export type Database = {
           published_at?: string | null
           reading_minutes?: number | null
           seo_description?: string | null
-          seo_keyword?: string | null
+          seo_keyword_primary?: string | null
+          seo_keywords_secondary?: string[]
           seo_title?: string | null
           slug?: string
           status?: Database["public"]["Enums"]["article_status"]

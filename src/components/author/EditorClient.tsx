@@ -119,7 +119,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     title: article.seo_title ?? "",
     description: article.seo_description ?? "",
     slug: article.slug,
-    keyword: article.seo_keyword ?? "",
+    keyword: article.seo_keyword_primary ?? "",
   });
 
   const [savedAt, setSavedAt] = useState<string>("Geladen");
@@ -225,7 +225,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       tags: cleanTags,
       seo_title: seo.title || null,
       seo_description: seo.description || null,
-      seo_keyword: seo.keyword || null,
+      seo_keyword_primary: seo.keyword || null,
       published_at: publishedAtIso,
       locale,
     };
