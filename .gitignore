@@ -156,3 +156,5 @@ migration/logs/
 
 # WordPress-Export-Datei (User-bereitgestellt, nicht ins Repo)
 migration/*.xml
+# Rank-Math-CSV-Export (User-bereitgestellt, nicht ins Repo)
+migration/*.csv

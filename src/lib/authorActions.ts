@@ -79,7 +79,7 @@ export type ArticlePatch = {
   tags?: string[];
   seo_title?: string | null;
   seo_description?: string | null;
-  seo_keyword?: string | null;
+  seo_keyword_primary?: string | null;
   published_at?: string | null;
   locale?: "de-CH" | "en";
 };
