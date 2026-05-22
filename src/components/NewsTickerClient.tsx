@@ -14,11 +14,13 @@ export type TickerItem = {
 
 export type TickerSpeed = "slow" | "normal" | "fast";
 
-// Mapping aus Phase-2-Baseline 40s (= normal): slow = 1.6×, fast = 0.6×.
+// Drei Lesbarkeits-Stufen. 30 Items × 3 Repeats = 90 visuelle Slots pro
+// Animation-Cycle. Slow ist bewusst sehr langsam (User-Wunsch: "muss
+// lesbar sein"), Fast bleibt unter der Phase-2-Baseline.
 const SPEED_DURATIONS: Record<TickerSpeed, string> = {
-  slow: "64s",
-  normal: "40s",
-  fast: "24s",
+  slow: "240s",
+  normal: "120s",
+  fast: "60s",
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -44,6 +46,10 @@ export default function NewsTickerClient({ items, speed }: Props) {
   // Repeat 3x für nahtloses Loop-Scrolling (gleicher Trick wie vorher).
   const repeated = [...items, ...items, ...items];
   const [selected, setSelected] = useState<TickerItem | null>(null);
+  // User-Pause überschreibt das CSS-Hover-Pause. State ist component-lokal,
+  // resetted bei Page-Navigation — bewusst kein localStorage, damit der
+  // Ticker nach Reload wieder läuft.
+  const [userPaused, setUserPaused] = useState(false);
 
   // ESC schliesst Modal.
   useEffect(() => {
@@ -70,6 +76,7 @@ export default function NewsTickerClient({ items, speed }: Props) {
           will-change: transform;
         }
         .ticker-scroll:hover { animation-play-state: paused; }
+        .ticker-scroll.user-paused { animation-play-state: paused; }
         .ticker-item {
           display: inline-flex; align-items: center; gap: 10px;
           font-size: 13px; cursor: pointer; color: var(--da-text-strong);
@@ -77,6 +84,20 @@ export default function NewsTickerClient({ items, speed }: Props) {
           font-family: inherit;
         }
         .ticker-item:hover .ticker-text { color: var(--da-green); }
+        .ticker-playpause {
+          background: transparent;
+          border: none;
+          color: var(--da-dark);
+          padding: 0;
+          margin-left: 4px;
+          font-size: 14px;
+          line-height: 1;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          font-family: inherit;
+        }
+        .ticker-playpause:hover { opacity: 0.7; }
       `}</style>
 
       <div
@@ -87,8 +108,9 @@ export default function NewsTickerClient({ items, speed }: Props) {
           alignItems: "center",
           height: "40px",
           overflow: "hidden",
-          position: "relative",
-          zIndex: 10,
+          position: "sticky",
+          top: "var(--nav-h)",
+          zIndex: 100,
         }}
       >
         <div
@@ -110,9 +132,18 @@ export default function NewsTickerClient({ items, speed }: Props) {
         >
           <span style={{ width: "7px", height: "7px", borderRadius: "50%", backgroundColor: "var(--da-dark)", display: "inline-block" }} />
           Live
+          <button
+            type="button"
+            className="ticker-playpause"
+            onClick={() => setUserPaused((p) => !p)}
+            aria-label={userPaused ? "Ticker abspielen" : "Ticker pausieren"}
+            title={userPaused ? "Ticker abspielen" : "Ticker pausieren"}
+          >
+            {userPaused ? "▶" : "⏸"}
+          </button>
         </div>
         <div style={{ overflow: "hidden", flex: 1, height: "100%", display: "flex", alignItems: "center" }}>
-          <div className="ticker-scroll">
+          <div className={`ticker-scroll${userPaused ? " user-paused" : ""}`}>
             {repeated.map((item, i) => (
               <button
                 key={`${item.id}-${i}`}
