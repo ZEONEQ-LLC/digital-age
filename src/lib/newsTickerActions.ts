@@ -37,10 +37,17 @@ export type SourcePatch = {
 };
 
 function validatePatch(p: SourcePatch): string | null {
-  if (!p.name.trim() || p.name.length > 100) {
+  // Trim vor jedem Check: Copy-Paste aus Browser-Address-Bar oder Feed-
+  // Discovery-Snippets schleppt oft führendes Whitespace, NBSP oder BOM mit.
+  // Die URL_RE ist `^https?…`-anker-strikt, ein einziges unsichtbares Zeichen
+  // davor kippt das Match.
+  const name = p.name.trim();
+  const url = p.url.trim();
+
+  if (!name || name.length > 100) {
     return "Name muss zwischen 1 und 100 Zeichen sein.";
   }
-  if (!URL_RE.test(p.url)) {
+  if (!URL_RE.test(url)) {
     return "URL muss mit http:// oder https:// beginnen.";
   }
   if (!SOURCE_TYPES.includes(p.source_type)) {
