@@ -120,24 +120,30 @@ export default function SettingsSection({ initial }: Props) {
             Geschwindigkeit
           </p>
           <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-            {(["slow", "normal", "fast"] as const).map((s) => (
-              <label key={s} htmlFor={`ticker-speed-${s}`} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-                <input
-                  id={`ticker-speed-${s}`}
-                  type="radio"
-                  name="ticker_speed"
-                  value={s}
-                  checked={settings.ticker_speed === s}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSettings((prev) => ({ ...prev, ticker_speed: s }));
+            {(["slow", "normal", "fast"] as const).map((s) => {
+              const id = `ticker-speed-${s}`;
+              return (
+                <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <input
+                    id={id}
+                    type="radio"
+                    name="ticker_speed"
+                    value={s}
+                    checked={settings.ticker_speed === s}
+                    onChange={() =>
+                      setSettings((prev) => ({ ...prev, ticker_speed: s }))
                     }
-                  }}
-                  disabled={pending}
-                />
-                <span style={{ color: "var(--da-text)", fontSize: 13 }}>{SPEED_LABELS[s]}</span>
-              </label>
-            ))}
+                    disabled={pending}
+                  />
+                  <label
+                    htmlFor={id}
+                    style={{ color: "var(--da-text)", fontSize: 13, cursor: "pointer" }}
+                  >
+                    {SPEED_LABELS[s]}
+                  </label>
+                </div>
+              );
+            })}
           </div>
         </div>
 
