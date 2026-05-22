@@ -2,6 +2,7 @@ import PageTitle from "@/components/author/PageTitle";
 import { getAllSources, getNewsTickerConfig } from "@/lib/newsTickerApi";
 import SourcesSection from "./SourcesSection";
 import PromptSection from "./PromptSection";
+import RefreshSection from "./RefreshSection";
 
 export default async function NewsTickerAdminPage() {
   const [sources, config] = await Promise.all([
@@ -25,6 +26,10 @@ export default async function NewsTickerAdminPage() {
         title="News-Ticker"
         subtitle="RSS-Quellen + Generation-Prompt für den AI-News-Ticker. Editor-only."
       />
+
+      <RefreshSection lastRefreshLabel={lastRefreshLabel} />
+
+      <div style={{ height: 40 }} />
 
       <SourcesSection sources={sources} />
 

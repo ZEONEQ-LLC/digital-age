@@ -19,6 +19,7 @@ const KNOWN_TASKS: ReadonlySet<AiTask> = new Set<AiTask>([
   "closing_paragraph",
   "seo_pipeline",
   "seo_review",
+  "news_item_generation",
 ]);
 
 // Schema der Row (deckt sich mit Database["public"]["Tables"]["ai_config"]

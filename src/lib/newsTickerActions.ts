@@ -147,3 +147,17 @@ export async function saveGenerationPrompt(prompt: string): Promise<void> {
   if (error) throw error;
   revalidatePath("/autor/news-ticker");
 }
+
+export async function triggerRefresh(): Promise<
+  import("./newsTicker/refresh").RefreshStats
+> {
+  await requireEditor();
+  // Dynamic import: refresh.ts ist `server-only` und importiert Anthropic
+  // SDK + Service-Role-Client. Hier nur on-demand laden, damit der
+  // Module-Graph der Suite-Page schlank bleibt.
+  const { runRefresh } = await import("./newsTicker/refresh");
+  const stats = await runRefresh();
+  revalidatePath("/autor/news-ticker");
+  revalidatePath("/");
+  return stats;
+}
