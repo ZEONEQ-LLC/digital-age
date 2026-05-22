@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/news-ticker/cron-refresh",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

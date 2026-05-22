@@ -147,3 +147,60 @@ export async function saveGenerationPrompt(prompt: string): Promise<void> {
   if (error) throw error;
   revalidatePath("/autor/news-ticker");
 }
+
+export async function triggerRefresh(): Promise<
+  import("./newsTicker/refresh").RefreshStats
+> {
+  await requireEditor();
+  // Dynamic import: refresh.ts ist `server-only` und importiert Anthropic
+  // SDK + Service-Role-Client. Hier nur on-demand laden, damit der
+  // Module-Graph der Suite-Page schlank bleibt.
+  const { runRefresh } = await import("./newsTicker/refresh");
+  const stats = await runRefresh();
+  revalidatePath("/autor/news-ticker");
+  revalidatePath("/");
+  return stats;
+}
+
+const TICKER_SPEEDS = ["slow", "normal", "fast"] as const;
+
+export type TickerSettings = {
+  ticker_speed: (typeof TICKER_SPEEDS)[number];
+  items_per_source: number;
+  is_paused: boolean;
+  scheduler_enabled: boolean;
+  scheduled_hour_cet: number;
+};
+
+export async function saveTickerSettings(s: TickerSettings): Promise<void> {
+  await requireEditor();
+  if (!TICKER_SPEEDS.includes(s.ticker_speed)) {
+    throw new Error("Ungültige Geschwindigkeit.");
+  }
+  if (!Number.isInteger(s.items_per_source) || s.items_per_source < 1 || s.items_per_source > 30) {
+    throw new Error("Items pro Quelle muss zwischen 1 und 30 liegen.");
+  }
+  if (
+    !Number.isInteger(s.scheduled_hour_cet) ||
+    s.scheduled_hour_cet < 0 ||
+    s.scheduled_hour_cet > 23
+  ) {
+    throw new Error("Scheduler-Stunde muss zwischen 0 und 23 liegen.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("news_ticker_config")
+    .update({
+      ticker_speed: s.ticker_speed,
+      items_per_source: s.items_per_source,
+      is_paused: s.is_paused,
+      scheduler_enabled: s.scheduler_enabled,
+      scheduled_hour_cet: s.scheduled_hour_cet,
+    })
+    .eq("id", 1);
+
+  if (error) throw error;
+  revalidatePath("/autor/news-ticker");
+  revalidatePath("/");
+}

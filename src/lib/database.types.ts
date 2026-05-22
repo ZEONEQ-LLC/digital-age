@@ -649,6 +649,7 @@ export type Database = {
           original_title: string
           published_at: string
           source_id: string
+          source_name: string | null
           source_url: string
           status: string
           summary: string
@@ -662,6 +663,7 @@ export type Database = {
           original_title: string
           published_at: string
           source_id: string
+          source_name?: string | null
           source_url: string
           status?: string
           summary: string
@@ -675,6 +677,7 @@ export type Database = {
           original_title?: string
           published_at?: string
           source_id?: string
+          source_name?: string | null
           source_url?: string
           status?: string
           summary?: string
@@ -734,22 +737,37 @@ export type Database = {
         Row: {
           generation_prompt: string
           id: number
+          is_paused: boolean
+          items_per_source: number
           last_refresh_at: string | null
           last_refresh_stats: Json | null
+          scheduled_hour_cet: number
+          scheduler_enabled: boolean
+          ticker_speed: string
           updated_at: string
         }
         Insert: {
           generation_prompt: string
           id?: number
+          is_paused?: boolean
+          items_per_source?: number
           last_refresh_at?: string | null
           last_refresh_stats?: Json | null
+          scheduled_hour_cet?: number
+          scheduler_enabled?: boolean
+          ticker_speed?: string
           updated_at?: string
         }
         Update: {
           generation_prompt?: string
           id?: number
+          is_paused?: boolean
+          items_per_source?: number
           last_refresh_at?: string | null
           last_refresh_stats?: Json | null
+          scheduled_hour_cet?: number
+          scheduler_enabled?: boolean
+          ticker_speed?: string
           updated_at?: string
         }
         Relationships: []

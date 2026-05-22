@@ -26,7 +26,12 @@ export type AiTask =
   // 3–6 strukturierte Empfehlungen (severity + category + finding +
   // recommendation). Ändert nichts am Artikel — eigener UI-Button im
   // SEO-Tab unter der Pipeline-Card.
-  | "seo_review";
+  | "seo_review"
+  // News-Ticker Item-Generation: pro RSS-Feed-Item ein LLM-Call, der
+  // Title/Teaser/Summary/Category als JSON liefert oder mit {skip:true}
+  // off-topic-Items aussortiert. Wird vom Refresh-Orchestrator pro Item
+  // einzeln aufgerufen.
+  | "news_item_generation";
 
 export type LLMParams = {
   system: string;
