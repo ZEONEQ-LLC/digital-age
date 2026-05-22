@@ -12,6 +12,15 @@ export type TickerItem = {
   source_name: string;
 };
 
+export type TickerSpeed = "slow" | "normal" | "fast";
+
+// Mapping aus Phase-2-Baseline 40s (= normal): slow = 1.6×, fast = 0.6×.
+const SPEED_DURATIONS: Record<TickerSpeed, string> = {
+  slow: "64s",
+  normal: "40s",
+  fast: "24s",
+};
+
 const CATEGORY_LABELS: Record<string, string> = {
   "ki-business": "KI & Business",
   "future-tech": "Future Tech",
@@ -26,9 +35,12 @@ function labelFor(cat: string | null): string {
 
 type Props = {
   items: TickerItem[];
+  speed: TickerSpeed;
+  limit?: number;
 };
 
-export default function NewsTickerClient({ items }: Props) {
+export default function NewsTickerClient({ items, speed }: Props) {
+  const duration = SPEED_DURATIONS[speed] ?? SPEED_DURATIONS.normal;
   // Repeat 3x für nahtloses Loop-Scrolling (gleicher Trick wie vorher).
   const repeated = [...items, ...items, ...items];
   const [selected, setSelected] = useState<TickerItem | null>(null);
@@ -51,7 +63,7 @@ export default function NewsTickerClient({ items }: Props) {
           100% { transform: translateX(-33.333%); }
         }
         .ticker-scroll {
-          animation: scroll 40s linear infinite;
+          animation: scroll ${duration} linear infinite;
           display: inline-flex;
           gap: 64px;
           white-space: nowrap;

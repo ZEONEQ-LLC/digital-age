@@ -14,7 +14,9 @@ export type RawFeedItem = {
 
 const REQUEST_TIMEOUT_MS = 10_000;
 const USER_AGENT = "digital-age News Ticker / 1.0";
-const MAX_ITEMS_PER_FEED = 10;
+// Fallback wenn der Caller kein Limit übergibt. In der Praxis liefert der
+// Refresh-Orchestrator den Wert aus news_ticker_config.items_per_source.
+const DEFAULT_MAX_ITEMS = 10;
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -33,6 +35,7 @@ const parser = new XMLParser({
  */
 export async function fetchAndParseFeed(
   source: Pick<NewsSourceRow, "url" | "source_type" | "name">,
+  maxItems: number = DEFAULT_MAX_ITEMS,
 ): Promise<RawFeedItem[]> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
@@ -78,9 +81,9 @@ export async function fetchAndParseFeed(
     );
   }
 
-  // Sort desc by published_at, dann Top-10.
+  // Sort desc by published_at, dann Top-N (Caller-Config).
   items.sort((a, b) => b.published_at.getTime() - a.published_at.getTime());
-  return items.slice(0, MAX_ITEMS_PER_FEED);
+  return items.slice(0, maxItems);
 }
 
 function extractItems(parsed: unknown): RawFeedItem[] | null {

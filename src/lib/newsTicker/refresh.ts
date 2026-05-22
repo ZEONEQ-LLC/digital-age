@@ -20,6 +20,9 @@ export type RefreshStats = {
   items_skipped_dedup: number;
   items_skipped_generation: number;
   errors: RefreshError[];
+  // Wenn true, wurde der Run wegen `news_ticker_config.is_paused = true`
+  // sofort abgebrochen — alle Zähler bleiben 0.
+  paused?: boolean;
 };
 
 const PROMPT_FALLBACK =
@@ -47,6 +50,31 @@ export async function runRefresh(): Promise<RefreshStats> {
     errors: [],
   };
 
+  // Config-Singleton zuerst laden — Pause-Check kommt vor allen Reads.
+  const { data: cfg } = await supabase
+    .from("news_ticker_config")
+    .select("generation_prompt, is_paused, items_per_source")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (cfg?.is_paused) {
+    // Stats bleiben auf 0, paused-Flag setzen. Wir schreiben trotzdem
+    // last_refresh_at + last_refresh_stats zurück, damit der Editor sieht,
+    // dass ein Trigger durchgelaufen ist.
+    stats.paused = true;
+    await supabase
+      .from("news_ticker_config")
+      .update({
+        last_refresh_at: new Date().toISOString(),
+        last_refresh_stats: stats as unknown as Database["public"]["Tables"]["news_ticker_config"]["Update"]["last_refresh_stats"],
+      })
+      .eq("id", 1);
+    return stats;
+  }
+
+  const promptTemplate = cfg?.generation_prompt?.trim() || PROMPT_FALLBACK;
+  const itemsPerSource = cfg?.items_per_source ?? 10;
+
   // Aktive Quellen laden, sortiert nach name (deterministische Reihenfolge
   // im Log).
   const { data: sources, error: sourcesErr } = await supabase
@@ -59,16 +87,8 @@ export async function runRefresh(): Promise<RefreshStats> {
     throw new Error(`Quellen-Read fehlgeschlagen: ${sourcesErr.message}`);
   }
 
-  // Generation-Prompt aus Singleton-Config laden.
-  const { data: cfg } = await supabase
-    .from("news_ticker_config")
-    .select("generation_prompt")
-    .eq("id", 1)
-    .maybeSingle();
-  const promptTemplate = cfg?.generation_prompt?.trim() || PROMPT_FALLBACK;
-
   for (const source of sources ?? []) {
-    await processSource(supabase, source, promptTemplate, stats);
+    await processSource(supabase, source, promptTemplate, itemsPerSource, stats);
   }
 
   // Stats zurückschreiben — even bei 0 sources, damit der Editor sieht dass
@@ -88,13 +108,14 @@ async function processSource(
   supabase: ReturnType<typeof createServiceClient>,
   source: NewsSourceRow,
   promptTemplate: string,
+  itemsPerSource: number,
   stats: RefreshStats,
 ): Promise<void> {
   stats.sources_polled += 1;
 
   let items;
   try {
-    items = await fetchAndParseFeed(source);
+    items = await fetchAndParseFeed(source, itemsPerSource);
   } catch (err) {
     stats.errors.push({
       source_id: source.id,
@@ -151,6 +172,9 @@ async function processSource(
       category,
       published_at: item.published_at.toISOString(),
       status: "approved",
+      // Source-Name als Snapshot mitschreiben (denormalisiert, weil anon-
+      // RLS auf news_sources den Embed im Public-Ticker blockt).
+      source_name: source.name,
     });
 
     if (insErr) {

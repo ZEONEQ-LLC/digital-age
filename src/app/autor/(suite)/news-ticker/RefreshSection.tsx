@@ -12,6 +12,7 @@ type RefreshStats = {
   items_skipped_dedup: number;
   items_skipped_generation: number;
   errors: RefreshError[];
+  paused?: boolean;
 };
 
 type Props = {
@@ -111,6 +112,23 @@ export default function RefreshSection({ lastRefreshLabel }: Props) {
 }
 
 function StatsBox({ stats }: { stats: RefreshStats }) {
+  if (stats.paused) {
+    return (
+      <div
+        style={{
+          background: "rgba(255,140,66,0.08)",
+          border: "1px solid var(--da-orange)",
+          color: "var(--da-orange)",
+          padding: "14px 18px",
+          borderRadius: 4,
+          fontSize: 13,
+          fontWeight: 600,
+        }}
+      >
+        ⏸ Ticker ist pausiert — kein Refresh ausgeführt.
+      </div>
+    );
+  }
   return (
     <div
       style={{
