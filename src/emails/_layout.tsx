@@ -92,7 +92,7 @@ function resolveSiteUrl(): string {
   const raw =
     process.env.NEWSLETTER_SITE_URL?.trim() ||
     process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
-    "https://digital-age-v2-eight.vercel.app";
+    "https://digital-age.ch";
   const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
   return withScheme.replace(/\/+$/, "");
 }

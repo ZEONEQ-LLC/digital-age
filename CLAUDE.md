@@ -5,8 +5,10 @@
 ## Projekt
 
 News-Magazin für KI & Future Tech (DACH-Region). Aktueller Deploy:
-`digital-age-v2-eight.vercel.app`. Custom Domain `digital-age.ch` läuft
-noch auf WordPress/Hostpoint, Migration zu Vercel kommt später.
+`digital-age.ch` (Vercel). Cutover von WordPress/Hostpoint ist durch;
+eingehende WP-URLs werden über `next.config.ts → redirects()` auf die
+neuen Pfade umgeleitet. Der Vercel-Alias `digital-age-v2-eight.vercel.app`
+bleibt erreichbar, ist aber nicht mehr primäre Domain.
 
 ## Stack
 
@@ -306,9 +308,11 @@ mit eigenem Domain-SPF kommt auf der Phase-7-Merkliste.
   Link in der Mail = Bestätigung
 - Default-SMTP von Supabase (`noreply@mail.app.supabase.io`); Resend-Migration
   später
-- Auth-Settings im Dashboard: Site URL + Redirect URLs müssen sowohl Vercel
-  (`https://digital-age-v2-eight.vercel.app/**`) als auch Container
-  (`http://claude-box.orb.local:3000/**`) und localhost abdecken
+- Auth-Settings im Dashboard: Site URL + Redirect URLs müssen seit dem
+  Cutover die Production-Domain (`https://digital-age.ch/**`) plus den
+  bestehenden Vercel-Alias (`https://digital-age-v2-eight.vercel.app/**`,
+  zusätzlich für Notfälle) sowie Container (`http://claude-box.orb.local:3000/**`)
+  und localhost abdecken
 - Three-Role-Enum: neue Signups landen via Trigger als `external`, Editor
   promotet manuell zu `author`/`editor`
 
