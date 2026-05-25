@@ -19,6 +19,7 @@ import { getArticleBySlug, type ArticleWithFullRelations } from "@/lib/articleAp
 import { getArticlesByAuthor } from "@/lib/authorApi";
 import { getCoverUrl } from "@/lib/coverImage";
 import { markdownToBlocks } from "@/lib/markdownBlocks";
+import { getBaseUrl } from "@/lib/siteUrl";
 import { slugifyTag } from "@/lib/tagSlug";
 import {
   BLOCK_SCHEMA_VERSION,
@@ -58,12 +59,41 @@ function resolveBlockDocument(article: ArticleWithFullRelations): BlockDocument 
   };
 }
 
-// OG-Locale-Format unterscheidet sich von unserem DB-Wert: OG nutzt
-// `xx_YY` (Underscore), wir speichern `de-CH` / `en`. Mapping ist hart-
-// kodiert auf die zwei aktuell unterstützten Werte — DB-CHECK verhindert
-// dass etwas anderes reinkommt.
-function ogLocale(locale: string | null | undefined): "de_CH" | "en_US" {
-  return locale === "en" ? "en_US" : "de_CH";
+// OG-Locale-Format unterscheidet sich vom DB-Wert. LinkedIn/Facebook akzep-
+// tieren nur eine Whitelist; `de_CH` ist nicht offiziell unterstützt — wir
+// mappen daher auf `de_DE` (deckt den deutschsprachigen Raum ab) und
+// `en_US` für englischsprachige Artikel.
+function ogLocale(locale: string | null | undefined): "de_DE" | "en_US" {
+  return locale === "en" ? "en_US" : "de_DE";
+}
+
+// OG-Fallback-Bild (1200×630, JPEG, in `/public/images/`). Greift wenn
+// articles.cover_image_url null/leer ist — Default-Cover-Card-Bild
+// (`/images/defaults/article-cover-default.png`) hat nicht die OG-
+// Standard-Dimensionen, daher eigenes Asset.
+const OG_FALLBACK_PATH = "/images/digital-age-og-fallback.jpg";
+const OG_IMAGE_WIDTH = 1200;
+const OG_IMAGE_HEIGHT = 630;
+
+// Liefert die absolute Bild-URL für OG/Twitter. Cover ist meistens
+// bereits absolut (Supabase-Storage), kann aber relativ sein. Bei
+// null/empty: dediziertes 1200×630-Fallback-Asset.
+function resolveOgImage(
+  article: Pick<ArticleWithFullRelations, "cover_image_url">,
+  baseUrl: string,
+): string {
+  const c = article.cover_image_url?.trim();
+  if (!c) return `${baseUrl}${OG_FALLBACK_PATH}`;
+  if (/^https?:\/\//i.test(c)) return c;
+  return `${baseUrl}${c.startsWith("/") ? "" : "/"}${c}`;
+}
+
+// Description-Truncate auf 160 Zeichen für OG/Twitter-Standard.
+function truncateDescription(s: string | null | undefined): string | undefined {
+  const t = s?.trim();
+  if (!t) return undefined;
+  if (t.length <= 160) return t;
+  return `${t.slice(0, 157)}…`;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -71,37 +101,106 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const article = await getArticleBySlug(slug);
   if (!article) return {};
 
+  const baseUrl = getBaseUrl();
   const title = article.seo_title?.trim() || article.title;
-  const description =
-    article.seo_description?.trim() || article.excerpt?.trim() || undefined;
-  const canonical = `/artikel/${article.slug}`;
-  const cover = getCoverUrl(article);
+  const description = truncateDescription(
+    article.seo_description ?? article.excerpt,
+  );
+  const canonical = `${baseUrl}/artikel/${article.slug}`;
+  const ogImage = resolveOgImage(article, baseUrl);
   const authorHandle = article.author?.handle ?? article.author?.slug;
-  const authors = article.author
-    ? [{ name: article.author.display_name, url: authorHandle ? `/autor/${authorHandle}` : undefined }]
+  const authorName = article.author?.display_name;
+  const authorUrl = authorHandle ? `${baseUrl}/autor/${authorHandle}` : undefined;
+  const categoryName = article.category?.name_de ?? undefined;
+  const tags = Array.isArray(article.tags) && article.tags.length > 0
+    ? article.tags
     : undefined;
+
+  // Keywords-Meta-Tag (Standard-Format, niedrige SEO-Relevanz aber harmlos).
+  // Primary + Secondary kombiniert, Duplikate raus, kommagetrennt.
+  const keywordList = [
+    article.seo_keyword_primary?.trim(),
+    ...(article.seo_keywords_secondary ?? []).map((k) => k.trim()),
+  ]
+    .filter((k): k is string => !!k && k.length > 0)
+    .filter((k, i, arr) => arr.indexOf(k) === i);
+  const keywords = keywordList.length > 0 ? keywordList : undefined;
 
   return {
     title,
     description,
+    keywords,
     alternates: { canonical },
     openGraph: {
       type: "article",
       locale: ogLocale(article.locale),
+      siteName: "digital age",
       title,
       description,
       url: canonical,
-      images: cover ? [{ url: cover, alt: article.title }] : undefined,
-      authors: authors?.map((a) => a.name),
+      images: [
+        {
+          url: ogImage,
+          width: OG_IMAGE_WIDTH,
+          height: OG_IMAGE_HEIGHT,
+          alt: article.title,
+        },
+      ],
+      authors: authorUrl ? [authorUrl] : authorName ? [authorName] : undefined,
       publishedTime: article.published_at ?? undefined,
+      modifiedTime: article.updated_at ?? undefined,
+      section: categoryName,
+      tags,
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: cover ? [cover] : undefined,
+      images: [{ url: ogImage, alt: article.title }],
     },
   };
+}
+
+// JSON-LD-Generator (schema.org Article). Wird im Body der Page-Komponente
+// als <script type="application/ld+json"> gerendert. Google liest das von
+// jeder Stelle im HTML — wir rendern es direkt nach <main> für Lokalität.
+function buildArticleJsonLd(
+  article: ArticleWithFullRelations,
+  baseUrl: string,
+): string {
+  const canonical = `${baseUrl}/artikel/${article.slug}`;
+  const ogImage = resolveOgImage(article, baseUrl);
+  const description = truncateDescription(
+    article.seo_description ?? article.excerpt,
+  );
+  const data: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: article.title,
+    description,
+    image: ogImage,
+    datePublished: article.published_at ?? undefined,
+    dateModified: article.updated_at ?? undefined,
+    publisher: {
+      "@type": "Organization",
+      name: "digital age",
+      logo: {
+        "@type": "ImageObject",
+        url: `${baseUrl}${OG_FALLBACK_PATH}`,
+      },
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": canonical,
+    },
+  };
+  if (article.author?.display_name) {
+    data.author = {
+      "@type": "Person",
+      name: article.author.display_name,
+    };
+  }
+  return JSON.stringify(data);
 }
 
 export default async function ArticlePage({ params }: PageProps) {
@@ -121,9 +220,15 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
   const doc = resolveBlockDocument(article);
   const tocItems = deriveTocItems(doc.blocks);
   const authorHandle = author.handle ?? author.slug;
+  const jsonLd = buildArticleJsonLd(article, getBaseUrl());
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: jsonLd }}
+      />
       <ReadingProgress />
       <NewsTicker />
 
