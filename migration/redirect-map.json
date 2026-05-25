@@ -479,5 +479,17 @@
     "type": "category",
     "confidence": "exact",
     "note": "Direkter Match"
+  },
+  {
+    "source": "/ai-risk-for-banks",
+    "destination": "/artikel/ai-risk-for-banks",
+    "type": "article",
+    "confidence": "manual"
+  },
+  {
+    "source": "/ai-mindset",
+    "destination": "/artikel/ai-mindset",
+    "type": "article",
+    "confidence": "manual"
   }
 ]
