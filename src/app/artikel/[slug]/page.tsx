@@ -215,7 +215,10 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
   const isExternal = author.role === "external";
   const subcategory = article.subcategory ?? article.category?.name_de ?? "";
   const dateLabel = formatDateDE(article.published_at);
-  const url = `/artikel/${article.slug}`;
+  // ShareButtons brauchen die absolute URL — sonst landet beim Copy auf
+  // einem Preview-Deploy die Hash-Vercel-URL im Zwischenspeicher. Server-
+  // side via getBaseUrl() (NEXT_PUBLIC_SITE_URL → Production-Domain).
+  const url = `${getBaseUrl()}/artikel/${article.slug}`;
   const ttsText = `${article.title}. ${article.excerpt ?? ""}`.trim();
   const doc = resolveBlockDocument(article);
   const tocItems = deriveTocItems(doc.blocks);
