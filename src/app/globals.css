@@ -127,6 +127,14 @@
 }
 
 @layer base {
+  /* Defense-in-Depth gegen horizontalen Overflow auf engen Viewports.
+     Schützt vor zukünftigen Layout-Bugs, bei denen Inhalt versehentlich
+     den Viewport sprengt. Sticky/fixed-Elemente (Navbar, NewsTicker) sind
+     hiervon nicht betroffen, weil overflow nur auf Inline-Flow wirkt. */
+  html, body {
+    overflow-x: hidden;
+  }
+
   body {
     background: var(--da-dark);
     color: var(--da-text);

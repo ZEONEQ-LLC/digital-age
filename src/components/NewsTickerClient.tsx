@@ -139,10 +139,26 @@ export default function NewsTickerClient({ items, speed }: Props) {
             aria-label={userPaused ? "Ticker abspielen" : "Ticker pausieren"}
             title={userPaused ? "Ticker abspielen" : "Ticker pausieren"}
           >
-            {userPaused ? "▶" : "⏸"}
+            {/* Inline-SVG statt Unicode-Chars (U+25B6 / U+23F8). Mobile
+                Safari rendert die als farbige Emoji — SVG nutzt currentColor
+                und bleibt monochrom. */}
+            {userPaused ? (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M3 2 L10 6 L3 10 Z" />
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <rect x="3" y="2" width="2" height="8" />
+                <rect x="7" y="2" width="2" height="8" />
+              </svg>
+            )}
           </button>
         </div>
-        <div style={{ overflow: "hidden", flex: 1, height: "100%", display: "flex", alignItems: "center" }}>
+        {/* min-width: 0 ist hier kritisch: ohne diesen Wert hat der Flex-
+            Item-Default `min-width: auto`, und der 38000+px breite
+            .ticker-scroll-Inhalt schiebt das ganze Layout über den Viewport
+            hinaus (sichtbar auf iPhone-Portrait <440px). */}
+        <div style={{ overflow: "hidden", flex: 1, minWidth: 0, height: "100%", display: "flex", alignItems: "center" }}>
           <div className={`ticker-scroll${userPaused ? " user-paused" : ""}`}>
             {repeated.map((item, i) => (
               <button
