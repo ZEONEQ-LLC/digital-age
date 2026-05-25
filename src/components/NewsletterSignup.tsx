@@ -133,8 +133,19 @@ export default function NewsletterSignup({ variant = "compact" }: { variant?: Va
   if (variant === "compact") {
     return (
       <form onSubmit={handleSubmit} style={{ width: "100%", maxWidth: 400 }}>
+        {/* Auf engen Viewports (≤400px) bricht Input+Button auf zwei Reihen
+            um, sonst ragt der Abonnieren-Button rechts über den Card-Rand
+            auf iPhone-Portrait. */}
+        <style>{`
+          .ns-compact-row { display: flex; gap: 8px; }
+          .ns-compact-row > button { flex-shrink: 0; }
+          @media (max-width: 400px) {
+            .ns-compact-row { flex-direction: column; }
+            .ns-compact-row > button { width: 100%; }
+          }
+        `}</style>
         {honeypotField}
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="ns-compact-row">
           <input
             type="email"
             value={email}
@@ -144,6 +155,7 @@ export default function NewsletterSignup({ variant = "compact" }: { variant?: Va
             disabled={state === "submitting" || state === "success"}
             style={{
               flex: 1,
+              minWidth: 0,
               backgroundColor: "var(--da-dark)",
               color: "var(--da-text)",
               border: "1px solid var(--da-border)",
