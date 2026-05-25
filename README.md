@@ -2,7 +2,7 @@
 
 News-Magazin für Künstliche Intelligenz und Future Tech in der DACH-Region.
 
-**Live:** [digital-age-v2-eight.vercel.app](https://digital-age-v2-eight.vercel.app)
+**Live:** [digital-age.ch](https://digital-age.ch)
 
 ## Stack
 
@@ -65,6 +65,7 @@ Next.js-16-Eigenheiten.
 
 ## Domain
 
-`digital-age.ch` ist registriert und läuft aktuell noch auf WordPress
-(Hostpoint). Migration zu Vercel erfolgt, sobald digital-age-v2
-produktionsreif ist.
+`digital-age.ch` läuft seit dem Cutover auf Vercel (Next.js-Stack).
+Die WordPress-Installation auf Hostpoint ist abgeschaltet; eingehende
+WP-URLs werden via `next.config.ts → redirects()` auf die neuen Pfade
+umgeleitet.
