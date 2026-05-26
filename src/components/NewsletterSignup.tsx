@@ -162,7 +162,7 @@ export default function NewsletterSignup({ variant = "compact" }: { variant?: Va
               borderRadius: 4,
               padding: "10px 14px",
               fontSize: 14,
-              fontFamily: "Inter, sans-serif",
+              fontFamily: "var(--da-font-body)",
             }}
           />
           <button
@@ -250,7 +250,7 @@ export default function NewsletterSignup({ variant = "compact" }: { variant?: Va
             fontSize: 22,
             fontWeight: 700,
             marginBottom: 8,
-            fontFamily: "Space Grotesk, sans-serif",
+            fontFamily: "var(--da-font-display)",
           }}
         >
           Solche Analysen direkt in deine Inbox
@@ -296,7 +296,7 @@ export default function NewsletterSignup({ variant = "compact" }: { variant?: Va
                 borderRadius: 4,
                 padding: "12px 16px",
                 fontSize: 15,
-                fontFamily: "Inter, sans-serif",
+                fontFamily: "var(--da-font-body)",
               }}
             />
             <button
@@ -416,7 +416,7 @@ export default function NewsletterSignup({ variant = "compact" }: { variant?: Va
             borderRadius: 4,
             padding: "9px 12px",
             fontSize: 13,
-            fontFamily: "Inter, sans-serif",
+            fontFamily: "var(--da-font-body)",
             marginBottom: 8,
             boxSizing: "border-box",
           }}
@@ -513,7 +513,7 @@ export default function NewsletterSignup({ variant = "compact" }: { variant?: Va
             borderRadius: 4,
             padding: "14px 16px",
             fontSize: 15,
-            fontFamily: "Inter, sans-serif",
+            fontFamily: "var(--da-font-body)",
             boxSizing: "border-box",
           }}
         />

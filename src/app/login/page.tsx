@@ -17,7 +17,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
               color: "var(--da-text)",
               fontSize: "32px",
               fontWeight: 700,
-              fontFamily: "Space Grotesk, sans-serif",
+              fontFamily: "var(--da-font-display)",
               marginBottom: "8px",
             }}
           >
