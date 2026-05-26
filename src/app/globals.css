@@ -1,6 +1,10 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap");
-
 @import "tailwindcss";
+
+/* Schriften werden in src/app/layout.tsx via next/font/google self-hostet
+   geladen (Inter, Roboto Mono, Space Grotesk). Die CSS-Variablen
+   --font-inter, --font-roboto-mono, --font-space-grotesk werden auf
+   <html className="..."> gesetzt — die Aliase --font-family-* und
+   --da-font-* unten zeigen darauf. Kein Runtime-Request an Google. */
 
 @theme {
   /* ── Brand Colors ──────────────────────────────────────────────── */
@@ -24,10 +28,13 @@
   --color-da-muted-soft:  #888888;
   --color-da-faint:       #555555;
 
-  /* ── Fonts (Tailwind v4 derives font-display, font-sans, font-mono) ── */
-  --font-family-display:  "Space Grotesk", sans-serif;
-  --font-family-sans:     "Inter", sans-serif;
-  --font-family-mono:     "Roboto Mono", monospace;
+  /* ── Fonts (Tailwind v4 derives font-display, font-sans, font-mono) ──
+     Werte zeigen auf die next/font-CSS-Variablen aus layout.tsx. Wenn
+     next/font noch nicht hydratisiert ist, fällt es auf System-Sans-Serif
+     bzw. -Monospace zurück. */
+  --font-family-display:  var(--font-space-grotesk), sans-serif;
+  --font-family-sans:     var(--font-inter), sans-serif;
+  --font-family-mono:     var(--font-roboto-mono), monospace;
 }
 
 :root {
@@ -50,9 +57,9 @@
   --da-muted-soft:   #888888;
   --da-faint:        #555555;
 
-  --da-font-display: "Space Grotesk", sans-serif;
-  --da-font-body:    "Inter", sans-serif;
-  --da-font-mono:    "Roboto Mono", monospace;
+  --da-font-display: var(--font-space-grotesk), sans-serif;
+  --da-font-body:    var(--font-inter), sans-serif;
+  --da-font-mono:    var(--font-roboto-mono), monospace;
 
   /* ── Type Scale ────────────────────────────────────────────────── */
   --fs-overline:     10px;

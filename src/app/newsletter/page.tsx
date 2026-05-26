@@ -10,7 +10,7 @@ export default function Page() {
       <section style={{ maxWidth: "900px", margin: "0 auto", padding: "64px 32px" }}>
         <div style={{ textAlign: "center", marginBottom: "48px" }}>
           <p style={{ color: "var(--da-green)", fontSize: "13px", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "16px" }}>📬 Newsletter</p>
-          <h1 style={{ color: "var(--da-text)", fontSize: "clamp(36px, 5vw, 56px)", fontWeight: 700, lineHeight: 1.15, marginBottom: "20px", fontFamily: "Space Grotesk, sans-serif" }}>
+          <h1 style={{ color: "var(--da-text)", fontSize: "clamp(36px, 5vw, 56px)", fontWeight: 700, lineHeight: 1.15, marginBottom: "20px", fontFamily: "var(--da-font-display)" }}>
             KI & Future Tech – <span style={{ color: "var(--da-green)" }}>direkt in deine Inbox.</span>
           </h1>
           <p style={{ color: "var(--da-muted)", fontSize: "19px", lineHeight: 1.6, maxWidth: "640px", margin: "0 auto" }}>
@@ -43,15 +43,15 @@ export default function Page() {
         <div style={{ marginTop: "64px", padding: "32px", textAlign: "center", borderTop: "1px solid var(--da-card)" }}>
           <div style={{ display: "flex", gap: "48px", justifyContent: "center", flexWrap: "wrap" }}>
             <div>
-              <p style={{ color: "var(--da-green)", fontSize: "32px", fontWeight: 700, fontFamily: "Space Grotesk, sans-serif", lineHeight: 1 }}>1×</p>
+              <p style={{ color: "var(--da-green)", fontSize: "32px", fontWeight: 700, fontFamily: "var(--da-font-display)", lineHeight: 1 }}>1×</p>
               <p style={{ color: "var(--da-muted)", fontSize: "13px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginTop: "6px" }}>pro Woche</p>
             </div>
             <div>
-              <p style={{ color: "var(--da-green)", fontSize: "32px", fontWeight: 700, fontFamily: "Space Grotesk, sans-serif", lineHeight: 1 }}>5 min</p>
+              <p style={{ color: "var(--da-green)", fontSize: "32px", fontWeight: 700, fontFamily: "var(--da-font-display)", lineHeight: 1 }}>5 min</p>
               <p style={{ color: "var(--da-muted)", fontSize: "13px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginTop: "6px" }}>Lesezeit</p>
             </div>
             <div>
-              <p style={{ color: "var(--da-green)", fontSize: "32px", fontWeight: 700, fontFamily: "Space Grotesk, sans-serif", lineHeight: 1 }}>0 ₣</p>
+              <p style={{ color: "var(--da-green)", fontSize: "32px", fontWeight: 700, fontFamily: "var(--da-font-display)", lineHeight: 1 }}>0 ₣</p>
               <p style={{ color: "var(--da-muted)", fontSize: "13px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginTop: "6px" }}>kostenlos</p>
             </div>
           </div>

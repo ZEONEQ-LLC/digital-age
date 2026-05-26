@@ -84,7 +84,7 @@ export default async function AuthorPage({ params }: PageProps) {
                 </p>
                 {author.isExternal && <ExternalBadge size="sm" />}
               </div>
-              <h1 style={{ color: "var(--da-text)", fontSize: "clamp(32px, 4.5vw, 48px)", fontWeight: 700, lineHeight: 1.2, marginBottom: "8px", fontFamily: "Space Grotesk, sans-serif" }}>
+              <h1 style={{ color: "var(--da-text)", fontSize: "clamp(32px, 4.5vw, 48px)", fontWeight: 700, lineHeight: 1.2, marginBottom: "8px", fontFamily: "var(--da-font-display)" }}>
                 {author.name}
               </h1>
               {(author.jobTitle || author.location) && (
@@ -100,11 +100,11 @@ export default async function AuthorPage({ params }: PageProps) {
 
               <div className="author-stats" style={{ marginBottom: "24px" }}>
                 <div>
-                  <p style={{ color: "var(--da-green)", fontSize: "32px", fontWeight: 700, fontFamily: "Space Grotesk, sans-serif", lineHeight: 1 }}>{articles.length}</p>
+                  <p style={{ color: "var(--da-green)", fontSize: "32px", fontWeight: 700, fontFamily: "var(--da-font-display)", lineHeight: 1 }}>{articles.length}</p>
                   <p style={{ color: "var(--da-muted)", fontSize: "13px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginTop: "6px" }}>Artikel</p>
                 </div>
                 <div>
-                  <p style={{ color: "var(--da-green)", fontSize: "32px", fontWeight: 700, fontFamily: "Space Grotesk, sans-serif", lineHeight: 1 }}>{categories.length}</p>
+                  <p style={{ color: "var(--da-green)", fontSize: "32px", fontWeight: 700, fontFamily: "var(--da-font-display)", lineHeight: 1 }}>{categories.length}</p>
                   <p style={{ color: "var(--da-muted)", fontSize: "13px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginTop: "6px" }}>Kategorien</p>
                 </div>
               </div>

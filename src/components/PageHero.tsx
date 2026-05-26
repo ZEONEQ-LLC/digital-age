@@ -13,7 +13,7 @@ export default function PageHero({ category, title, description }: PageHeroProps
             {category}
           </p>
         )}
-        <h1 style={{ color: "var(--da-text)", fontSize: "clamp(32px, 4vw, 48px)", fontWeight: 700, lineHeight: 1.2, marginBottom: description ? "20px" : 0, fontFamily: "Space Grotesk, sans-serif" }}>
+        <h1 style={{ color: "var(--da-text)", fontSize: "clamp(32px, 4vw, 48px)", fontWeight: 700, lineHeight: 1.2, marginBottom: description ? "20px" : 0, fontFamily: "var(--da-font-display)" }}>
           {title}
         </h1>
         {description && (

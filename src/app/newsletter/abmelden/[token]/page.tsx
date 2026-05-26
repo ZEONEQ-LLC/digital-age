@@ -55,7 +55,7 @@ export default async function Page({ params }: PageProps) {
             color: "var(--da-text)",
             fontSize: "36px",
             fontWeight: 700,
-            fontFamily: "Space Grotesk, sans-serif",
+            fontFamily: "var(--da-font-display)",
             marginBottom: "16px",
           }}
         >

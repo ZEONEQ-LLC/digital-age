@@ -17,7 +17,7 @@ export default function Footer() {
           <div style={{ backgroundColor: "var(--da-card)", border: "1px solid var(--da-border)", borderRadius: "8px", padding: "32px", marginBottom: "48px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "24px" }}>
             <div style={{ flex: "1 1 300px" }}>
               <p style={{ color: "var(--da-green)", fontSize: "12px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "8px" }}>📬 Newsletter</p>
-              <h3 style={{ color: "var(--da-text)", fontSize: "20px", fontWeight: 600, marginBottom: "4px", fontFamily: "Space Grotesk, sans-serif" }}>Die Woche in KI — direkt in deine Inbox</h3>
+              <h3 style={{ color: "var(--da-text)", fontSize: "20px", fontWeight: 600, marginBottom: "4px", fontFamily: "var(--da-font-display)" }}>Die Woche in KI — direkt in deine Inbox</h3>
               <p style={{ color: "var(--da-muted)", fontSize: "13px" }}>1× pro Woche, 5 min Lesezeit, jederzeit kündbar.</p>
             </div>
             <div style={{ flex: "1 1 320px" }}>

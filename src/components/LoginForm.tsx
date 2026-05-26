@@ -11,7 +11,7 @@ const inputStyle: React.CSSProperties = {
   borderRadius: "4px",
   padding: "14px 16px",
   fontSize: "15px",
-  fontFamily: "Inter, sans-serif",
+  fontFamily: "var(--da-font-body)",
   boxSizing: "border-box",
 };
 
@@ -86,7 +86,7 @@ export default function LoginForm({ initialError }: { initialError?: string }) {
             color: "var(--da-text)",
             fontSize: "20px",
             fontWeight: 700,
-            fontFamily: "Space Grotesk, sans-serif",
+            fontFamily: "var(--da-font-display)",
             marginBottom: "12px",
           }}
         >

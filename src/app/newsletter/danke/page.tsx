@@ -8,7 +8,7 @@ export default function Page() {
       
       <section style={{ maxWidth: "640px", margin: "0 auto", padding: "80px 32px", textAlign: "center" }}>
         <div style={{ fontSize: "64px", marginBottom: "24px" }}>📬</div>
-        <h1 style={{ color: "var(--da-text)", fontSize: "36px", fontWeight: 700, fontFamily: "Space Grotesk, sans-serif", marginBottom: "16px" }}>
+        <h1 style={{ color: "var(--da-text)", fontSize: "36px", fontWeight: 700, fontFamily: "var(--da-font-display)", marginBottom: "16px" }}>
           Fast geschafft!
         </h1>
         <p style={{ color: "var(--da-muted)", fontSize: "18px", lineHeight: 1.6, marginBottom: "32px" }}>
