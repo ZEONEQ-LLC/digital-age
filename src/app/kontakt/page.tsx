@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import Footer from "@/components/Footer";
-import NewsTicker from "@/components/NewsTicker";
+
 import PageHero from "@/components/PageHero";
 import { submitContactMessage } from "@/lib/contact/submit";
 
@@ -169,7 +169,7 @@ export default function KontaktPage() {
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <NewsTicker />
+      
       <PageHero
         category="Kontakt"
         title="Kontakt"

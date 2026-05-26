@@ -1,4 +1,4 @@
-import NewsTicker from "@/components/NewsTicker";
+
 import HeroBold from "@/components/HeroBold";
 import SpotlightSection from "@/components/SpotlightSection";
 import SwissAIStrip from "@/components/SwissAIStrip";
@@ -37,7 +37,7 @@ export default async function Home() {
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <NewsTicker />
+      
       <HeroBold />
       <SpotlightSection articles={spotlight} />
       <ArticleSection title="KI & Business" href="/ki-im-business" articles={kiBusiness.map(articleToCard)} />

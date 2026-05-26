@@ -1,11 +1,11 @@
-import NewsTicker from "@/components/NewsTicker";
+
 import Footer from "@/components/Footer";
 import NewsletterSignup from "@/components/NewsletterSignup";
 
 export default function Page() {
   return (
     <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <NewsTicker />
+      
 
       <section style={{ maxWidth: "900px", margin: "0 auto", padding: "64px 32px" }}>
         <div style={{ textAlign: "center", marginBottom: "48px" }}>

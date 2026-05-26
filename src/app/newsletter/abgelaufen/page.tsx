@@ -1,11 +1,11 @@
 import Link from "next/link";
-import NewsTicker from "@/components/NewsTicker";
+
 import Footer from "@/components/Footer";
 
 export default function Page() {
   return (
     <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <NewsTicker />
+      
       <section style={{ maxWidth: "640px", margin: "0 auto", padding: "80px 32px", textAlign: "center" }}>
         <div style={{ fontSize: "64px", marginBottom: "24px" }}>⏱</div>
         <h1

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import NewsTicker from "@/components/NewsTicker";
+
 import Footer from "@/components/Footer";
 import { submitStartupExternal } from "@/lib/startupActions";
 import {
@@ -255,7 +255,7 @@ export default function EinreichenPage() {
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <NewsTicker />
+      
 
       <style>{`
         .ein-shell { max-width: 1100px; margin: 0 auto; padding-left: var(--sp-8); padding-right: var(--sp-8); }

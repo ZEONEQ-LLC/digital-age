@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import NewsTicker from "@/components/NewsTicker";
+
 import Footer from "@/components/Footer";
 import { getAllTags } from "@/lib/tags";
 
@@ -21,7 +21,7 @@ export default async function TagsPage() {
         minHeight: "100vh",
       }}
     >
-      <NewsTicker />
+      
 
       <section
         style={{

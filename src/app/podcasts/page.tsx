@@ -1,5 +1,5 @@
 import Footer from "@/components/Footer";
-import NewsTicker from "@/components/NewsTicker";
+
 import PodcastsFilterList from "@/components/PodcastsFilterList";
 import { getPublishedPodcasts } from "@/lib/podcastApi";
 import { podcastToCardVM } from "@/lib/mappers/podcastMappers";
@@ -17,7 +17,7 @@ export default async function PodcastsPage() {
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <NewsTicker />
+      
 
       <style>{`
         .pc-shell { max-width: var(--max-content); margin: 0 auto; }

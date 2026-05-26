@@ -1,4 +1,4 @@
-import NewsTicker from "@/components/NewsTicker";
+
 import Footer from "@/components/Footer";
 import SpotlightSection from "@/components/SpotlightSection";
 import TopicListing from "@/components/TopicListing";
@@ -63,7 +63,7 @@ export default async function FutureTechPage() {
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <NewsTicker />
+      
       <SpotlightSection articles={featured} />
       <TopicListing
         topicLabel="Future Tech"

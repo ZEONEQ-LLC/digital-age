@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Footer from "@/components/Footer";
-import NewsTicker from "@/components/NewsTicker";
+
 import PageContent from "@/components/PageContent";
 import { getPublishedPageBySlug } from "@/lib/pagesApi";
 import type { BlockDocument } from "@/types/blocks";
@@ -26,7 +26,7 @@ export default async function Page() {
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <NewsTicker />
+      
       <PageContent title={page.title} lead={page.lead} doc={doc} />
       <Footer />
     </main>

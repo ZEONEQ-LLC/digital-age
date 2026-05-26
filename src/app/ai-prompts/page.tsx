@@ -1,5 +1,5 @@
 import Link from "next/link";
-import NewsTicker from "@/components/NewsTicker";
+
 import Footer from "@/components/Footer";
 import type { Prompt } from "@/components/PromptCard";
 import type { AiTool, Difficulty } from "@/components/promptColors";
@@ -45,7 +45,7 @@ export default async function AiPromptsPage() {
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <NewsTicker />
+      
 
       <style>{`
         .ap-hero {

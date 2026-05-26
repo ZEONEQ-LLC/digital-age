@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import NewsTicker from "@/components/NewsTicker";
+
 import Footer from "@/components/Footer";
 import ArticleCard from "@/components/ArticleCard";
 import ExternalBadge from "@/components/ExternalBadge";
@@ -48,7 +48,7 @@ export default async function AuthorPage({ params }: PageProps) {
         }
       `}</style>
 
-      <NewsTicker />
+      
 
       <section style={{ borderBottom: "1px solid var(--da-card)", padding: "64px 32px" }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto" }}>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import NewsTicker from "@/components/NewsTicker";
+
 import Footer from "@/components/Footer";
 import PlatformCard, { hostingColor, hostingLabel, catColors, type Hosting, type Platform } from "@/components/PlatformCard";
 import PlatformRow from "@/components/PlatformRow";
@@ -62,7 +62,7 @@ export default function KIPlattformenPage() {
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh", paddingBottom: compareIds.length > 0 ? 80 : 0 }}>
-      <NewsTicker />
+      
 
       <style>{`
         .kip-shell { max-width: var(--max-content); margin: 0 auto; }

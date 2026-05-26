@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Footer from "@/components/Footer";
-import Navbar from "@/components/Navbar";
-import NewsTicker from "@/components/NewsTicker";
+
+
 import { submitArticlePitch } from "@/lib/pitch/submit";
 
 type FormState = {
@@ -282,8 +282,8 @@ export default function PitchPage() {
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <Navbar />
-      <NewsTicker />
+      
+      
 
       <style>{`
         .a-pitch__hero {
