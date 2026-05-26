@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import NewsTicker from "@/components/NewsTicker";
+
 import Footer from "@/components/Footer";
 import { catColor, diffColor, toolColor, type AiTool, type Difficulty } from "@/components/promptColors";
 import { getPromptById } from "@/lib/promptApi";
@@ -54,7 +54,7 @@ export default async function PromptDetailPage({ params }: { params: Params }) {
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <NewsTicker />
+      
 
       <style>{`
         .pd-shell { max-width: 820px; margin: 0 auto; padding: 56px var(--sp-8) 96px; }

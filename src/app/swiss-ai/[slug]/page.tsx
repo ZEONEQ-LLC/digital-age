@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import NewsTicker from "@/components/NewsTicker";
+
 import Footer from "@/components/Footer";
 import { getStartupBySlug } from "@/lib/startupApi";
 import {
@@ -44,7 +44,7 @@ export default async function StartupDetailPage({ params }: { params: Params }) 
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <NewsTicker />
+      
 
       <style>{`
         .sd-shell { max-width: 920px; margin: 0 auto; padding: 48px var(--sp-8) 96px; }

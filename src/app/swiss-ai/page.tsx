@@ -1,5 +1,5 @@
 import Link from "next/link";
-import NewsTicker from "@/components/NewsTicker";
+
 import Footer from "@/components/Footer";
 import {
   getPublishedStartups,
@@ -29,7 +29,7 @@ export default async function SwissAIPage() {
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <NewsTicker />
+      
 
       <style>{`
         .sa-hero {

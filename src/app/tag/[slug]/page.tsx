@@ -2,7 +2,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import NewsTicker from "@/components/NewsTicker";
+
 import Footer from "@/components/Footer";
 import ArticleListRow from "@/components/ArticleListRow";
 import { getArticlesByTagSlug, getTagBySlug } from "@/lib/tags";
@@ -56,7 +56,7 @@ export default async function TagPage({ params }: PageProps) {
         minHeight: "100vh",
       }}
     >
-      <NewsTicker />
+      
 
       <section
         style={{

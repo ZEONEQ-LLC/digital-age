@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import NewsTicker from "@/components/NewsTicker";
+
 import Footer from "@/components/Footer";
 import { catColor, diffColor, toolColor, type AiTool, type Difficulty } from "@/components/promptColors";
 import { submitPromptExternal } from "@/lib/promptActions";
@@ -125,7 +125,7 @@ export default function PromptEinreichenPage() {
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <NewsTicker />
+      
 
       <style>{`
         @keyframes ein-spin { to { transform: rotate(360deg); } }

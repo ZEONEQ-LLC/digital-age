@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import NewsTicker from "@/components/NewsTicker";
+
 import Footer from "@/components/Footer";
 import ListenButton from "@/components/ListenButton";
 import ShareButtons from "@/components/ShareButtons";
@@ -233,7 +233,7 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
         dangerouslySetInnerHTML={{ __html: jsonLd }}
       />
       <ReadingProgress />
-      <NewsTicker />
+      
 
       <header style={{ maxWidth: "860px", margin: "0 auto", padding: "52px var(--sp-8) 28px" }}>
         <nav aria-label="Breadcrumb" style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "var(--sp-6)" }}>

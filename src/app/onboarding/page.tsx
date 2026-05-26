@@ -1,5 +1,5 @@
 import Link from "next/link";
-import NewsTicker from "@/components/NewsTicker";
+
 import Footer from "@/components/Footer";
 import { createClient } from "@/lib/supabase/server";
 import OnboardingMagicLink from "./OnboardingMagicLink";
@@ -63,7 +63,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: S
 
   return (
     <main style={{ paddingTop: 64, backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <NewsTicker />
+      
       <section style={sectionStyle}>
         {view === "invalid" && (
           <div style={cardStyle}>

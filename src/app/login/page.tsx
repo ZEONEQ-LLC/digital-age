@@ -1,4 +1,4 @@
-import NewsTicker from "@/components/NewsTicker";
+
 import Footer from "@/components/Footer";
 import LoginForm from "@/components/LoginForm";
 
@@ -9,7 +9,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
 
   return (
     <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <NewsTicker />
+      
       <section style={{ maxWidth: "440px", margin: "0 auto", padding: "64px 32px" }}>
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
           <h1
