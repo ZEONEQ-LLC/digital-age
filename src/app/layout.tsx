@@ -6,6 +6,7 @@ import NewsTicker from "@/components/NewsTicker";
 import NewsTickerGate from "@/components/NewsTickerGate";
 import ConsentInit from "@/components/ConsentInit";
 import ConsentManagerGate from "@/components/ConsentManagerGate";
+import AnalyticsGate from "@/components/AnalyticsGate";
 
 // Self-hosted Google Fonts via next/font/google. Wird zur Build-Time von
 // Google geladen und mit den Site-Assets ausgeliefert — keine Runtime-
@@ -57,6 +58,7 @@ export default function RootLayout({
         </NewsTickerGate>
         {children}
         <ConsentManagerGate />
+        <AnalyticsGate />
       </body>
     </html>
   );
