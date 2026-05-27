@@ -4,6 +4,8 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import NewsTicker from "@/components/NewsTicker";
 import NewsTickerGate from "@/components/NewsTickerGate";
+import ConsentInit from "@/components/ConsentInit";
+import ConsentManagerGate from "@/components/ConsentManagerGate";
 
 // Self-hosted Google Fonts via next/font/google. Wird zur Build-Time von
 // Google geladen und mit den Site-Assets ausgeliefert — keine Runtime-
@@ -44,6 +46,7 @@ export default function RootLayout({
       className={`${inter.variable} ${robotoMono.variable} ${spaceGrotesk.variable}`}
     >
       <body>
+        <ConsentInit />
         <Navbar />
         {/* NewsTicker zentral im Layout (statt pro Page importiert) —
             verhindert dass Client-Pages den Server-Component direkt
@@ -53,6 +56,7 @@ export default function RootLayout({
           <NewsTicker />
         </NewsTickerGate>
         {children}
+        <ConsentManagerGate />
       </body>
     </html>
   );
