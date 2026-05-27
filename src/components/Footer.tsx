@@ -1,9 +1,25 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import NewsletterSignup from "./NewsletterSignup";
 
+function openCookieSettings() {
+  if (typeof window === "undefined" || !window.googlefc) return;
+  const queue = (window.googlefc.callbackQueue ??= []);
+  queue.push({
+    CONSENT_API_READY: () => {
+      window.googlefc?.showRevocationMessage?.();
+    },
+  });
+}
+
 export default function Footer() {
+  const pathname = usePathname() ?? "";
+  const showCookieSettings = !(
+    pathname.startsWith("/autor/") && pathname !== "/autor"
+  );
+
   return (
     <>
       <style>{`
@@ -77,6 +93,16 @@ export default function Footer() {
                     {label}
                   </Link>
                 ))}
+                {showCookieSettings && (
+                  <button
+                    type="button"
+                    onClick={openCookieSettings}
+                    style={{ background: "none", border: 0, padding: 0, textAlign: "left", cursor: "pointer", color: "var(--da-muted)", fontSize: "14px", fontFamily: "inherit", transition: "color 0.2s" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "var(--da-green)")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "var(--da-muted)")}>
+                    Cookie-Einstellungen
+                  </button>
+                )}
               </nav>
             </div>
           </div>
