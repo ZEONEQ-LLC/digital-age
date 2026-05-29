@@ -1,0 +1,47 @@
+/* Polish-Overrides für die Tiptap-Test-Sandbox.
+   Scope: ausschliesslich .tiptap-test-wrapper, damit andere Pages und
+   ein späterer produktiver Tiptap-Editor unbeeinflusst bleiben. Wir
+   editieren KEINE Vendor-Files (tiptap-ui/*, tiptap-ui-primitive/*) —
+   alle Anpassungen via Cascade-Override hier. */
+
+/* 1. Sticky-Toolbar im Dark-Theme.
+   Upstream fixed-Toolbar nutzt --tt-toolbar-bg-color (white/black) +
+   sticky top:0. Wir setzen den Top-Offset auf die Navbar-Höhe, damit die
+   Toolbar nicht hinter der globalen Navbar verschwindet, und überschreiben
+   die Hintergrund-Farbe auf unsere Brand-Card-Farbe (opaque). */
+.tiptap-test-wrapper .tiptap-toolbar[data-variant="fixed"] {
+  top: var(--nav-h, 0px);
+  background-color: var(--da-card);
+  border-bottom: 1px solid var(--da-border);
+}
+
+/* 2. Selection-Lesbarkeit im Editor.
+   ProseMirror erbt die Browser-Default-Selection (oft hellblau mit weisser
+   Schrift). Bei hellem Highlight-Hintergrund (Green #32ff7e / Orange
+   #ff8c42) wird weisse Schrift unlesbar.
+   Aussen vom Highlight: dezenter brand-grüner Selection-Tint auf dem
+   dunklen Editor-Background, Text bleibt weiss. Innerhalb von <mark>
+   (Highlight): heller Selection-Layer + dunkler Text. */
+.tiptap-test-wrapper .ProseMirror ::selection {
+  background-color: rgba(50, 255, 126, 0.35);
+  color: #ffffff;
+}
+
+.tiptap-test-wrapper .ProseMirror mark ::selection,
+.tiptap-test-wrapper .ProseMirror mark::selection {
+  background-color: rgba(255, 255, 255, 0.55);
+  color: #1c1c1e;
+}
+
+/* 3. Link-Farbe im Dark-Mode.
+   Tiptap rendert <a> ohne explizite Farbe → fällt auf Editor-color
+   zurück, was zu invisible blue→dark-on-dark führt. */
+.tiptap-test-wrapper .ProseMirror a {
+  color: var(--da-green, #32ff7e);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tiptap-test-wrapper .ProseMirror a:hover {
+  color: #6dffa3;
+}

@@ -69,6 +69,9 @@ import { useIsBreakpoint } from "@/hooks/use-is-breakpoint";
 import { MAX_FILE_SIZE } from "@/lib/tiptap-utils";
 import { uploadTiptapTestImage } from "@/lib/tiptap-test-upload";
 
+// --- Polish-Overrides (scoped via .tiptap-test-wrapper) ---
+import "./tiptap-test.css";
+
 // Brand-CI Highlight-Farben — überschreibt die Default-Pastell-Palette.
 const BRAND_HIGHLIGHT_COLORS: HighlightColor[] = [
   {
@@ -267,7 +270,10 @@ export default function TiptapTestEditor() {
   });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24, paddingBottom: 96 }}>
+    <div
+      className="tiptap-test-wrapper"
+      style={{ display: "flex", flexDirection: "column", gap: 24, paddingBottom: 96 }}
+    >
       <header style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <h1
           style={{
@@ -291,26 +297,29 @@ export default function TiptapTestEditor() {
           backgroundColor: "var(--da-card)",
           border: "1px solid var(--da-border)",
           borderRadius: 8,
-          overflow: "hidden",
         }}
       >
         <EditorContext.Provider value={{ editor }}>
-          <div style={{ position: "sticky", top: "var(--nav-h, 0px)", zIndex: 10, background: "var(--da-card)", borderBottom: "1px solid var(--da-border)" }}>
-            <Toolbar ref={toolbarRef}>
-              {mobileView === "main" ? (
-                <MainToolbarContent
-                  onHighlighterClick={() => setMobileView("highlighter")}
-                  onLinkClick={() => setMobileView("link")}
-                  isMobile={isMobile}
-                />
-              ) : (
-                <MobileToolbarContent
-                  type={mobileView === "highlighter" ? "highlighter" : "link"}
-                  onBack={() => setMobileView("main")}
-                />
-              )}
-            </Toolbar>
-          </div>
+          {/* Toolbar ist im Upstream-CSS bereits position:sticky top:0
+              z-index:50 (data-variant="fixed"). Wir überschreiben in
+              tiptap-test.css nur den Top-Offset (Navbar-Höhe) und die
+              Hintergrund-Farbe. Kein zusätzlicher sticky-Wrapper hier —
+              ein eigener wäre redundant und würde mit dem inneren sticky
+              kollidieren. */}
+          <Toolbar ref={toolbarRef}>
+            {mobileView === "main" ? (
+              <MainToolbarContent
+                onHighlighterClick={() => setMobileView("highlighter")}
+                onLinkClick={() => setMobileView("link")}
+                isMobile={isMobile}
+              />
+            ) : (
+              <MobileToolbarContent
+                type={mobileView === "highlighter" ? "highlighter" : "link"}
+                onBack={() => setMobileView("main")}
+              />
+            )}
+          </Toolbar>
           <div style={{ background: "var(--da-darker)", color: "var(--da-text)", minHeight: 320, padding: 24 }}>
             <EditorContent editor={editor} role="presentation" />
           </div>
