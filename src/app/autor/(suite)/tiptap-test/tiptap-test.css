@@ -4,6 +4,22 @@
    editieren KEINE Vendor-Files (tiptap-ui/*, tiptap-ui-primitive/*) —
    alle Anpassungen via Cascade-Override hier. */
 
+/* 0. Toolbar-Icon-Farben.
+   Die Tiptap-Vendor-Vars für Icon-Farbe haben Light/Dark-Modes; der
+   Dark-Branch ist auf den CSS-Selektor `.dark &` gegated. digital-age
+   hat keinen Theme-Toggle und setzt nirgends die `.dark`-Klasse, daher
+   greifen permanent die Light-Defaults — fast-schwarze Icons (rgba(36,
+   39, 46, 0.78)) auf der dunklen --da-card-Toolbar = unsichtbar.
+   Variablen-Defaults aus button-colors.scss gezielt überschrieben statt
+   die `.dark`-Klasse zu erzwingen (würde die Tailwind-Konvention im
+   restlichen Projekt verwässern). */
+.tiptap-test-wrapper {
+  --tt-button-default-icon-color: rgba(255, 255, 255, 0.78);
+  --tt-button-hover-icon-color: rgba(255, 255, 255, 0.95);
+  --tt-button-active-icon-color: var(--da-green, #32ff7e);
+  --tt-button-disabled-icon-color: rgba(255, 255, 255, 0.3);
+}
+
 /* 1. Sticky-Toolbar im Dark-Theme.
    Upstream fixed-Toolbar nutzt --tt-toolbar-bg-color (white/black) +
    sticky top:0. Wir setzen den Top-Offset auf die Navbar-Höhe, damit die
