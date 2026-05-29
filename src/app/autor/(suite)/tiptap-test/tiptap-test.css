@@ -12,8 +12,13 @@
    39, 46, 0.78)) auf der dunklen --da-card-Toolbar = unsichtbar.
    Variablen-Defaults aus button-colors.scss gezielt überschrieben statt
    die `.dark`-Klasse zu erzwingen (würde die Tailwind-Konvention im
-   restlichen Projekt verwässern). */
-.tiptap-test-wrapper {
+   restlichen Projekt verwässern).
+   WICHTIG: Vendor deklariert die Vars direkt auf `.tiptap-button`
+   (button-colors.scss Z. 1) — CSS-Variablen lösen sich zur nächsten
+   Deklaration auf, daher würde ein Override auf dem äusseren Wrapper
+   überschattet. Override muss auf demselben Selektor wie der Vendor
+   sitzen, mit höherer Specificity durch das vorangestellte Wrapper. */
+.tiptap-test-wrapper .tiptap-button {
   --tt-button-default-icon-color: rgba(255, 255, 255, 0.78);
   --tt-button-hover-icon-color: rgba(255, 255, 255, 0.95);
   --tt-button-active-icon-color: var(--da-green, #32ff7e);
