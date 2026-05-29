@@ -4,20 +4,17 @@
    editieren KEINE Vendor-Files (tiptap-ui/*, tiptap-ui-primitive/*) —
    alle Anpassungen via Cascade-Override hier. */
 
-/* 0. Toolbar-Icon-Farben.
-   Die Tiptap-Vendor-Vars für Icon-Farbe haben Light/Dark-Modes; der
-   Dark-Branch ist auf den CSS-Selektor `.dark &` gegated. digital-age
-   hat keinen Theme-Toggle und setzt nirgends die `.dark`-Klasse, daher
-   greifen permanent die Light-Defaults — fast-schwarze Icons (rgba(36,
-   39, 46, 0.78)) auf der dunklen --da-card-Toolbar = unsichtbar.
-   Variablen-Defaults aus button-colors.scss gezielt überschrieben statt
-   die `.dark`-Klasse zu erzwingen (würde die Tailwind-Konvention im
-   restlichen Projekt verwässern).
-   WICHTIG: Vendor deklariert die Vars direkt auf `.tiptap-button`
-   (button-colors.scss Z. 1) — CSS-Variablen lösen sich zur nächsten
-   Deklaration auf, daher würde ein Override auf dem äusseren Wrapper
-   überschattet. Override muss auf demselben Selektor wie der Vendor
-   sitzen, mit höherer Specificity durch das vorangestellte Wrapper. */
+/* ============================================================
+   0. Toolbar-Icon-Farben
+   ============================================================
+   Die Tiptap-Vendor-Vars für Icon-Farbe haben Light/Dark-Modes;
+   der Dark-Branch ist auf den CSS-Selektor `.dark &` gegated.
+   digital-age hat keinen Theme-Toggle und setzt nirgends die
+   `.dark`-Klasse, daher greifen permanent die Light-Defaults =
+   fast-schwarze Icons auf der dunklen Toolbar = unsichtbar.
+   Vendor deklariert die Vars direkt auf `.tiptap-button` — der
+   Override muss auf demselben Selektor sitzen, mit höherer
+   Specificity durch das vorangestellte Wrapper. */
 .tiptap-test-wrapper .tiptap-button {
   --tt-button-default-icon-color: rgba(255, 255, 255, 0.78);
   --tt-button-hover-icon-color: rgba(255, 255, 255, 0.95);
@@ -25,24 +22,57 @@
   --tt-button-disabled-icon-color: rgba(255, 255, 255, 0.3);
 }
 
-/* 1. Sticky-Toolbar im Dark-Theme.
-   Upstream fixed-Toolbar nutzt --tt-toolbar-bg-color (white/black) +
-   sticky top:0. Wir setzen den Top-Offset auf die Navbar-Höhe, damit die
-   Toolbar nicht hinter der globalen Navbar verschwindet, und überschreiben
-   die Hintergrund-Farbe auf unsere Brand-Card-Farbe (opaque). */
-.tiptap-test-wrapper .tiptap-toolbar[data-variant="fixed"] {
-  top: var(--nav-h, 0px);
-  background-color: var(--da-card);
-  border-bottom: 1px solid var(--da-border);
+/* ============================================================
+   1. Fixed-Toolbar
+   ============================================================
+   Vorher: sticky am Card-Top — scrollte mit der Card aus dem
+   Viewport raus.
+   Jetzt: position: fixed unter der Navbar, dauerhaft sichtbar
+   solange der User auf der Editor-Page steht (Notion/Medium-UX).
+
+   - top: --nav-h (= 64px globaler Navbar)
+   - z-index 100 (Navbar ist 200 → bleibt drüber, alles andere
+     drunter)
+   - Desktop (≥1024px): left: --sidebar-w (= 240px AuthorSidebar),
+     damit die Toolbar nicht über der Suite-Sidebar liegt
+   - <1024px: Sidebar ausgeblendet → left: 0
+   - Wrapper bekommt padding-top: 60px (~ Toolbar-Höhe), damit
+     der Page-Header beim initialen Scroll-Top nicht hinter der
+     Toolbar verschwindet.
+   - Specificity (0,3,0) — schlägt Vendor (0,2,0) + den Mobile-
+     Branch @media(max-width:480px) der Vendor-SCSS sauber. */
+.tiptap-test-wrapper {
+  padding-top: 60px;
 }
 
-/* 2. Selection-Lesbarkeit im Editor.
-   ProseMirror erbt die Browser-Default-Selection (oft hellblau mit weisser
-   Schrift). Bei hellem Highlight-Hintergrund (Green #32ff7e / Orange
-   #ff8c42) wird weisse Schrift unlesbar.
-   Aussen vom Highlight: dezenter brand-grüner Selection-Tint auf dem
-   dunklen Editor-Background, Text bleibt weiss. Innerhalb von <mark>
-   (Highlight): heller Selection-Layer + dunkler Text. */
+.tiptap-test-wrapper .tiptap-toolbar[data-variant="fixed"] {
+  position: fixed;
+  top: var(--nav-h, 64px);
+  left: 0;
+  right: 0;
+  bottom: auto;
+  height: auto;
+  z-index: 100;
+  background-color: var(--da-card);
+  border-top: none;
+  border-bottom: 1px solid var(--da-border);
+  padding: 0.5rem 1rem;
+  overflow-x: auto;
+}
+
+@media (min-width: 1024px) {
+  .tiptap-test-wrapper .tiptap-toolbar[data-variant="fixed"] {
+    left: var(--sidebar-w, 240px);
+  }
+}
+
+/* ============================================================
+   2. Selection-Lesbarkeit im Editor
+   ============================================================
+   Default: dezenter brand-grüner Selection-Tint auf dunklem BG,
+   weisser Text — lesbar.
+   Innerhalb von <mark> (Highlight): heller Selection-Layer +
+   dunkler Text — lesbar auf Brand-Green/Orange-Highlight. */
 .tiptap-test-wrapper .ProseMirror ::selection {
   background-color: rgba(50, 255, 126, 0.35);
   color: #ffffff;
@@ -54,9 +84,23 @@
   color: #1c1c1e;
 }
 
-/* 3. Link-Farbe im Dark-Mode.
-   Tiptap rendert <a> ohne explizite Farbe → fällt auf Editor-color
-   zurück, was zu invisible blue→dark-on-dark führt. */
+/* ============================================================
+   3. Highlight-Mark-Text-Color
+   ============================================================
+   Tiptap Highlight rendert <mark style="background-color: …">
+   ohne expliziten Foreground. Auf brand-grünem/orangem BG ist
+   die geerbte weisse Editor-Schrift unlesbar.
+   Specificity (0,4,0) durch .tiptap.ProseMirror-Chain schlägt
+   alle Vendor-Inheritance-Pfade. */
+.tiptap-test-wrapper .tiptap.ProseMirror mark {
+  color: #1c1c1e;
+}
+
+/* ============================================================
+   4. Link-Farbe im Dark-Mode
+   ============================================================
+   Tiptap rendert <a> ohne explizite Farbe — fällt auf die
+   Editor-color zurück, dunkel-auf-dunkel = unsichtbar. */
 .tiptap-test-wrapper .ProseMirror a {
   color: var(--da-green, #32ff7e);
   text-decoration: underline;
@@ -65,4 +109,40 @@
 
 .tiptap-test-wrapper .ProseMirror a:hover {
   color: #6dffa3;
+}
+
+/* ============================================================
+   5. Heading-Sizes auf Brand-Token
+   ============================================================
+   Vendor heading-node.scss skaliert per `em` ab 16px-Basis
+   (h1=24px, h2=20px, h3=18px, h4=16px) — zu klein gegenüber
+   Brand-Token (--fs-display 34px / --fs-h1 28px / --fs-h2 22px
+   / --fs-h3 20px aus globals.css `@theme`).
+   .tiptap.ProseMirror h-Chain = (0,4,0) > Vendor (0,2,0). */
+.tiptap-test-wrapper .tiptap.ProseMirror h1 {
+  font-size: var(--fs-display, 34px);
+  line-height: 1.15;
+}
+.tiptap-test-wrapper .tiptap.ProseMirror h2 {
+  font-size: var(--fs-h1, 28px);
+  line-height: 1.2;
+}
+.tiptap-test-wrapper .tiptap.ProseMirror h3 {
+  font-size: var(--fs-h2, 22px);
+  line-height: 1.3;
+}
+.tiptap-test-wrapper .tiptap.ProseMirror h4 {
+  font-size: var(--fs-h3, 20px);
+  line-height: 1.4;
+}
+
+/* ============================================================
+   6. Code-Block-Font auf Brand-Mono
+   ============================================================
+   Vendor code-block-node.scss setzt "JetBrains Mono NL" — ist
+   im Projekt nicht self-hostet, fällt auf system monospace
+   zurück und matcht nicht die Brand-CI. */
+.tiptap-test-wrapper .tiptap.ProseMirror pre,
+.tiptap-test-wrapper .tiptap.ProseMirror code {
+  font-family: var(--da-font-mono, "Roboto Mono", monospace);
 }
