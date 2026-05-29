@@ -14,6 +14,18 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Mockup files from Anthropic design handoff — visual reference only, not part of the app build.
     "_design-handoff/**",
+    // Tiptap CLI-generated source-as-package UI components (MIT-licensed
+    // upstream code). Wir behandeln das wie Vendor-Code — keine Edits, kein
+    // Lint-Drift gegenüber Upstream. Sobald wir hier Anpassungen machen,
+    // wandern die Files raus aus dem Ignore.
+    "src/components/tiptap-icons/**",
+    "src/components/tiptap-node/**",
+    "src/components/tiptap-templates/**",
+    "src/components/tiptap-ui/**",
+    "src/components/tiptap-ui-primitive/**",
+    "src/components/tiptap-extension/**",
+    "src/hooks/**",
+    "src/lib/tiptap-utils.ts",
   ]),
 ]);
 

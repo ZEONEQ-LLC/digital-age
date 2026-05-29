@@ -1,3 +1,10 @@
+/* Tiptap UI Primitives — CSS-Variablen (Tokens, Highlight-Farben,
+   Toolbar-Metriken) + Keyframes für Animationen. Pure CSS, kein Sass.
+   Müssen global geladen werden, weil tiptap-ui-primitive/* + tiptap-ui/*
+   die --tt-* Variablen referenzieren. */
+@import "../styles/_variables.css";
+@import "../styles/_keyframe-animations.css";
+
 @import "tailwindcss";
 
 /* Schriften werden in src/app/layout.tsx via next/font/google self-hostet

@@ -1,0 +1,62 @@
+// Originaler Tiptap-Simple-Editor-Template hatte hier @import url(
+// fonts.googleapis.com/…) + globale body/html-Regeln. Beides entfernt:
+// (a) Google-Fonts werden im Projekt via next/font self-hosted geladen
+// (DSGVO, siehe layout.tsx Z. 8-13). Kein Runtime-Request an Google.
+// (b) Globale body-Regeln (font-family Inter, height 100%, bg-color …)
+// hätten alle Seiten überschrieben — die Test-Sandbox darf das nicht.
+// Editor-spezifische Tokens leben jetzt im .simple-editor-wrapper.
+
+.simple-editor-wrapper {
+  --tt-toolbar-height: 44px;
+  --tt-theme-text: var(--tt-gray-dark-900);
+  color: var(--tt-theme-text);
+}
+
+::-webkit-scrollbar {
+  width: 0.25rem;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--tt-scrollbar-color) transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--tt-scrollbar-color);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tiptap.ProseMirror {
+  font-family: "DM Sans", sans-serif;
+}
+
+.simple-editor-wrapper {
+  width: 100vw;
+  height: 100vh;
+  overflow: auto;
+}
+
+.simple-editor-content {
+  max-width: 648px;
+  width: 100%;
+  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.simple-editor-content .tiptap.ProseMirror.simple-editor {
+  flex: 1;
+  padding: 3rem 3rem 30vh;
+}
+
+@media screen and (max-width: 480px) {
+  .simple-editor-content .tiptap.ProseMirror.simple-editor {
+    padding: 1rem 1.5rem 30vh;
+  }
+}
