@@ -77,7 +77,7 @@ import { uploadTiptapTestImage } from "@/lib/tiptap-test-upload";
 import ArticleBody from "@/components/ArticleBody";
 
 // --- Custom-Blocks (Sandbox-POC) ---
-import { Disclaimer } from "./customBlocks";
+import { Disclaimer, StatBox } from "./customBlocks";
 
 // --- Polish-Overrides (scoped via .tiptap-test-wrapper) ---
 import "./tiptap-test.css";
@@ -250,6 +250,14 @@ function CustomBlocksGroup() {
         title="Disclaimer einfügen"
       >
         Disclaimer
+      </button>
+      <button
+        type="button"
+        onClick={() => editor.chain().focus().setStatBox().run()}
+        style={btnStyle}
+        title="Statistik-Box einfügen"
+      >
+        Statbox
       </button>
     </>
   );
@@ -454,6 +462,7 @@ export default function TiptapTestEditor() {
         onError: (error) => console.error("Upload fehlgeschlagen:", error),
       }),
       Disclaimer,
+      StatBox,
     ],
     onUpdate({ editor }) {
       setHtml(editor.getHTML());
