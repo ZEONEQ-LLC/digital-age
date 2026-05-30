@@ -22,6 +22,18 @@
   --tt-button-disabled-icon-color: rgba(255, 255, 255, 0.3);
 }
 
+/* Toolbar-Divider (ToolbarSeparator-Primitive). Vendor-Background
+   nutzt --tt-link-border-color = --tt-gray-light-a-200 = dunkel-auf-
+   dunkel auf der Card-Toolbar. Override am selben Selektor wie der
+   Vendor declared, plus Theme-Light-Variante. */
+.tiptap-test-wrapper .tiptap-separator {
+  --tt-link-border-color: rgba(255, 255, 255, 0.18);
+}
+
+.tiptap-test-wrapper.theme-light .tiptap-separator {
+  --tt-link-border-color: rgba(0, 0, 0, 0.12);
+}
+
 /* ============================================================
    1. Toolbar-Farbe (KEIN Position-Override)
    ============================================================
