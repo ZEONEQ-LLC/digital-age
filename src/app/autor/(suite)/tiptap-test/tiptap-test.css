@@ -23,47 +23,19 @@
 }
 
 /* ============================================================
-   1. Fixed-Toolbar
+   1. Toolbar-Farbe (KEIN Position-Override)
    ============================================================
-   Vorher: sticky am Card-Top — scrollte mit der Card aus dem
-   Viewport raus.
-   Jetzt: position: fixed unter der Navbar, dauerhaft sichtbar
-   solange der User auf der Editor-Page steht (Notion/Medium-UX).
-
-   - top: --nav-h (= 64px globaler Navbar)
-   - z-index 100 (Navbar ist 200 → bleibt drüber, alles andere
-     drunter)
-   - Desktop (≥1024px): left: --sidebar-w (= 240px AuthorSidebar),
-     damit die Toolbar nicht über der Suite-Sidebar liegt
-   - <1024px: Sidebar ausgeblendet → left: 0
-   - Wrapper bekommt padding-top: 60px (~ Toolbar-Höhe), damit
-     der Page-Header beim initialen Scroll-Top nicht hinter der
-     Toolbar verschwindet.
-   - Specificity (0,3,0) — schlägt Vendor (0,2,0) + den Mobile-
-     Branch @media(max-width:480px) der Vendor-SCSS sauber. */
-.tiptap-test-wrapper {
-  padding-top: 60px;
-}
-
+   Wir lassen das Vendor-Sticky-Verhalten (toolbar.scss Z. 33-46:
+   position: sticky; top: 0; z-index: 50;) bewusst unangetastet —
+   Tiptap-Original-Layout passt fürs Test-Sandbox-UX (Toolbar
+   sticky innerhalb der Card, scrollt mit der Card aus dem View
+   wenn der User über sie hinausscrollt).
+   Wir überschreiben NUR Farbe + Border, damit die Vendor-Default
+   (--tt-toolbar-bg-color = var(--white) im Light-Mode) nicht eine
+   weisse Bar auf unserer dunklen Page erzeugt. */
 .tiptap-test-wrapper .tiptap-toolbar[data-variant="fixed"] {
-  position: fixed;
-  top: var(--nav-h, 64px);
-  left: 0;
-  right: 0;
-  bottom: auto;
-  height: auto;
-  z-index: 100;
   background-color: var(--da-card);
-  border-top: none;
   border-bottom: 1px solid var(--da-border);
-  padding: 0.5rem 1rem;
-  overflow-x: auto;
-}
-
-@media (min-width: 1024px) {
-  .tiptap-test-wrapper .tiptap-toolbar[data-variant="fixed"] {
-    left: var(--sidebar-w, 240px);
-  }
 }
 
 /* ============================================================
@@ -87,13 +59,16 @@
 /* ============================================================
    3. Highlight-Mark-Text-Color
    ============================================================
-   Tiptap Highlight rendert <mark style="background-color: …">
-   ohne expliziten Foreground. Auf brand-grünem/orangem BG ist
-   die geerbte weisse Editor-Schrift unlesbar.
-   Specificity (0,4,0) durch .tiptap.ProseMirror-Chain schlägt
-   alle Vendor-Inheritance-Pfade. */
-.tiptap-test-wrapper .tiptap.ProseMirror mark {
-  color: #1c1c1e;
+   Tiptap-Highlight-Extension rendert <mark> mit Inline-Style
+   `color: inherit` (HTML-Output Beispiel:
+   <mark data-color="#32ff7e" style="background-color:rgb(50,
+   255,126); color: inherit;">). Inline-Style schlägt externe
+   CSS auf gleicher/höherer Specificity-Stufe — !important ist
+   hier zwingend nötig, sonst greift unsere Regel nicht.
+   Selektor `mark[data-color]` matcht nur die multicolor-
+   Highlights, nicht beliebige <mark>-Elemente. */
+.tiptap-test-wrapper .ProseMirror mark[data-color] {
+  color: #1c1c1e !important;
 }
 
 /* ============================================================
