@@ -131,7 +131,7 @@ const MainToolbarContent = ({
     <ToolbarSeparator />
 
     <ToolbarGroup>
-      <HeadingDropdownMenu modal={false} levels={[1, 2, 3, 4]} />
+      <HeadingDropdownMenu modal={false} levels={[2, 3, 4]} />
       <ListDropdownMenu
         modal={false}
         types={["bulletList", "orderedList", "taskList"]}
@@ -240,6 +240,7 @@ export default function TiptapTestEditor() {
       StarterKit.configure({
         horizontalRule: false,
         link: false,
+        heading: { levels: [2, 3, 4] },
       }),
       // Extended Link: externe URLs bekommen target="_blank" + rel via
       // renderHTML, interne (relative oder digital-age.ch) bleiben im
