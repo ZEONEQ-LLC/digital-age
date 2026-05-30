@@ -77,7 +77,7 @@ import { uploadTiptapTestImage } from "@/lib/tiptap-test-upload";
 import ArticleBody from "@/components/ArticleBody";
 
 // --- Custom-Blocks (Sandbox-POC) ---
-import { Disclaimer, StatBox } from "./customBlocks";
+import { Disclaimer, RelatedArticle, StatBox } from "./customBlocks";
 
 // --- Polish-Overrides (scoped via .tiptap-test-wrapper) ---
 import "./tiptap-test.css";
@@ -258,6 +258,21 @@ function CustomBlocksGroup() {
         title="Statistik-Box einfügen"
       >
         Statbox
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          // POC-Picker: window.prompt für Slug + Title. Live-Suche
+          // gegen die articles-Tabelle kommt mit der echten Migration.
+          const slug = window.prompt("Artikel-Slug:")?.trim();
+          if (!slug) return;
+          const title = window.prompt("Artikel-Titel (optional):", slug)?.trim() ?? slug;
+          editor.chain().focus().setRelatedArticle({ slug, title }).run();
+        }}
+        style={btnStyle}
+        title="Verwandten Artikel einfügen"
+      >
+        Verw. Artikel
       </button>
     </>
   );
@@ -463,6 +478,7 @@ export default function TiptapTestEditor() {
       }),
       Disclaimer,
       StatBox,
+      RelatedArticle,
     ],
     onUpdate({ editor }) {
       setHtml(editor.getHTML());

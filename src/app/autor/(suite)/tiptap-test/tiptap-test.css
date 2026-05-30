@@ -202,6 +202,35 @@
   line-height: 1.2;
 }
 
+/* Custom-Block: Verwandter Artikel. Card mit Label oben + Link
+   darunter. atom: true → nicht-editierbarer Block. */
+.tiptap-test-wrapper .ProseMirror [data-type="related-article"],
+.tiptap-test-wrapper .ProseMirror .da-related-article {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--da-border, rgba(255, 255, 255, 0.18));
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  padding: 1rem 1.2rem;
+  margin: 1.25rem 0;
+}
+
+.tiptap-test-wrapper .ProseMirror .da-related-article__label {
+  font-family: var(--da-font-mono, "Roboto Mono", monospace);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--da-muted, rgba(255, 255, 255, 0.6));
+}
+
+.tiptap-test-wrapper .ProseMirror .da-related-article a {
+  font-family: var(--da-font-display, "Space Grotesk", sans-serif);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--da-green, #32ff7e);
+}
+
 /* ============================================================
    7. Resizable Editor-Body
    ============================================================

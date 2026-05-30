@@ -13,6 +13,9 @@ declare module "@tiptap/core" {
     daStatBox: {
       setStatBox: (attrs?: { value?: string; label?: string }) => ReturnType;
     };
+    daRelatedArticle: {
+      setRelatedArticle: (attrs: { slug: string; title: string }) => ReturnType;
+    };
   }
 }
 
@@ -77,6 +80,45 @@ export const Disclaimer = Node.create({
             type: this.name,
             content: [{ type: "text", text: "Disclaimer-Text hier…" }],
           }),
+    };
+  },
+});
+
+export const RelatedArticle = Node.create({
+  name: "daRelatedArticle",
+  group: "block",
+  atom: true,
+  selectable: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      slug: { default: "" },
+      title: { default: "" },
+    };
+  },
+  parseHTML() {
+    return [{ tag: 'div[data-type="related-article"]' }];
+  },
+  renderHTML({ HTMLAttributes, node }) {
+    const slug = (node.attrs.slug as string) ?? "";
+    const title = (node.attrs.title as string) ?? slug;
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, {
+        "data-type": "related-article",
+        "data-slug": slug,
+        class: "da-related-article",
+      }),
+      ["span", { class: "da-related-article__label" }, "Verwandter Artikel"],
+      ["a", { href: `/artikel/${slug}` }, title || slug || "(kein Slug)"],
+    ];
+  },
+  addCommands() {
+    return {
+      setRelatedArticle:
+        (attrs) =>
+        ({ commands }) =>
+          commands.insertContent({ type: this.name, attrs }),
     };
   },
 });
