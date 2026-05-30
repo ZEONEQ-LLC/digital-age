@@ -6,6 +6,7 @@ import { EditorContent, EditorContext, useEditor } from "@tiptap/react";
 // --- Tiptap Core Extensions ---
 import { StarterKit } from "@tiptap/starter-kit";
 import { Image } from "@tiptap/extension-image";
+import Link from "@tiptap/extension-link";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { TextAlign } from "@tiptap/extension-text-align";
 import { Typography } from "@tiptap/extension-typography";
@@ -238,9 +239,34 @@ export default function TiptapTestEditor() {
     extensions: [
       StarterKit.configure({
         horizontalRule: false,
-        link: {
-          openOnClick: false,
-          enableClickSelection: true,
+        link: false,
+      }),
+      // Extended Link: externe URLs bekommen target="_blank" + rel via
+      // renderHTML, interne (relative oder digital-age.ch) bleiben im
+      // gleichen Tab. Anchor (#…) und mailto: zählen als intern.
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        defaultProtocol: "https",
+        HTMLAttributes: { rel: "noopener noreferrer" },
+      }).extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            target: {
+              default: null,
+              renderHTML: (attrs: { href?: string | null }) => {
+                const href = attrs.href ?? "";
+                if (!href) return {};
+                const isExternal =
+                  !href.startsWith("/") &&
+                  !href.startsWith("#") &&
+                  !href.startsWith("mailto:") &&
+                  !href.includes("digital-age.ch");
+                return isExternal ? { target: "_blank" } : {};
+              },
+            },
+          };
         },
       }),
       HorizontalRule,
