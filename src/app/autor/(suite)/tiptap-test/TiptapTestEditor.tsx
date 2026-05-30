@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { EditorContent, EditorContext, useEditor } from "@tiptap/react";
+import { EditorContent, EditorContext, useCurrentEditor, useEditor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 
 // --- Tiptap Core Extensions ---
@@ -75,6 +75,9 @@ import { uploadTiptapTestImage } from "@/lib/tiptap-test-upload";
 
 // --- Artikel-Render-Komponente (für Vorschau-Tab) ---
 import ArticleBody from "@/components/ArticleBody";
+
+// --- Custom-Blocks (Sandbox-POC) ---
+import { Disclaimer } from "./customBlocks";
 
 // --- Polish-Overrides (scoped via .tiptap-test-wrapper) ---
 import "./tiptap-test.css";
@@ -182,6 +185,12 @@ const MainToolbarContent = ({
       <ImageUploadButton text="Bild" />
     </ToolbarGroup>
 
+    <ToolbarSeparator />
+
+    <ToolbarGroup>
+      <CustomBlocksGroup />
+    </ToolbarGroup>
+
     <Spacer />
   </>
 );
@@ -214,6 +223,37 @@ const MobileToolbarContent = ({
     )}
   </>
 );
+
+// Toolbar-Group für die Sandbox-Custom-Blocks. Nutzt useCurrentEditor
+// aus dem EditorContext.Provider, der das gesamte Toolbar-DOM umschliesst.
+function CustomBlocksGroup() {
+  const { editor } = useCurrentEditor();
+  if (!editor) return null;
+
+  const btnStyle: React.CSSProperties = {
+    background: "transparent",
+    border: "1px solid var(--da-border, rgba(255,255,255,0.18))",
+    color: "var(--da-text, rgba(255,255,255,0.78))",
+    borderRadius: 4,
+    padding: "4px 10px",
+    fontSize: 12,
+    fontFamily: "inherit",
+    cursor: "pointer",
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => editor.chain().focus().setDisclaimer().run()}
+        style={btnStyle}
+        title="Disclaimer einfügen"
+      >
+        Disclaimer
+      </button>
+    </>
+  );
+}
 
 // Floating-Toolbar für selektierte Bilder: Align, Width, Alt-Text.
 // Wird via <BubbleMenu shouldShow=isImage> nur eingeblendet, wenn die
@@ -413,6 +453,7 @@ export default function TiptapTestEditor() {
         upload: tiptapImageUploadAdapter,
         onError: (error) => console.error("Upload fehlgeschlagen:", error),
       }),
+      Disclaimer,
     ],
     onUpdate({ editor }) {
       setHtml(editor.getHTML());
