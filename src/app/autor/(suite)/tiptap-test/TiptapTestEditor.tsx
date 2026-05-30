@@ -73,6 +73,9 @@ import { useIsBreakpoint } from "@/hooks/use-is-breakpoint";
 import { MAX_FILE_SIZE } from "@/lib/tiptap-utils";
 import { uploadTiptapTestImage } from "@/lib/tiptap-test-upload";
 
+// --- Artikel-Render-Komponente (für Vorschau-Tab) ---
+import ArticleBody from "@/components/ArticleBody";
+
 // --- Polish-Overrides (scoped via .tiptap-test-wrapper) ---
 import "./tiptap-test.css";
 
@@ -312,6 +315,9 @@ export default function TiptapTestEditor() {
   // Theme-Toggle: rein lokal, kein globaler .dark-Klasse am <html>, kein
   // localStorage-Persist. Page-Reload startet immer in dark.
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  // Tab-State: "edit" zeigt den Tiptap-Editor, "preview" rendert
+  // editor.getHTML() durch <ArticleBody> mit den echten Artikel-CSS.
+  const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -476,45 +482,99 @@ export default function TiptapTestEditor() {
           borderRadius: 8,
         }}
       >
+        {/* Tab-Strip: Editor vs Vorschau. Editor-DOM bleibt in beiden Tabs
+            gemountet (display:none statt unmount), damit die Tiptap-
+            Instanz und der Editor-State zwischen Tab-Wechseln erhalten
+            bleibt. */}
+        <div
+          role="tablist"
+          style={{
+            display: "flex",
+            borderBottom: "1px solid var(--da-border)",
+            padding: "0 8px",
+          }}
+        >
+          {([
+            { id: "edit", label: "Editor" },
+            { id: "preview", label: "Vorschau" },
+          ] as const).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                background: "transparent",
+                border: 0,
+                padding: "10px 14px",
+                cursor: "pointer",
+                color: activeTab === tab.id ? "var(--da-green, #32ff7e)" : "var(--da-muted)",
+                fontWeight: 600,
+                fontSize: 13,
+                borderBottom: activeTab === tab.id ? "2px solid var(--da-green, #32ff7e)" : "2px solid transparent",
+                marginBottom: -1,
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         <EditorContext.Provider value={{ editor }}>
-          {/* Toolbar ist im Upstream-CSS bereits position:sticky top:0
-              z-index:50 (data-variant="fixed"). Wir überschreiben in
-              tiptap-test.css nur den Top-Offset (Navbar-Höhe) und die
-              Hintergrund-Farbe. Kein zusätzlicher sticky-Wrapper hier —
-              ein eigener wäre redundant und würde mit dem inneren sticky
-              kollidieren. */}
-          <Toolbar ref={toolbarRef}>
-            {mobileView === "main" ? (
-              <MainToolbarContent
-                onHighlighterClick={() => setMobileView("highlighter")}
-                onLinkClick={() => setMobileView("link")}
-                isMobile={isMobile}
-              />
-            ) : (
-              <MobileToolbarContent
-                type={mobileView === "highlighter" ? "highlighter" : "link"}
-                onBack={() => setMobileView("main")}
-              />
-            )}
-          </Toolbar>
-          <div
-            className="tiptap-test-editor-body"
-            style={{ background: "var(--da-darker)", color: "var(--da-text)", padding: 24 }}
-          >
-            <EditorContent editor={editor} role="presentation" />
-            {editor && (
-              <BubbleMenu
-                editor={editor}
-                options={{
-                  placement: "top",
-                }}
-                shouldShow={({ editor: ed }) => ed.isActive("image")}
-              >
-                <ImageBubbleMenu editor={editor} />
-              </BubbleMenu>
-            )}
+          <div style={{ display: activeTab === "edit" ? "block" : "none" }}>
+            <Toolbar ref={toolbarRef}>
+              {mobileView === "main" ? (
+                <MainToolbarContent
+                  onHighlighterClick={() => setMobileView("highlighter")}
+                  onLinkClick={() => setMobileView("link")}
+                  isMobile={isMobile}
+                />
+              ) : (
+                <MobileToolbarContent
+                  type={mobileView === "highlighter" ? "highlighter" : "link"}
+                  onBack={() => setMobileView("main")}
+                />
+              )}
+            </Toolbar>
+            <div
+              className="tiptap-test-editor-body"
+              style={{ background: "var(--da-darker)", color: "var(--da-text)", padding: 24 }}
+            >
+              <EditorContent editor={editor} role="presentation" />
+              {editor && (
+                <BubbleMenu
+                  editor={editor}
+                  options={{ placement: "top" }}
+                  shouldShow={({ editor: ed }) => ed.isActive("image")}
+                >
+                  <ImageBubbleMenu editor={editor} />
+                </BubbleMenu>
+              )}
+            </div>
           </div>
         </EditorContext.Provider>
+
+        {activeTab === "preview" && (
+          <div
+            className="tiptap-test-preview"
+            style={{
+              background: "var(--da-darker)",
+              color: "var(--da-text)",
+              padding: 40,
+              minHeight: 320,
+            }}
+          >
+            {/* dangerouslySetInnerHTML ist in der Sandbox akzeptiert (POC).
+                Für die echte Migration kommt eine DOMPurify-Sanitisierung. */}
+            <ArticleBody>
+              <div
+                className="article-body"
+                dangerouslySetInnerHTML={{ __html: html || "<p><em>Noch nichts zu zeigen.</em></p>" }}
+              />
+            </ArticleBody>
+          </div>
+        )}
         <div
           style={{
             display: "flex",
