@@ -61,6 +61,8 @@ import { UndoRedoButton } from "@/components/tiptap-ui/undo-redo-button";
 import { ArrowLeftIcon } from "@/components/tiptap-icons/arrow-left-icon";
 import { HighlighterIcon } from "@/components/tiptap-icons/highlighter-icon";
 import { LinkIcon } from "@/components/tiptap-icons/link-icon";
+import { SunIcon } from "@/components/tiptap-icons/sun-icon";
+import { MoonStarIcon } from "@/components/tiptap-icons/moon-star-icon";
 
 // --- Hooks ---
 import { useIsBreakpoint } from "@/hooks/use-is-breakpoint";
@@ -218,6 +220,9 @@ export default function TiptapTestEditor() {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [html, setHtml] = useState<string>("");
   const [stats, setStats] = useState({ characters: 0, words: 0 });
+  // Theme-Toggle: rein lokal, kein globaler .dark-Klasse am <html>, kein
+  // localStorage-Persist. Page-Reload startet immer in dark.
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -271,28 +276,57 @@ export default function TiptapTestEditor() {
 
   return (
     <div
-      className="tiptap-test-wrapper"
+      className={`tiptap-test-wrapper theme-${theme}`}
       style={{ display: "flex", flexDirection: "column", gap: 24, paddingBottom: 96 }}
     >
-      <header style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <h1
+      <header style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
+          <h1
+            style={{
+              fontFamily: "var(--da-font-display)",
+              fontSize: 28,
+              fontWeight: 700,
+              color: "var(--da-text)",
+              margin: 0,
+            }}
+          >
+            Tiptap Test-Sandbox
+          </h1>
+          <p style={{ color: "var(--da-muted)", fontSize: 14, margin: 0 }}>
+            Keine Persistenz. Inhalte gehen bei Page-Reload verloren. Bilder werden zu Supabase
+            Storage hochgeladen (Pfad <code style={{ fontFamily: "var(--da-font-mono)" }}>tiptap-test/…</code>).
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+          aria-label={theme === "dark" ? "Auf Light-Mode wechseln" : "Auf Dark-Mode wechseln"}
+          title={theme === "dark" ? "Auf Light-Mode wechseln" : "Auf Dark-Mode wechseln"}
           style={{
-            fontFamily: "var(--da-font-display)",
-            fontSize: 28,
-            fontWeight: 700,
+            flex: "0 0 auto",
+            background: "var(--da-card)",
+            border: "1px solid var(--da-border)",
             color: "var(--da-text)",
-            margin: 0,
+            borderRadius: 8,
+            padding: "8px 10px",
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 13,
           }}
         >
-          Tiptap Test-Sandbox
-        </h1>
-        <p style={{ color: "var(--da-muted)", fontSize: 14, margin: 0 }}>
-          Keine Persistenz. Inhalte gehen bei Page-Reload verloren. Bilder werden zu Supabase
-          Storage hochgeladen (Pfad <code style={{ fontFamily: "var(--da-font-mono)" }}>tiptap-test/…</code>).
-        </p>
+          {theme === "dark" ? (
+            <SunIcon style={{ width: 16, height: 16 }} />
+          ) : (
+            <MoonStarIcon style={{ width: 16, height: 16 }} />
+          )}
+          <span>{theme === "dark" ? "Light" : "Dark"}</span>
+        </button>
       </header>
 
       <div
+        className="tiptap-test-editor-card"
         style={{
           backgroundColor: "var(--da-card)",
           border: "1px solid var(--da-border)",
@@ -320,7 +354,10 @@ export default function TiptapTestEditor() {
               />
             )}
           </Toolbar>
-          <div style={{ background: "var(--da-darker)", color: "var(--da-text)", minHeight: 320, padding: 24 }}>
+          <div
+            className="tiptap-test-editor-body"
+            style={{ background: "var(--da-darker)", color: "var(--da-text)", padding: 24 }}
+          >
             <EditorContent editor={editor} role="presentation" />
           </div>
         </EditorContext.Provider>
