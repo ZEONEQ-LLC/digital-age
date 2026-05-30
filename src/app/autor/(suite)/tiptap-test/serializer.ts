@@ -1,22 +1,31 @@
-// Tiptap-Doc → Block[] Serializer.
+// Tiptap-Doc → Block[] Serializer (Weg B).
 //
-// Body-Editor-Output kommt als ProseMirror-JSON daher und wird in unser
-// natives BlockDocument-Format übersetzt — damit landet die Vorschau
-// im selben BlockReader/ArticleBody-Pfad wie die Public-Page und ist
-// pixel-identisch.
+// Body- + Abstract-Editor nutzen NATIVE Tiptap-Marks (Bold, Italic, Link,
+// Highlight multicolor, Subscript, Superscript). User sieht im Editor
+// echtes WYSIWYG (Bold ist fett, Highlight ist farbig, …) — niemals rohe
+// Token wie `**` oder `{{g}}`.
 //
-// Inline-Marker (Bold/Italic/Highlight/Source-Ref/Internal-Link/…)
-// bleiben als Plain-Text-Token im content-String erhalten (Weg A) —
-// es gibt im Body-Editor KEINE nativen Tiptap-Marks, die Toolbar
-// fügt die Token direkt in den Text ein.
+// Beim Serialisieren übersetzt dieser Modul Tiptap-Marks zurück in das
+// Plain-Text-Token-Format, das `BlockReader.buildPatterns()` parst:
+//   - bold mark         → **text**
+//   - italic mark       → _text_
+//   - highlight #32ff7e → {{g}}text{{/g}}
+//   - highlight #ff8c42 → {{o}}text{{/o}}
+//   - link mark         → [text](url)
+//
+// Verschachtelung: highlight innerst, dann italic, bold, link aussen.
+// Damit z.B. Bold+Grün als `**{{g}}text{{/g}}**` rauskommt — was BlockReader
+// korrekt parsed.
 
 import type { Block, StatBoxItem, TextAlignment } from "@/types/blocks";
 
+type PMMark = { type: string; attrs?: Record<string, unknown> };
 type PMNode = {
   type: string;
   attrs?: Record<string, unknown>;
   content?: PMNode[];
   text?: string;
+  marks?: PMMark[];
 };
 
 let bidCounter = 0;
@@ -25,28 +34,69 @@ function blockId(): string {
   return `bl-${Date.now()}-${bidCounter.toString(36)}`;
 }
 
-// Walks ein Inline-Subtree (text + hardBreak) zu Plain-Text. Tokens sind
-// schon im Text drin, hardBreak wird zu \n.
-function inlineToText(content: PMNode[] | undefined): string {
-  if (!content) return "";
-  return content
-    .map((n) => {
-      if (n.type === "text") return n.text ?? "";
-      if (n.type === "hardBreak") return "\n";
-      // Im body-Editor sind keine anderen Inline-Nodes erlaubt.
-      return "";
-    })
-    .join("");
+const HIGHLIGHT_GREEN = "#32ff7e";
+const HIGHLIGHT_ORANGE = "#ff8c42";
+
+// Innenliegend zuerst, aussenliegend zuletzt — bestimmt die Schachtelung
+// im Output-Token-String.
+const MARK_ORDER = ["highlight", "italic", "bold", "link"] as const;
+
+function wrapMark(text: string, mark: PMMark): string {
+  switch (mark.type) {
+    case "bold":
+      return `**${text}**`;
+    case "italic":
+      return `_${text}_`;
+    case "highlight": {
+      const color = mark.attrs?.color as string | undefined;
+      if (color === HIGHLIGHT_GREEN) return `{{g}}${text}{{/g}}`;
+      if (color === HIGHLIGHT_ORANGE) return `{{o}}${text}{{/o}}`;
+      // Unbekannte Highlight-Farbe → ohne Wrap durchreichen
+      return text;
+    }
+    case "link": {
+      const href = (mark.attrs?.href as string) ?? "";
+      if (!href) return text;
+      return `[${text}](${href})`;
+    }
+    default:
+      // sub/sup und andere unbekannte Marks: durchreichen
+      return text;
+  }
 }
 
-// blockquote in Tiptap = ein Wrapper mit paragraph-Children.
-// Wir konkatenieren die Paragraphen mit \n.
+// Wandelt einen Inline-Subtree zu Token-String. Behandelt nur text +
+// hardBreak; alle anderen Inline-Knoten werden übersprungen.
+export function serializeInline(content: PMNode[] | undefined): string {
+  if (!content) return "";
+  let out = "";
+  for (const node of content) {
+    if (node.type === "hardBreak") {
+      out += "\n";
+      continue;
+    }
+    if (node.type !== "text") continue;
+    let text = node.text ?? "";
+    const marks = node.marks ?? [];
+    // Eine Mark pro Typ; in der Order-Liste reihenfolgen.
+    const sorted = [...marks].sort((a, b) => {
+      const ai = MARK_ORDER.indexOf(a.type as (typeof MARK_ORDER)[number]);
+      const bi = MARK_ORDER.indexOf(b.type as (typeof MARK_ORDER)[number]);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+    for (const m of sorted) {
+      text = wrapMark(text, m);
+    }
+    out += text;
+  }
+  return out;
+}
+
 function blockquoteContent(node: PMNode): { content: string; attribution?: string } {
   const lines: string[] = [];
   for (const child of node.content ?? []) {
-    if (child.type === "paragraph") lines.push(inlineToText(child.content));
+    if (child.type === "paragraph") lines.push(serializeInline(child.content));
   }
-  // Heuristik: letzte Zeile beginnt mit "— " → als attribution extrahieren.
   const last = lines[lines.length - 1];
   if (last && /^—\s+/.test(last)) {
     return {
@@ -59,15 +109,11 @@ function blockquoteContent(node: PMNode): { content: string; attribution?: strin
 
 function listItems(node: PMNode): string[] {
   return (node.content ?? []).map((li) => {
-    // listItem enthält paragraph(s) — wir nehmen den ersten paragraph als
-    // Item-Text. Mehr-Absätze pro Item sind in unserem Block-Schema nicht
-    // abbildbar (string[]), Folge-Absätze werden mit \n verbunden.
     const paras = (li.content ?? []).filter((p) => p.type === "paragraph");
-    return paras.map((p) => inlineToText(p.content)).join("\n");
+    return paras.map((p) => serializeInline(p.content)).join("\n");
   });
 }
 
-// Top-Level-Node → Block. Returnt null für unbekannte Typen.
 export function tiptapNodeToBlock(node: PMNode): Block | null {
   const id = blockId();
   switch (node.type) {
@@ -79,13 +125,13 @@ export function tiptapNodeToBlock(node: PMNode): Block | null {
         id,
         type: "heading",
         level,
-        content: inlineToText(node.content),
+        content: serializeInline(node.content),
         alignment,
       };
     }
     case "paragraph": {
       const alignment = node.attrs?.textAlign as TextAlignment | undefined;
-      return { id, type: "paragraph", content: inlineToText(node.content), alignment };
+      return { id, type: "paragraph", content: serializeInline(node.content), alignment };
     }
     case "blockquote": {
       const { content, attribution } = blockquoteContent(node);
@@ -103,7 +149,7 @@ export function tiptapNodeToBlock(node: PMNode): Block | null {
       return {
         id,
         type: "code",
-        content: inlineToText(node.content),
+        content: serializeInline(node.content),
         language: (node.attrs?.language as string) ?? undefined,
       };
     case "image": {
@@ -111,8 +157,6 @@ export function tiptapNodeToBlock(node: PMNode): Block | null {
       const alt = (node.attrs?.alt as string) ?? "";
       const align = (node.attrs?.align as string) ?? "center";
       const width = (node.attrs?.width as string) ?? "medium";
-      // Mapping data-width → ImageSize (medium=normal, large/full=full,
-      // small bleibt small).
       const size: "small" | "normal" | "full" =
         width === "small" ? "small" : width === "large" || width === "full" ? "full" : "normal";
       const alignment: "left" | "center" | "right" =
@@ -153,4 +197,14 @@ export function tiptapDocToBlocks(doc: { content?: PMNode[] }): Block[] {
     if (b) out.push(b);
   }
   return out;
+}
+
+// Serialisiert den Abstract-Editor-Doc zu einem einzelnen Token-String.
+// Joined Paragraphen mit \n falls der User mehrere erzeugt hat.
+export function serializeAbstractDoc(doc: { content?: PMNode[] }): string {
+  const lines: string[] = [];
+  for (const node of doc.content ?? []) {
+    if (node.type === "paragraph") lines.push(serializeInline(node.content));
+  }
+  return lines.join("\n");
 }
