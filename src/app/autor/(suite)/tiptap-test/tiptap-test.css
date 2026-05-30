@@ -22,6 +22,18 @@
   --tt-button-disabled-icon-color: rgba(255, 255, 255, 0.3);
 }
 
+/* Toolbar-Divider (ToolbarSeparator-Primitive). Vendor-Background
+   nutzt --tt-link-border-color = --tt-gray-light-a-200 = dunkel-auf-
+   dunkel auf der Card-Toolbar. Override am selben Selektor wie der
+   Vendor declared, plus Theme-Light-Variante. */
+.tiptap-test-wrapper .tiptap-separator {
+  --tt-link-border-color: rgba(255, 255, 255, 0.18);
+}
+
+.tiptap-test-wrapper.theme-light .tiptap-separator {
+  --tt-link-border-color: rgba(0, 0, 0, 0.12);
+}
+
 /* ============================================================
    1. Toolbar-Farbe (KEIN Position-Override)
    ============================================================
@@ -120,6 +132,103 @@
 .tiptap-test-wrapper .tiptap.ProseMirror pre,
 .tiptap-test-wrapper .tiptap.ProseMirror code {
   font-family: var(--da-font-mono, "Roboto Mono", monospace);
+}
+
+/* Code-Block-Farben für beide Themes. Vendor-Defaults (--tt-inline-code-*
+   und --tt-codeblock-*) sind auf Light-Werte gegated — im Dark-Mode dunkel
+   auf dunkel = unlesbar. Wir setzen explizit pro Theme. */
+.tiptap-test-wrapper .tiptap.ProseMirror pre,
+.tiptap-test-wrapper .tiptap.ProseMirror code {
+  color: var(--da-text, rgba(255, 255, 255, 0.9));
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tiptap-test-wrapper.theme-light .tiptap.ProseMirror pre,
+.tiptap-test-wrapper.theme-light .tiptap.ProseMirror code {
+  color: #1c1c1e;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Image Align + Width-Attribute (.extend() in TiptapTestEditor.tsx). */
+.tiptap-test-wrapper .ProseMirror img.da-tiptap-image {
+  height: auto;
+  border-radius: 6px;
+}
+.tiptap-test-wrapper .ProseMirror img[data-align="left"] {
+  float: left;
+  margin: 0.5rem 1rem 0.5rem 0;
+}
+.tiptap-test-wrapper .ProseMirror img[data-align="center"] {
+  display: block;
+  margin: 1rem auto;
+  float: none;
+}
+.tiptap-test-wrapper .ProseMirror img[data-align="right"] {
+  float: right;
+  margin: 0.5rem 0 0.5rem 1rem;
+}
+.tiptap-test-wrapper .ProseMirror img[data-width="small"]  { max-width: 300px; }
+.tiptap-test-wrapper .ProseMirror img[data-width="medium"] { max-width: 600px; }
+.tiptap-test-wrapper .ProseMirror img[data-width="large"]  { max-width: 900px; }
+.tiptap-test-wrapper .ProseMirror img[data-width="full"]   { max-width: 100%; }
+
+/* Custom-Block: Disclaimer. Orange-getintet, italic — visuelle
+   Unterscheidung von normalem Paragraph-Content. */
+.tiptap-test-wrapper .ProseMirror [data-type="disclaimer"],
+.tiptap-test-wrapper .ProseMirror .da-disclaimer {
+  border-left: 4px solid var(--da-orange, #ff8c42);
+  background: rgba(255, 140, 66, 0.1);
+  padding: 1rem 1.2rem;
+  margin: 1.25rem 0;
+  font-style: italic;
+  border-radius: 0 6px 6px 0;
+}
+
+/* Custom-Block: StatBox. Highlight-Card mit grosser Brand-Green-Zahl. */
+.tiptap-test-wrapper .ProseMirror [data-type="stat-box"],
+.tiptap-test-wrapper .ProseMirror .da-stat-box {
+  background: rgba(50, 255, 126, 0.08);
+  border: 1px solid rgba(50, 255, 126, 0.3);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  text-align: center;
+  font-family: var(--da-font-display, "Space Grotesk", sans-serif);
+  font-size: var(--fs-display, 34px);
+  font-weight: 700;
+  color: var(--da-green, #32ff7e);
+  line-height: 1.2;
+}
+
+/* Custom-Block: Verwandter Artikel. Card mit Label oben + Link
+   darunter. atom: true → nicht-editierbarer Block. */
+.tiptap-test-wrapper .ProseMirror [data-type="related-article"],
+.tiptap-test-wrapper .ProseMirror .da-related-article {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--da-border, rgba(255, 255, 255, 0.18));
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  padding: 1rem 1.2rem;
+  margin: 1.25rem 0;
+}
+
+.tiptap-test-wrapper .ProseMirror .da-related-article__label {
+  font-family: var(--da-font-mono, "Roboto Mono", monospace);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--da-muted, rgba(255, 255, 255, 0.6));
+}
+
+.tiptap-test-wrapper .ProseMirror .da-related-article a {
+  font-family: var(--da-font-display, "Space Grotesk", sans-serif);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--da-green, #32ff7e);
 }
 
 /* ============================================================

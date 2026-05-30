@@ -1,11 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { EditorContent, EditorContext, useEditor } from "@tiptap/react";
+import { EditorContent, EditorContext, useCurrentEditor, useEditor } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from "@tiptap/starter-kit";
 import { Image } from "@tiptap/extension-image";
+import Link from "@tiptap/extension-link";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { TextAlign } from "@tiptap/extension-text-align";
 import { Typography } from "@tiptap/extension-typography";
@@ -71,6 +73,12 @@ import { useIsBreakpoint } from "@/hooks/use-is-breakpoint";
 import { MAX_FILE_SIZE } from "@/lib/tiptap-utils";
 import { uploadTiptapTestImage } from "@/lib/tiptap-test-upload";
 
+// --- Artikel-Render-Komponente (für Vorschau-Tab) ---
+import ArticleBody from "@/components/ArticleBody";
+
+// --- Custom-Blocks (Sandbox-POC) ---
+import { Disclaimer, RelatedArticle, StatBox } from "./customBlocks";
+
 // --- Polish-Overrides (scoped via .tiptap-test-wrapper) ---
 import "./tiptap-test.css";
 
@@ -130,7 +138,7 @@ const MainToolbarContent = ({
     <ToolbarSeparator />
 
     <ToolbarGroup>
-      <HeadingDropdownMenu modal={false} levels={[1, 2, 3, 4]} />
+      <HeadingDropdownMenu modal={false} levels={[2, 3, 4]} />
       <ListDropdownMenu
         modal={false}
         types={["bulletList", "orderedList", "taskList"]}
@@ -177,6 +185,12 @@ const MainToolbarContent = ({
       <ImageUploadButton text="Bild" />
     </ToolbarGroup>
 
+    <ToolbarSeparator />
+
+    <ToolbarGroup>
+      <CustomBlocksGroup />
+    </ToolbarGroup>
+
     <Spacer />
   </>
 );
@@ -210,6 +224,147 @@ const MobileToolbarContent = ({
   </>
 );
 
+// Toolbar-Group für die Sandbox-Custom-Blocks. Nutzt useCurrentEditor
+// aus dem EditorContext.Provider, der das gesamte Toolbar-DOM umschliesst.
+function CustomBlocksGroup() {
+  const { editor } = useCurrentEditor();
+  if (!editor) return null;
+
+  const btnStyle: React.CSSProperties = {
+    background: "transparent",
+    border: "1px solid var(--da-border, rgba(255,255,255,0.18))",
+    color: "var(--da-text, rgba(255,255,255,0.78))",
+    borderRadius: 4,
+    padding: "4px 10px",
+    fontSize: 12,
+    fontFamily: "inherit",
+    cursor: "pointer",
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => editor.chain().focus().setDisclaimer().run()}
+        style={btnStyle}
+        title="Disclaimer einfügen"
+      >
+        Disclaimer
+      </button>
+      <button
+        type="button"
+        onClick={() => editor.chain().focus().setStatBox().run()}
+        style={btnStyle}
+        title="Statistik-Box einfügen"
+      >
+        Statbox
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          // POC-Picker: window.prompt für Slug + Title. Live-Suche
+          // gegen die articles-Tabelle kommt mit der echten Migration.
+          const slug = window.prompt("Artikel-Slug:")?.trim();
+          if (!slug) return;
+          const title = window.prompt("Artikel-Titel (optional):", slug)?.trim() ?? slug;
+          editor.chain().focus().setRelatedArticle({ slug, title }).run();
+        }}
+        style={btnStyle}
+        title="Verwandten Artikel einfügen"
+      >
+        Verw. Artikel
+      </button>
+    </>
+  );
+}
+
+// Floating-Toolbar für selektierte Bilder: Align, Width, Alt-Text.
+// Wird via <BubbleMenu shouldShow=isImage> nur eingeblendet, wenn die
+// Cursor-Selection auf einem Bild liegt.
+type EditorLike = { commands: { updateAttributes: (name: string, attrs: Record<string, unknown>) => boolean }; getAttributes: (name: string) => Record<string, unknown> };
+
+function ImageBubbleMenu({ editor }: { editor: EditorLike }) {
+  const attrs = editor.getAttributes("image");
+  const align = (attrs.align as string) ?? "center";
+  const width = (attrs.width as string) ?? "medium";
+  const alt = (attrs.alt as string) ?? "";
+
+  const update = (next: Record<string, unknown>) =>
+    editor.commands.updateAttributes("image", next);
+
+  const btn = (active: boolean): React.CSSProperties => ({
+    background: active ? "var(--da-green, #32ff7e)" : "transparent",
+    color: active ? "#1c1c1e" : "var(--da-text, #fff)",
+    border: "1px solid var(--da-border, rgba(255,255,255,0.2))",
+    borderRadius: 4,
+    padding: "4px 8px",
+    fontSize: 12,
+    cursor: "pointer",
+  });
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 8,
+        padding: 8,
+        background: "var(--da-card, #1c1c1e)",
+        border: "1px solid var(--da-border, rgba(255,255,255,0.18))",
+        borderRadius: 8,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+        alignItems: "center",
+        flexWrap: "wrap",
+        maxWidth: 480,
+      }}
+    >
+      {(["left", "center", "right"] as const).map((a) => (
+        <button
+          key={a}
+          type="button"
+          onClick={() => update({ align: a })}
+          style={btn(align === a)}
+          aria-label={`Align ${a}`}
+        >
+          {a === "left" ? "⟸" : a === "center" ? "⇔" : "⟹"}
+        </button>
+      ))}
+      <select
+        value={width}
+        onChange={(e) => update({ width: e.target.value })}
+        style={{
+          background: "transparent",
+          color: "var(--da-text, #fff)",
+          border: "1px solid var(--da-border, rgba(255,255,255,0.2))",
+          borderRadius: 4,
+          padding: "4px 6px",
+          fontSize: 12,
+        }}
+      >
+        <option value="small">Klein</option>
+        <option value="medium">Mittel</option>
+        <option value="large">Gross</option>
+        <option value="full">Voll</option>
+      </select>
+      <input
+        type="text"
+        value={alt}
+        onChange={(e) => update({ alt: e.target.value })}
+        placeholder="Alt-Text…"
+        style={{
+          flex: 1,
+          minWidth: 140,
+          background: "transparent",
+          color: "var(--da-text, #fff)",
+          border: "1px solid var(--da-border, rgba(255,255,255,0.2))",
+          borderRadius: 4,
+          padding: "4px 6px",
+          fontSize: 12,
+        }}
+      />
+    </div>
+  );
+}
+
 export default function TiptapTestEditor() {
   const isMobile = useIsBreakpoint();
   const [mobileViewRaw, setMobileView] = useState<"main" | "highlighter" | "link">(
@@ -223,6 +378,9 @@ export default function TiptapTestEditor() {
   // Theme-Toggle: rein lokal, kein globaler .dark-Klasse am <html>, kein
   // localStorage-Persist. Page-Reload startet immer in dark.
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  // Tab-State: "edit" zeigt den Tiptap-Editor, "preview" rendert
+  // editor.getHTML() durch <ArticleBody> mit den echten Artikel-CSS.
+  const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -238,9 +396,35 @@ export default function TiptapTestEditor() {
     extensions: [
       StarterKit.configure({
         horizontalRule: false,
-        link: {
-          openOnClick: false,
-          enableClickSelection: true,
+        link: false,
+        heading: { levels: [2, 3, 4] },
+      }),
+      // Extended Link: externe URLs bekommen target="_blank" + rel via
+      // renderHTML, interne (relative oder digital-age.ch) bleiben im
+      // gleichen Tab. Anchor (#…) und mailto: zählen als intern.
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        defaultProtocol: "https",
+        HTMLAttributes: { rel: "noopener noreferrer" },
+      }).extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            target: {
+              default: null,
+              renderHTML: (attrs: { href?: string | null }) => {
+                const href = attrs.href ?? "";
+                if (!href) return {};
+                const isExternal =
+                  !href.startsWith("/") &&
+                  !href.startsWith("#") &&
+                  !href.startsWith("mailto:") &&
+                  !href.includes("digital-age.ch");
+                return isExternal ? { target: "_blank" } : {};
+              },
+            },
+          };
         },
       }),
       HorizontalRule,
@@ -248,7 +432,35 @@ export default function TiptapTestEditor() {
       TaskList,
       TaskItem.configure({ nested: true }),
       Highlight.configure({ multicolor: true }),
-      Image,
+      // Image mit Brand-Attribute: align (left|center|right) +
+      // width (small|medium|large|full). Rendert als data-attrs am
+      // <img>, gestylt via tiptap-test.css. Alt-Text läuft über die
+      // native HTMLAttribute.
+      Image.configure({
+        inline: false,
+        allowBase64: false,
+        HTMLAttributes: { class: "da-tiptap-image" },
+      }).extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            align: {
+              default: "center",
+              renderHTML: (attrs: { align?: string }) => ({
+                "data-align": attrs.align ?? "center",
+              }),
+              parseHTML: (el: HTMLElement) => el.getAttribute("data-align") ?? "center",
+            },
+            width: {
+              default: "medium",
+              renderHTML: (attrs: { width?: string }) => ({
+                "data-width": attrs.width ?? "medium",
+              }),
+              parseHTML: (el: HTMLElement) => el.getAttribute("data-width") ?? "medium",
+            },
+          };
+        },
+      }),
       Typography,
       Superscript,
       Subscript,
@@ -264,6 +476,9 @@ export default function TiptapTestEditor() {
         upload: tiptapImageUploadAdapter,
         onError: (error) => console.error("Upload fehlgeschlagen:", error),
       }),
+      Disclaimer,
+      StatBox,
+      RelatedArticle,
     ],
     onUpdate({ editor }) {
       setHtml(editor.getHTML());
@@ -333,34 +548,99 @@ export default function TiptapTestEditor() {
           borderRadius: 8,
         }}
       >
+        {/* Tab-Strip: Editor vs Vorschau. Editor-DOM bleibt in beiden Tabs
+            gemountet (display:none statt unmount), damit die Tiptap-
+            Instanz und der Editor-State zwischen Tab-Wechseln erhalten
+            bleibt. */}
+        <div
+          role="tablist"
+          style={{
+            display: "flex",
+            borderBottom: "1px solid var(--da-border)",
+            padding: "0 8px",
+          }}
+        >
+          {([
+            { id: "edit", label: "Editor" },
+            { id: "preview", label: "Vorschau" },
+          ] as const).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                background: "transparent",
+                border: 0,
+                padding: "10px 14px",
+                cursor: "pointer",
+                color: activeTab === tab.id ? "var(--da-green, #32ff7e)" : "var(--da-muted)",
+                fontWeight: 600,
+                fontSize: 13,
+                borderBottom: activeTab === tab.id ? "2px solid var(--da-green, #32ff7e)" : "2px solid transparent",
+                marginBottom: -1,
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         <EditorContext.Provider value={{ editor }}>
-          {/* Toolbar ist im Upstream-CSS bereits position:sticky top:0
-              z-index:50 (data-variant="fixed"). Wir überschreiben in
-              tiptap-test.css nur den Top-Offset (Navbar-Höhe) und die
-              Hintergrund-Farbe. Kein zusätzlicher sticky-Wrapper hier —
-              ein eigener wäre redundant und würde mit dem inneren sticky
-              kollidieren. */}
-          <Toolbar ref={toolbarRef}>
-            {mobileView === "main" ? (
-              <MainToolbarContent
-                onHighlighterClick={() => setMobileView("highlighter")}
-                onLinkClick={() => setMobileView("link")}
-                isMobile={isMobile}
-              />
-            ) : (
-              <MobileToolbarContent
-                type={mobileView === "highlighter" ? "highlighter" : "link"}
-                onBack={() => setMobileView("main")}
-              />
-            )}
-          </Toolbar>
-          <div
-            className="tiptap-test-editor-body"
-            style={{ background: "var(--da-darker)", color: "var(--da-text)", padding: 24 }}
-          >
-            <EditorContent editor={editor} role="presentation" />
+          <div style={{ display: activeTab === "edit" ? "block" : "none" }}>
+            <Toolbar ref={toolbarRef}>
+              {mobileView === "main" ? (
+                <MainToolbarContent
+                  onHighlighterClick={() => setMobileView("highlighter")}
+                  onLinkClick={() => setMobileView("link")}
+                  isMobile={isMobile}
+                />
+              ) : (
+                <MobileToolbarContent
+                  type={mobileView === "highlighter" ? "highlighter" : "link"}
+                  onBack={() => setMobileView("main")}
+                />
+              )}
+            </Toolbar>
+            <div
+              className="tiptap-test-editor-body"
+              style={{ background: "var(--da-darker)", color: "var(--da-text)", padding: 24 }}
+            >
+              <EditorContent editor={editor} role="presentation" />
+              {editor && (
+                <BubbleMenu
+                  editor={editor}
+                  options={{ placement: "top" }}
+                  shouldShow={({ editor: ed }) => ed.isActive("image")}
+                >
+                  <ImageBubbleMenu editor={editor} />
+                </BubbleMenu>
+              )}
+            </div>
           </div>
         </EditorContext.Provider>
+
+        {activeTab === "preview" && (
+          <div
+            className="tiptap-test-preview"
+            style={{
+              background: "var(--da-darker)",
+              color: "var(--da-text)",
+              padding: 40,
+              minHeight: 320,
+            }}
+          >
+            {/* dangerouslySetInnerHTML ist in der Sandbox akzeptiert (POC).
+                Für die echte Migration kommt eine DOMPurify-Sanitisierung. */}
+            <ArticleBody>
+              <div
+                className="article-body"
+                dangerouslySetInnerHTML={{ __html: html || "<p><em>Noch nichts zu zeigen.</em></p>" }}
+              />
+            </ArticleBody>
+          </div>
+        )}
         <div
           style={{
             display: "flex",
