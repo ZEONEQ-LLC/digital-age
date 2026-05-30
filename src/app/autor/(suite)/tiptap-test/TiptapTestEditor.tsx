@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { EditorContent, EditorContext, useEditor } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from "@tiptap/starter-kit";
@@ -211,6 +212,93 @@ const MobileToolbarContent = ({
   </>
 );
 
+// Floating-Toolbar für selektierte Bilder: Align, Width, Alt-Text.
+// Wird via <BubbleMenu shouldShow=isImage> nur eingeblendet, wenn die
+// Cursor-Selection auf einem Bild liegt.
+type EditorLike = { commands: { updateAttributes: (name: string, attrs: Record<string, unknown>) => boolean }; getAttributes: (name: string) => Record<string, unknown> };
+
+function ImageBubbleMenu({ editor }: { editor: EditorLike }) {
+  const attrs = editor.getAttributes("image");
+  const align = (attrs.align as string) ?? "center";
+  const width = (attrs.width as string) ?? "medium";
+  const alt = (attrs.alt as string) ?? "";
+
+  const update = (next: Record<string, unknown>) =>
+    editor.commands.updateAttributes("image", next);
+
+  const btn = (active: boolean): React.CSSProperties => ({
+    background: active ? "var(--da-green, #32ff7e)" : "transparent",
+    color: active ? "#1c1c1e" : "var(--da-text, #fff)",
+    border: "1px solid var(--da-border, rgba(255,255,255,0.2))",
+    borderRadius: 4,
+    padding: "4px 8px",
+    fontSize: 12,
+    cursor: "pointer",
+  });
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 8,
+        padding: 8,
+        background: "var(--da-card, #1c1c1e)",
+        border: "1px solid var(--da-border, rgba(255,255,255,0.18))",
+        borderRadius: 8,
+        boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+        alignItems: "center",
+        flexWrap: "wrap",
+        maxWidth: 480,
+      }}
+    >
+      {(["left", "center", "right"] as const).map((a) => (
+        <button
+          key={a}
+          type="button"
+          onClick={() => update({ align: a })}
+          style={btn(align === a)}
+          aria-label={`Align ${a}`}
+        >
+          {a === "left" ? "⟸" : a === "center" ? "⇔" : "⟹"}
+        </button>
+      ))}
+      <select
+        value={width}
+        onChange={(e) => update({ width: e.target.value })}
+        style={{
+          background: "transparent",
+          color: "var(--da-text, #fff)",
+          border: "1px solid var(--da-border, rgba(255,255,255,0.2))",
+          borderRadius: 4,
+          padding: "4px 6px",
+          fontSize: 12,
+        }}
+      >
+        <option value="small">Klein</option>
+        <option value="medium">Mittel</option>
+        <option value="large">Gross</option>
+        <option value="full">Voll</option>
+      </select>
+      <input
+        type="text"
+        value={alt}
+        onChange={(e) => update({ alt: e.target.value })}
+        placeholder="Alt-Text…"
+        style={{
+          flex: 1,
+          minWidth: 140,
+          background: "transparent",
+          color: "var(--da-text, #fff)",
+          border: "1px solid var(--da-border, rgba(255,255,255,0.2))",
+          borderRadius: 4,
+          padding: "4px 6px",
+          fontSize: 12,
+        }}
+      />
+    </div>
+  );
+}
+
 export default function TiptapTestEditor() {
   const isMobile = useIsBreakpoint();
   const [mobileViewRaw, setMobileView] = useState<"main" | "highlighter" | "link">(
@@ -275,7 +363,35 @@ export default function TiptapTestEditor() {
       TaskList,
       TaskItem.configure({ nested: true }),
       Highlight.configure({ multicolor: true }),
-      Image,
+      // Image mit Brand-Attribute: align (left|center|right) +
+      // width (small|medium|large|full). Rendert als data-attrs am
+      // <img>, gestylt via tiptap-test.css. Alt-Text läuft über die
+      // native HTMLAttribute.
+      Image.configure({
+        inline: false,
+        allowBase64: false,
+        HTMLAttributes: { class: "da-tiptap-image" },
+      }).extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            align: {
+              default: "center",
+              renderHTML: (attrs: { align?: string }) => ({
+                "data-align": attrs.align ?? "center",
+              }),
+              parseHTML: (el: HTMLElement) => el.getAttribute("data-align") ?? "center",
+            },
+            width: {
+              default: "medium",
+              renderHTML: (attrs: { width?: string }) => ({
+                "data-width": attrs.width ?? "medium",
+              }),
+              parseHTML: (el: HTMLElement) => el.getAttribute("data-width") ?? "medium",
+            },
+          };
+        },
+      }),
       Typography,
       Superscript,
       Subscript,
@@ -386,6 +502,17 @@ export default function TiptapTestEditor() {
             style={{ background: "var(--da-darker)", color: "var(--da-text)", padding: 24 }}
           >
             <EditorContent editor={editor} role="presentation" />
+            {editor && (
+              <BubbleMenu
+                editor={editor}
+                options={{
+                  placement: "top",
+                }}
+                shouldShow={({ editor: ed }) => ed.isActive("image")}
+              >
+                <ImageBubbleMenu editor={editor} />
+              </BubbleMenu>
+            )}
           </div>
         </EditorContext.Provider>
         <div

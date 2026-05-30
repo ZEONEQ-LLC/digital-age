@@ -151,6 +151,29 @@
   border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
+/* Image Align + Width-Attribute (.extend() in TiptapTestEditor.tsx). */
+.tiptap-test-wrapper .ProseMirror img.da-tiptap-image {
+  height: auto;
+  border-radius: 6px;
+}
+.tiptap-test-wrapper .ProseMirror img[data-align="left"] {
+  float: left;
+  margin: 0.5rem 1rem 0.5rem 0;
+}
+.tiptap-test-wrapper .ProseMirror img[data-align="center"] {
+  display: block;
+  margin: 1rem auto;
+  float: none;
+}
+.tiptap-test-wrapper .ProseMirror img[data-align="right"] {
+  float: right;
+  margin: 0.5rem 0 0.5rem 1rem;
+}
+.tiptap-test-wrapper .ProseMirror img[data-width="small"]  { max-width: 300px; }
+.tiptap-test-wrapper .ProseMirror img[data-width="medium"] { max-width: 600px; }
+.tiptap-test-wrapper .ProseMirror img[data-width="large"]  { max-width: 900px; }
+.tiptap-test-wrapper .ProseMirror img[data-width="full"]   { max-width: 100%; }
+
 /* ============================================================
    7. Resizable Editor-Body
    ============================================================
