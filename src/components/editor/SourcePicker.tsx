@@ -9,6 +9,11 @@ type Props = {
   sources: Source[];
   onPickExisting: (sourceNumber: number) => void;
   onCreateNew: (source: { text: string; url?: string }) => void;
+  // Etappe B (Variante 2): existierende Quelle bearbeiten — Text/URL
+  // ändern ohne dass sich die Position N verschiebt. Index ist 0-basiert.
+  // Optional, damit alte Aufrufer (z.B. Pages-Editor) ohne Anpassung
+  // weiterlaufen.
+  onUpdateExisting?: (index: number, source: { text: string; url?: string }) => void;
 };
 
 const newSourceId = () =>
@@ -24,19 +29,31 @@ export default function SourcePicker({
   sources,
   onPickExisting,
   onCreateNew,
+  onUpdateExisting,
 }: Props) {
   const [mode, setMode] = useState<"pick" | "create">("pick");
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
   const textRef = useRef<HTMLTextAreaElement | null>(null);
 
+  // Inline-Edit (Etappe B). Pro Render ist max ein Eintrag in Bearbeitung.
+  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
+  const [editUrl, setEditUrl] = useState("");
+
+  // Modal-Reset auf Open. Klassisches "synchronise external state in
+  // effect"-Pattern — wir schreiben State in den Effect, weil das Öffnen
+  // des Modals (`open=true`) den lokalen Form-State neu seedet.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!open) return;
     setMode(sources.length === 0 ? "create" : "pick");
     setText("");
     setUrl("");
+    setEditIndex(null);
     setTimeout(() => textRef.current?.focus(), 50);
   }, [open, sources.length]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!open) return null;
 
@@ -45,6 +62,29 @@ export default function SourcePicker({
     if (!trimmed) return;
     onCreateNew({ text: trimmed, url: url.trim() || undefined });
     onClose();
+  }
+
+  function startEdit(i: number, s: Source) {
+    setEditIndex(i);
+    setEditText(s.text);
+    setEditUrl(s.url ?? "");
+  }
+
+  function cancelEdit() {
+    setEditIndex(null);
+    setEditText("");
+    setEditUrl("");
+  }
+
+  function commitEdit() {
+    if (editIndex === null || !onUpdateExisting) return;
+    const trimmed = editText.trim();
+    if (!trimmed) return;
+    onUpdateExisting(editIndex, {
+      text: trimmed,
+      url: editUrl.trim() || undefined,
+    });
+    cancelEdit();
   }
 
   return (
@@ -166,23 +206,113 @@ export default function SourcePicker({
                 </p>
               ) : (
                 <div className="src-list">
-                  {sources.map((s, i) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      className="src-item"
-                      onClick={() => {
-                        onPickExisting(i + 1);
-                        onClose();
-                      }}
-                    >
-                      <span className="src-item-n">[^{i + 1}]</span>
-                      <span style={{ flex: 1, minWidth: 0 }}>
-                        <div className="src-item-text">{s.text}</div>
-                        {s.url && <div className="src-item-url">{s.url}</div>}
-                      </span>
-                    </button>
-                  ))}
+                  {sources.map((s, i) => {
+                    const editing = editIndex === i;
+                    if (editing) {
+                      return (
+                        <div
+                          key={s.id}
+                          className="src-item-edit"
+                          style={{
+                            border: "1px solid var(--da-green)",
+                            borderRadius: 4,
+                            padding: 12,
+                            background: "var(--da-darker)",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                            <span className="src-item-n">[^{i + 1}]</span>
+                            <span style={{ color: "var(--da-muted)", fontSize: 11, fontFamily: "var(--da-font-mono)" }}>
+                              N bleibt unverändert
+                            </span>
+                          </div>
+                          <label className="src-label" style={{ marginTop: 0 }}>Quellen-Text</label>
+                          <textarea
+                            className="src-textarea"
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                          />
+                          <label className="src-label">URL (optional)</label>
+                          <input
+                            className="src-input"
+                            type="url"
+                            value={editUrl}
+                            onChange={(e) => setEditUrl(e.target.value)}
+                            placeholder="https://…"
+                          />
+                          <div className="src-actions">
+                            <button type="button" className="src-btn-ghost" onClick={cancelEdit}>
+                              Abbrechen
+                            </button>
+                            <button
+                              type="button"
+                              className="src-btn-primary"
+                              onClick={commitEdit}
+                              disabled={!editText.trim()}
+                            >
+                              Speichern
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div
+                        key={s.id}
+                        className="src-item"
+                        style={{ display: "flex", gap: 12, alignItems: "stretch" }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onPickExisting(i + 1);
+                            onClose();
+                          }}
+                          style={{
+                            display: "flex",
+                            gap: 12,
+                            alignItems: "flex-start",
+                            background: "transparent",
+                            border: 0,
+                            color: "var(--da-text)",
+                            padding: 0,
+                            cursor: "pointer",
+                            textAlign: "left",
+                            flex: 1,
+                            minWidth: 0,
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          <span className="src-item-n">[^{i + 1}]</span>
+                          <span style={{ flex: 1, minWidth: 0 }}>
+                            <div className="src-item-text">{s.text}</div>
+                            {s.url && <div className="src-item-url">{s.url}</div>}
+                          </span>
+                        </button>
+                        {onUpdateExisting && (
+                          <button
+                            type="button"
+                            onClick={() => startEdit(i, s)}
+                            style={{
+                              background: "transparent",
+                              color: "var(--da-muted-soft)",
+                              border: "1px solid var(--da-border)",
+                              borderRadius: 4,
+                              padding: "4px 10px",
+                              fontSize: 11,
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                              flex: "0 0 auto",
+                              alignSelf: "center",
+                            }}
+                            title="Quelle bearbeiten (Text/URL — N bleibt)"
+                          >
+                            Bearbeiten
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )
             ) : (

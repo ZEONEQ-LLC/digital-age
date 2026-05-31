@@ -769,6 +769,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
                 ref={bodyEditorRef}
                 articleId={article.id}
                 initialContent={initialBodyTiptap}
+                onRequestSourcePick={requestSourcePick}
               />
             </div>
             <TiptapFooterEditor
@@ -829,10 +830,26 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             ...doc.sources,
             { id: newSourceId(), ...source },
           ];
+          // N wird aus der NEUEN Array-Länge abgeleitet — nicht aus dem
+          // doc-State, der per setDoc erst nach dem Re-Render aktualisiert
+          // wird. Der Editor-Command-Aufruf passiert synchron auf der
+          // Tiptap-Instanz und braucht das N JETZT.
           setDoc({ ...doc, sources: newSources });
           const newN = newSources.length;
           sourceInsertHandler?.(newN);
           setSourceInsertHandler(null);
+        }}
+        onUpdateExisting={(index, source) => {
+          if (!doc) return;
+          // Quelle an Position `index` ersetzen, alle anderen + N's
+          // unverändert. Tiptap-Doc wird NICHT angefasst — daSourceRef-
+          // Nodes referenzieren weiter dasselbe N.
+          const nextSources = doc.sources.map((s, i) =>
+            i === index
+              ? { id: s.id, text: source.text, ...(source.url ? { url: source.url } : {}) }
+              : s,
+          );
+          setDoc({ ...doc, sources: nextSources });
         }}
       />
 
