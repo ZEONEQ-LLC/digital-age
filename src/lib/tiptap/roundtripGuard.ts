@@ -71,7 +71,7 @@ function extractAll(text: string, re: RegExp, group: number): string[] {
 // erst die Mehrzeichen-Token (Source-Refs, Internal-Links, Highlight-Wraps),
 // dann External-Links, zuletzt Bold/Italic — sonst frisst der External-
 // Link-Strip die Source-Ref-Klammern.
-function stripAllMarkup(text: string): string {
+export function stripAllMarkup(text: string): string {
   let out = text;
   out = out.replace(TOKEN_RE.sourceRef, "");
   out = out.replace(/\[\[([^\]]+)\]\]\(([^)]+)\)/g, "$2"); // internal: keep title

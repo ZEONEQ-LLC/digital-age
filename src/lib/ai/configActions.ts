@@ -26,7 +26,8 @@ async function requireEditorAuthor(): Promise<{ id: string }> {
 
 // Gültige AiTask-Werte für die Overrides-Validation. Spiegelt die
 // `AiTask`-Union in src/lib/ai/types.ts. Bei Erweiterung der Union
-// hier mit-nachziehen.
+// hier mit-nachziehen — sonst werden Modell-Overrides für die fehlenden
+// Tasks beim Save still verworfen.
 const KNOWN_TASKS: ReadonlySet<AiTask> = new Set<AiTask>([
   "title_variants",
   "tone_check",
@@ -36,6 +37,10 @@ const KNOWN_TASKS: ReadonlySet<AiTask> = new Set<AiTask>([
   "seo_slug",
   "seo_keyword",
   "closing_paragraph",
+  "seo_pipeline",
+  "seo_review",
+  "news_item_generation",
+  "abstract_generate",
 ]);
 
 export type SaveAiConfigInput = {
