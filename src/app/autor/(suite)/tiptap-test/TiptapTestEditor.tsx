@@ -25,6 +25,7 @@ import {
   ToolbarSeparator,
 } from "@/components/tiptap-ui-primitive/toolbar";
 import { Spacer } from "@/components/tiptap-ui-primitive/spacer";
+import { Button } from "@/components/tiptap-ui-primitive/button";
 
 // --- Tiptap Node SCSS ---
 import { ImageUploadNode } from "@/components/tiptap-node/image-upload-node/image-upload-node-extension";
@@ -593,14 +594,18 @@ export default function TiptapTestEditor() {
                 <Toolbar ref={abstractToolbarRef}>
                   <Spacer />
                   <ToolbarGroup>
+                    {/* Italic bewusst weg: Abstract wird auf der Public-Page
+                        ohnehin komplett italic gerendert — Toggle wäre nutzlos. */}
                     <MarkButton type="bold" />
-                    <MarkButton type="italic" />
                     <LinkPopover />
                     <ColorHighlightPopover colors={BRAND_HIGHLIGHT_COLORS} />
                   </ToolbarGroup>
                   <Spacer />
                 </Toolbar>
-                <div className="tiptap-test-editor-body" style={{ background: "var(--da-darker)", color: "var(--da-muted)", padding: 24, fontSize: 16, fontStyle: "italic", lineHeight: 1.6, minHeight: 120 }}>
+                <div
+                  className="tiptap-test-abstract-body"
+                  style={{ background: "var(--da-darker)", color: "var(--da-muted)", padding: 24, fontSize: 16, fontStyle: "italic", lineHeight: 1.6, minHeight: 120 }}
+                >
                   <EditorContent editor={abstractEditor} role="presentation" />
                 </div>
               </EditorContext.Provider>
@@ -672,23 +677,31 @@ export default function TiptapTestEditor() {
                   <ToolbarSeparator />
                   <ToolbarGroup>
                     <ImageUploadButton text="Bild" />
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      tooltip="Statistik-Box"
                       onClick={() => bodyEditor?.chain().focus().setStatBox().run()}
-                      style={{
-                        background: "transparent",
-                        border: "1px solid var(--da-border, rgba(255,255,255,0.18))",
-                        color: "var(--da-text, rgba(255,255,255,0.78))",
-                        borderRadius: 4,
-                        padding: "4px 10px",
-                        fontSize: 12,
-                        fontFamily: "inherit",
-                        cursor: "pointer",
-                      }}
-                      title="Statistik-Box einfügen"
+                      aria-label="Statistik-Box einfügen"
                     >
-                      ▦ Statbox
-                    </button>
+                      {/* 3-Spalten-Bar-Chart-Icon (currentColor → erbt von
+                          --tt-button-default-icon-color wie die anderen
+                          Vendor-Buttons → konsistent in Dark+Light). */}
+                      <svg
+                        className="tiptap-button-icon"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <rect x="4" y="11" width="3.5" height="9" rx="0.5" />
+                        <rect x="10.25" y="7" width="3.5" height="13" rx="0.5" />
+                        <rect x="16.5" y="14" width="3.5" height="6" rx="0.5" />
+                      </svg>
+                    </Button>
                   </ToolbarGroup>
                   <Spacer />
                 </Toolbar>
@@ -788,10 +801,8 @@ export default function TiptapTestEditor() {
           <div style={{ color: "var(--da-faint)", fontFamily: "var(--da-font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 16 }}>
             Vorschau · So sieht der Artikel auf der Public-Page aus
           </div>
-          {coverImageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={coverImageUrl} alt="" style={{ width: "100%", aspectRatio: "16/9", objectFit: "cover", borderRadius: 8, marginBottom: 24 }} />
-          )}
+          {/* Reihenfolge wie echte Public-Page (artikel/[slug]/page.tsx):
+              H1 → Excerpt → Cover → Body → Tags. */}
           <h1 style={{ color: "var(--da-text)", fontFamily: "var(--da-font-display)", fontSize: 36, fontWeight: 800, lineHeight: 1.15, marginBottom: 12 }}>
             {title || "(Ohne Titel)"}
           </h1>
@@ -799,6 +810,10 @@ export default function TiptapTestEditor() {
             <p style={{ color: "var(--da-muted)", fontSize: 18, lineHeight: 1.55, marginBottom: 28, fontStyle: "italic" }}>
               <InlineText content={excerptSerialized} sources={sources} />
             </p>
+          )}
+          {coverImageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={coverImageUrl} alt="" style={{ width: "100%", aspectRatio: "16/9", objectFit: "cover", borderRadius: 8, marginBottom: 24 }} />
           )}
           <ArticleBody>
             <BlockReader doc={blockDocument} />
