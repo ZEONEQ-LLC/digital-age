@@ -63,6 +63,9 @@ export default function ArticleBody({ children }: { children: React.ReactNode })
         .article-body mark em,
         .article-body mark a,
         .article-body mark code { color: inherit; }
+        /* Aufeinanderfolgende Source-Refs visuell trennen, sonst kleben
+           Anker-Sup-Elemente zu unleserlicher Ziffernkette zusammen. */
+        .article-body sup + sup { margin-left: 3px; }
       `}</style>
       <div className="article-body">{children}</div>
     </>
