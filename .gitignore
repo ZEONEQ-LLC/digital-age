@@ -158,3 +158,19 @@ migration/logs/
 migration/*.xml
 # Rank-Math-CSV-Export (User-bereitgestellt, nicht ins Repo)
 migration/*.csv
+
+# Lokale Arbeitsdateien (User-bereitgestellt, nicht ins Repo) — diese
+# tauchten als persistente Untracked-Files in jedem PR-Branch auf und
+# erzeugen "uncommitted changes"-Warnings beim Push. Spezifisch
+# adressiert, um nicht versehentlich committed Files dieser Verzeichnisse
+# zu maskieren.
+SEO-ARCHITEKTUR.md
+seo/
+migration/Artikel als MD.md
+migration/swiss_ai_startups update.json
+migration/extract_logos.py
+migration/responsive/
+src/images/digital-age-og-fallback.jpg
+
+# Temporäre Diagnose-Skripte (im Repo-Root)
+/_*.tmp.ts
