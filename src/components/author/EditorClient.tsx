@@ -18,6 +18,7 @@ import TagInput from "@/components/author/TagInput";
 import ArticleBody from "@/components/ArticleBody";
 import BlockReader from "@/components/BlockReader";
 import InlineText from "@/components/InlineText";
+import MdCleanupModal from "@/components/editor/MdCleanupModal";
 import SourcePicker, { newSourceId } from "@/components/editor/SourcePicker";
 import { SunIcon } from "@/components/tiptap-icons/sun-icon";
 import { MoonStarIcon } from "@/components/tiptap-icons/moon-star-icon";
@@ -180,29 +181,23 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   // gespeichert wird. Verwendet das geprüfte tiptapToBlocks-Konverter-
   // Paar — NICHT den Sandbox-Serializer, weil der pass-through Marks
   // (internalLink, fontSize) und daSourceRef nicht kennt.
-  // MD-Cleanup: nimmt den Body-Editor-Text als Markdown, parst Header +
-  // Quellen-Sektion + Inline-Refs und ersetzt Editor-Inhalt + Sources.
-  // Idempotenz-Schutz: wenn keine `## Quellen`-Sektion gefunden wurde,
-  // bleiben die bestehenden doc.sources unangetastet — sonst gingen die
-  // beim ersten Cleanup angelegten Quellen beim zweiten Klick verloren.
-  function handleMdCleanup() {
-    const md = bodyEditorRef.current?.getText() ?? "";
-    if (!md.trim()) {
-      window.alert("Editor ist leer — nichts zu bereinigen.");
-      return;
-    }
-    const ok = window.confirm(
-      "MD-Cleanup ersetzt den gesamten Body-Inhalt und extrahiert die " +
-        "Quellen-Sektion. Fortfahren? (Undo mit Strg+Z möglich.)",
-    );
-    if (!ok) return;
-    const { blocks, sources, foundSourcesSection } = cleanupMarkdown(md);
+  // MD-Cleanup-Modal-State. Eingabe läuft über eine Plain-Textarea, weil
+  // Tiptap-Paste den HTML-Pfad nimmt sobald das Clipboard HTML mitliefert
+  // (typisch bei Copy aus GUI-Editoren) — dort kollabieren Linebreaks
+  // schon vor dem getJSON/getText. Die Textarea bewahrt `\n` bytegenau.
+  const [mdCleanupOpen, setMdCleanupOpen] = useState(false);
+
+  function applyMdCleanup(markdown: string) {
+    const { blocks, sources, foundSourcesSection } = cleanupMarkdown(markdown);
     const tiptap = blocksToTiptap({
       version: BLOCK_SCHEMA_VERSION,
       blocks,
       sources: foundSourcesSection ? sources : doc?.sources ?? [],
     });
     bodyEditorRef.current?.setContent(tiptap);
+    // Idempotenz-Schutz: ohne erkannte Quellen-Sektion bleibt doc.sources
+    // unverändert — sonst gingen beim zweiten Cleanup-Lauf die beim ersten
+    // Lauf angelegten Quellen verloren.
     setDoc((prev) => {
       const base = prev ?? { version: BLOCK_SCHEMA_VERSION, blocks: [], sources: [] };
       return {
@@ -210,6 +205,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         sources: foundSourcesSection ? sources : base.sources,
       };
     });
+    setMdCleanupOpen(false);
   }
 
   function readExcerptFromAbstract(): string {
@@ -983,7 +979,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
                 articleId={article.id}
                 initialContent={initialBodyTiptap}
                 onRequestSourcePick={requestSourcePick}
-                onMdCleanup={handleMdCleanup}
+                onMdCleanup={() => setMdCleanupOpen(true)}
               />
             </div>
             <TiptapFooterEditor
@@ -1018,6 +1014,13 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           onConfirm={confirmLegacyMigration}
         />
       )}
+
+      <MdCleanupModal
+        open={mdCleanupOpen}
+        bodyHasContent={(doc?.blocks?.length ?? 0) > 0}
+        onClose={() => setMdCleanupOpen(false)}
+        onApply={applyMdCleanup}
+      />
 
       <SourcePicker
         open={sourceInsertHandler !== null}

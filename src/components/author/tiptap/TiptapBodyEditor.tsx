@@ -65,10 +65,11 @@ const BRAND_HIGHLIGHT_COLORS: HighlightColor[] = [
 export type TiptapBodyEditorHandle = {
   getJSON: () => TiptapDoc;
   isEmpty: () => boolean;
-  // MD-Cleanup-Pipeline (siehe EditorClient.handleMdCleanup): liest den
-  // aktuellen Editor-Inhalt als Plain-Text-Markdown und ersetzt ihn nach
-  // dem Parsen durch das neue Tiptap-Doc.
-  getText: () => string;
+  // setContent wird vom MD-Cleanup-Pfad benutzt: nach dem Parsen des
+  // Modal-Textarea-Inputs ersetzen wir den Editor-Inhalt durch das neue
+  // Tiptap-Doc. (Editor-getText() wurde entfernt — Tiptap-Paste über den
+  // HTML-Pfad zerstört Linebreaks, der Cleanup liest deshalb nicht aus
+  // dem Editor sondern aus einer Plain-Textarea im Modal.)
   setContent: (json: TiptapDoc) => void;
 };
 
@@ -214,10 +215,6 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
         }
         return false;
       },
-      // \n\n als Block-Separator, damit Absätze beim Round-Trip durch den
-      // MD-Cleanup-Parser erhalten bleiben (markdownToBlocks splittet an
-      // Leerzeilen).
-      getText: () => editor?.getText({ blockSeparator: "\n\n" }) ?? "",
       setContent: (json) => {
         editor?.commands.setContent(json as Parameters<typeof editor.commands.setContent>[0], { emitUpdate: true });
       },

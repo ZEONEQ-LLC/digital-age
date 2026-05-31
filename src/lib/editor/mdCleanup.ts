@@ -38,8 +38,9 @@ export function cleanupMarkdown(md: string): CleanupResult {
   const { body, sourcesLines, foundSourcesSection } = splitSourcesSection(md);
   const sourcesMap = parseSourcesLines(sourcesLines);
   const knownNs = new Set(sourcesMap.keys());
-  const rewrittenBody = rewriteInlineRefs(body, knownNs);
-  const blocks = markdownToBlocks(rewrittenBody);
+  const refBody = rewriteInlineRefs(body, knownNs);
+  const normalizedBody = normalizeStarItalics(refBody);
+  const blocks = markdownToBlocks(normalizedBody);
   const sources = buildSourcesArray(sourcesMap);
   return { blocks, sources, foundSourcesSection };
 }
@@ -55,12 +56,13 @@ export type SplitResult = {
 };
 
 // Trennt einen Markdown-String am ersten Quellen-Marker. Vorher = Body,
-// Nachher = Quellen-Zeilen (raw). Erlaubte Marker (case-sensitive):
-//   `## Quellen`, `Quellen`, `Quellen:` (mit oder ohne `:` und ohne `##`).
-// Plain-Text-Form ist häufig, weil Autoren oft kein Heading-Markup
-// setzen — Regex absichtlich permissiv. Wenn kein Marker → foundSources-
-// Section: false, Body bleibt unverändert.
-const SOURCES_HEADER_RE = /^#{0,3}\s*Quellen\s*:?\s*$/;
+// Nachher = Quellen-Zeilen (raw). Erlaubte Marker (case-sensitive,
+// kapitalisierte Wortform): Quellen | Sources | References, jeweils
+// mit optionalem `##`/`###`-Heading-Präfix und optionalem Doppelpunkt-
+// Suffix. Plain-Text-Form ist häufig, weil Autoren oft kein Heading-
+// Markup setzen — Regex absichtlich permissiv. Wenn kein Marker →
+// foundSourcesSection: false, Body bleibt unverändert.
+const SOURCES_HEADER_RE = /^#{0,3}\s*(Quellen|Sources|References)\s*:?\s*$/;
 
 export function splitSourcesSection(md: string): SplitResult {
   const lines = md.split("\n");
@@ -117,11 +119,47 @@ export function parseSourcesLines(
 // Unbekannte N bleiben als roher `[N]`-Text erhalten (kein stiller
 // Verlust). Cluster `[1][2][3]` zerfallen automatisch — der Regex ist
 // pro-Match strikt.
+//
+// Negative Lookahead `(?!\()` schützt Markdown-Links mit Zahlen als
+// Linktext: `[2024](https://example.com)` darf NICHT zu
+// `[^2024](https://example.com)` werden — der Link wäre zerstört.
 export function rewriteInlineRefs(body: string, knownNs: Set<number>): string {
-  return body.replace(/\[(\d+)\]/g, (m, digits) => {
+  return body.replace(/\[(\d+)\](?!\()/g, (m, digits) => {
     const n = parseInt(digits, 10);
     return knownNs.has(n) ? `[^${n}]` : m;
   });
+}
+
+// Wandelt Stern-Italic-Notation (`*x*`, `***x***`) in die vom Konverter
+// blocksToTiptap unterstützte Underscore-Notation um. **Bold** (Stern-
+// Doppel) bleibt unangetastet — der Konverter erkennt es nativ.
+//
+// Reihenfolge zwingend, sonst frisst der Einzel-Stern-Regex die Bold-
+// Sterne:
+//   1. `***x***` → `**_x_**` (Bold-Mark behält Stern, Innen-Italic wird _)
+//   2. `**x**` via Platzhalter schützen
+//   3. einzelne `*x*` → `_x_`, aber NUR wenn der Stern nicht von Wort-
+//      zeichen umgeben ist (`a*b*c` bleibt: konservativ, Markdown-
+//      ambivalent) UND der Inhalt kein führendes/abschliessendes
+//      Whitespace hat (`3 * 4` bleibt: Stern als Operator)
+//   4. Platzhalter zurück
+export function normalizeStarItalics(md: string): string {
+  // 1.
+  let out = md.replace(/\*\*\*([^*\n]+?)\*\*\*/g, "**_$1_**");
+  // 2.
+  const bolds: string[] = [];
+  out = out.replace(/\*\*([^*\n]+?)\*\*/g, (m) => {
+    bolds.push(m);
+    return `${bolds.length - 1}`;
+  });
+  // 3.
+  out = out.replace(
+    /(?<![A-Za-z0-9_])\*([^\s*][^*\n]*?[^\s*]|[^\s*])\*(?![A-Za-z0-9_])/g,
+    "_$1_",
+  );
+  // 4.
+  out = out.replace(/(\d+)/g, (_m, idx) => bolds[parseInt(idx, 10)]);
+  return out;
 }
 
 // Variante A: sources[]-Länge = max(N), Lücken bekommen den Placeholder
