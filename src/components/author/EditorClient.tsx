@@ -19,6 +19,8 @@ import ArticleBody from "@/components/ArticleBody";
 import BlockReader from "@/components/BlockReader";
 import InlineText from "@/components/InlineText";
 import SourcePicker, { newSourceId } from "@/components/editor/SourcePicker";
+import { SunIcon } from "@/components/tiptap-icons/sun-icon";
+import { MoonStarIcon } from "@/components/tiptap-icons/moon-star-icon";
 import TiptapAbstractEditor, { type TiptapAbstractEditorHandle } from "@/components/author/tiptap/TiptapAbstractEditor";
 import TiptapBodyEditor, { type TiptapBodyEditorHandle } from "@/components/author/tiptap/TiptapBodyEditor";
 import TiptapFooterEditor, { type DisclaimerValue, type InternalCard } from "@/components/author/tiptap/TiptapFooterEditor";
@@ -55,6 +57,11 @@ type Props = {
 export default function EditorClient({ article, revisions, categories, isEditor, allAuthors }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("content");
+  // Session-only Editor-Theme — kein localStorage, kein Server-Persist.
+  // Reload geht zurück auf Default (dark). Klasse hängt am Karten-Wrapper,
+  // damit Action-Toolbar/Tabs/Sidebars/Footer ungescopt im Dark-Theme
+  // bleiben.
+  const [editorTheme, setEditorTheme] = useState<"dark" | "light">("dark");
 
   const [title, setTitle] = useState(article.title);
   const [excerpt, setExcerpt] = useState(article.excerpt ?? "");
@@ -623,7 +630,51 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         }
         .a-edit-body-card {
           background: var(--da-card); border: 1px solid var(--da-border);
-          border-radius: 8px; padding: 28px;
+          border-radius: 8px;
+        }
+
+        /* ======================================================
+           Editor-Theme-Light — gescopt auf die drei Zonen-Karten
+           ======================================================
+           Ports der Sandbox-Override (siehe tiptap-test.css:276+).
+           Der Light-Modus überschreibt --da-* nur INNERHALB der
+           Karten — alle var(--da-…) Lookups in Titel/Abstract/
+           Body resolven hell, während Action-Toolbar, Tabs, Meta-
+           Row, Footer (Zone 4), Sidebars im Dark-Token-Scope
+           bleiben (sie sitzen ausserhalb des Karten-Selektors).
+           Link-Popover-Input-Override liegt bereits global in
+           tiptap-editor.css und funktioniert in beiden Modi
+           (dunkler Text auf weisser Vendor-Popover-Card). */
+        .editor-theme-light .a-edit-zone-card,
+        .editor-theme-light .a-edit-body-card {
+          --da-card: #ffffff;
+          --da-darker: #f5f5f7;
+          --da-text: #1c1c1e;
+          --da-text-strong: #000000;
+          --da-muted: rgba(0, 0, 0, 0.6);
+          --da-border: rgba(0, 0, 0, 0.12);
+        }
+        .editor-theme-light .a-edit-zone-card .tiptap-button,
+        .editor-theme-light .a-edit-body-card .tiptap-button {
+          --tt-button-default-icon-color: rgba(0, 0, 0, 0.7);
+          --tt-button-hover-icon-color: rgba(0, 0, 0, 0.95);
+          --tt-button-active-icon-color: var(--da-green, #32ff7e);
+          --tt-button-disabled-icon-color: rgba(0, 0, 0, 0.3);
+        }
+        .editor-theme-light .a-edit-zone-card .tiptap-separator,
+        .editor-theme-light .a-edit-body-card .tiptap-separator {
+          --tt-link-border-color: rgba(0, 0, 0, 0.12);
+        }
+        .editor-theme-light .a-edit-zone-card .ProseMirror ::selection,
+        .editor-theme-light .a-edit-body-card .ProseMirror ::selection {
+          background-color: rgba(50, 255, 126, 0.35);
+          color: #1c1c1e;
+        }
+        .editor-theme-light .a-edit-body-card .tiptap.ProseMirror pre,
+        .editor-theme-light .a-edit-body-card .tiptap.ProseMirror code {
+          color: #1c1c1e;
+          background: rgba(0, 0, 0, 0.05);
+          border: 1px solid rgba(0, 0, 0, 0.1);
         }
         .a-edit-mode-row {
           display: flex; justify-content: space-between; align-items: center;
@@ -701,6 +752,24 @@ export default function EditorClient({ article, revisions, categories, isEditor,
               Archivieren
             </button>
           )}
+          <button
+            type="button"
+            className="a-edit-toolbar__btn"
+            onClick={() => setEditorTheme((t) => (t === "dark" ? "light" : "dark"))}
+            aria-label={
+              editorTheme === "dark"
+                ? "Editor auf hell umschalten"
+                : "Editor auf dunkel umschalten"
+            }
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            {editorTheme === "dark" ? (
+              <SunIcon style={{ width: 14, height: 14 }} />
+            ) : (
+              <MoonStarIcon style={{ width: 14, height: 14 }} />
+            )}
+            <span>{editorTheme === "dark" ? "Hell" : "Dunkel"}</span>
+          </button>
         </div>
       </div>
 
@@ -745,7 +814,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           ausgelöst. Vorschau/SEO/Revisionen bleiben bedingt gerendert,
           da sie keinen verlierbaren Live-State haben. */}
       <div
-        className="a-edit-content-grid"
+        className={`a-edit-content-grid editor-theme-${editorTheme}`}
         style={{ display: tab === "content" ? undefined : "none" }}
       >
           <div>
@@ -868,7 +937,14 @@ export default function EditorClient({ article, revisions, categories, isEditor,
               </div>
             </div>
 
+            {/* Zone 3 — Body */}
             <div className="a-edit-body-card">
+              <span
+                className="a-edit-zone-label"
+                style={{ padding: "12px 16px 0" }}
+              >
+                Zone 3 · Body
+              </span>
               <TiptapBodyEditor
                 ref={bodyEditorRef}
                 articleId={article.id}

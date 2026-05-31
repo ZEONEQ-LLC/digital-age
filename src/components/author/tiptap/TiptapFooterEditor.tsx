@@ -192,7 +192,7 @@ export default function TiptapFooterEditor({
     <div style={{ background: "var(--da-card)", border: "1px solid var(--da-border)", borderRadius: 8, padding: 24, display: "flex", flexDirection: "column", gap: 18, marginTop: 14 }}>
       <div>
         <span style={{ display: "block", color: "var(--da-faint)", fontSize: 10, fontFamily: "var(--da-font-mono)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>
-          Footer-Elemente
+          Zone 4 · Footer-Elemente
         </span>
         <p style={{ color: "var(--da-muted)", fontSize: 12, margin: 0 }}>
           Werden am Artikel-Ende gerendert — Reihenfolge: Disclaimer, dann verwandte Artikel.
