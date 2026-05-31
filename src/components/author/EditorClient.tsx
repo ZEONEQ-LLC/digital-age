@@ -43,6 +43,7 @@ import {
 import { blocksToTiptap } from "@/lib/tiptap/blocksToTiptap";
 import { tiptapToBlocks } from "@/lib/tiptap/tiptapToBlocks";
 import { contentWhitelistMatch, runRoundtripGuard, type GuardResult } from "@/lib/tiptap/roundtripGuard";
+import { cleanupMarkdown } from "@/lib/editor/mdCleanup";
 
 type Tab = "content" | "preview" | "seo" | "revisions";
 
@@ -179,6 +180,38 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   // gespeichert wird. Verwendet das geprüfte tiptapToBlocks-Konverter-
   // Paar — NICHT den Sandbox-Serializer, weil der pass-through Marks
   // (internalLink, fontSize) und daSourceRef nicht kennt.
+  // MD-Cleanup: nimmt den Body-Editor-Text als Markdown, parst Header +
+  // Quellen-Sektion + Inline-Refs und ersetzt Editor-Inhalt + Sources.
+  // Idempotenz-Schutz: wenn keine `## Quellen`-Sektion gefunden wurde,
+  // bleiben die bestehenden doc.sources unangetastet — sonst gingen die
+  // beim ersten Cleanup angelegten Quellen beim zweiten Klick verloren.
+  function handleMdCleanup() {
+    const md = bodyEditorRef.current?.getText() ?? "";
+    if (!md.trim()) {
+      window.alert("Editor ist leer — nichts zu bereinigen.");
+      return;
+    }
+    const ok = window.confirm(
+      "MD-Cleanup ersetzt den gesamten Body-Inhalt und extrahiert die " +
+        "Quellen-Sektion. Fortfahren? (Undo mit Strg+Z möglich.)",
+    );
+    if (!ok) return;
+    const { blocks, sources, foundSourcesSection } = cleanupMarkdown(md);
+    const tiptap = blocksToTiptap({
+      version: BLOCK_SCHEMA_VERSION,
+      blocks,
+      sources: foundSourcesSection ? sources : doc?.sources ?? [],
+    });
+    bodyEditorRef.current?.setContent(tiptap);
+    setDoc((prev) => {
+      const base = prev ?? { version: BLOCK_SCHEMA_VERSION, blocks: [], sources: [] };
+      return {
+        ...base,
+        sources: foundSourcesSection ? sources : base.sources,
+      };
+    });
+  }
+
   function readExcerptFromAbstract(): string {
     const json = abstractEditorRef.current?.getJSON();
     if (!json) return excerpt;
@@ -950,6 +983,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
                 articleId={article.id}
                 initialContent={initialBodyTiptap}
                 onRequestSourcePick={requestSourcePick}
+                onMdCleanup={handleMdCleanup}
               />
             </div>
             <TiptapFooterEditor
