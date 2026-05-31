@@ -82,17 +82,24 @@ const TiptapAbstractEditor = forwardRef<TiptapAbstractEditorHandle, Props>(
 
     return (
       <EditorContext.Provider value={{ editor }}>
-        <Toolbar>
-          <Spacer />
-          <ToolbarGroup>
-            <MarkButton type="bold" />
-            <LinkPopover />
-            <ColorHighlightPopover colors={BRAND_HIGHLIGHT_COLORS} />
-          </ToolbarGroup>
-          <Spacer />
-        </Toolbar>
-        <div className="a-edit-abstract-body">
-          <EditorContent editor={editor} role="presentation" />
+        {/* `da-tiptap-editor` wrapper aktiviert die Dark-Theme-Overrides
+            aus tiptap-editor.css (Toolbar-Hintergrund, Icon-Farben,
+            Selection, Link-Farbe). Body-Editor benutzt denselben Wrapper.
+            Heading-/Code-/Image-Selektoren sind im Abstract-Editor
+            ungenutzt (keine entsprechenden Nodes) und damit unschädlich. */}
+        <div className="da-tiptap-editor">
+          <Toolbar>
+            <Spacer />
+            <ToolbarGroup>
+              <MarkButton type="bold" />
+              <LinkPopover />
+              <ColorHighlightPopover colors={BRAND_HIGHLIGHT_COLORS} />
+            </ToolbarGroup>
+            <Spacer />
+          </Toolbar>
+          <div className="a-edit-abstract-body">
+            <EditorContent editor={editor} role="presentation" />
+          </div>
         </div>
       </EditorContext.Provider>
     );

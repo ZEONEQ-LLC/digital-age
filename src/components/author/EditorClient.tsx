@@ -574,8 +574,13 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         }
         .a-edit-abstract-body {
           background: var(--da-darker); color: var(--da-muted);
-          padding: 24px; font-size: 16px; font-style: italic;
-          line-height: 1.6; min-height: 120px;
+          padding: 18px 24px; font-size: 16px; font-style: italic;
+          line-height: 1.6;
+          /* Auto-grow: kleine min-height für leeren State (Placeholder
+             sichtbar), kein max-height-Cap, kein resize-Griff — Container
+             wächst beim Tippen mit. Bewusst NICHT a-edit-tiptap-resizable
+             verwenden (die gehört zum Body-Editor). */
+          min-height: 60px;
         }
         .a-edit-tiptap-resizable {
           resize: vertical; overflow: auto;
