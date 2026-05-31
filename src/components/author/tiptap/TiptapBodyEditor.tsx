@@ -303,13 +303,19 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
             </ToolbarGroup>
             <Spacer />
           </Toolbar>
-          <div style={{ background: "var(--da-darker)", color: "var(--da-text)", padding: 24, minHeight: 320 }}>
+          <div
+            className="a-edit-tiptap-resizable"
+            style={{ background: "var(--da-darker)", color: "var(--da-text)", padding: 24 }}
+          >
             <EditorContent editor={editor} role="presentation" />
             {editor && (
               <BubbleMenu editor={editor} options={{ placement: "top" }} shouldShow={({ editor: ed }) => ed.isActive("image")}>
                 <ImageBubbleMenu editor={editor} />
               </BubbleMenu>
             )}
+          </div>
+          <div className="a-edit-body-counter">
+            <span>Wörter: {editor?.storage.characterCount?.words?.() ?? 0}</span>
           </div>
         </div>
       </EditorContext.Provider>

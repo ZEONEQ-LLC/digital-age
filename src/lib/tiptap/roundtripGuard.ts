@@ -131,7 +131,7 @@ function deepEqual(a: unknown, b: unknown): boolean {
 
 // Vergleicht zwei content-Strings auf semantische Äquivalenz nach
 // Whitelist-Regeln (siehe Modul-Doc oben).
-function contentWhitelistMatch(orig: string, cand: string): boolean {
+export function contentWhitelistMatch(orig: string, cand: string): boolean {
   if (orig === cand) return true;
 
   // Token-Counts für die "seltenen" Marker müssen IDENTISCH sein —

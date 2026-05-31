@@ -18,12 +18,10 @@ import TagInput from "@/components/author/TagInput";
 import ArticleBody from "@/components/ArticleBody";
 import BlockReader from "@/components/BlockReader";
 import InlineText from "@/components/InlineText";
-import InlineToolbarTextarea from "@/components/editor/InlineToolbarTextarea";
-import InternalArticleAutocomplete from "@/components/editor/InternalArticleAutocomplete";
 import SourcePicker, { newSourceId } from "@/components/editor/SourcePicker";
+import TiptapAbstractEditor, { type TiptapAbstractEditorHandle } from "@/components/author/tiptap/TiptapAbstractEditor";
 import TiptapBodyEditor, { type TiptapBodyEditorHandle } from "@/components/author/tiptap/TiptapBodyEditor";
 import TiptapFooterEditor, { type DisclaimerValue, type InternalCard } from "@/components/author/tiptap/TiptapFooterEditor";
-import type { ArticleSearchResult } from "@/lib/articleSearchActions";
 import {
   archiveArticle,
   deleteArticle,
@@ -42,7 +40,7 @@ import {
 } from "@/types/blocks";
 import { blocksToTiptap } from "@/lib/tiptap/blocksToTiptap";
 import { tiptapToBlocks } from "@/lib/tiptap/tiptapToBlocks";
-import { runRoundtripGuard, type GuardResult } from "@/lib/tiptap/roundtripGuard";
+import { contentWhitelistMatch, runRoundtripGuard, type GuardResult } from "@/lib/tiptap/roundtripGuard";
 
 type Tab = "content" | "preview" | "seo" | "revisions";
 
@@ -99,18 +97,12 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   const markdown = article.body_md ?? "";
   const [status, setStatus] = useState<ArticleStatus>(article.status);
   const [showLegacyModal, setShowLegacyModal] = useState(false);
-  const [articlePickHandler, setArticlePickHandler] = useState<
-    ((r: ArticleSearchResult) => void) | null
-  >(null);
   const [sourceInsertHandler, setSourceInsertHandler] = useState<
     ((n: number) => void) | null
   >(null);
 
   // Wrap in einer setter-Funktion (Form mit Vorher-State), damit setState
   // den Callback nicht als Reducer behandelt.
-  function requestArticlePick(onPick: (r: ArticleSearchResult) => void) {
-    setArticlePickHandler(() => onPick);
-  }
   function requestSourcePick(insertMarker: (n: number) => void) {
     setSourceInsertHandler(() => insertMarker);
   }
@@ -155,7 +147,41 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     [initialSplit, doc],
   );
 
+  // Abstract als single-paragraph BlockDocument verpacken und durch das
+  // bestehende, getestete blocksToTiptap-Konverter-Paar in einen Tiptap-
+  // Doc wandeln. Damit überleben Bestand-Marker (`[^N]`, `[[slug]]`,
+  // `{{lg/xl}}`) den Mount auch wenn der Abstract-Editor keine Toolbar-
+  // Buttons dafür hat — Pass-Through-Marks sind in TiptapAbstractEditor
+  // mit-registriert.
+  const initialAbstractTiptap = useMemo(
+    () =>
+      blocksToTiptap({
+        version: BLOCK_SCHEMA_VERSION,
+        blocks: [{ id: "abs", type: "paragraph", content: article.excerpt ?? "" }],
+        sources: [],
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
   const bodyEditorRef = useRef<TiptapBodyEditorHandle | null>(null);
+  const abstractEditorRef = useRef<TiptapAbstractEditorHandle | null>(null);
+
+  // Liest den aktuellen Abstract-Stand aus dem Tiptap-Editor und
+  // serialisiert ihn in den Token-String, der in `articles.excerpt`
+  // gespeichert wird. Verwendet das geprüfte tiptapToBlocks-Konverter-
+  // Paar — NICHT den Sandbox-Serializer, weil der pass-through Marks
+  // (internalLink, fontSize) und daSourceRef nicht kennt.
+  function readExcerptFromAbstract(): string {
+    const json = abstractEditorRef.current?.getJSON();
+    if (!json) return excerpt;
+    const back = tiptapToBlocks(
+      json as Parameters<typeof tiptapToBlocks>[0],
+      [],
+    );
+    const first = back.blocks.find((b) => b.type === "paragraph");
+    return first?.type === "paragraph" ? first.content : "";
+  }
   const [disclaimer, setDisclaimer] = useState<DisclaimerValue>(
     initialSplit.footerDisclaimer
       ? {
@@ -282,14 +308,14 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   // VOR `saveArticle` gerufen. Der Guard läuft separat (siehe runGuard),
   // damit bei einer Abweichung das Save abgebrochen und der Hinweis
   // angezeigt werden kann.
-  function buildPatchUnchecked(finalDoc: BlockDocument): ArticlePatch {
+  function buildPatchUnchecked(finalDoc: BlockDocument, finalExcerpt: string): ArticlePatch {
     const cleanTags = tagList.map((t) => t.trim()).filter(Boolean);
     const publishedAtIso = publishedAtDate
       ? `${publishedAtDate}T00:00:00.000Z`
       : null;
     const patch: ArticlePatch = {
       title,
-      excerpt: excerpt || null,
+      excerpt: finalExcerpt || null,
       cover_image_url: cover || null,
       category_id: categoryId,
       subcategory: subcategory || null,
@@ -316,21 +342,59 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   // Verlust (z.B. wenn der Roundtrip einen Mark verschluckt), ohne dass
   // ein zusätzlicher Absatz im Editor als "Drift gegen Original"
   // missverstanden wird.
-  function runGuard(finalDoc: BlockDocument): GuardResult {
+  function runGuard(finalDoc: BlockDocument, finalExcerpt: string): GuardResult {
     const tiptap = blocksToTiptap(finalDoc);
     const fixpoint = tiptapToBlocks(
       tiptap as Parameters<typeof tiptapToBlocks>[0],
       finalDoc.sources,
     );
-    return runRoundtripGuard(finalDoc, fixpoint);
+    const bodyGuard = runRoundtripGuard(finalDoc, fixpoint);
+
+    // Abstract-Mini-Guard via gleichem Self-Fixpoint-Verfahren wie Body:
+    // serialize → blocksToTiptap → tiptapToBlocks → vergleiche per
+    // contentWhitelistMatch. Bei Diff wird ein Pseudo-Eintrag in
+    // changedBlocks angehängt und das Gesamt-Result auf blockiert gesetzt.
+    const wrappedAbstract = blocksToTiptap({
+      version: BLOCK_SCHEMA_VERSION,
+      blocks: [{ id: "abs", type: "paragraph", content: finalExcerpt }],
+      sources: [],
+    });
+    const backAbstract = tiptapToBlocks(
+      wrappedAbstract as Parameters<typeof tiptapToBlocks>[0],
+      [],
+    );
+    const fixExcerpt =
+      backAbstract.blocks[0]?.type === "paragraph"
+        ? backAbstract.blocks[0].content
+        : "";
+    if (
+      finalExcerpt !== fixExcerpt &&
+      !contentWhitelistMatch(finalExcerpt, fixExcerpt)
+    ) {
+      return {
+        allowed: false,
+        changedBlocks: [
+          ...bodyGuard.changedBlocks,
+          {
+            index: -1,
+            type: "abstract",
+            reason: "Abstract roundtrip lossy — Inhalt würde verändert.",
+            origPreview: finalExcerpt.slice(0, 120),
+            candPreview: fixExcerpt.slice(0, 120),
+          },
+        ],
+      };
+    }
+    return bodyGuard;
   }
 
   // Pre-Save-Schritt: Editor → BlockDocument + Guard. Returnt null wenn
-  // Guard blockt (Error wird gesetzt), sonst das finale Doc.
-  function prepareSave(): BlockDocument | null {
+  // Guard blockt (Error wird gesetzt), sonst das finale Doc + Excerpt.
+  function prepareSave(): { finalDoc: BlockDocument; finalExcerpt: string } | null {
     setError(null);
     const finalDoc = buildBlockDocumentFromEditor();
-    const guard = runGuard(finalDoc);
+    const finalExcerpt = readExcerptFromAbstract();
+    const guard = runGuard(finalDoc, finalExcerpt);
     setGuardResult(guard);
     if (!guard.allowed) {
       setError(
@@ -339,18 +403,20 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       );
       return null;
     }
-    return finalDoc;
+    return { finalDoc, finalExcerpt };
   }
 
   async function handleSave() {
-    const finalDoc = prepareSave();
-    if (!finalDoc) return;
+    const prepared = prepareSave();
+    if (!prepared) return;
+    const { finalDoc, finalExcerpt } = prepared;
     startTransition(async () => {
       try {
-        const updated = await saveArticle(article.id, buildPatchUnchecked(finalDoc));
+        const updated = await saveArticle(article.id, buildPatchUnchecked(finalDoc, finalExcerpt));
         setStatus(updated.status);
         setSavedAt("Gespeichert");
         setDoc(finalDoc);
+        setExcerpt(finalExcerpt);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Speichern fehlgeschlagen.");
@@ -359,11 +425,12 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   }
 
   async function handleSubmit() {
-    const finalDoc = prepareSave();
-    if (!finalDoc) return;
+    const prepared = prepareSave();
+    if (!prepared) return;
+    const { finalDoc, finalExcerpt } = prepared;
     startTransition(async () => {
       try {
-        await saveArticle(article.id, buildPatchUnchecked(finalDoc));
+        await saveArticle(article.id, buildPatchUnchecked(finalDoc, finalExcerpt));
         const next = await submitForReview(article.id);
         setStatus(next.status);
         router.push("/autor/artikel");
@@ -374,15 +441,17 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   }
 
   async function handlePublish() {
-    const finalDoc = prepareSave();
-    if (!finalDoc) return;
+    const prepared = prepareSave();
+    if (!prepared) return;
+    const { finalDoc, finalExcerpt } = prepared;
     startTransition(async () => {
       try {
-        await saveArticle(article.id, buildPatchUnchecked(finalDoc));
+        await saveArticle(article.id, buildPatchUnchecked(finalDoc, finalExcerpt));
         const next = await publishArticle(article.id);
         setStatus(next.status);
         setSavedAt("Publiziert");
         setDoc(finalDoc);
+        setExcerpt(finalExcerpt);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Publish fehlgeschlagen.");
@@ -486,16 +555,44 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           font-family: inherit;
         }
         .a-edit-mode-btn--active { background: var(--da-green); color: var(--da-dark); }
-        .a-edit-title-card {
+        .a-edit-zone-card {
           background: var(--da-card); border: 1px solid var(--da-border);
-          border-radius: 8px; padding: 28px; margin-bottom: 18px;
+          border-radius: 8px; margin-bottom: 18px;
+        }
+        .a-edit-zone-card--padded { padding: 24px; }
+        .a-edit-zone-label {
+          display: block; color: var(--da-faint); font-size: 10px;
+          font-family: var(--da-font-mono); letter-spacing: 0.12em;
+          text-transform: uppercase; font-weight: 700;
         }
         .a-edit-title-input {
           width: 100%; background: transparent; border: none; outline: none;
           color: var(--da-text); font-size: 32px; font-weight: 700;
           font-family: var(--da-font-display);
           letter-spacing: -0.01em; line-height: 1.1;
-          margin-bottom: 14px; padding: 0;
+          padding: 0;
+        }
+        .a-edit-abstract-body {
+          background: var(--da-darker); color: var(--da-muted);
+          padding: 24px; font-size: 16px; font-style: italic;
+          line-height: 1.6; min-height: 120px;
+        }
+        .a-edit-tiptap-resizable {
+          resize: vertical; overflow: auto;
+          min-height: 300px; max-height: 80vh; height: 500px;
+        }
+        .a-edit-tiptap-resizable::-webkit-resizer {
+          background: linear-gradient(
+            135deg,
+            transparent 50%,
+            var(--da-border, rgba(255, 255, 255, 0.2)) 50%
+          );
+        }
+        .a-edit-body-counter {
+          display: flex; justify-content: flex-end; gap: 16px;
+          padding: 8px 16px; border-top: 1px solid var(--da-border);
+          font-family: var(--da-font-mono); font-size: 12px;
+          color: var(--da-muted);
         }
         .a-edit-excerpt {
           width: 100%; background: transparent; border: none; outline: none;
@@ -622,6 +719,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
                 try {
                   const next = buildBlockDocumentFromEditor();
                   setDoc(next);
+                  setExcerpt(readExcerptFromAbstract());
                 } catch (e) {
                   console.error("Vorschau-Sync fehlgeschlagen:", e);
                 }
@@ -683,33 +781,30 @@ export default function EditorClient({ article, revisions, categories, isEditor,
               </div>
             )}
 
-            <div className="a-edit-title-card">
+            {/* Zone 1 — Titel */}
+            <div className="a-edit-zone-card a-edit-zone-card--padded">
+              <span className="a-edit-zone-label" style={{ marginBottom: 8 }}>
+                Zone 1 · Titel
+              </span>
               <input
                 className="a-edit-title-input"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Artikel-Titel"
               />
-              <InlineToolbarTextarea
-                rows={3}
-                value={excerpt}
-                onChange={setExcerpt}
-                placeholder="Abstract / Lead-Paragraph"
-                onRequestArticlePick={requestArticlePick}
-                onRequestSourcePick={requestSourcePick}
-                style={{
-                  width: "100%",
-                  background: "transparent",
-                  border: "none",
-                  outline: "none",
-                  color: "var(--da-muted)",
-                  fontSize: 16,
-                  lineHeight: 1.6,
-                  fontStyle: "italic",
-                  resize: "none",
-                  padding: 0,
-                  fontFamily: "inherit",
-                }}
+            </div>
+
+            {/* Zone 2 — Abstract */}
+            <div className="a-edit-zone-card">
+              <span
+                className="a-edit-zone-label"
+                style={{ padding: "12px 16px 0" }}
+              >
+                Zone 2 · Abstract
+              </span>
+              <TiptapAbstractEditor
+                ref={abstractEditorRef}
+                initialContent={initialAbstractTiptap}
               />
             </div>
 
@@ -808,16 +903,6 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           onConfirm={confirmLegacyMigration}
         />
       )}
-
-      <InternalArticleAutocomplete
-        open={articlePickHandler !== null}
-        onClose={() => setArticlePickHandler(null)}
-        onPick={(result) => {
-          articlePickHandler?.(result);
-          setArticlePickHandler(null);
-        }}
-        excludeId={article.id}
-      />
 
       <SourcePicker
         open={sourceInsertHandler !== null}
