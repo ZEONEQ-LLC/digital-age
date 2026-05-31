@@ -23,28 +23,16 @@ type Pattern = {
   render: (m: RegExpExecArray, key: number, renderInner: RenderInner) => ReactNode;
 };
 
-function buildPatterns(sourceUrlByDisplay: Map<number, string>): Pattern[] {
+function buildPatterns(): Pattern[] {
   return [
     {
       re: /\[\^(\d+)\]/,
       render: (m, key) => {
         // Source-Refs haben keinen Inhalt zum Rekursieren — nur die Zahl.
+        // Anker auf den entsprechenden Eintrag in der Quellen-Liste am
+        // Artikel-Ende. Externe URL ist NUR dort klickbar, damit Leser
+        // den Kontext der Quelle sehen können bevor sie wegspringen.
         const n = m[1];
-        const url = sourceUrlByDisplay.get(parseInt(n, 10));
-        if (url) {
-          return (
-            <sup key={key}>
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="article-source-ref"
-              >
-                {n}
-              </a>
-            </sup>
-          );
-        }
         return (
           <sup key={key}>
             <a href={`#source-${n}`} className="article-source-ref">
@@ -468,15 +456,7 @@ export default function BlockReader({ doc, blocks }: BlockReaderProps) {
   const effectiveBlocks: Block[] = doc?.blocks ?? blocks ?? [];
   const sources: Source[] = doc?.sources ?? [];
   const { mapping, order } = buildSourceOrder(effectiveBlocks);
-
-  // Display-Nummer → externe URL der referenzierten Quelle, damit Inline-
-  // Marker `[N]` direkt auf die externe Quelle linken kann.
-  const sourceUrlByDisplay = new Map<number, string>();
-  order.forEach((originalN, i) => {
-    const s = sources[originalN - 1];
-    if (s?.url) sourceUrlByDisplay.set(i + 1, s.url);
-  });
-  const patterns = buildPatterns(sourceUrlByDisplay);
+  const patterns = buildPatterns();
 
   return (
     <>
