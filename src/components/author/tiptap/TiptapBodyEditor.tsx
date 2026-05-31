@@ -109,10 +109,15 @@ type Props = {
   articleId: string;
   initialContent: TiptapDoc;
   onEditorReady?: (editor: Editor) => void;
+  // Etappe B: Toolbar-Button für Source-Refs. Editor reicht eine
+  // Insert-Callback nach oben, der das gewählte N als
+  // insertSourceRef(n) auf dem Editor ausführt. Sources-State + Picker-
+  // UI gehören dem Parent (EditorClient).
+  onRequestSourcePick?: (insert: (n: number) => void) => void;
 };
 
 const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
-  function TiptapBodyEditor({ articleId, initialContent, onEditorReady }, ref) {
+  function TiptapBodyEditor({ articleId, initialContent, onEditorReady, onRequestSourcePick }, ref) {
     const toolbarRef = useRef<HTMLDivElement>(null);
 
     const uploadAdapter = async (file: File, onProgress?: (e: { progress: number }) => void, abortSignal?: AbortSignal): Promise<string> => {
@@ -263,6 +268,38 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
                   <rect x="16.5" y="14" width="3.5" height="6" rx="0.5" />
                 </svg>
               </Button>
+              {onRequestSourcePick && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  tooltip="Quellen-Referenz"
+                  aria-label="Quellen-Referenz einfügen"
+                  onClick={() => {
+                    if (!editor) return;
+                    onRequestSourcePick((n) => {
+                      editor.chain().focus().insertSourceRef(n).run();
+                    });
+                  }}
+                >
+                  {/* `[^]` als Text-Glyph in der Toolbar — passt zur
+                      Token-Form, die der Autor aus dem alten Editor kennt. */}
+                  <span
+                    className="tiptap-button-icon"
+                    style={{
+                      fontFamily: "var(--da-font-mono)",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 18,
+                      height: 18,
+                    }}
+                  >
+                    [^]
+                  </span>
+                </Button>
+              )}
             </ToolbarGroup>
             <Spacer />
           </Toolbar>

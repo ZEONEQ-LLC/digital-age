@@ -307,27 +307,22 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     return patch;
   }
 
-  // Roundtrip-Guard für Body-Inhalt. Footer-Blocks (Disclaimer, Related
-  // Articles) sind eindeutig vom Editor verwaltet, der Guard prüft nur
-  // den Body-Roundtrip — die Footer-Reordering (siehe initialSplit) wird
-  // explizit toleriert, indem wir die Footer-Blocks im Original-Doc vor
-  // dem Vergleich an's Ende verschieben (gleicher Algorithmus wie beim
-  // Load).
+  // Roundtrip-Guard, Self-Fixpoint-Variante (seit Etappe B):
+  // Statt finalDoc gegen den geladenen DB-Stand zu vergleichen — was
+  // jedes legitime Hinzufügen/Entfernen von Blocks fälschlich blockt —
+  // round-trippen wir finalDoc selbst nochmal durch das Konverter-Paar
+  // (blocksToTiptap → tiptapToBlocks) und schauen, ob es semantisch
+  // unverändert wieder rauskommt. Der Guard fängt damit Serializer-
+  // Verlust (z.B. wenn der Roundtrip einen Mark verschluckt), ohne dass
+  // ein zusätzlicher Absatz im Editor als "Drift gegen Original"
+  // missverstanden wird.
   function runGuard(finalDoc: BlockDocument): GuardResult {
-    const original = doc ?? { version: BLOCK_SCHEMA_VERSION, blocks: [], sources: [] };
-    const origBody: Block[] = [];
-    const origDisclaimer: Extract<Block, { type: "disclaimer" }>[] = [];
-    const origCards: Extract<Block, { type: "internalArticleCard" }>[] = [];
-    for (const b of original.blocks) {
-      if (b.type === "disclaimer") origDisclaimer.push(b);
-      else if (b.type === "internalArticleCard") origCards.push(b);
-      else origBody.push(b);
-    }
-    const origReordered: BlockDocument = {
-      ...original,
-      blocks: [...origBody, ...origDisclaimer, ...origCards],
-    };
-    return runRoundtripGuard(origReordered, finalDoc);
+    const tiptap = blocksToTiptap(finalDoc);
+    const fixpoint = tiptapToBlocks(
+      tiptap as Parameters<typeof tiptapToBlocks>[0],
+      finalDoc.sources,
+    );
+    return runRoundtripGuard(finalDoc, fixpoint);
   }
 
   // Pre-Save-Schritt: Editor → BlockDocument + Guard. Returnt null wenn
@@ -639,8 +634,17 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         ))}
       </div>
 
-      {tab === "content" && (
-        <div className="a-edit-content-grid">
+      {/* Content-Tab dauerhaft gemountet, nur per CSS ein-/ausgeblendet.
+          Grund: Tiptap-Editor verliert beim Unmount Live-State (Cursor,
+          Selection, Undo-Stack, NodeView-State) UND seedet beim Remount
+          aus dem (statischen) initialBodyTiptap — das hat in PR #99 den
+          Verlust von neu eingefügten daSourceRef-Nodes beim Tab-Zyklus
+          ausgelöst. Vorschau/SEO/Revisionen bleiben bedingt gerendert,
+          da sie keinen verlierbaren Live-State haben. */}
+      <div
+        className="a-edit-content-grid"
+        style={{ display: tab === "content" ? undefined : "none" }}
+      >
           <div>
             {guardResult && !guardResult.allowed && (
               <div
@@ -769,6 +773,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
                 ref={bodyEditorRef}
                 articleId={article.id}
                 initialContent={initialBodyTiptap}
+                onRequestSourcePick={requestSourcePick}
               />
             </div>
             <TiptapFooterEditor
@@ -795,8 +800,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             initialIsFeatured={article.is_featured ?? false}
             initialIsHero={article.is_hero ?? false}
           />
-        </div>
-      )}
+      </div>
 
       {showLegacyModal && (
         <LegacyMigrationModal
@@ -829,10 +833,26 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             ...doc.sources,
             { id: newSourceId(), ...source },
           ];
+          // N wird aus der NEUEN Array-Länge abgeleitet — nicht aus dem
+          // doc-State, der per setDoc erst nach dem Re-Render aktualisiert
+          // wird. Der Editor-Command-Aufruf passiert synchron auf der
+          // Tiptap-Instanz und braucht das N JETZT.
           setDoc({ ...doc, sources: newSources });
           const newN = newSources.length;
           sourceInsertHandler?.(newN);
           setSourceInsertHandler(null);
+        }}
+        onUpdateExisting={(index, source) => {
+          if (!doc) return;
+          // Quelle an Position `index` ersetzen, alle anderen + N's
+          // unverändert. Tiptap-Doc wird NICHT angefasst — daSourceRef-
+          // Nodes referenzieren weiter dasselbe N.
+          const nextSources = doc.sources.map((s, i) =>
+            i === index
+              ? { id: s.id, text: source.text, ...(source.url ? { url: source.url } : {}) }
+              : s,
+          );
+          setDoc({ ...doc, sources: nextSources });
         }}
       />
 
