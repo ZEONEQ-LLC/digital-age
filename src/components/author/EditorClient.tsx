@@ -2,14 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import AuthorStatusBadge from "@/components/author/AuthorStatusBadge";
-import BlockEditor from "@/components/author/BlockEditor";
+// BlockEditor / MarkdownEditor / LegacyMigrationModal werden seit
+// Etappe A nicht mehr aus EditorClient gerendert. Der Pages-Editor
+// (src/app/autor/(suite)/seiten/[id]/PageEditorClient.tsx) importiert
+// `BlockEditor` direkt aus dessen Datei — er ist nicht von uns hier
+// abhängig. Cleanup-Imports in Etappe C, falls die Pages-Migration so
+// weit ist.
+import LegacyMigrationModal from "@/components/author/LegacyMigrationModal";
 import EditorRevisions from "@/components/author/EditorRevisions";
 import EditorSeoPanel, { type SeoState } from "@/components/author/EditorSeoPanel";
 import EditorSidebar from "@/components/author/EditorSidebar";
-import LegacyMigrationModal from "@/components/author/LegacyMigrationModal";
-import MarkdownEditor from "@/components/author/MarkdownEditor";
 import TagInput from "@/components/author/TagInput";
 import ArticleBody from "@/components/ArticleBody";
 import BlockReader from "@/components/BlockReader";
@@ -17,6 +21,8 @@ import InlineText from "@/components/InlineText";
 import InlineToolbarTextarea from "@/components/editor/InlineToolbarTextarea";
 import InternalArticleAutocomplete from "@/components/editor/InternalArticleAutocomplete";
 import SourcePicker, { newSourceId } from "@/components/editor/SourcePicker";
+import TiptapBodyEditor, { type TiptapBodyEditorHandle } from "@/components/author/tiptap/TiptapBodyEditor";
+import TiptapFooterEditor, { type DisclaimerValue, type InternalCard } from "@/components/author/tiptap/TiptapFooterEditor";
 import type { ArticleSearchResult } from "@/lib/articleSearchActions";
 import {
   archiveArticle,
@@ -27,16 +33,18 @@ import {
   type ArticlePatch,
 } from "@/lib/authorActions";
 import type { SuiteArticle, RevisionWithEditor, ArticleStatus } from "@/lib/authorApi";
-import { blocksToMarkdown, markdownToBlocks } from "@/lib/markdownBlocks";
+import { markdownToBlocks } from "@/lib/markdownBlocks";
 import type { Block, BlockDocument } from "@/types/blocks";
 import {
   BLOCK_SCHEMA_VERSION,
   emptyBlockDocument,
   hasSpecialBlocks,
 } from "@/types/blocks";
+import { blocksToTiptap } from "@/lib/tiptap/blocksToTiptap";
+import { tiptapToBlocks } from "@/lib/tiptap/tiptapToBlocks";
+import { runRoundtripGuard, type GuardResult } from "@/lib/tiptap/roundtripGuard";
 
 type Tab = "content" | "preview" | "seo" | "revisions";
-type Mode = "visual" | "markdown";
 
 type Props = {
   article: SuiteArticle;
@@ -49,7 +57,6 @@ type Props = {
 export default function EditorClient({ article, revisions, categories, isEditor, allAuthors }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("content");
-  const [mode, setMode] = useState<Mode>("visual");
 
   const [title, setTitle] = useState(article.title);
   const [excerpt, setExcerpt] = useState(article.excerpt ?? "");
@@ -86,12 +93,10 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   })();
 
   const [doc, setDoc] = useState<BlockDocument | null>(initialDoc);
-  const [markdown, setMarkdown] = useState(article.body_md ?? "");
-  // Wird true sobald der User im Markdown-Modus tippt. Wird auf false
-  // gesetzt, wenn wir Markdown aus doc neu erzeugen (also bei Visual→Markdown-
-  // Switch). Steuert ob beim nächsten Visual-Switch / Save re-geparst wird —
-  // sonst gehen Spezial-Blocks unnötig verloren.
-  const [markdownDirty, setMarkdownDirty] = useState(false);
+  // Markdown-Restbestand: body_md wird zwar weiter regeneriert (saveArticle
+  // macht das serverseitig), ist hier aber nicht mehr editierbar. State
+  // bleibt für die Plain-Text-Aggregation unten (bodyText/firstParagraph).
+  const markdown = article.body_md ?? "";
   const [status, setStatus] = useState<ArticleStatus>(article.status);
   const [showLegacyModal, setShowLegacyModal] = useState(false);
   const [articlePickHandler, setArticlePickHandler] = useState<
@@ -110,10 +115,107 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     setSourceInsertHandler(() => insertMarker);
   }
 
-  // Informational flag: zeigt einen Hinweis-Banner im Markdown-Modus, dass
-  // Spezial-Blocks bei Markdown-Edits verloren gehen. Macht Markdown NICHT
-  // read-only — der User entscheidet selbst.
-  const hasSpecialContent = doc !== null && hasSpecialBlocks(doc);
+  // (Markdown-Modus-Hinweis aus dem alten Editor — wird seit Etappe A
+  // nicht mehr verwendet. `hasSpecialBlocks` bleibt als Import-Side-Effect
+  // erreichbar für Migrations-Hilfslogik. Cleanup in Etappe C.)
+  void hasSpecialBlocks;
+
+  // === Tiptap-Editor (Etappe A) ===
+  // Body-Blocks vs. Footer-Blocks (disclaimer + internalArticleCard) bei
+  // Load aufteilen. Footer-Elemente landen im React-State, Body als
+  // Tiptap-Doc. Beim Save in umgekehrter Reihenfolge zusammenfügen +
+  // Roundtrip-Guard.
+  const initialSplit = useMemo(() => {
+    const blocks = doc?.blocks ?? [];
+    const body: Block[] = [];
+    let footerDisclaimer: Extract<Block, { type: "disclaimer" }> | null = null;
+    const footerCards: Extract<Block, { type: "internalArticleCard" }>[] = [];
+    for (const b of blocks) {
+      if (b.type === "disclaimer") {
+        // Letzter Disclaimer gewinnt (sollte in der Praxis max einer pro
+        // Artikel sein).
+        footerDisclaimer = b;
+      } else if (b.type === "internalArticleCard") {
+        footerCards.push(b);
+      } else {
+        body.push(b);
+      }
+    }
+    return { body, footerDisclaimer, footerCards };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const initialBodyTiptap = useMemo(
+    () =>
+      blocksToTiptap({
+        version: BLOCK_SCHEMA_VERSION,
+        blocks: initialSplit.body,
+        sources: doc?.sources ?? [],
+      }),
+    [initialSplit, doc],
+  );
+
+  const bodyEditorRef = useRef<TiptapBodyEditorHandle | null>(null);
+  const [disclaimer, setDisclaimer] = useState<DisclaimerValue>(
+    initialSplit.footerDisclaimer
+      ? {
+          text: initialSplit.footerDisclaimer.text,
+          linkText: initialSplit.footerDisclaimer.linkText ?? "",
+          linkUrl: initialSplit.footerDisclaimer.linkUrl ?? "",
+        }
+      : null,
+  );
+  const [relatedArticles, setRelatedArticles] = useState<InternalCard[]>(
+    initialSplit.footerCards.map((c) => ({
+      articleSlug: c.articleSlug,
+      cachedTitle: c.cachedTitle,
+      cachedCoverUrl: c.cachedCoverUrl,
+      cachedExcerpt: c.cachedExcerpt,
+    })),
+  );
+  const [guardResult, setGuardResult] = useState<GuardResult | null>(null);
+
+  function makeBlockId(): string {
+    return `bl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  }
+
+  // Serialisiert Tiptap-Body + Footer-State zu finalem BlockDocument.
+  // Behält sources[] vom Original-Doc bei (kein Picker in Etappe A).
+  function buildBlockDocumentFromEditor(): BlockDocument {
+    const original = doc ?? { version: BLOCK_SCHEMA_VERSION, blocks: [], sources: [] };
+    const bodyJson = bodyEditorRef.current?.getJSON();
+    const bodyRound = bodyJson
+      ? tiptapToBlocks(
+          bodyJson as Parameters<typeof tiptapToBlocks>[0],
+          original.sources,
+        )
+      : { version: BLOCK_SCHEMA_VERSION, blocks: [], sources: original.sources };
+    const finalBlocks: Block[] = [...bodyRound.blocks];
+    if (disclaimer) {
+      finalBlocks.push({
+        id: makeBlockId(),
+        type: "disclaimer",
+        text: disclaimer.text,
+        ...(disclaimer.linkText ? { linkText: disclaimer.linkText } : {}),
+        ...(disclaimer.linkUrl ? { linkUrl: disclaimer.linkUrl } : {}),
+      });
+    }
+    for (const c of relatedArticles) {
+      finalBlocks.push({
+        id: makeBlockId(),
+        type: "internalArticleCard",
+        articleSlug: c.articleSlug,
+        cachedTitle: c.cachedTitle,
+        ...(c.cachedCoverUrl ? { cachedCoverUrl: c.cachedCoverUrl } : {}),
+        ...(c.cachedExcerpt ? { cachedExcerpt: c.cachedExcerpt } : {}),
+      });
+    }
+    return {
+      version: BLOCK_SCHEMA_VERSION,
+      blocks: finalBlocks,
+      sources: original.sources,
+    };
+  }
 
   const [seo, setSeo] = useState<SeoState>({
     title: article.seo_title ?? "",
@@ -126,43 +228,11 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function switchMode(next: Mode) {
-    if (next === mode) return;
-
-    if (next === "markdown") {
-      // Visual → Markdown: aus aktuellem Doc rendern, Dirty-Flag zurücksetzen.
-      if (doc) setMarkdown(blocksToMarkdown(doc.blocks));
-      setMarkdownDirty(false);
-      setMode("markdown");
-      return;
-    }
-
-    // next === "visual"
-    if (doc === null) {
-      // Legacy: bei nicht-leerem Markdown via Modal bestätigen.
-      if (markdown.trim() !== "") {
-        setShowLegacyModal(true);
-        return;
-      }
-      setDoc(emptyBlockDocument());
-      setMode("visual");
-      return;
-    }
-
-    // doc existiert. Nur re-parsen wenn der User wirklich getippt hat —
-    // sonst gehen Spezial-Blocks unnötig verloren beim Hin-und-Her-Wechseln.
-    if (markdownDirty) {
-      setDoc({ ...doc, blocks: markdownToBlocks(markdown) });
-      setMarkdownDirty(false);
-    }
-    setMode("visual");
-  }
-
+  // Legacy-Modal wird seit Etappe A nicht mehr verwendet. Bleibt als
+  // No-Op-Closure, damit der Modal-Render unten keinen Compile-Error wirft.
+  // Cleanup in Etappe C.
   function confirmLegacyMigration() {
-    const blocks = markdownToBlocks(markdown);
-    setDoc({ version: BLOCK_SCHEMA_VERSION, blocks, sources: [] });
     setShowLegacyModal(false);
-    setMode("visual");
   }
 
   // Plain-Text-Aggregation des Body-Inhalts: Block-Tree (Visual) ODER
@@ -208,11 +278,12 @@ export default function EditorClient({ article, revisions, categories, isEditor,
 
   const readMinutes = Math.max(1, Math.round(wordCount / 200));
 
-  function buildPatch(): ArticlePatch {
+  // Build patch ohne Guard — wird intern von handleSave/Submit/Publish
+  // VOR `saveArticle` gerufen. Der Guard läuft separat (siehe runGuard),
+  // damit bei einer Abweichung das Save abgebrochen und der Hinweis
+  // angezeigt werden kann.
+  function buildPatchUnchecked(finalDoc: BlockDocument): ArticlePatch {
     const cleanTags = tagList.map((t) => t.trim()).filter(Boolean);
-    // Date-Input liefert "YYYY-MM-DD"; wir speichern Midnight-UTC. Leerer
-    // String → null (DB-Spalte ist nullable). Beim Publish behält publishArticle
-    // das vorhandene Datum und überschreibt nicht.
     const publishedAtIso = publishedAtDate
       ? `${publishedAtDate}T00:00:00.000Z`
       : null;
@@ -228,33 +299,63 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       seo_keyword_primary: seo.keyword || null,
       published_at: publishedAtIso,
       locale,
+      body_blocks: finalDoc,
     };
-    if (doc) {
-      // Wenn im Markdown-Modus getippt wurde: Markdown → Blocks synchronisieren
-      // bevor wir doc speichern. Sources bleiben erhalten (doc-level), aber
-      // Spezial-Block-Strukturen werden beim Re-Parse verworfen.
-      if (mode === "markdown" && markdownDirty) {
-        patch.body_blocks = { ...doc, blocks: markdownToBlocks(markdown) };
-      } else {
-        patch.body_blocks = doc;
-      }
-    } else {
-      // Legacy-Markdown-Only: body_md as-is durchschleifen
-      patch.body_md = markdown;
-    }
     if (seo.slug && seo.slug !== article.slug) {
       patch.slug = seo.slug;
     }
     return patch;
   }
 
-  async function handleSave() {
+  // Roundtrip-Guard für Body-Inhalt. Footer-Blocks (Disclaimer, Related
+  // Articles) sind eindeutig vom Editor verwaltet, der Guard prüft nur
+  // den Body-Roundtrip — die Footer-Reordering (siehe initialSplit) wird
+  // explizit toleriert, indem wir die Footer-Blocks im Original-Doc vor
+  // dem Vergleich an's Ende verschieben (gleicher Algorithmus wie beim
+  // Load).
+  function runGuard(finalDoc: BlockDocument): GuardResult {
+    const original = doc ?? { version: BLOCK_SCHEMA_VERSION, blocks: [], sources: [] };
+    const origBody: Block[] = [];
+    const origDisclaimer: Extract<Block, { type: "disclaimer" }>[] = [];
+    const origCards: Extract<Block, { type: "internalArticleCard" }>[] = [];
+    for (const b of original.blocks) {
+      if (b.type === "disclaimer") origDisclaimer.push(b);
+      else if (b.type === "internalArticleCard") origCards.push(b);
+      else origBody.push(b);
+    }
+    const origReordered: BlockDocument = {
+      ...original,
+      blocks: [...origBody, ...origDisclaimer, ...origCards],
+    };
+    return runRoundtripGuard(origReordered, finalDoc);
+  }
+
+  // Pre-Save-Schritt: Editor → BlockDocument + Guard. Returnt null wenn
+  // Guard blockt (Error wird gesetzt), sonst das finale Doc.
+  function prepareSave(): BlockDocument | null {
     setError(null);
+    const finalDoc = buildBlockDocumentFromEditor();
+    const guard = runGuard(finalDoc);
+    setGuardResult(guard);
+    if (!guard.allowed) {
+      setError(
+        `Speichern blockiert: ${guard.changedBlocks.length} Block(s) würden verändert. ` +
+          "Details unten — bitte prüfen.",
+      );
+      return null;
+    }
+    return finalDoc;
+  }
+
+  async function handleSave() {
+    const finalDoc = prepareSave();
+    if (!finalDoc) return;
     startTransition(async () => {
       try {
-        const updated = await saveArticle(article.id, buildPatch());
+        const updated = await saveArticle(article.id, buildPatchUnchecked(finalDoc));
         setStatus(updated.status);
         setSavedAt("Gespeichert");
+        setDoc(finalDoc);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Speichern fehlgeschlagen.");
@@ -263,10 +364,11 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   }
 
   async function handleSubmit() {
-    setError(null);
+    const finalDoc = prepareSave();
+    if (!finalDoc) return;
     startTransition(async () => {
       try {
-        await saveArticle(article.id, buildPatch());
+        await saveArticle(article.id, buildPatchUnchecked(finalDoc));
         const next = await submitForReview(article.id);
         setStatus(next.status);
         router.push("/autor/artikel");
@@ -277,13 +379,15 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   }
 
   async function handlePublish() {
-    setError(null);
+    const finalDoc = prepareSave();
+    if (!finalDoc) return;
     startTransition(async () => {
       try {
-        await saveArticle(article.id, buildPatch());
+        await saveArticle(article.id, buildPatchUnchecked(finalDoc));
         const next = await publishArticle(article.id);
         setStatus(next.status);
         setSavedAt("Publiziert");
+        setDoc(finalDoc);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Publish fehlgeschlagen.");
@@ -516,7 +620,19 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             key={t.id}
             type="button"
             className={`a-edit-tab${t.id === tab ? " a-edit-tab--active" : ""}`}
-            onClick={() => setTab(t.id as Tab)}
+            onClick={() => {
+              // Lazy-Sync vor Wechsel auf Vorschau: aktuellen Editor-State
+              // in `doc` schreiben, damit BlockReader das Aktuelle rendert.
+              if (t.id === "preview") {
+                try {
+                  const next = buildBlockDocumentFromEditor();
+                  setDoc(next);
+                } catch (e) {
+                  console.error("Vorschau-Sync fehlgeschlagen:", e);
+                }
+              }
+              setTab(t.id as Tab);
+            }}
           >
             {t.label}
           </button>
@@ -526,28 +642,42 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       {tab === "content" && (
         <div className="a-edit-content-grid">
           <div>
-            <div className="a-edit-mode-row">
-              <div className="a-edit-mode-toggle">
-                {([
-                  { id: "visual", label: "Visual", icon: "▤" },
-                  { id: "markdown", label: "Markdown", icon: "M↓" },
-                ] as const).map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    className={`a-edit-mode-btn${mode === m.id ? " a-edit-mode-btn--active" : ""}`}
-                    onClick={() => switchMode(m.id)}
-                  >
-                    <span style={{ fontSize: 11, opacity: mode === m.id ? 1 : 0.7 }}>{m.icon}</span>
-                    {m.label}
-                  </button>
-                ))}
+            {guardResult && !guardResult.allowed && (
+              <div
+                style={{
+                  background: "rgba(255, 92, 92, 0.08)",
+                  border: "1px solid var(--da-red, #ff5c5c)",
+                  borderRadius: 6,
+                  padding: "12px 14px",
+                  marginBottom: 14,
+                  fontSize: 13,
+                  color: "var(--da-text)",
+                }}
+              >
+                <div style={{ fontWeight: 700, marginBottom: 6, color: "var(--da-red, #ff5c5c)" }}>
+                  Speichern verweigert — {guardResult.changedBlocks.length} Block(s) würden semantisch verändert.
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18, color: "var(--da-muted)" }}>
+                  {guardResult.changedBlocks.slice(0, 8).map((c, i) => (
+                    <li key={i} style={{ marginBottom: 6 }}>
+                      <span style={{ fontFamily: "var(--da-font-mono)", color: "var(--da-text-strong)" }}>
+                        Block #{c.index} ({c.type}):
+                      </span>{" "}
+                      {c.reason}
+                      <div style={{ fontSize: 11, marginTop: 4, color: "var(--da-muted-soft)" }}>
+                        Original: <code>{c.origPreview}</code>
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--da-muted-soft)" }}>
+                        Nach Save: <code>{c.candPreview}</code>
+                      </div>
+                    </li>
+                  ))}
+                  {guardResult.changedBlocks.length > 8 && (
+                    <li>… {guardResult.changedBlocks.length - 8} weitere Abweichungen</li>
+                  )}
+                </ul>
               </div>
-              <span className="a-edit-mode-hint">
-                {mode === "markdown" ? "Markdown direkt editieren" : "Hover über Blöcke für Aktionen"}
-              </span>
-            </div>
-
+            )}
 
             <div className="a-edit-title-card">
               <input
@@ -635,86 +765,18 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             </div>
 
             <div className="a-edit-body-card">
-              {mode === "visual" ? (
-                doc ? (
-                  <>
-                    <div
-                      style={{
-                        background: "rgba(50, 255, 126, 0.06)",
-                        border: "1px solid var(--da-border)",
-                        color: "var(--da-muted)",
-                        padding: "8px 12px",
-                        borderRadius: 4,
-                        fontSize: 12,
-                        marginBottom: 14,
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      Inline-Formatierung (Bold, Highlights, Links, Quellen
-                      etc.) erscheint hier als Markdown- und Custom-Syntax.
-                      Wie der Artikel später aussieht, zeigt der{" "}
-                      <button
-                        type="button"
-                        onClick={() => setTab("preview")}
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          color: "var(--da-green)",
-                          textDecoration: "underline",
-                          cursor: "pointer",
-                          fontSize: "inherit",
-                          padding: 0,
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        Vorschau-Tab
-                      </button>
-                      .
-                    </div>
-                    <BlockEditor
-                      doc={doc}
-                      onChange={setDoc}
-                      articleId={article.id}
-                      onRequestArticlePick={requestArticlePick}
-                      onRequestSourcePick={requestSourcePick}
-                    />
-                  </>
-                ) : (
-                  <div style={{ color: "var(--da-muted)", fontSize: 14 }}>
-                    Visual-Editor wird vorbereitet…
-                  </div>
-                )
-              ) : (
-                <>
-                  {hasSpecialContent && (
-                    <div
-                      style={{
-                        background: "rgba(255, 140, 66, 0.08)",
-                        border: "1px solid var(--da-orange)",
-                        color: "var(--da-orange)",
-                        padding: "10px 14px",
-                        borderRadius: 4,
-                        fontSize: 13,
-                        marginBottom: 12,
-                      }}
-                    >
-                      Dieser Artikel enthält Spezial-Blocks (StatBox,
-                      Disclaimer, Quellen, etc.). Markdown-Sicht zeigt eine
-                      vereinfachte Darstellung — wenn du hier änderst und
-                      speicherst, werden die Spezial-Blocks durch den
-                      Markdown-Inhalt ersetzt.
-                    </div>
-                  )}
-                  <MarkdownEditor
-                    value={markdown}
-                    onChange={(v) => {
-                      setMarkdown(v);
-                      setMarkdownDirty(true);
-                    }}
-                  />
-                </>
-              )}
+              <TiptapBodyEditor
+                ref={bodyEditorRef}
+                articleId={article.id}
+                initialContent={initialBodyTiptap}
+              />
             </div>
+            <TiptapFooterEditor
+              disclaimer={disclaimer}
+              onChangeDisclaimer={setDisclaimer}
+              relatedArticles={relatedArticles}
+              onChangeRelatedArticles={setRelatedArticles}
+            />
           </div>
 
           <EditorSidebar
