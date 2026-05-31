@@ -634,8 +634,17 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         ))}
       </div>
 
-      {tab === "content" && (
-        <div className="a-edit-content-grid">
+      {/* Content-Tab dauerhaft gemountet, nur per CSS ein-/ausgeblendet.
+          Grund: Tiptap-Editor verliert beim Unmount Live-State (Cursor,
+          Selection, Undo-Stack, NodeView-State) UND seedet beim Remount
+          aus dem (statischen) initialBodyTiptap — das hat in PR #99 den
+          Verlust von neu eingefügten daSourceRef-Nodes beim Tab-Zyklus
+          ausgelöst. Vorschau/SEO/Revisionen bleiben bedingt gerendert,
+          da sie keinen verlierbaren Live-State haben. */}
+      <div
+        className="a-edit-content-grid"
+        style={{ display: tab === "content" ? undefined : "none" }}
+      >
           <div>
             {guardResult && !guardResult.allowed && (
               <div
@@ -791,8 +800,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             initialIsFeatured={article.is_featured ?? false}
             initialIsHero={article.is_hero ?? false}
           />
-        </div>
-      )}
+      </div>
 
       {showLegacyModal && (
         <LegacyMigrationModal
