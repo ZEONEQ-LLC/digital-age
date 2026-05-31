@@ -43,8 +43,9 @@ import {
 } from "@/types/blocks";
 import { blocksToTiptap } from "@/lib/tiptap/blocksToTiptap";
 import { tiptapToBlocks } from "@/lib/tiptap/tiptapToBlocks";
-import { contentWhitelistMatch, runRoundtripGuard, type GuardResult } from "@/lib/tiptap/roundtripGuard";
+import { contentWhitelistMatch, runRoundtripGuard, stripAllMarkup, type GuardResult } from "@/lib/tiptap/roundtripGuard";
 import { cleanupMarkdown } from "@/lib/editor/mdCleanup";
+import { generateAbstract } from "@/lib/ai/abstractActions";
 
 type Tab = "content" | "preview" | "seo" | "revisions";
 
@@ -218,6 +219,61 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     const first = back.blocks.find((b) => b.type === "paragraph");
     return first?.type === "paragraph" ? first.content : "";
   }
+
+  // AI-Abstract-Generierung. Pipeline: bodyText strippen (siehe useMemo
+  // weiter unten) → callLLM via generateAbstract(Server Action) → Token-
+  // String als Single-Paragraph-Block durch blocksToTiptap → setContent
+  // auf den Abstract-Editor. Plus setExcerpt für die State-Sync, damit
+  // Vorschau + Word-Count sofort stimmen ohne weiteren Tab-Wechsel.
+  const [aiAbstractBusy, setAiAbstractBusy] = useState(false);
+  const [aiAbstractError, setAiAbstractError] = useState<string | null>(null);
+
+  function aiAbstractErrorMessage(kind: string): string {
+    if (kind === "rate_limit") return "AI-Limit erreicht. Bitte später erneut versuchen.";
+    if (kind === "timeout") return "Zeitüberschreitung. Bitte erneut versuchen.";
+    if (kind === "auth" || kind === "config") return "AI-Service nicht verfügbar.";
+    return "Generierung fehlgeschlagen.";
+  }
+
+  async function handleGenerateAbstract() {
+    if (aiAbstractBusy) return;
+    setAiAbstractError(null);
+    const cleanBody = stripAllMarkup(bodyText).trim();
+    if (cleanBody.length < 200) return; // Doppel-Guard zum disabled-Button.
+    if (excerpt.trim().length > 0) {
+      const ok = window.confirm(
+        "Bestehender Abstract wird ersetzt. Fortfahren? (Undo mit Strg+Z möglich.)",
+      );
+      if (!ok) return;
+    }
+    setAiAbstractBusy(true);
+    try {
+      const result = await generateAbstract({
+        title: title.trim(),
+        bodyText: cleanBody,
+        locale,
+      });
+      if (!result.ok) {
+        setAiAbstractError(aiAbstractErrorMessage(result.kind));
+        return;
+      }
+      const aiText = result.text.trim();
+      if (!aiText) {
+        setAiAbstractError("Generierung lieferte leeren Text.");
+        return;
+      }
+      const tiptap = blocksToTiptap({
+        version: BLOCK_SCHEMA_VERSION,
+        blocks: [{ id: "abs", type: "paragraph", content: aiText }],
+        sources: [],
+      });
+      abstractEditorRef.current?.setContent(tiptap);
+      setExcerpt(aiText);
+    } finally {
+      setAiAbstractBusy(false);
+    }
+  }
+
   const [disclaimer, setDisclaimer] = useState<DisclaimerValue>(
     initialSplit.footerDisclaimer
       ? {
@@ -339,6 +395,19 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   }, [bodyText, title, excerpt]);
 
   const readMinutes = Math.max(1, Math.round(wordCount / 200));
+
+  // Mindestlänge des gestrippten Body-Texts, ab der die AI-Abstract-
+  // Generierung sinnvoll Rate-Limit-Kontingent verbraucht. Token-Marker
+  // (`[^N]`, `{{g}}`, `**`) zählen NICHT mit — sie tragen keinen
+  // semantischen Inhalt für die Zusammenfassung.
+  const MIN_BODY_FOR_ABSTRACT = 200;
+  const aiAbstractDisabledReason = useMemo(() => {
+    const clean = stripAllMarkup(bodyText).trim();
+    if (clean.length < MIN_BODY_FOR_ABSTRACT) {
+      return "Body-Text zu kurz für Abstract-Generierung (mindestens 200 Zeichen).";
+    }
+    return null;
+  }, [bodyText]);
 
   // Build patch ohne Guard — wird intern von handleSave/Submit/Publish
   // VOR `saveArticle` gerufen. Der Guard läuft separat (siehe runGuard),
@@ -908,7 +977,44 @@ export default function EditorClient({ article, revisions, categories, isEditor,
               <TiptapAbstractEditor
                 ref={abstractEditorRef}
                 initialContent={initialAbstractTiptap}
+                onGenerateAbstract={handleGenerateAbstract}
+                aiBusy={aiAbstractBusy}
+                aiDisabledReason={aiAbstractDisabledReason}
               />
+              {aiAbstractError && (
+                <div
+                  role="status"
+                  style={{
+                    margin: "8px 16px 12px",
+                    padding: "8px 12px",
+                    borderRadius: 4,
+                    background: "rgba(255, 92, 92, 0.12)",
+                    border: "1px solid var(--da-red, #ff5c5c)",
+                    color: "var(--da-red, #ff5c5c)",
+                    fontSize: 12,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
+                >
+                  <span>{aiAbstractError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setAiAbstractError(null)}
+                    style={{
+                      background: "transparent",
+                      border: 0,
+                      color: "inherit",
+                      cursor: "pointer",
+                      fontSize: 12,
+                    }}
+                    aria-label="Fehlermeldung schliessen"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="a-edit-meta-row">

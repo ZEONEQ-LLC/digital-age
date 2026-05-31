@@ -15,6 +15,7 @@ const TASK_LABELS: Record<AiTask, string> = {
   seo_pipeline: "SEO-Pipeline (Master)",
   seo_review: "SEO-Verbesserungsvorschläge",
   news_item_generation: "News-Ticker Item-Generation",
+  abstract_generate: "Abstract generieren",
 };
 
 export default async function AiConfigPage() {

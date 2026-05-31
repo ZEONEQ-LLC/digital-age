@@ -6,8 +6,9 @@ import { StarterKit } from "@tiptap/starter-kit";
 import { Highlight } from "@tiptap/extension-highlight";
 import { Placeholder } from "@tiptap/extension-placeholder";
 
-import { Toolbar, ToolbarGroup } from "@/components/tiptap-ui-primitive/toolbar";
+import { Toolbar, ToolbarGroup, ToolbarSeparator } from "@/components/tiptap-ui-primitive/toolbar";
 import { Spacer } from "@/components/tiptap-ui-primitive/spacer";
+import { Button } from "@/components/tiptap-ui-primitive/button";
 import { ColorHighlightPopover } from "@/components/tiptap-ui/color-highlight-popover";
 import type { HighlightColor } from "@/components/tiptap-ui/color-highlight-button/use-color-highlight";
 import { LinkPopover } from "@/components/tiptap-ui/link-popover";
@@ -26,10 +27,20 @@ const BRAND_HIGHLIGHT_COLORS: HighlightColor[] = [
 
 export type TiptapAbstractEditorHandle = {
   getJSON: () => TiptapDoc;
+  // Vom AI-Abstract-Pfad genutzt: nach dem LLM-Call ersetzen wir den
+  // Editor-Inhalt durch den frisch generierten Abstract.
+  setContent: (json: TiptapDoc) => void;
 };
 
 type Props = {
   initialContent: TiptapDoc;
+  // Toolbar-Button "AI-Abstract generieren". Logik (Body-Text holen,
+  // callLLM, setContent) sitzt im EditorClient — der Button reicht den
+  // Klick nur weiter. `aiBusy` + `aiDisabledReason` kommen vom Parent
+  // damit der Loading-Spinner und der Tooltip pro Artikel-State stimmen.
+  onGenerateAbstract?: () => void;
+  aiBusy?: boolean;
+  aiDisabledReason?: string | null;
 };
 
 // Inline-only Tiptap-Editor für den Lead-Absatz (`articles.excerpt`).
@@ -41,7 +52,10 @@ type Props = {
 // InternalLinkMark, FontSizeMark — Bestand-Token-Schutz gegen lossy
 // parse beim setContent-Mount.
 const TiptapAbstractEditor = forwardRef<TiptapAbstractEditorHandle, Props>(
-  function TiptapAbstractEditor({ initialContent }, ref) {
+  function TiptapAbstractEditor(
+    { initialContent, onGenerateAbstract, aiBusy, aiDisabledReason },
+    ref,
+  ) {
     const editor = useEditor({
       immediatelyRender: false,
       editorProps: {
@@ -75,10 +89,20 @@ const TiptapAbstractEditor = forwardRef<TiptapAbstractEditorHandle, Props>(
       content: initialContent,
     });
 
-    useImperativeHandle(ref, () => ({
-      getJSON: () =>
-        (editor?.getJSON() ?? { type: "doc", content: [] }) as TiptapDoc,
-    }));
+    useImperativeHandle(
+      ref,
+      () => ({
+        getJSON: () =>
+          (editor?.getJSON() ?? { type: "doc", content: [] }) as TiptapDoc,
+        setContent: (json) => {
+          editor?.commands.setContent(
+            json as Parameters<typeof editor.commands.setContent>[0],
+            { emitUpdate: true },
+          );
+        },
+      }),
+      [editor],
+    );
 
     return (
       <EditorContext.Provider value={{ editor }}>
@@ -95,6 +119,38 @@ const TiptapAbstractEditor = forwardRef<TiptapAbstractEditorHandle, Props>(
               <LinkPopover />
               <ColorHighlightPopover colors={BRAND_HIGHLIGHT_COLORS} />
             </ToolbarGroup>
+            {onGenerateAbstract && (
+              <>
+                <ToolbarSeparator />
+                <ToolbarGroup>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    tooltip={aiDisabledReason ?? "AI-Abstract generieren"}
+                    aria-label="AI-Abstract generieren"
+                    onClick={onGenerateAbstract}
+                    disabled={!!aiBusy || !!aiDisabledReason}
+                  >
+                    <span
+                      className="tiptap-button-icon"
+                      style={{
+                        fontFamily: "var(--da-font-mono)",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 18,
+                        height: 18,
+                        letterSpacing: "-0.05em",
+                      }}
+                    >
+                      {aiBusy ? "…" : "AI"}
+                    </span>
+                  </Button>
+                </ToolbarGroup>
+              </>
+            )}
             <Spacer />
           </Toolbar>
           <div className="a-edit-abstract-body">

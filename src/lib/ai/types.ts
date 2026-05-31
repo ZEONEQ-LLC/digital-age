@@ -31,7 +31,11 @@ export type AiTask =
   // Title/Teaser/Summary/Category als JSON liefert oder mit {skip:true}
   // off-topic-Items aussortiert. Wird vom Refresh-Orchestrator pro Item
   // einzeln aufgerufen.
-  | "news_item_generation";
+  | "news_item_generation"
+  // Abstract-Generierung aus dem Body-Text. Wird vom Toolbar-Button im
+  // Abstract-Editor aufgerufen. Locale (de-CH | en) ist harte Vorgabe im
+  // System-Prompt, Output ist Plain-Token-Text (kein JSON).
+  | "abstract_generate";
 
 export type LLMParams = {
   system: string;
