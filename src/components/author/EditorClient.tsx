@@ -184,12 +184,28 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   function buildBlockDocumentFromEditor(): BlockDocument {
     const original = doc ?? { version: BLOCK_SCHEMA_VERSION, blocks: [], sources: [] };
     const bodyJson = bodyEditorRef.current?.getJSON();
+    // === DIAGNOSE-LOGGING (Bug 1/2) — wird in Stufe 2 entfernt ===
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const j = bodyJson as any;
+      // eslint-disable-next-line no-console
+      console.log(
+        "[diag/tab-click] getJSON firstNode:",
+        JSON.stringify(j?.content?.[0]?.content?.[0]),
+      );
+      // eslint-disable-next-line no-console
+      console.log("[diag/tab-click] bodyJson present:", !!bodyJson);
+    } catch {
+      // ignore
+    }
     const bodyRound = bodyJson
       ? tiptapToBlocks(
           bodyJson as Parameters<typeof tiptapToBlocks>[0],
           original.sources,
         )
       : { version: BLOCK_SCHEMA_VERSION, blocks: [], sources: original.sources };
+    // eslint-disable-next-line no-console
+    console.log("[diag/tab-click] bodyRound.blocks.length:", bodyRound.blocks.length);
     const finalBlocks: Block[] = [...bodyRound.blocks];
     if (disclaimer) {
       finalBlocks.push({

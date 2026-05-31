@@ -183,6 +183,24 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
       content: initialContent,
       onCreate({ editor: ed }) {
         onEditorReady?.(ed);
+        // === DIAGNOSE-LOGGING (Bug 1/2) — wird in Stufe 2 entfernt ===
+        try {
+          const j = ed.getJSON();
+          // eslint-disable-next-line no-console
+          console.log("[diag/onCreate] firstNode:", JSON.stringify(j.content?.[0]?.content?.[0]));
+        } catch {
+          // ignore
+        }
+      },
+      onUpdate({ editor: ed }) {
+        // === DIAGNOSE-LOGGING (Bug 1/2) ===
+        try {
+          const j = ed.getJSON();
+          // eslint-disable-next-line no-console
+          console.log("[diag/onUpdate] firstNode:", JSON.stringify(j.content?.[0]?.content?.[0]));
+        } catch {
+          // ignore
+        }
       },
     });
 
