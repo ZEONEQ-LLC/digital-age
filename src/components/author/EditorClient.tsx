@@ -307,27 +307,22 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     return patch;
   }
 
-  // Roundtrip-Guard für Body-Inhalt. Footer-Blocks (Disclaimer, Related
-  // Articles) sind eindeutig vom Editor verwaltet, der Guard prüft nur
-  // den Body-Roundtrip — die Footer-Reordering (siehe initialSplit) wird
-  // explizit toleriert, indem wir die Footer-Blocks im Original-Doc vor
-  // dem Vergleich an's Ende verschieben (gleicher Algorithmus wie beim
-  // Load).
+  // Roundtrip-Guard, Self-Fixpoint-Variante (seit Etappe B):
+  // Statt finalDoc gegen den geladenen DB-Stand zu vergleichen — was
+  // jedes legitime Hinzufügen/Entfernen von Blocks fälschlich blockt —
+  // round-trippen wir finalDoc selbst nochmal durch das Konverter-Paar
+  // (blocksToTiptap → tiptapToBlocks) und schauen, ob es semantisch
+  // unverändert wieder rauskommt. Der Guard fängt damit Serializer-
+  // Verlust (z.B. wenn der Roundtrip einen Mark verschluckt), ohne dass
+  // ein zusätzlicher Absatz im Editor als "Drift gegen Original"
+  // missverstanden wird.
   function runGuard(finalDoc: BlockDocument): GuardResult {
-    const original = doc ?? { version: BLOCK_SCHEMA_VERSION, blocks: [], sources: [] };
-    const origBody: Block[] = [];
-    const origDisclaimer: Extract<Block, { type: "disclaimer" }>[] = [];
-    const origCards: Extract<Block, { type: "internalArticleCard" }>[] = [];
-    for (const b of original.blocks) {
-      if (b.type === "disclaimer") origDisclaimer.push(b);
-      else if (b.type === "internalArticleCard") origCards.push(b);
-      else origBody.push(b);
-    }
-    const origReordered: BlockDocument = {
-      ...original,
-      blocks: [...origBody, ...origDisclaimer, ...origCards],
-    };
-    return runRoundtripGuard(origReordered, finalDoc);
+    const tiptap = blocksToTiptap(finalDoc);
+    const fixpoint = tiptapToBlocks(
+      tiptap as Parameters<typeof tiptapToBlocks>[0],
+      finalDoc.sources,
+    );
+    return runRoundtripGuard(finalDoc, fixpoint);
   }
 
   // Pre-Save-Schritt: Editor → BlockDocument + Guard. Returnt null wenn
