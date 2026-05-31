@@ -65,6 +65,11 @@ const BRAND_HIGHLIGHT_COLORS: HighlightColor[] = [
 export type TiptapBodyEditorHandle = {
   getJSON: () => TiptapDoc;
   isEmpty: () => boolean;
+  // MD-Cleanup-Pipeline (siehe EditorClient.handleMdCleanup): liest den
+  // aktuellen Editor-Inhalt als Plain-Text-Markdown und ersetzt ihn nach
+  // dem Parsen durch das neue Tiptap-Doc.
+  getText: () => string;
+  setContent: (json: TiptapDoc) => void;
 };
 
 type EditorLike = {
@@ -114,10 +119,15 @@ type Props = {
   // insertSourceRef(n) auf dem Editor ausführt. Sources-State + Picker-
   // UI gehören dem Parent (EditorClient).
   onRequestSourcePick?: (insert: (n: number) => void) => void;
+  // MD-Cleanup-Trigger: Editor selbst kennt seine Sources nicht — die
+  // Logik (Markdown parsen + sources mergen) sitzt im EditorClient. Wir
+  // reichen den Klick als Event nach oben, der Parent zieht via
+  // getText()/setContent() durch die Pipeline.
+  onMdCleanup?: () => void;
 };
 
 const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
-  function TiptapBodyEditor({ articleId, initialContent, onEditorReady, onRequestSourcePick }, ref) {
+  function TiptapBodyEditor({ articleId, initialContent, onEditorReady, onRequestSourcePick, onMdCleanup }, ref) {
     const toolbarRef = useRef<HTMLDivElement>(null);
 
     const uploadAdapter = async (file: File, onProgress?: (e: { progress: number }) => void, abortSignal?: AbortSignal): Promise<string> => {
@@ -203,6 +213,13 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
           if (c.type === "paragraph" && (!c.content || c.content.length === 0)) return true;
         }
         return false;
+      },
+      // \n\n als Block-Separator, damit Absätze beim Round-Trip durch den
+      // MD-Cleanup-Parser erhalten bleiben (markdownToBlocks splittet an
+      // Leerzeilen).
+      getText: () => editor?.getText({ blockSeparator: "\n\n" }) ?? "",
+      setContent: (json) => {
+        editor?.commands.setContent(json as Parameters<typeof editor.commands.setContent>[0], { emitUpdate: true });
       },
     }), [editor]);
 
@@ -297,6 +314,32 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
                     }}
                   >
                     [^]
+                  </span>
+                </Button>
+              )}
+              {onMdCleanup && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  tooltip="Markdown-Cleanup (Header + Quellen)"
+                  aria-label="Markdown bereinigen"
+                  onClick={onMdCleanup}
+                >
+                  <span
+                    className="tiptap-button-icon"
+                    style={{
+                      fontFamily: "var(--da-font-mono)",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 18,
+                      height: 18,
+                      letterSpacing: "-0.05em",
+                    }}
+                  >
+                    MD
                   </span>
                 </Button>
               )}
