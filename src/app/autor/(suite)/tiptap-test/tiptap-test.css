@@ -298,3 +298,21 @@
   background-color: rgba(50, 255, 126, 0.35);
   color: #1c1c1e;
 }
+
+/* ============================================================
+   9. Link-Popover Input — Text-Farbe sichtbar machen
+   ============================================================
+   Vendor-Input erbt `color` vom umgebenden Kontext; auf dem
+   weissen Popover-Card-BG fiel das auf die globale weisse
+   Editor-Farbe zurück → weiss auf weiss.
+   Das Popover wird via Radix-Portal an <body> gehängt — daher
+   greift `.tiptap-test-wrapper`-Scope nicht. Wir targeten direkt
+   die Vendor-Klasse `.tiptap-popover .tiptap-input`. Sandbox
+   ist der einzige Konsument im Projekt, kein Leak-Risiko. */
+.tiptap-popover .tiptap-input {
+  color: #1c1c1e;
+  background-color: #ffffff;
+}
+.tiptap-popover .tiptap-input::placeholder {
+  color: rgba(0, 0, 0, 0.4);
+}
