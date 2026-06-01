@@ -457,10 +457,31 @@ export default function EditorClient({ article, revisions, categories, isEditor,
 
     // Editor-vs-Roundtrip-Guard: faengt Editor→Block-Verluste, die der
     // Self-Fixpoint nicht sehen kann (hardBreak, unbekannte Inline-Nodes
-    // /Marks). Falls beide Guards Befunde haben, werden sie kombiniert.
+    // /Marks).
+    //
+    // Wichtig: bodyEditorRef.getJSON() liefert NUR die Body-Blocks.
+    // finalDoc.blocks hingegen ist `body + footer` (Disclaimer +
+    // InternalArticleCard werden in buildBlockDocumentFromEditor an die
+    // Body-Blocks angehaengt — sie leben architektonisch im separaten
+    // TiptapFooterEditor, nicht im Body-Editor). Wenn wir den Guard gegen
+    // blocksToTiptap(finalDoc) laufen lassen, wuerde er die Footer-Blocks
+    // als "im Editor verloren" werten und systematisch False-Positive
+    // werfen (62% der Artikel haben einen Disclaimer).
+    //
+    // Loesung: rebuilt-Doc fuer den Editor-Vergleich aus den Body-only-
+    // Blocks neu serialisieren, damit beide Seiten denselben Scope haben.
+    // Der Self-Fixpoint-Guard oben bleibt unangetastet — der prueft
+    // finalDoc gegen sich selbst und ist Footer-symmetrisch korrekt.
     const editorJson = bodyEditorRef.current?.getJSON();
     if (editorJson) {
-      const editorGuard = runEditorRoundtripGuard(editorJson, tiptap);
+      const bodyOnlyBlocks = finalDoc.blocks.filter(
+        (b) => b.type !== "disclaimer" && b.type !== "internalArticleCard",
+      );
+      const tiptapBodyOnly = blocksToTiptap({
+        ...finalDoc,
+        blocks: bodyOnlyBlocks,
+      });
+      const editorGuard = runEditorRoundtripGuard(editorJson, tiptapBodyOnly);
       if (!editorGuard.allowed) {
         return {
           allowed: false,
