@@ -30,7 +30,16 @@ export type SourceRefNode = {
   marks?: Mark[];
 };
 
-export type InlineNode = TextNode | SourceRefNode;
+// HardBreak entspricht Shift+Enter im Tiptap-Editor (StarterKit aktiviert
+// die Extension defaultmaessig). Im BlockDocument-Schema wird das als
+// `\n` im content-String des paragraph/heading-Blocks gespeichert; der
+// Konverter wandelt 1:1 hin und zurueck.
+export type HardBreakNode = {
+  type: "hardBreak";
+  marks?: Mark[];
+};
+
+export type InlineNode = TextNode | SourceRefNode | HardBreakNode;
 
 export type ParagraphNode = {
   type: "paragraph";

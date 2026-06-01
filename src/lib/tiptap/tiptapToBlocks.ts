@@ -81,6 +81,12 @@ function wrapWithMark(text: string, mark: Mark): string {
 
 function emitRaw(node: InlineNode): string {
   if (node.type === "daSourceRef") return `[^${node.attrs.n}]`;
+  // Shift+Enter wird als hardBreak-Inline-Node geliefert. Im BlockDocument
+  // wird das als `\n` im content-String konserviert; blocksToTiptap macht
+  // den umgekehrten Weg (\n → hardBreak), damit der Editor beim Mount
+  // sofort echte hardBreak-Nodes hat statt sich auf ProseMirror-
+  // Normalisierung zu verlassen.
+  if (node.type === "hardBreak") return "\n";
   return node.text;
 }
 

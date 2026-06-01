@@ -43,7 +43,7 @@ import {
 } from "@/types/blocks";
 import { blocksToTiptap } from "@/lib/tiptap/blocksToTiptap";
 import { tiptapToBlocks } from "@/lib/tiptap/tiptapToBlocks";
-import { contentWhitelistMatch, runRoundtripGuard, stripAllMarkup, type GuardResult } from "@/lib/tiptap/roundtripGuard";
+import { contentWhitelistMatch, runEditorRoundtripGuard, runRoundtripGuard, stripAllMarkup, type GuardResult } from "@/lib/tiptap/roundtripGuard";
 import { cleanupMarkdown } from "@/lib/editor/mdCleanup";
 import { generateAbstract } from "@/lib/ai/abstractActions";
 
@@ -454,6 +454,20 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       finalDoc.sources,
     );
     const bodyGuard = runRoundtripGuard(finalDoc, fixpoint);
+
+    // Editor-vs-Roundtrip-Guard: faengt Editor→Block-Verluste, die der
+    // Self-Fixpoint nicht sehen kann (hardBreak, unbekannte Inline-Nodes
+    // /Marks). Falls beide Guards Befunde haben, werden sie kombiniert.
+    const editorJson = bodyEditorRef.current?.getJSON();
+    if (editorJson) {
+      const editorGuard = runEditorRoundtripGuard(editorJson, tiptap);
+      if (!editorGuard.allowed) {
+        return {
+          allowed: false,
+          changedBlocks: [...bodyGuard.changedBlocks, ...editorGuard.changedBlocks],
+        };
+      }
+    }
 
     // Abstract-Mini-Guard via gleichem Self-Fixpoint-Verfahren wie Body:
     // serialize → blocksToTiptap → tiptapToBlocks → vergleiche per

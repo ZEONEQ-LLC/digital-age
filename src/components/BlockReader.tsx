@@ -116,6 +116,28 @@ function applySourceMapping(
   });
 }
 
+// Schreibt einen Plain-Text-String in die ReactNode-Liste, splittet dabei
+// auf `\n` und setzt zwischen den Segmenten `<br/>`-Elemente ein. `\n` im
+// content-String entspricht dem Shift+Enter im Editor (hardBreak-Inline-
+// Node) bzw. Bestands-Multi-Line-Paragraphs aus der Alt-System-Zeit.
+// Render via JSX-Element, kein dangerouslySetInnerHTML — XSS-sicher.
+function pushTextWithBreaks(
+  nodes: ReactNode[],
+  text: string,
+  keyPrefix: string,
+): void {
+  if (text.length === 0) return;
+  if (!text.includes("\n")) {
+    nodes.push(text);
+    return;
+  }
+  const parts = text.split("\n");
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i].length > 0) nodes.push(parts[i]);
+    if (i < parts.length - 1) nodes.push(<br key={`${keyPrefix}-br-${i}`} />);
+  }
+}
+
 function renderInline(content: string, patterns: Pattern[]): ReactNode[] {
   const nodes: ReactNode[] = [];
   let rest = content;
@@ -140,12 +162,12 @@ function renderInline(content: string, patterns: Pattern[]): ReactNode[] {
     }
 
     if (bestMatch === null) {
-      nodes.push(rest);
+      pushTextWithBreaks(nodes, rest, `t${key++}`);
       break;
     }
 
     if (bestIdx > 0) {
-      nodes.push(rest.slice(0, bestIdx));
+      pushTextWithBreaks(nodes, rest.slice(0, bestIdx), `t${key++}`);
     }
     nodes.push(patterns[bestPatternIdx].render(bestMatch, key++, renderInner));
     rest = rest.slice(bestIdx + bestMatch[0].length);
