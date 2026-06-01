@@ -34,7 +34,9 @@ export default function TableOfContents({ items }: TableOfContentsProps) {
   return (
     <>
       <style>{`
-        .toc { position: sticky; top: calc(var(--nav-h) + var(--sp-8)); padding-top: var(--sp-2); }
+        /* Sticky liegt am umschliessenden <aside> in article/[slug]/page.tsx
+           (Grid-Child mit align-items: start). Hier nur Padding. */
+        .toc { padding-top: var(--sp-2); }
         .toc__label {
           color: var(--da-faint);
           font-family: var(--da-font-mono);

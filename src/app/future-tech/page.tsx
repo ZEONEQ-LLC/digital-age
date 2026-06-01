@@ -41,7 +41,7 @@ export default async function FutureTechPage() {
   // TODO Phase 8: Klick-Logic für Author-Filter (URL-Param, Server-Side-Filter).
   const authorMap = new Map<
     string,
-    { name: string; avatar: string; count: number }
+    { name: string; slug: string; avatar: string; count: number }
   >();
   for (const row of rows) {
     if (!row.author) continue;
@@ -52,6 +52,7 @@ export default async function FutureTechPage() {
     } else {
       authorMap.set(slug, {
         name: row.author.display_name,
+        slug,
         avatar: row.author.avatar_url ?? "",
         count: 1,
       });

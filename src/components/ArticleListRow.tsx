@@ -7,6 +7,10 @@ export type ListArticle = {
   category: string;
   title: string;
   author: string;
+  // Author-Slug für client-seitiges Filtern auf Topic-Pages
+  // (?author=<slug>). Optional, damit nicht jede Mapper-Quelle nachziehen
+  // muss — der Filter ignoriert Rows ohne Slug einfach.
+  authorSlug?: string;
   date: string;
   image: string;
   readTime: string;

@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import ArticleListRow, { type ListArticle } from "./ArticleListRow";
 import NewsletterSignup from "./NewsletterSignup";
 
@@ -15,6 +16,9 @@ const accentVar: Record<Accent, string> = {
 
 type AuthorSpotlight = {
   name: string;
+  // Author-Slug für ?author=<slug>-Filter. Sortierung + Anzeige bleiben
+  // gleich, der Slug wird nur für den Filter-Link gebraucht.
+  slug: string;
   role?: string;
   avatar: string;
   count: number;
@@ -58,10 +62,23 @@ export default function TopicListing({
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const loaderRef = useRef<HTMLDivElement | null>(null);
 
-  const filtered = useMemo(
-    () => (activeCat === "Alle" ? articles : articles.filter((a) => a.category === activeCat)),
-    [articles, activeCat]
-  );
+  // Author-Filter via URL-Param `?author=<slug>`. Bewusst URL-state statt
+  // React-state: Refresh, Browser-Back/-Forward und shareable Links
+  // funktionieren so out-of-the-box. Server-Component-Topic-Page bleibt
+  // generisch (lädt alle Artikel) — Filtern findet hier client-seitig
+  // statt, weil die Liste klein genug ist (max ~50 Artikel pro Kategorie).
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const authorFilter = searchParams.get("author");
+  const activeAuthor = authorFilter
+    ? authors.find((a) => a.slug === authorFilter) ?? null
+    : null;
+
+  const filtered = useMemo(() => {
+    let out = activeCat === "Alle" ? articles : articles.filter((a) => a.category === activeCat);
+    if (authorFilter) out = out.filter((a) => a.authorSlug === authorFilter);
+    return out;
+  }, [articles, activeCat, authorFilter]);
   const shown = filtered.slice(0, visibleCount);
   const progress = filtered.length === 0 ? 100 : Math.min(100, Math.round((visibleCount / filtered.length) * 100));
 
@@ -222,6 +239,38 @@ export default function TopicListing({
           padding: 10px 0;
           border-bottom: 1px solid var(--da-border);
         }
+        .tl-author--link {
+          text-decoration: none;
+          color: inherit;
+          padding: 10px 8px;
+          margin: 0 -8px;
+          border-radius: 4px;
+          transition: background-color 0.15s;
+        }
+        .tl-author--link:hover { background: rgba(255,255,255,0.04); }
+        .tl-author--active {
+          background: rgba(50,255,126,0.08);
+          border-bottom-color: var(--da-green);
+        }
+        .tl-author-filter {
+          display: flex; align-items: center; justify-content: space-between;
+          gap: 12px;
+          background: rgba(50,255,126,0.08);
+          border: 1px solid var(--da-green);
+          border-radius: 4px;
+          padding: 10px 14px;
+          margin-bottom: 16px;
+          color: var(--da-text);
+          font-size: 13px;
+        }
+        .tl-author-filter__clear {
+          color: var(--da-green);
+          text-decoration: none;
+          font-weight: 600;
+          font-size: 12px;
+          font-family: var(--da-font-mono);
+        }
+        .tl-author-filter__clear:hover { text-decoration: underline; }
         .tl-author__avatar {
           position: relative;
           width: 36px; height: 36px;
@@ -400,22 +449,35 @@ export default function TopicListing({
 
             <div>
               <p className="tl-aside__label">Autoren</p>
-              {authors.map((a) => (
-                <div key={a.name} className="tl-author">
-                  <div className="tl-author__avatar">
-                    {a.avatar ? (
-                      <Image src={a.avatar} alt={a.name} fill sizes="36px" style={{ objectFit: "cover" }} unoptimized />
-                    ) : (
-                      <span className="tl-author__initials">{a.name.charAt(0).toUpperCase()}</span>
-                    )}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="tl-author__name">{a.name}</div>
-                    {a.role && <div className="tl-author__role">{a.role}</div>}
-                  </div>
-                  <span className="tl-author__count">{a.count}</span>
-                </div>
-              ))}
+              {authors.map((a) => {
+                const isActive = activeAuthor?.slug === a.slug;
+                return (
+                  <Link
+                    key={a.slug}
+                    href={isActive ? pathname : `${pathname}?author=${a.slug}`}
+                    className={`tl-author tl-author--link${isActive ? " tl-author--active" : ""}`}
+                    aria-pressed={isActive}
+                    title={
+                      isActive
+                        ? "Filter entfernen"
+                        : `Artikel von ${a.name} anzeigen`
+                    }
+                  >
+                    <div className="tl-author__avatar">
+                      {a.avatar ? (
+                        <Image src={a.avatar} alt={a.name} fill sizes="36px" style={{ objectFit: "cover" }} unoptimized />
+                      ) : (
+                        <span className="tl-author__initials">{a.name.charAt(0).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="tl-author__name">{a.name}</div>
+                      {a.role && <div className="tl-author__role">{a.role}</div>}
+                    </div>
+                    <span className="tl-author__count">{a.count}</span>
+                  </Link>
+                );
+              })}
             </div>
 
             <NewsletterSignup variant="sidebar" />
@@ -423,6 +485,16 @@ export default function TopicListing({
         )}
 
         <div>
+          {activeAuthor && (
+            <div className="tl-author-filter">
+              <span>
+                Artikel von <strong>{activeAuthor.name}</strong>
+              </span>
+              <Link href={pathname} className="tl-author-filter__clear">
+                Alle anzeigen ×
+              </Link>
+            </div>
+          )}
           <div className="tl-feed-head">
             <p className="tl-feed-count">{filtered.length} Artikel</p>
             <select className="tl-feed-sort" defaultValue="neu" aria-label="Sortierung">

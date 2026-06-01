@@ -55,6 +55,7 @@ export function articleToListRow(
     category: card.category,
     title: card.title,
     author: card.author,
+    authorSlug: article.author?.slug,
     date: card.date,
     image: card.image,
     readTime: readMin > 0 ? `${readMin} min` : "—",
