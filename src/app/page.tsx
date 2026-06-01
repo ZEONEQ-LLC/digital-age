@@ -20,7 +20,7 @@ export default async function Home() {
   // jeder Artikel max einmal auf der Homepage erscheint.
   const [kiBusiness, futureTech, heroKi, heroFt, startups] = await Promise.all([
     getArticlesByCategory("ki-business", 3, { excludeHero: true }),
-    getArticlesByCategory("future-tech", 2, { excludeHero: true }),
+    getArticlesByCategory("future-tech", 3, { excludeHero: true }),
     getHeroOrLatestByCategory("ki-business"),
     getHeroOrLatestByCategory("future-tech"),
     getPublishedStartups(),

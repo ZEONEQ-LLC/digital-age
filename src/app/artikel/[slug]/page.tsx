@@ -291,7 +291,14 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-            <div
+            {/* Avatar-Link geht zum selben Ziel wie der Name-Link.
+                aria-hidden + tabIndex=-1, damit Screenreader/Tastatur
+                nicht beides als doppelten Link vorlesen — der Name-Link
+                bleibt die zugängliche Hauptaktion. */}
+            <Link
+              href={`/autor/${authorHandle}`}
+              aria-hidden="true"
+              tabIndex={-1}
               style={{
                 position: "relative",
                 width: 44,
@@ -300,12 +307,13 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
                 borderRadius: "50%",
                 overflow: "hidden",
                 border: `2px solid ${isExternal ? "var(--da-orange)" : "var(--da-green)"}`,
+                display: "block",
               }}
             >
               {author.avatar_url && (
                 <Image src={author.avatar_url} alt={author.display_name} fill sizes="44px" style={{ objectFit: "cover" }} unoptimized />
               )}
-            </div>
+            </Link>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <Link href={`/autor/${authorHandle}`} style={{ color: "var(--da-text)", fontSize: "var(--fs-body)", fontWeight: 600 }}>

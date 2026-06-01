@@ -141,12 +141,15 @@
 }
 
 @layer base {
-  /* Defense-in-Depth gegen horizontalen Overflow auf engen Viewports.
-     Schützt vor zukünftigen Layout-Bugs, bei denen Inhalt versehentlich
-     den Viewport sprengt. Sticky/fixed-Elemente (Navbar, NewsTicker) sind
-     hiervon nicht betroffen, weil overflow nur auf Inline-Flow wirkt. */
+  /* Defense-in-Depth gegen horizontalen Overflow auf engen Viewports
+     (ursprünglich PR #76 für den iPhone-Portrait-Newsticker-Bug).
+     `clip` statt `hidden` ist wichtig: `hidden` würde body zu einem
+     scrolling-container machen und alle nested `position: sticky`-
+     Elemente (NewsTicker oben, Artikel-TOC seitlich) still brechen.
+     `clip` schneidet visuell identisch ab, legt aber KEINEN scrolling-
+     container an — sticky funktioniert weiter. */
   html, body {
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   body {
