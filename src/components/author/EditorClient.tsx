@@ -754,7 +754,6 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         /* ======================================================
            Editor-Theme-Light — gescopt auf die drei Zonen-Karten
            ======================================================
-           Ports der Sandbox-Override (siehe tiptap-test.css:276+).
            Der Light-Modus überschreibt --da-* nur INNERHALB der
            Karten — alle var(--da-…) Lookups in Titel/Abstract/
            Body resolven hell, während Action-Toolbar, Tabs, Meta-
