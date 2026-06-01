@@ -221,7 +221,12 @@ export default function AuthorSidebar({ author }: AuthorSidebarProps) {
         </div>
 
         <div className="a-sb__foot">
-          <Link href="/" className="a-sb__foot-item">
+          <Link
+            href="/"
+            className="a-sb__foot-item"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <span style={{ fontSize: 11 }}>↗</span> Zur Website
           </Link>
         </div>

@@ -65,12 +65,15 @@ export async function getArticlesByAuthor(authorId: string): Promise<AuthorArtic
 // Suite-side: RLS sorgt automatisch dafür dass Editor alle Artikel sieht,
 // Author nur eigene. Status-Filter optional.
 export async function getMyArticles(opts?: { status?: ArticleStatus }): Promise<SuiteArticle[]> {
+  const author = await getCurrentAuthor();
+  if (!author) return [];
   const supabase = await createClient();
   let query = supabase
     .from("articles")
     .select(
       "*, category:categories(id, slug, name_de), author:authors(id, display_name, slug, handle)",
     )
+    .eq("author_id", author.id)
     .order("updated_at", { ascending: false });
 
   if (opts?.status) query = query.eq("status", opts.status);
@@ -102,12 +105,6 @@ export async function getRevisions(articleId: string): Promise<RevisionWithEdito
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("articles")
-    .select("status, word_count, reading_minutes");
-
-  const rows = data ?? [];
   const stats: DashboardStats = {
     draftCount: 0,
     inReviewCount: 0,
@@ -116,7 +113,15 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     totalWordCount: 0,
     totalReadingMinutes: 0,
   };
+  const author = await getCurrentAuthor();
+  if (!author) return stats;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("articles")
+    .select("status, word_count, reading_minutes")
+    .eq("author_id", author.id);
 
+  const rows = data ?? [];
   for (const r of rows) {
     if (r.status === "draft") stats.draftCount += 1;
     else if (r.status === "in_review") stats.inReviewCount += 1;
