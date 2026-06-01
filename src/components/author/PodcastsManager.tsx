@@ -14,12 +14,21 @@ type Props = {
   initialPodcasts: PodcastWithRecommender[];
   isEditor: boolean;
   myAuthorId: string | null;
+  // Embed-Stub des eingeloggten Users für die optimistische UI nach
+  // Create — wird im onSaved-Handler als `recommended_by` eingesetzt,
+  // damit der frisch angelegte Eintrag sofort "Empfohlen von <Name>"
+  // statt "—" zeigt. createPodcast returnt nur die PodcastRow ohne
+  // Embed; ein Server-Refresh hätte Flicker, deshalb direkt einsetzen.
+  // Der Empfehler IST per Definition der eingeloggte User, deshalb
+  // semantisch korrekt.
+  myAuthorEmbed: NonNullable<PodcastWithRecommender["recommended_by"]> | null;
 };
 
 export default function PodcastsManager({
   initialPodcasts,
   isEditor,
   myAuthorId,
+  myAuthorEmbed,
 }: Props) {
   const [podcasts, setPodcasts] = useState(initialPodcasts);
   const [mode, setMode] = useState<Mode>("list");
@@ -249,7 +258,7 @@ export default function PodcastsManager({
         <PodcastForm
           onSaved={(saved) => {
             setPodcasts((prev) => [
-              { ...saved, recommended_by: null },
+              { ...saved, recommended_by: myAuthorEmbed },
               ...prev,
             ]);
             setMode("list");

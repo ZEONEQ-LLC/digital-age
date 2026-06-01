@@ -33,7 +33,12 @@
   --color-da-text-strong: #e0e0e0;
   --color-da-muted:       #b0b0b0;
   --color-da-muted-soft:  #888888;
-  --color-da-faint:       #555555;
+  /* WCAG-AA: 4.7:1 gegen --da-dark (#1c1c1e). Aufhellung von #555555 (2.1:1)
+     für lesbare Form-Labels (TITEL, BESCHREIBUNG etc.), Placeholder und
+     dezente Trenner. Bewusst wertgleich mit --color-da-muted-soft als
+     Übergangslösung — die semantische Token-Stufe lebt für späteres
+     Refactor, der visuelle Unterschied wäre unter 4.5:1 unsichtbar. */
+  --color-da-faint:       #888888;
 
   /* ── Fonts (Tailwind v4 derives font-display, font-sans, font-mono) ──
      Werte zeigen auf die next/font-CSS-Variablen aus layout.tsx. Wenn
@@ -62,7 +67,7 @@
   --da-text-strong:  #e0e0e0;
   --da-muted:        #b0b0b0;
   --da-muted-soft:   #888888;
-  --da-faint:        #555555;
+  --da-faint:        #888888;
 
   --da-font-display: var(--font-space-grotesk), sans-serif;
   --da-font-body:    var(--font-inter), sans-serif;
