@@ -240,6 +240,185 @@ function blockContentText(b: Block): string {
   return `[${b.type}]`;
 }
 
+// ============================================================
+// Editor-vs-Roundtrip-Guard (Editor→Block-Asymmetrie fangen)
+// ============================================================
+//
+// Der Self-Fixpoint-Guard prueft blocks→tiptap→blocks. Verluste, die
+// VORHER passieren — also im editor.getJSON() → tiptapToBlocks-Schritt
+// (unbekannte Inline-Nodes wie hardBreak, unbekannte Marks) — sind im
+// `finalDoc` schon korrumpiert und damit fuer den Self-Fixpoint nicht
+// mehr sichtbar.
+//
+// Dieser Guard vergleicht den echten Editor-Output (post-Mount, post-
+// ProseMirror-Normalisierung) gegen den ProseMirror-Doc, der sich aus
+// dem `finalDoc` per blocksToTiptap rekonstruieren lassen wuerde.
+// Differenz = Editor→Block-Verlust.
+//
+// Pragma: wir vergleichen pro Block den Plain-Text (Strip aller Marks,
+// hardBreak→"\n", daSourceRef→"[^N]", unbekannte Inline-Nodes als
+// Sentinel "<unknown:TYPE>"). Stimmt der Plain-Text Block-fuer-Block
+// nicht ueberein, blockt der Guard. Zusaetzlich werden unbekannte
+// Inline-Node-Types und Mark-Types als eigene Fehler-Klasse aufgelistet,
+// auch wenn der Plain-Text trotzdem matchen sollte — damit faengt das
+// kuenftige Klasse-Asymmetrien sofort beim ersten Auftreten.
+
+const KNOWN_INLINE_TYPES: ReadonlySet<string> = new Set([
+  "text",
+  "hardBreak",
+  "daSourceRef",
+]);
+
+const KNOWN_MARK_TYPES: ReadonlySet<string> = new Set([
+  "bold",
+  "italic",
+  "link",
+  "internalLink",
+  "highlight",
+  "fontSize",
+]);
+
+type AnyInline = {
+  type: string;
+  text?: string;
+  attrs?: Record<string, unknown>;
+  marks?: { type: string }[];
+};
+
+type AnyBlock = {
+  type: string;
+  content?: (AnyInline | AnyBlock)[];
+  attrs?: Record<string, unknown>;
+};
+
+type AnyDoc = {
+  type: "doc";
+  content?: AnyBlock[];
+};
+
+function inlineToPlain(node: AnyInline): string {
+  if (node.type === "text") return node.text ?? "";
+  if (node.type === "hardBreak") return "\n";
+  if (node.type === "daSourceRef") return `[^${(node.attrs?.n as number) ?? "?"}]`;
+  return `<unknown-inline:${node.type}>`;
+}
+
+function blockToPlain(block: AnyBlock): string {
+  // Block-Typen mit nested Paragraphen (blockquote, bulletList,
+  // orderedList, listItem): rekursiv abflachen. Damit landet pro Block
+  // ein einziger Plain-String — ausreichend zum Vergleich von Editor-
+  // Output vs Roundtrip-Output.
+  const parts: string[] = [];
+  for (const child of block.content ?? []) {
+    if (typeof (child as AnyInline).text !== "undefined" || ["hardBreak", "daSourceRef"].includes((child as AnyInline).type) || !("content" in child)) {
+      parts.push(inlineToPlain(child as AnyInline));
+    } else {
+      parts.push(blockToPlain(child as AnyBlock));
+    }
+  }
+  return parts.join("");
+}
+
+// Inline-Container: Block-Typen, deren content[] direkt Inline-Nodes
+// (text/hardBreak/daSourceRef/...) enthaelt. Heading/Paragraph sind die
+// einzigen im aktuellen Schema.
+const INLINE_CONTAINER_TYPES: ReadonlySet<string> = new Set(["paragraph", "heading"]);
+// Block-Typen mit Paragraph-Kindern (deren content[] enthaelt
+// paragraph-Nodes, deren Inline wir dann pruefen).
+const PARA_CONTAINER_TYPES: ReadonlySet<string> = new Set(["blockquote", "listItem"]);
+// Block-Typen mit Block-Kindern (list → listItem → paragraph → inline).
+const BLOCK_CONTAINER_TYPES: ReadonlySet<string> = new Set(["bulletList", "orderedList"]);
+
+function collectUnknowns(doc: AnyDoc): { unknownInline: Set<string>; unknownMark: Set<string> } {
+  const unknownInline = new Set<string>();
+  const unknownMark = new Set<string>();
+  function walkInline(node: AnyInline): void {
+    if (!KNOWN_INLINE_TYPES.has(node.type)) unknownInline.add(node.type);
+    for (const m of node.marks ?? []) {
+      if (!KNOWN_MARK_TYPES.has(m.type)) unknownMark.add(m.type);
+    }
+  }
+  function walkBlock(node: AnyBlock): void {
+    if (INLINE_CONTAINER_TYPES.has(node.type)) {
+      for (const c of node.content ?? []) walkInline(c as AnyInline);
+      return;
+    }
+    if (PARA_CONTAINER_TYPES.has(node.type) || BLOCK_CONTAINER_TYPES.has(node.type)) {
+      for (const c of node.content ?? []) walkBlock(c as AnyBlock);
+      return;
+    }
+    // Leaf-Blocks (image, daStatBox, daDisclaimer, codeBlock, divider,
+    // daInternalArticleCard) — kein Inline-Recursion noetig.
+  }
+  for (const b of doc.content ?? []) walkBlock(b);
+  return { unknownInline, unknownMark };
+}
+
+export function runEditorRoundtripGuard(
+  editorDoc: unknown,
+  rebuiltDoc: unknown,
+): GuardResult {
+  const ed = editorDoc as AnyDoc;
+  const rt = rebuiltDoc as AnyDoc;
+  const changed: GuardResult["changedBlocks"] = [];
+
+  // 1. Block-Count vergleichen.
+  const edBlocks = ed.content ?? [];
+  const rtBlocks = rt.content ?? [];
+  if (edBlocks.length !== rtBlocks.length) {
+    changed.push({
+      index: -1,
+      type: "(structure)",
+      reason: `editor block-count ${edBlocks.length} → roundtrip ${rtBlocks.length}`,
+      origPreview: `${edBlocks.length} blocks`,
+      candPreview: `${rtBlocks.length} blocks`,
+    });
+    return { allowed: false, changedBlocks: changed };
+  }
+
+  // 2. Plain-Text Block-fuer-Block vergleichen.
+  for (let i = 0; i < edBlocks.length; i++) {
+    const edPlain = blockToPlain(edBlocks[i]);
+    const rtPlain = blockToPlain(rtBlocks[i]);
+    if (edPlain !== rtPlain) {
+      changed.push({
+        index: i,
+        type: edBlocks[i].type ?? "(unknown)",
+        reason: "editor plain-text differs from roundtrip",
+        origPreview: preview(edPlain, 120),
+        candPreview: preview(rtPlain, 120),
+      });
+    }
+  }
+
+  // 3. Unknown-Inline-Types / Unknown-Mark-Types im Editor-Doc.
+  const { unknownInline, unknownMark } = collectUnknowns(ed);
+  for (const t of unknownInline) {
+    changed.push({
+      index: -1,
+      type: "(unknown-inline)",
+      reason: `editor enthaelt unbekannten Inline-Node "${t}" — tiptapToBlocks kennt ihn nicht`,
+      origPreview: t,
+      candPreview: "(verloren bei Save)",
+    });
+  }
+  for (const t of unknownMark) {
+    changed.push({
+      index: -1,
+      type: "(unknown-mark)",
+      reason: `editor enthaelt unbekannten Mark "${t}" — tiptapToBlocks kennt ihn nicht`,
+      origPreview: t,
+      candPreview: "(verloren bei Save)",
+    });
+  }
+
+  return { allowed: changed.length === 0, changedBlocks: changed };
+}
+
+// ============================================================
+// Self-Fixpoint-Guard (bestehend, unveraendert)
+// ============================================================
+
 export function runRoundtripGuard(
   orig: BlockDocument,
   candidate: BlockDocument,

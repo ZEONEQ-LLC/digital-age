@@ -10,7 +10,7 @@ import type { BlockDocument } from "@/types/blocks";
 import { BLOCK_SCHEMA_VERSION, emptyBlockDocument } from "@/types/blocks";
 import { blocksToTiptap } from "@/lib/tiptap/blocksToTiptap";
 import { tiptapToBlocks } from "@/lib/tiptap/tiptapToBlocks";
-import { runRoundtripGuard, type GuardResult } from "@/lib/tiptap/roundtripGuard";
+import { runEditorRoundtripGuard, runRoundtripGuard, type GuardResult } from "@/lib/tiptap/roundtripGuard";
 
 type PageRow = Database["public"]["Tables"]["pages"]["Row"];
 
@@ -95,7 +95,21 @@ export default function PageEditorClient({ page }: Props) {
       tiptap as Parameters<typeof tiptapToBlocks>[0],
       finalDoc.sources,
     );
-    return runRoundtripGuard(finalDoc, fixpoint);
+    const fix = runRoundtripGuard(finalDoc, fixpoint);
+
+    // Zusaetzlicher Editor-vs-Roundtrip-Guard (faengt hardBreak-Klasse
+    // Verluste, die der Self-Fixpoint strukturell nicht sehen kann).
+    const editorJson = editorRef.current?.getJSON();
+    if (editorJson) {
+      const ed = runEditorRoundtripGuard(editorJson, tiptap);
+      if (!ed.allowed) {
+        return {
+          allowed: false,
+          changedBlocks: [...fix.changedBlocks, ...ed.changedBlocks],
+        };
+      }
+    }
+    return fix;
   }
 
   function buildPatch(finalDoc: BlockDocument): PagePatch {

@@ -162,6 +162,31 @@ function findEarliestMatch(text: string): Match | null {
   return best;
 }
 
+// Variante von parseInline fuer paragraph/heading: splittet vorher auf
+// `\n` und setzt zwischen den Segmenten einen hardBreak-Inline-Node ein.
+// Damit ist der Hin- und Rueckweg (\n ↔ hardBreak) explizit symmetrisch
+// — der Editor sieht beim Mount sofort echte hardBreak-Nodes statt sich
+// auf ProseMirror-Implizit-Normalisierung zu verlassen, die beim Save
+// wieder hardBreak-Nodes produzieren wuerde, die tiptapToBlocks
+// vor dem Fix als "undefined" konkateniert hat.
+// quote/list-item nutzen weiterhin parseInline direkt — dort ist `\n`
+// schon vor parseInline zu separaten Paragraphen gesplittet (etablierte
+// Konvention, nicht anfassen).
+function parseInlineWithBreaks(text: string, marks: Mark[]): InlineNode[] {
+  if (text.length === 0) return [];
+  const segments = text.split("\n");
+  const out: InlineNode[] = [];
+  for (let i = 0; i < segments.length; i++) {
+    out.push(...parseInline(segments[i], marks));
+    if (i < segments.length - 1) {
+      const br: InlineNode = { type: "hardBreak" };
+      if (marks.length > 0) br.marks = marks.slice();
+      out.push(br);
+    }
+  }
+  return out;
+}
+
 function parseInline(text: string, marks: Mark[]): InlineNode[] {
   if (text.length === 0) return [];
   const out: InlineNode[] = [];
@@ -204,7 +229,7 @@ function makeText(text: string, marks: Mark[]): InlineNode {
 function blockToNode(b: Block): BlockNode {
   switch (b.type) {
     case "heading": {
-      const content = parseInline(b.content, []);
+      const content = parseInlineWithBreaks(b.content, []);
       const node: BlockNode = {
         type: "heading",
         attrs: { level: b.level, ...(b.alignment ? { textAlign: b.alignment as TextAlignment } : {}) },
@@ -213,7 +238,7 @@ function blockToNode(b: Block): BlockNode {
       return node;
     }
     case "paragraph": {
-      const content = parseInline(b.content, []);
+      const content = parseInlineWithBreaks(b.content, []);
       const node: ParagraphNode = { type: "paragraph" };
       if (b.alignment) node.attrs = { textAlign: b.alignment };
       if (content.length > 0) node.content = content;
