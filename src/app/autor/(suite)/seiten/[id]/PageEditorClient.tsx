@@ -1,13 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import BlockEditor from "@/components/author/BlockEditor";
+import { useMemo, useRef, useState, useTransition } from "react";
+import TiptapPageEditor, { type TiptapPageEditorHandle } from "@/components/author/tiptap/TiptapPageEditor";
 import PageContent from "@/components/PageContent";
 import { savePage, deletePage, type PagePatch } from "@/lib/pageActions";
 import type { Database } from "@/lib/database.types";
 import type { BlockDocument } from "@/types/blocks";
-import { emptyBlockDocument } from "@/types/blocks";
+import { BLOCK_SCHEMA_VERSION, emptyBlockDocument } from "@/types/blocks";
+import { blocksToTiptap } from "@/lib/tiptap/blocksToTiptap";
+import { tiptapToBlocks } from "@/lib/tiptap/tiptapToBlocks";
+import { runRoundtripGuard, type GuardResult } from "@/lib/tiptap/roundtripGuard";
 
 type PageRow = Database["public"]["Tables"]["pages"]["Row"];
 
@@ -31,6 +34,22 @@ export default function PageEditorClient({ page }: Props) {
     }
     return emptyBlockDocument();
   });
+  // Tiptap-Handle für getJSON/setContent. Initial-Doc wird einmal beim
+  // Mount aus dem geladenen BlockDocument berechnet — bei Tab-Wechsel
+  // re-mountet der Editor NICHT (Container bleibt gemountet via
+  // display:none-Toggle, PR-#99-Lektion).
+  const editorRef = useRef<TiptapPageEditorHandle | null>(null);
+  // initialTiptap wird bewusst nur 1× beim Mount aus dem Lade-Stand
+  // berechnet (analog initialBodyTiptap in EditorClient). Spätere
+  // doc-Updates fliessen via getJSON/setContent durch den Editor, nicht
+  // über erneutes Re-Seeding.
+  const initialTiptap = useMemo(
+    () => blocksToTiptap(doc),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  const [guardResult, setGuardResult] = useState<GuardResult | null>(null);
 
   // Meta-Tab
   const [slug, setSlug] = useState(page.slug);
@@ -48,12 +67,43 @@ export default function PageEditorClient({ page }: Props) {
 
   const slugValid = SLUG_RE.test(slug) && slug.length > 0 && slug.length <= 80;
 
-  function buildPatch(): PagePatch {
+  // Liest den aktuellen Editor-Stand zurück nach BlockDocument. Sources
+  // werden vom Original-Doc übernommen — Seiten haben keine Sources-UI,
+  // aber das Pass-Through-Schema (BlockDocument.sources) wird intakt
+  // gehalten, falls je eine Seite mit Sources angelegt würde.
+  function buildDocFromEditor(): BlockDocument {
+    const json = editorRef.current?.getJSON();
+    if (!json) return doc;
+    const back = tiptapToBlocks(
+      json as Parameters<typeof tiptapToBlocks>[0],
+      doc.sources ?? [],
+    );
+    return {
+      version: BLOCK_SCHEMA_VERSION,
+      blocks: back.blocks,
+      sources: doc.sources ?? [],
+    };
+  }
+
+  // Self-Fixpoint-Guard analog Article-Editor: das gerade serialisierte
+  // Doc nochmal durch blocksToTiptap → tiptapToBlocks ziehen und gegen
+  // sich selbst prüfen. Whitelist-Match (Token-Normalisierung) ist OK,
+  // semantische Drift blockt das Save.
+  function runGuard(finalDoc: BlockDocument): GuardResult {
+    const tiptap = blocksToTiptap(finalDoc);
+    const fixpoint = tiptapToBlocks(
+      tiptap as Parameters<typeof tiptapToBlocks>[0],
+      finalDoc.sources,
+    );
+    return runRoundtripGuard(finalDoc, fixpoint);
+  }
+
+  function buildPatch(finalDoc: BlockDocument): PagePatch {
     return {
       title,
       slug,
       lead: lead.trim() === "" ? null : lead,
-      body_blocks: doc,
+      body_blocks: finalDoc,
       meta_description: metaDescription.trim() === "" ? null : metaDescription,
       noindex,
       hero_category: heroCategory.trim() === "" ? null : heroCategory,
@@ -61,15 +111,32 @@ export default function PageEditorClient({ page }: Props) {
     };
   }
 
-  function handleSave() {
+  function prepareSave(): BlockDocument | null {
     setError(null);
+    setGuardResult(null);
     if (!slugValid) {
       setError("Slug darf nur Kleinbuchstaben, Ziffern und Bindestriche enthalten (max 80).");
-      return;
+      return null;
     }
+    const finalDoc = buildDocFromEditor();
+    const guard = runGuard(finalDoc);
+    setGuardResult(guard);
+    if (!guard.allowed) {
+      setError(
+        `Speichern blockiert: ${guard.changedBlocks.length} Block(s) wuerden semantisch veraendert. Details unten.`,
+      );
+      return null;
+    }
+    return finalDoc;
+  }
+
+  function handleSave() {
+    const finalDoc = prepareSave();
+    if (!finalDoc) return;
     startTransition(async () => {
       try {
-        await savePage(page.id, buildPatch());
+        await savePage(page.id, buildPatch(finalDoc));
+        setDoc(finalDoc);
         setSavedHint("Gespeichert");
         router.refresh();
       } catch (e) {
@@ -79,12 +146,18 @@ export default function PageEditorClient({ page }: Props) {
   }
 
   function handleStatusToggle() {
+    // Status-Wechsel speichert immer auch den aktuellen Editor-Inhalt
+    // mit ab (sonst gingen ungespeicherte Edits beim Publish/Unpublish
+    // verloren). Roundtrip-Guard läuft mit — analog handleSave.
+    const finalDoc = prepareSave();
+    if (!finalDoc) return;
     const next = status === "draft" ? "published" : "draft";
     setStatus(next);
     setError(null);
     startTransition(async () => {
       try {
-        await savePage(page.id, { ...buildPatch(), status: next });
+        await savePage(page.id, { ...buildPatch(finalDoc), status: next });
+        setDoc(finalDoc);
         setSavedHint("Gespeichert");
         router.refresh();
       } catch (e) {
@@ -156,7 +229,23 @@ export default function PageEditorClient({ page }: Props) {
       {/* Tab-Switcher */}
       <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--da-border)", marginBottom: 22 }}>
         <TabButton active={tab === "content"} onClick={() => setTab("content")}>Inhalt</TabButton>
-        <TabButton active={tab === "preview"} onClick={() => setTab("preview")}>Vorschau</TabButton>
+        <TabButton
+          active={tab === "preview"}
+          onClick={() => {
+            // Vorschau-Tab: lazy beim Klick aus dem Editor in `doc`
+            // synchronisieren. Nicht bei jedem Tastendruck — wäre
+            // teuer + brächte keinen Mehrwert.
+            try {
+              const finalDoc = buildDocFromEditor();
+              setDoc(finalDoc);
+            } catch (e) {
+              console.error("Vorschau-Sync fehlgeschlagen:", e);
+            }
+            setTab("preview");
+          }}
+        >
+          Vorschau
+        </TabButton>
         <TabButton active={tab === "meta"} onClick={() => setTab("meta")}>Meta</TabButton>
       </div>
 
@@ -177,46 +266,84 @@ export default function PageEditorClient({ page }: Props) {
         </div>
       )}
 
-      {tab === "content" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 18, maxWidth: 760 }}>
-          <label style={fieldGroup}>
-            <span style={labelStyle}>Titel</span>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              style={{ ...inputStyle, fontSize: 22, fontWeight: 600 }}
-            />
-          </label>
+      {/* Content-Tab dauerhaft gemountet, nur per display:none ein-/
+          ausgeblendet — Lektion aus PR #99: Tiptap-Editor remountet
+          sonst beim Tab-Wechsel und verliert Cursor/Selection/Undo-
+          Stack. */}
+      <div style={{ display: tab === "content" ? "flex" : "none", flexDirection: "column", gap: 18, maxWidth: 760 }}>
+        <label style={fieldGroup}>
+          <span style={labelStyle}>Titel</span>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            style={{ ...inputStyle, fontSize: 22, fontWeight: 600 }}
+          />
+        </label>
 
-          <label style={fieldGroup}>
-            <span style={labelStyle}>Lead (optional, erscheint unter dem Titel im Hero)</span>
-            <textarea
-              value={lead}
-              onChange={(e) => setLead(e.target.value)}
-              rows={3}
-              style={{ ...inputStyle, resize: "vertical", fontStyle: "italic" }}
-            />
-          </label>
+        <label style={fieldGroup}>
+          <span style={labelStyle}>Lead (optional, erscheint unter dem Titel im Hero)</span>
+          <textarea
+            value={lead}
+            onChange={(e) => setLead(e.target.value)}
+            rows={3}
+            style={{ ...inputStyle, resize: "vertical", fontStyle: "italic" }}
+          />
+        </label>
 
-          <div style={{ marginTop: 8 }}>
-            <p style={{ ...labelStyle, marginBottom: 10 }}>Inhalt</p>
-            {/* Padding-Wrapper analog `.a-edit-body-card` im Article-Editor:
-                Block-Toolbar (2x2-Grid bei `left: -64px`) braucht horizontalen
-                Innenabstand >=28px, damit die linke Spalte (↑ + +) nicht
-                ausserhalb des Render-Bereichs landet. */}
-            <div
-              style={{
-                background: "var(--da-card)",
-                border: "1px solid var(--da-border)",
-                borderRadius: 8,
-                padding: 28,
-              }}
-            >
-              <BlockEditor doc={doc} onChange={setDoc} articleId={page.id} />
+        {guardResult && !guardResult.allowed && (
+          <div
+            role="alert"
+            style={{
+              background: "rgba(255, 92, 92, 0.08)",
+              border: "1px solid var(--da-red, #ff5c5c)",
+              borderRadius: 6,
+              padding: "12px 14px",
+              fontSize: 13,
+              color: "var(--da-text)",
+            }}
+          >
+            <div style={{ fontWeight: 700, marginBottom: 6, color: "var(--da-red, #ff5c5c)" }}>
+              Speichern verweigert — {guardResult.changedBlocks.length} Block(s) wuerden semantisch veraendert.
             </div>
+            <ul style={{ margin: 0, paddingLeft: 18, color: "var(--da-muted)" }}>
+              {guardResult.changedBlocks.slice(0, 8).map((c, i) => (
+                <li key={i} style={{ marginBottom: 6 }}>
+                  <span style={{ fontFamily: "var(--da-font-mono)", color: "var(--da-text-strong)" }}>
+                    Block #{c.index} ({c.type}):
+                  </span>{" "}
+                  {c.reason}
+                  <div style={{ fontSize: 11, marginTop: 4, color: "var(--da-muted-soft)" }}>
+                    Original: <code>{c.origPreview}</code>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--da-muted-soft)" }}>
+                    Nach Save: <code>{c.candPreview}</code>
+                  </div>
+                </li>
+              ))}
+              {guardResult.changedBlocks.length > 8 && (
+                <li>… {guardResult.changedBlocks.length - 8} weitere Abweichungen</li>
+              )}
+            </ul>
+          </div>
+        )}
+
+        <div style={{ marginTop: 8 }}>
+          <p style={{ ...labelStyle, marginBottom: 10 }}>Inhalt</p>
+          <div
+            style={{
+              background: "var(--da-card)",
+              border: "1px solid var(--da-border)",
+              borderRadius: 8,
+            }}
+          >
+            <TiptapPageEditor
+              ref={editorRef}
+              pageId={page.id}
+              initialContent={initialTiptap}
+            />
           </div>
         </div>
-      )}
+      </div>
 
       {tab === "preview" && (
         <div style={{ background: "var(--da-dark)", borderRadius: 6, border: "1px solid var(--da-border)" }}>
