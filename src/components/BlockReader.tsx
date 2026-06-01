@@ -10,8 +10,8 @@ type BlockReaderProps = {
 
 // Inline-Marker-Renderer. Markdown-Subset + Custom-Marker werden zu React-
 // Nodes umgesetzt. Kein dangerouslySetInnerHTML — alle Werte gehen durch
-// React-Escaping. Nesting wird nicht unterstützt (FloatingToolbar verhindert
-// das im Editor).
+// React-Escaping. Nesting wird nicht unterstützt (Tiptap-Mark-Schema
+// verhindert das im Editor).
 //
 // Source-Marker `[^N]` linkt direkt auf die externe URL der Quelle, falls
 // vorhanden. Fallback: Anchor auf das Source-Liste-Item am Article-Ende

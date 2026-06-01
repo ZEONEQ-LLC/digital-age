@@ -15,8 +15,8 @@ type Props = {
   title?: string;
 };
 
-// Debounced Autocomplete-Modal für interne Artikel-Verweise. Shared zwischen
-// Inline-Link (FloatingToolbar) und InternalArticleCard-Block.
+// Debounced Autocomplete-Modal für interne Artikel-Verweise. Wird vom
+// Tiptap-Footer-Editor (Related-Articles-Picker) genutzt.
 export default function InternalArticleAutocomplete({
   open,
   onClose,
