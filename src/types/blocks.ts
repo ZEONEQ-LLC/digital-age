@@ -11,7 +11,7 @@
 // Markdown:
 //   **bold**, _italic_, [link](url)
 //
-// Custom-Marker (vom FloatingToolbar eingefügt, vom Inline-Renderer geparst):
+// Custom-Marker (vom Tiptap-Editor eingefügt, vom Inline-Renderer geparst):
 //   [[slug]](Title)        Internal-Link auf /artikel/<slug>
 //   {{g}}…{{/g}}           Highlight Grün
 //   {{o}}…{{/o}}           Highlight Orange

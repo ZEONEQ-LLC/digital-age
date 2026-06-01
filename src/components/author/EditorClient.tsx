@@ -4,13 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, useTransition } from "react";
 import AuthorStatusBadge from "@/components/author/AuthorStatusBadge";
-// BlockEditor / MarkdownEditor / LegacyMigrationModal werden seit
-// Etappe A nicht mehr aus EditorClient gerendert. Der Pages-Editor
-// (src/app/autor/(suite)/seiten/[id]/PageEditorClient.tsx) importiert
-// `BlockEditor` direkt aus dessen Datei — er ist nicht von uns hier
-// abhängig. Cleanup-Imports in Etappe C, falls die Pages-Migration so
-// weit ist.
-import LegacyMigrationModal from "@/components/author/LegacyMigrationModal";
 import EditorRevisions from "@/components/author/EditorRevisions";
 import EditorSeoPanel, { type SeoState } from "@/components/author/EditorSeoPanel";
 import EditorSidebar from "@/components/author/EditorSidebar";
@@ -106,7 +99,6 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   // bleibt für die Plain-Text-Aggregation unten (bodyText/firstParagraph).
   const markdown = article.body_md ?? "";
   const [status, setStatus] = useState<ArticleStatus>(article.status);
-  const [showLegacyModal, setShowLegacyModal] = useState(false);
   const [sourceInsertHandler, setSourceInsertHandler] = useState<
     ((n: number) => void) | null
   >(null);
@@ -345,13 +337,6 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   const [savedAt, setSavedAt] = useState<string>("Geladen");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-
-  // Legacy-Modal wird seit Etappe A nicht mehr verwendet. Bleibt als
-  // No-Op-Closure, damit der Modal-Render unten keinen Compile-Error wirft.
-  // Cleanup in Etappe C.
-  function confirmLegacyMigration() {
-    setShowLegacyModal(false);
-  }
 
   // Plain-Text-Aggregation des Body-Inhalts: Block-Tree (Visual) ODER
   // Markdown-Fallback (Legacy). Inline-Marker werden mit-genommen — für
@@ -1148,13 +1133,6 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             initialIsHero={article.is_hero ?? false}
           />
       </div>
-
-      {showLegacyModal && (
-        <LegacyMigrationModal
-          onCancel={() => setShowLegacyModal(false)}
-          onConfirm={confirmLegacyMigration}
-        />
-      )}
 
       <MdCleanupModal
         open={mdCleanupOpen}
