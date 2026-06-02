@@ -919,15 +919,22 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             type="button"
             className={`a-edit-tab${t.id === tab ? " a-edit-tab--active" : ""}`}
             onClick={() => {
-              // Lazy-Sync vor Wechsel auf Vorschau: aktuellen Editor-State
-              // in `doc` schreiben, damit BlockReader das Aktuelle rendert.
-              if (t.id === "preview") {
+              // Lazy-Sync vor Wechsel auf Vorschau ODER SEO-Tab: aktuellen
+              // Editor-State in `doc` schreiben.
+              //   - Preview: BlockReader rendert den aktuellen Stand.
+              //   - SEO:     headingsLevel2- und firstParagraph-Memos lesen
+              //              den aktuellen Stand für die seo_review-Analyse;
+              //              ohne Sync sehen sie nur den letzten gespeicherten
+              //              doc-Stand (Diagnose-Leck 1).
+              // buildBlockDocumentFromEditor ist nebenwirkungsfrei (purer
+              // Read+Transform, kein Save/Guard/Dirty-Trigger).
+              if (t.id === "preview" || t.id === "seo") {
                 try {
                   const next = buildBlockDocumentFromEditor();
                   setDoc(next);
                   setExcerpt(readExcerptFromAbstract());
                 } catch (e) {
-                  console.error("Vorschau-Sync fehlgeschlagen:", e);
+                  console.error("Editor-Sync fehlgeschlagen:", e);
                 }
               }
               setTab(t.id as Tab);

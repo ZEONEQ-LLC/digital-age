@@ -614,7 +614,7 @@ export default function EditorSeoPanel({
           <div>
             <MonoCaption>Verbesserungsvorschläge</MonoCaption>
             <p style={{ color: "var(--da-muted)", fontSize: 13, marginTop: 6, lineHeight: 1.5 }}>
-              Analysiert H1 und ersten Absatz nach SEO-Kriterien. Ändert nichts.
+              Analysiert H1, ersten Absatz und H2-Überschriften nach SEO-Kriterien. Ändert nichts.
             </p>
           </div>
           <button
