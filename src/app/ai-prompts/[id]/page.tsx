@@ -11,8 +11,17 @@ import {
   PROMPT_TESTED_WITH,
 } from "@/lib/mappers/promptMappers";
 import PromptCopyButton from "./PromptCopyButton";
+import { buildListingMetadata } from "@/lib/listingMetadata";
+import { buildBreadcrumbJsonLd } from "@/lib/jsonLd";
+import { getBaseUrl } from "@/lib/siteUrl";
 
 type Params = Promise<{ id: string }>;
+
+function truncateForMeta(s: string, max = 158): string {
+  const t = s.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1).replace(/\s+\S*$/, "")}…`;
+}
 
 function lookup(list: readonly { code: string; label: string }[], code: string): string {
   return list.find((it) => it.code === code)?.label ?? code;
@@ -29,11 +38,15 @@ function visiblePrompt(id: string) {
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { id } = await params;
   const row = await visiblePrompt(id);
-  if (!row) return { title: "Prompt nicht gefunden — digital-age.ch" };
-  return {
-    title: `${row.title} — digital-age.ch`,
-    description: row.context.slice(0, 160),
-  };
+  if (!row) return { title: "Prompt nicht gefunden — digital-age" };
+  return buildListingMetadata({
+    path: `/ai-prompts/${id}`,
+    title: `${row.title} — AI Prompts · digital age`,
+    description: truncateForMeta(
+      row.context ||
+        `${row.title} — kuratierter AI-Prompt mit Kontext, Beispiel-Output und Schwierigkeitsstufe auf digital-age.ch.`,
+    ),
+  });
 }
 
 export default async function PromptDetailPage({ params }: { params: Params }) {
@@ -52,9 +65,21 @@ export default async function PromptDetailPage({ params }: { params: Params }) {
   const submitterName = !author ? (row.submitter_name ?? "Anonym") : null;
   const submitterUrl = !author ? row.submitter_url : null;
 
+  const baseUrl = getBaseUrl();
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: "Home", url: `${baseUrl}/` },
+    { name: "AI Prompts", url: `${baseUrl}/ai-prompts` },
+    { name: row.title },
+  ]);
+
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }}
+      />
+
 
       <style>{`
         .pd-shell { max-width: 820px; margin: 0 auto; padding: 56px var(--sp-8) 96px; }
@@ -170,7 +195,23 @@ export default async function PromptDetailPage({ params }: { params: Params }) {
           ["--tc" as string]: tc,
         }}
       >
-        <Link href="/ai-prompts" className="pd-crumb">← Alle Prompts</Link>
+        <nav
+          aria-label="Breadcrumb"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            flexWrap: "wrap",
+            fontSize: "var(--fs-body-sm)",
+            marginBottom: "28px",
+          }}
+        >
+          <Link href="/" style={{ color: "var(--da-muted)" }}>Home</Link>
+          <span style={{ color: "var(--da-faint)" }}>/</span>
+          <Link href="/ai-prompts" style={{ color: "var(--da-muted)" }}>AI Prompts</Link>
+          <span style={{ color: "var(--da-faint)" }}>/</span>
+          <span style={{ color: "var(--da-green)", fontWeight: 600 }}>{row.title}</span>
+        </nav>
 
         <div className="pd-meta">
           <span className="pd-cat">{cat}</span>

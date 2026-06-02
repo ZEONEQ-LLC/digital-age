@@ -10,17 +10,30 @@ import {
   lookupEmployeeRange,
   lookupFundingStage,
 } from "@/lib/mappers/startupMappers";
+import { buildListingMetadata } from "@/lib/listingMetadata";
+import { buildBreadcrumbJsonLd } from "@/lib/jsonLd";
+import { getBaseUrl } from "@/lib/siteUrl";
 
 type Params = Promise<{ slug: string }>;
+
+function truncateForMeta(s: string, max = 158): string {
+  const t = s.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1).replace(/\s+\S*$/, "")}…`;
+}
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
   const row = await getStartupBySlug(slug);
-  if (!row) return { title: "Startup nicht gefunden — digital-age.ch" };
-  return {
-    title: `${row.name} — Swiss AI · digital-age.ch`,
-    description: row.tagline,
-  };
+  if (!row) return { title: "Startup nicht gefunden — digital-age" };
+  return buildListingMetadata({
+    path: `/swiss-ai/${slug}`,
+    title: `${row.name} — Swiss AI · digital age`,
+    description: truncateForMeta(
+      row.tagline ||
+        `${row.name} im kuratierten Swiss-AI-Verzeichnis von digital-age.ch — Standort, Branche und Profil eines Schweizer KI-Unternehmens.`,
+    ),
+  });
 }
 
 function formatDate(s: string | null): string | null {
@@ -42,9 +55,16 @@ export default async function StartupDetailPage({ params }: { params: Params }) 
   const hasInvestorBlock = row.open_to_investment || fundingLabel || row.total_funding_range || lastRoundFormatted || row.pitch_deck_url;
   const isFeatured = row.status === "featured";
 
+  const baseUrl = getBaseUrl();
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: "Home", url: `${baseUrl}/` },
+    { name: "Swiss AI", url: `${baseUrl}/swiss-ai` },
+    { name: row.name },
+  ]);
+
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      
+
 
       <style>{`
         .sd-shell { max-width: 920px; margin: 0 auto; padding: 48px var(--sp-8) 96px; }
@@ -169,11 +189,33 @@ export default async function StartupDetailPage({ params }: { params: Params }) 
         }
       `}</style>
 
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }}
+      />
+
       <section
         className="sd-shell"
         style={{ ["--swiss-color" as string]: swiss.color }}
       >
-        <Link href="/swiss-ai" className="sd-crumb">← Swiss AI</Link>
+        <nav
+          aria-label="Breadcrumb"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            flexWrap: "wrap",
+            fontSize: "var(--fs-body-sm)",
+            marginBottom: "28px",
+          }}
+        >
+          <Link href="/" style={{ color: "var(--da-muted)" }}>Home</Link>
+          <span style={{ color: "var(--da-faint)" }}>/</span>
+          <Link href="/swiss-ai" style={{ color: "var(--da-muted)" }}>Swiss AI</Link>
+          <span style={{ color: "var(--da-faint)" }}>/</span>
+          <span style={{ color: "var(--da-green)", fontWeight: 600 }}>{row.name}</span>
+        </nav>
 
         <div className="sd-head">
           <div className="sd-logo">

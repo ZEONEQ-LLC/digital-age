@@ -1,4 +1,6 @@
 import Image from "next/image";
+import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import Footer from "@/components/Footer";
@@ -7,8 +9,37 @@ import ExternalBadge from "@/components/ExternalBadge";
 import { getAuthorByHandle, getArticlesByAuthor } from "@/lib/authorApi";
 import { getCoverUrl } from "@/lib/coverImage";
 import { authorToProfileViewModel } from "@/lib/mappers/articleMappers";
+import { buildListingMetadata } from "@/lib/listingMetadata";
+import {
+  buildBreadcrumbJsonLd,
+  buildProfilePageJsonLd,
+  normalizeSocialUrl,
+} from "@/lib/jsonLd";
+import { getBaseUrl } from "@/lib/siteUrl";
 
 type PageProps = { params: Promise<{ slug: string }> };
+
+function truncateForMeta(s: string, max = 158): string {
+  const t = s.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1).replace(/\s+\S*$/, "")}…`;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const row = await getAuthorByHandle(slug);
+  if (!row) return { title: "Autor nicht gefunden — digital-age" };
+  const jobTitleSuffix = row.job_title ? ` · ${row.job_title}` : "";
+  const description = truncateForMeta(
+    row.bio?.trim() ||
+      `Profil und Artikel von ${row.display_name} auf digital-age.ch — Beiträge zu Künstlicher Intelligenz und Future Tech mit Schweizer Perspektive.`,
+  );
+  return buildListingMetadata({
+    path: `/autor/${slug}`,
+    title: `${row.display_name}${jobTitleSuffix} — digital age`,
+    description,
+  });
+}
 
 function formatDateDE(iso: string | null): string {
   if (!iso) return "";
@@ -36,8 +67,39 @@ export default async function AuthorPage({ params }: PageProps) {
   const linkedin = linkedinHref(author.social.linkedin);
   const website = author.social.website ?? null;
 
+  const baseUrl = getBaseUrl();
+  const sameAs = [
+    normalizeSocialUrl(author.social.linkedin),
+    normalizeSocialUrl(author.social.website),
+    normalizeSocialUrl(author.social.x),
+    normalizeSocialUrl(author.social.mastodon),
+    normalizeSocialUrl(author.social.github),
+  ].filter((u): u is string => !!u);
+  const profileJsonLd = buildProfilePageJsonLd({
+    baseUrl,
+    handle: slug,
+    displayName: author.name,
+    jobTitle: author.jobTitle ?? null,
+    imageUrl: author.avatar ?? null,
+    sameAs,
+  });
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: "Home", url: `${baseUrl}/` },
+    { name: author.name },
+  ]);
+
   return (
     <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: profileJsonLd }}
+      />
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }}
+      />
       <style>{`
         .author-hero { display: grid; grid-template-columns: 200px 1fr; gap: 48px; align-items: start; }
         .author-stats { display: flex; gap: 32px; flex-wrap: wrap; }
@@ -48,9 +110,29 @@ export default async function AuthorPage({ params }: PageProps) {
         }
       `}</style>
 
-      
 
-      <section style={{ borderBottom: "1px solid var(--da-card)", padding: "64px 32px" }}>
+
+      <section style={{ borderBottom: "1px solid var(--da-card)", padding: "32px 32px 64px" }}>
+        <div style={{ maxWidth: "1200px", margin: "0 auto", marginBottom: "32px" }}>
+          <nav
+            aria-label="Breadcrumb"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              flexWrap: "wrap",
+              fontSize: "var(--fs-body-sm)",
+            }}
+          >
+            <Link href="/" style={{ color: "var(--da-muted)" }}>
+              Home
+            </Link>
+            <span style={{ color: "var(--da-faint)" }}>/</span>
+            <span style={{ color: "var(--da-green)", fontWeight: 600 }}>
+              {author.name}
+            </span>
+          </nav>
+        </div>
         <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
           <div className="author-hero">
             {author.avatar && (

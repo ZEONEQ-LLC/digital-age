@@ -12,8 +12,24 @@ import {
 import { articleToCard } from "@/lib/mappers/articleMappers";
 import { getPublishedStartups } from "@/lib/startupApi";
 import { buildListingMetadata } from "@/lib/listingMetadata";
+import { getBaseUrl } from "@/lib/siteUrl";
+import {
+  buildWebsiteJsonLd,
+  buildOrganizationJsonLd,
+  buildItemListJsonLd,
+} from "@/lib/jsonLd";
 
 const SWISS_AI_STRIP_LIMIT = 5;
+
+const SITE_NAME = "digital age";
+const SITE_DESCRIPTION =
+  "Nachrichten, Analysen und Empfehlungen rund um Künstliche Intelligenz und Future Tech. Schweizer Perspektive für Entscheider und Praktiker.";
+const OG_FALLBACK_PATH = "/images/digital-age-og-fallback.jpg";
+// Brand-Social: aktuell nur LinkedIn (siehe Footer); X/Mastodon/Instagram
+// existieren nicht. Schema.sameAs enthält daher genau eine URL.
+const BRAND_SAME_AS = [
+  "https://www.linkedin.com/company/digital-age-schweiz",
+];
 
 export const metadata = buildListingMetadata({
   path: "/",
@@ -49,8 +65,51 @@ export default async function Home() {
     href: `/swiss-ai/${s.slug}`,
   }));
 
+  const baseUrl = getBaseUrl();
+  const websiteJsonLd = buildWebsiteJsonLd({
+    baseUrl,
+    name: SITE_NAME,
+    description: SITE_DESCRIPTION,
+  });
+  const organizationJsonLd = buildOrganizationJsonLd({
+    baseUrl,
+    name: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    logoPath: OG_FALLBACK_PATH,
+    sameAs: BRAND_SAME_AS,
+  });
+  // ItemList: Spotlight-Articles (Hero pro Kategorie). Klein und
+  // SEO-relevant — die Section ist die erste Content-Einheit auf der Home.
+  const spotlightItemList =
+    spotlight.length > 0
+      ? buildItemListJsonLd({
+          name: "Spotlight",
+          items: spotlight.map((a) => ({
+            url: `${baseUrl}/artikel/${a.slug}`,
+            name: a.title,
+          })),
+        })
+      : null;
+
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: websiteJsonLd }}
+      />
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: organizationJsonLd }}
+      />
+      {spotlightItemList && (
+        <script
+          type="application/ld+json"
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: spotlightItemList }}
+        />
+      )}
 
       <HeroBold />
       <SpotlightSection articles={spotlight} />
