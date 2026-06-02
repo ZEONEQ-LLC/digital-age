@@ -22,6 +22,8 @@ type PageProps = { params: Promise<{ slug: string }> };
 // Wenn die Public-Env-Vars beim Build nicht gesetzt sind (z.B. lokal ohne
 // `.env.local`), wird ein leeres Array zurückgegeben — Next.js rendert
 // dann jeden Tag-Slug dynamisch on-demand statt vorab.
+export const revalidate = 120;
+
 export async function generateStaticParams() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

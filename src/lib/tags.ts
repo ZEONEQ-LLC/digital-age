@@ -1,4 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
+// Alle Funktionen sind Public-Read (RLS: tags_public_read,
+// article_tags-public-read, status=published an articles).
+// Anon-Client → kein cookies(), Public-Pages bleiben cachebar.
+import { createPublicClient } from "@/lib/supabase/public";
 import type { ArticleWithRelations } from "@/lib/articleApi";
 
 export type Tag = {
@@ -10,7 +13,7 @@ export type Tag = {
 export type TopTag = Tag & { article_count: number };
 
 export async function getAllTags(): Promise<Tag[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("tags")
     .select("id, slug, name")
@@ -19,7 +22,7 @@ export async function getAllTags(): Promise<Tag[]> {
 }
 
 export async function getTagBySlug(slug: string): Promise<Tag | null> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("tags")
     .select("id, slug, name")
@@ -31,7 +34,7 @@ export async function getTagBySlug(slug: string): Promise<Tag | null> {
 // Top-N Tags global, all-time, nur published Articles. Sortierung intern:
 // count DESC, dann name ASC. Limit-Default ist 5 (passt zur Spec).
 export async function getTopTags(limit = 5): Promise<TopTag[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase.rpc("get_top_tags", { limit_count: limit });
   return (data as TopTag[] | null) ?? [];
 }
@@ -43,7 +46,7 @@ export async function getArticlesByTagSlug(
   tagSlug: string,
   limit = 20,
 ): Promise<ArticleWithRelations[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   // Zwei-Step-Query: zuerst tag.id auflösen, dann article_tags ↔ articles.
   // Inline-Join via PostgREST mit !inner würde funktionieren, ist aber

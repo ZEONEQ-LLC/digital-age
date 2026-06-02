@@ -12,6 +12,8 @@ import {
 import PromptsBrowser from "./PromptsBrowser";
 import { buildListingMetadata } from "@/lib/listingMetadata";
 
+export const revalidate = 300;
+
 export const metadata = buildListingMetadata({
   path: "/ai-prompts",
   title: "AI Prompts — Vorlagen für ChatGPT, Claude und Gemini",

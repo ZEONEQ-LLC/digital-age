@@ -17,6 +17,8 @@ import { getBaseUrl } from "@/lib/siteUrl";
 
 type Params = Promise<{ id: string }>;
 
+export const revalidate = 300;
+
 function truncateForMeta(s: string, max = 158): string {
   const t = s.trim();
   if (t.length <= max) return t;

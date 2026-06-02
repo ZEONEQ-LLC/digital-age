@@ -38,6 +38,11 @@ export const metadata = buildListingMetadata({
     "Nachrichten, Analysen und Empfehlungen rund um Künstliche Intelligenz und Future Tech. Schweizer Perspektive für Entscheider und Praktiker.",
 });
 
+// ISR: Page wird statisch gerendert und alle 60s neu generiert.
+// Greift nur, weil alle Data-Reads über den Anon-Public-Client laufen
+// (kein cookies()-Aufruf).
+export const revalidate = 60;
+
 export default async function Home() {
   // BentoGrid (Featured-Section) entfernt — die Spotlight-Section deckt das
   // Hero-Featuring ab. Kategorie-Sections filtern Hero-Artikel raus damit
