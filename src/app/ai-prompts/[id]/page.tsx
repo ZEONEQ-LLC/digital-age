@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 
 import Footer from "@/components/Footer";
 import { catColor, diffColor, toolColor, type AiTool, type Difficulty } from "@/components/promptColors";
-import { getPromptById } from "@/lib/promptApi";
+import { getPublishedPromptById } from "@/lib/promptApi";
 import {
   PROMPT_CATEGORIES,
   PROMPT_DIFFICULTIES,
@@ -14,10 +14,26 @@ import PromptCopyButton from "./PromptCopyButton";
 import { buildListingMetadata } from "@/lib/listingMetadata";
 import { buildBreadcrumbJsonLd } from "@/lib/jsonLd";
 import { getBaseUrl } from "@/lib/siteUrl";
+import { createPublicClient } from "@/lib/supabase/public";
 
 type Params = Promise<{ id: string }>;
 
 export const revalidate = 300;
+
+// SSG: published/featured Prompt-IDs vorab generieren (analog Sitemap-
+// Filter aus #112). Param-Name ist `id` (UUID), nicht slug.
+export async function generateStaticParams() {
+  try {
+    const supabase = createPublicClient();
+    const { data } = await supabase
+      .from("ai_prompts")
+      .select("id")
+      .in("status", ["published", "featured"]);
+    return (data ?? []).map((p) => ({ id: p.id }));
+  } catch {
+    return [];
+  }
+}
 
 function truncateForMeta(s: string, max = 158): string {
   const t = s.trim();
@@ -30,11 +46,9 @@ function lookup(list: readonly { code: string; label: string }[], code: string):
 }
 
 function visiblePrompt(id: string) {
-  return getPromptById(id).then((row) => {
-    if (!row) return null;
-    if (row.status !== "published" && row.status !== "featured") return null;
-    return row;
-  });
+  // getPublishedPromptById filtert bereits auf published+featured am
+  // Anon-Client — kein cookies(), Page kann static prerendern.
+  return getPublishedPromptById(id);
 }
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {

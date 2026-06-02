@@ -16,10 +16,36 @@ import {
   normalizeSocialUrl,
 } from "@/lib/jsonLd";
 import { getBaseUrl } from "@/lib/siteUrl";
+import { createPublicClient } from "@/lib/supabase/public";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
 export const revalidate = 300;
+
+// SSG: claimed Author-Handles vorab generieren. Param-Name ist `slug`,
+// der WERT ist der Author-`handle` (Lookup geht über getAuthorByHandle).
+// Filter analog Sitemap-Fetcher (#112): nur claimed Profile mit gesetztem
+// handle — Authors ohne handle haben keine erreichbare /autor/<X>-URL,
+// ungeclaimte Placeholder gehören nicht in den Public-Cache.
+export async function generateStaticParams() {
+  try {
+    const supabase = createPublicClient();
+    const { data } = await supabase
+      .from("authors")
+      .select("handle")
+      .not("handle", "is", null)
+      .not("user_id", "is", null);
+    const params: { slug: string }[] = [];
+    for (const a of data ?? []) {
+      if (typeof a.handle === "string" && a.handle.length > 0) {
+        params.push({ slug: a.handle });
+      }
+    }
+    return params;
+  } catch {
+    return [];
+  }
+}
 
 function truncateForMeta(s: string, max = 158): string {
   const t = s.trim();

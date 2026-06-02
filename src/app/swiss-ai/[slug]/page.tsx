@@ -13,10 +13,27 @@ import {
 import { buildListingMetadata } from "@/lib/listingMetadata";
 import { buildBreadcrumbJsonLd } from "@/lib/jsonLd";
 import { getBaseUrl } from "@/lib/siteUrl";
+import { createPublicClient } from "@/lib/supabase/public";
 
 type Params = Promise<{ slug: string }>;
 
 export const revalidate = 300;
+
+// SSG: published/featured Startup-Slugs vorab generieren (analog Sitemap-
+// Filter aus #112). Pending/rejected gehören nicht in den Cache —
+// status-Constraint hier ist die Sichtbarkeitsgrenze.
+export async function generateStaticParams() {
+  try {
+    const supabase = createPublicClient();
+    const { data } = await supabase
+      .from("ai_startups")
+      .select("slug")
+      .in("status", ["published", "featured"]);
+    return (data ?? []).map((s) => ({ slug: s.slug }));
+  } catch {
+    return [];
+  }
+}
 
 function truncateForMeta(s: string, max = 158): string {
   const t = s.trim();

@@ -22,6 +22,7 @@ import { markdownToBlocks } from "@/lib/markdownBlocks";
 import { getBaseUrl } from "@/lib/siteUrl";
 import { slugifyTag } from "@/lib/tagSlug";
 import { buildBreadcrumbJsonLd } from "@/lib/jsonLd";
+import { createPublicClient } from "@/lib/supabase/public";
 import {
   BLOCK_SCHEMA_VERSION,
   type Block,
@@ -31,6 +32,25 @@ import {
 type PageProps = { params: Promise<{ slug: string }> };
 
 export const revalidate = 600;
+
+// SSG: alle published Article-Slugs vorab generieren. Damit greift
+// revalidate als ISR auf Vercel-Edge (siehe Vorbild in /tag/[slug] +
+// Erkenntnis aus PR #114-Live-Test). Anon-Client → kein cookies(), das
+// ist der entscheidende Punkt für Static-Rendering.
+// Fallback bei fehlenden Build-Env-Vars: leeres Array, Next.js rendert
+// jeden Slug on-demand und ISR-cached danach.
+export async function generateStaticParams() {
+  try {
+    const supabase = createPublicClient();
+    const { data } = await supabase
+      .from("articles")
+      .select("slug")
+      .eq("status", "published");
+    return (data ?? []).map((a) => ({ slug: a.slug }));
+  } catch {
+    return [];
+  }
+}
 
 function formatDateDE(iso: string | null): string {
   if (!iso) return "";
