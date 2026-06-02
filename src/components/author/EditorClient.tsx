@@ -244,6 +244,12 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         title: title.trim(),
         bodyText: cleanBody,
         locale,
+        // SEO-Modus: wenn ein Focus-Keyword im SEO-Tab gesetzt ist, baut
+        // der Abstract es natürlich in den Lead ein. Ohne Keyword läuft
+        // die Generierung wie bisher. Seit PR #119 ist der Abstract der
+        // "Lead" für seo_review — Keyword im Lead vermeidet Folge-Befunde
+        // wie "Keyword fehlt im Lead".
+        focusKeyword: seo.keyword.trim() || null,
       });
       if (!result.ok) {
         setAiAbstractError(aiAbstractErrorMessage(result.kind));
@@ -342,11 +348,18 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   // Markdown-Fallback (Legacy). Inline-Marker werden mit-genommen — für
   // AI-Kontext akzeptabel, der LLM ignoriert sie ohnehin. Dient zwei
   // Zwecken: wordCount + AI-Server-Action-Input (z.B. SEO-Titel-Vorschlag).
-  // Erster Absatz für die SEO-Review-Analyse: erster Block vom Typ
-  // 'paragraph' im Visual-Tree. Wenn der Doc null/leer ist oder kein
-  // paragraph drin: leerer String — der LLM bekommt das im Prompt und
-  // kann das als "Lead-Paragraph fehlt"-Empfehlung zurückgeben.
+  // Lead für die SEO-Review-Analyse. Aus SEO-Sicht zählt der sichtbare
+  // Einstieg der Public-Page — und das ist der ABSTRACT (excerpt), der
+  // oben gross über dem Body-Text gerendert wird (artikel/[slug]/page.tsx
+  // ~Z.354). Vorher zog die Analyse den ersten Body-Paragraph, was zu
+  // False-Negatives führte, wenn das Keyword im Abstract stand, aber
+  // nicht im Body-Lead (Beispiel: portable-trust).
+  // Inline-Marker (**, {{g}}…{{/g}}, [^N]) bleiben drin — der LLM
+  // ignoriert sie, und die Marker-zu-Plain-Konvertierung würde State
+  // duplizieren. Fallback auf ersten Body-Paragraph wenn excerpt leer.
   const firstParagraph = useMemo(() => {
+    const abstractText = excerpt.trim();
+    if (abstractText !== "") return abstractText;
     const blocks: Block[] = doc?.blocks ?? [];
     for (const b of blocks) {
       if (b.type === "paragraph" && b.content.trim() !== "") {
@@ -354,7 +367,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       }
     }
     return "";
-  }, [doc]);
+  }, [excerpt, doc]);
 
   // H2-Liste für die SEO-Review-Analyse. seo_review prüft, ob das
   // Focus-Keyword in mindestens einer H2 vorkommt (claude-seo:
@@ -1299,20 +1312,24 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         </div>
       )}
 
-      {tab === "seo" && (
-        <div style={{ maxWidth: 720 }}>
-          <EditorSeoPanel
-            seo={seo}
-            onChange={setSeo}
-            articleId={article.id}
-            articleTitle={title}
-            articleBodyText={bodyText}
-            articleFirstParagraph={firstParagraph}
-            articleHeadingsLevel2={headingsLevel2}
-            locale={locale}
-          />
-        </div>
-      )}
+      {/* SEO-Panel dauerhaft gemountet, nur per CSS ein-/ausgeblendet —
+          analog zum Content-Tab. Grund: das Panel hält lokalen State für
+          das Analyse-Ergebnis (review, pipelineFields, dismissedKeys).
+          Unmount würde diesen State beim Tab-Wechsel verwerfen — der
+          Autor verliert seine Verbesserungsvorschläge, sobald er zur
+          Body-Bearbeitung wechselt und zurückkommt. */}
+      <div style={{ maxWidth: 720, display: tab === "seo" ? undefined : "none" }}>
+        <EditorSeoPanel
+          seo={seo}
+          onChange={setSeo}
+          articleId={article.id}
+          articleTitle={title}
+          articleBodyText={bodyText}
+          articleFirstParagraph={firstParagraph}
+          articleHeadingsLevel2={headingsLevel2}
+          locale={locale}
+        />
+      </div>
 
       {tab === "revisions" && (
         <div style={{ maxWidth: 720 }}>
