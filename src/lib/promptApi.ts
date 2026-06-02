@@ -72,6 +72,22 @@ export async function getPromptById(id: string): Promise<PromptWithAuthor | null
   return (data as PromptWithAuthor | null) ?? null;
 }
 
+// PUBLIC: status in (published, featured). Liefert nur sichtbare
+// Prompts — anders als getPromptById, das vom Suite-Editor auch für
+// pending/draft genutzt wird (deshalb dort am ssr-Client). Diese
+// Funktion läuft am Anon-Client, damit /ai-prompts/[id] static
+// prerendered + via ISR gecacht werden kann.
+export async function getPublishedPromptById(id: string): Promise<PromptWithAuthor | null> {
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from("ai_prompts")
+    .select(`*, ${AUTHOR_SELECT}`)
+    .eq("id", id)
+    .in("status", ["published", "featured"])
+    .maybeSingle();
+  return (data as PromptWithAuthor | null) ?? null;
+}
+
 export async function getMyPrompts(): Promise<PromptWithAuthor[]> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
