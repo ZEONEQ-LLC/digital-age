@@ -21,6 +21,7 @@ import { getCoverUrl } from "@/lib/coverImage";
 import { markdownToBlocks } from "@/lib/markdownBlocks";
 import { getBaseUrl } from "@/lib/siteUrl";
 import { slugifyTag } from "@/lib/tagSlug";
+import { buildBreadcrumbJsonLd } from "@/lib/jsonLd";
 import {
   BLOCK_SCHEMA_VERSION,
   type Block,
@@ -173,6 +174,18 @@ function buildArticleJsonLd(
   const description = truncateDescription(
     article.seo_description ?? article.excerpt,
   );
+  const categoryName = article.category?.name_de ?? undefined;
+  // keywords: Primary + Secondary + freie Tags; dedupliziert, kommagetrennt
+  // als String (schema.org akzeptiert Array oder String; String ist die
+  // verbreitete Form für die Google-Rich-Results-Validation).
+  const keywordList = [
+    article.seo_keyword_primary?.trim(),
+    ...(article.seo_keywords_secondary ?? []).map((k) => k.trim()),
+    ...(article.tags ?? []).map((k) => k.trim()),
+  ]
+    .filter((k): k is string => !!k && k.length > 0)
+    .filter((k, i, arr) => arr.indexOf(k) === i);
+  const keywords = keywordList.length > 0 ? keywordList.join(", ") : undefined;
   const data: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -181,6 +194,9 @@ function buildArticleJsonLd(
     image: ogImage,
     datePublished: article.published_at ?? undefined,
     dateModified: article.updated_at ?? undefined,
+    inLanguage: article.locale,
+    articleSection: categoryName,
+    keywords,
     publisher: {
       "@type": "Organization",
       name: "digital age",
@@ -195,10 +211,16 @@ function buildArticleJsonLd(
     },
   };
   if (article.author?.display_name) {
-    data.author = {
+    const personNode: Record<string, unknown> = {
       "@type": "Person",
       name: article.author.display_name,
     };
+    // Person.url nur wenn Handle gesetzt — sonst ist /autor/<X> nicht
+    // erreichbar (Authors ohne handle haben keine Public-Profil-URL).
+    if (article.author.handle) {
+      personNode.url = `${baseUrl}/autor/${article.author.handle}`;
+    }
+    data.author = personNode;
   }
   return JSON.stringify(data);
 }
@@ -223,7 +245,36 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
   const doc = resolveBlockDocument(article);
   const tocItems = deriveTocItems(doc.blocks);
   const authorHandle = author.handle ?? author.slug;
-  const jsonLd = buildArticleJsonLd(article, getBaseUrl());
+  const baseUrl = getBaseUrl();
+  const jsonLd = buildArticleJsonLd(article, baseUrl);
+  // Breadcrumb-Schema folgt der SEO-Hierarchie (Hauptkategorie, nicht die
+  // sichtbare Subcategory — letztere hat keine eigene Route und wäre
+  // nicht verlinkbar). Letzter Eintrag ohne URL = aktuelle Page.
+  // category.slug aus der DB (z.B. "ki-business") matched nicht direkt mit
+  // dem Listing-Pfad (/ki-im-business); kleines Lookup deckt die vier
+  // bekannten Kategorien ab. Unbekannte Slug → Crumb ohne URL.
+  const categoryRouteMap: Record<string, string> = {
+    "ki-business": "/ki-im-business",
+    "future-tech": "/future-tech",
+    "swiss-ai": "/swiss-ai",
+  };
+  const categoryName = article.category?.name_de;
+  const categorySlug = article.category?.slug;
+  const categoryRoute = categorySlug
+    ? categoryRouteMap[categorySlug]
+    : undefined;
+  const breadcrumbItems = [
+    { name: "Home", url: `${baseUrl}/` },
+    ...(categoryName
+      ? [
+          categoryRoute
+            ? { name: categoryName, url: `${baseUrl}${categoryRoute}` }
+            : { name: categoryName },
+        ]
+      : []),
+    { name: article.title },
+  ];
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd(breadcrumbItems);
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
@@ -231,6 +282,11 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
         type="application/ld+json"
         // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{ __html: jsonLd }}
+      />
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }}
       />
       <ReadingProgress />
       

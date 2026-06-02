@@ -8,6 +8,9 @@ import ArticleListRow from "@/components/ArticleListRow";
 import { getArticlesByTagSlug, getTagBySlug } from "@/lib/tags";
 import { articleToListRow } from "@/lib/mappers/articleMappers";
 import type { Database } from "@/lib/database.types";
+import { buildListingMetadata } from "@/lib/listingMetadata";
+import { buildBreadcrumbJsonLd, buildItemListJsonLd } from "@/lib/jsonLd";
+import { getBaseUrl } from "@/lib/siteUrl";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
@@ -34,10 +37,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!tag) {
     return { title: "Tag nicht gefunden — digital-age" };
   }
-  return {
+  return buildListingMetadata({
+    path: `/tag/${tag.slug}`,
     title: `#${tag.name} — Artikel zum Thema`,
-    description: `Alle Artikel zum Thema ${tag.name} auf digital-age.ch.`,
-  };
+    description: `Alle Artikel zum Thema ${tag.name} auf digital-age.ch — kuratierte Übersicht für Entscheider und Praktiker in der DACH-Region.`,
+  });
 }
 
 export default async function TagPage({ params }: PageProps) {
@@ -48,6 +52,20 @@ export default async function TagPage({ params }: PageProps) {
   const rows = await getArticlesByTagSlug(slug, 50);
   const articles = rows.map((row, idx) => articleToListRow(row, idx));
 
+  const baseUrl = getBaseUrl();
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: "Home", url: `${baseUrl}/` },
+    { name: "Tags", url: `${baseUrl}/tags` },
+    { name: `#${tag.name}` },
+  ]);
+  const itemListJsonLd = buildItemListJsonLd({
+    name: `Artikel zum Thema ${tag.name}`,
+    items: rows.map((row) => ({
+      url: `${baseUrl}/artikel/${row.slug}`,
+      name: row.title,
+    })),
+  });
+
   return (
     <main
       style={{
@@ -56,7 +74,17 @@ export default async function TagPage({ params }: PageProps) {
         minHeight: "100vh",
       }}
     >
-      
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }}
+      />
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: itemListJsonLd }}
+      />
+
 
       <section
         style={{

@@ -6,6 +6,8 @@ import { getArticlesByCategory, getFeaturedByCategory } from "@/lib/articleApi";
 import { getTopTags } from "@/lib/tags";
 import { articleToListRow } from "@/lib/mappers/articleMappers";
 import { buildListingMetadata } from "@/lib/listingMetadata";
+import { buildItemListJsonLd } from "@/lib/jsonLd";
+import { getBaseUrl } from "@/lib/siteUrl";
 
 export const metadata = buildListingMetadata({
   path: "/ki-im-business",
@@ -70,9 +72,22 @@ export default async function KIBusinessPage() {
     (a, b) => b.count - a.count,
   );
 
+  const baseUrl = getBaseUrl();
+  const itemListJsonLd = buildItemListJsonLd({
+    name: "KI im Business — Artikel",
+    items: rows.map((row) => ({
+      url: `${baseUrl}/artikel/${row.slug}`,
+      name: row.title,
+    })),
+  });
+
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: itemListJsonLd }}
+      />
       <SpotlightSection articles={featured} />
       <TopicListing
         topicLabel="KI & Business"
