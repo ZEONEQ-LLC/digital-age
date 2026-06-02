@@ -1,14 +1,15 @@
 import Link from "next/link";
-import type { Metadata } from "next";
 
 import Footer from "@/components/Footer";
 import { getAllTags } from "@/lib/tags";
+import { buildListingMetadata } from "@/lib/listingMetadata";
 
-export const metadata: Metadata = {
-  title: "Alle Tags — digital-age",
+export const metadata = buildListingMetadata({
+  path: "/tags",
+  title: "Alle Themen im Überblick — Tag-Verzeichnis von digital-age",
   description:
-    "Stöbere durch alle Themen auf digital-age.ch — alphabetisch sortiert.",
-};
+    "Stöbere durch alle Themen auf digital-age.ch: das vollständige Tag-Verzeichnis zu KI, Future Tech und Tool-Analysen — alphabetisch sortiert.",
+});
 
 export default async function TagsPage() {
   const tags = await getAllTags();

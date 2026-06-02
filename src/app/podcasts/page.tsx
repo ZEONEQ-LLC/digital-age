@@ -3,6 +3,14 @@ import Footer from "@/components/Footer";
 import PodcastsFilterList from "@/components/PodcastsFilterList";
 import { getPublishedPodcasts } from "@/lib/podcastApi";
 import { podcastToCardVM } from "@/lib/mappers/podcastMappers";
+import { buildListingMetadata } from "@/lib/listingMetadata";
+
+export const metadata = buildListingMetadata({
+  path: "/podcasts",
+  title: "KI-Podcasts — Empfehlungen der digital-age-Redaktion",
+  description:
+    "Hörens-werte Podcasts zu Künstlicher Intelligenz und Future Tech: kuratiert von der digital-age-Redaktion, mit Apple- und Spotify-Direktlinks.",
+});
 
 export default async function PodcastsPage() {
   const rows = await getPublishedPodcasts();

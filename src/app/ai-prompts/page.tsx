@@ -10,6 +10,14 @@ import {
   PROMPT_TESTED_WITH,
 } from "@/lib/mappers/promptMappers";
 import PromptsBrowser from "./PromptsBrowser";
+import { buildListingMetadata } from "@/lib/listingMetadata";
+
+export const metadata = buildListingMetadata({
+  path: "/ai-prompts",
+  title: "AI Prompts — Vorlagen für ChatGPT, Claude und Gemini",
+  description:
+    "Geprüfte AI-Prompts für Schweizer Profis: von Marketing-Briefs bis Engineering-Tasks. Mit Kontext, Beispiel-Output und Schwierigkeitsstufe zum Kopieren.",
+});
 
 function lookup(list: readonly { code: string; label: string }[], code: string): string {
   return list.find((it) => it.code === code)?.label ?? code;

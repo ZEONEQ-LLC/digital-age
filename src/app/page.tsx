@@ -11,8 +11,16 @@ import {
 } from "@/lib/articleApi";
 import { articleToCard } from "@/lib/mappers/articleMappers";
 import { getPublishedStartups } from "@/lib/startupApi";
+import { buildListingMetadata } from "@/lib/listingMetadata";
 
 const SWISS_AI_STRIP_LIMIT = 5;
+
+export const metadata = buildListingMetadata({
+  path: "/",
+  title: "digital age — Magazin für KI, Future Tech und Tools",
+  description:
+    "Nachrichten, Analysen und Empfehlungen rund um Künstliche Intelligenz und Future Tech. Schweizer Perspektive für Entscheider und Praktiker.",
+});
 
 export default async function Home() {
   // BentoGrid (Featured-Section) entfernt — die Spotlight-Section deckt das

@@ -9,6 +9,14 @@ import {
 } from "@/lib/startupApi";
 import { startupToCardVM } from "@/lib/mappers/startupMappers";
 import StartupsBrowser from "./StartupsBrowser";
+import { buildListingMetadata } from "@/lib/listingMetadata";
+
+export const metadata = buildListingMetadata({
+  path: "/swiss-ai",
+  title: "Swiss AI — Schweizer KI-Unternehmen im Verzeichnis",
+  description:
+    "Über 50 Schweizer KI-Unternehmen im kuratierten Verzeichnis: von Forschungs-Spin-offs bis Industrie-Anwender, mit Standort, Branche und Investor-Signal.",
+});
 
 export default async function SwissAIPage() {
   const [allRows, featuredRows, industries, cities] = await Promise.all([
