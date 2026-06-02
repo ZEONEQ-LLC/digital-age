@@ -356,6 +356,21 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     return "";
   }, [doc]);
 
+  // H2-Liste für die SEO-Review-Analyse. seo_review prüft, ob das
+  // Focus-Keyword in mindestens einer H2 vorkommt (claude-seo:
+  // 1 H1 + 1-2 H2-Mentions sind sufficient) — ohne H2-Daten kann
+  // das Modell den Punkt nicht bewerten.
+  const headingsLevel2 = useMemo(() => {
+    const blocks: Block[] = doc?.blocks ?? [];
+    const out: string[] = [];
+    for (const b of blocks) {
+      if (b.type === "heading" && b.level === 2 && b.content.trim() !== "") {
+        out.push(b.content);
+      }
+    }
+    return out;
+  }, [doc]);
+
   const bodyText = useMemo(() => {
     const blocks: Block[] = doc?.blocks ?? [];
     const blockText = blocks.reduce((acc, b) => {
@@ -1286,6 +1301,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             articleTitle={title}
             articleBodyText={bodyText}
             articleFirstParagraph={firstParagraph}
+            articleHeadingsLevel2={headingsLevel2}
             locale={locale}
           />
         </div>
