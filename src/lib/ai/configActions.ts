@@ -24,18 +24,17 @@ async function requireEditorAuthor(): Promise<{ id: string }> {
   return { id: author.id };
 }
 
-// Gültige AiTask-Werte für die Overrides-Validation. Spiegelt die
-// `AiTask`-Union in src/lib/ai/types.ts. Bei Erweiterung der Union
-// hier mit-nachziehen — sonst werden Modell-Overrides für die fehlenden
-// Tasks beim Save still verworfen.
+// Tasks, die das Editor-UI als Override-Dropdown anbietet. SEO-Einzel-
+// Tasks (seo_title/description/slug/keyword) sind bewusst NICHT enthalten:
+// sie laufen aktiv als Server-Actions und werden via ai_usage_log pro
+// Task geloggt, aber kein eigenes Modell-Toggle (siehe config.ts-Kommentar).
+// Spiegelt damit KNOWN_TASKS aus src/lib/ai/config.ts — beide Listen
+// müssen synchron gehalten werden.
+// Bei Save werden Overrides für Tasks ausserhalb dieser Liste rausgefiltert.
 const KNOWN_TASKS: ReadonlySet<AiTask> = new Set<AiTask>([
   "title_variants",
   "tone_check",
   "summary",
-  "seo_title",
-  "seo_description",
-  "seo_slug",
-  "seo_keyword",
   "closing_paragraph",
   "seo_pipeline",
   "seo_review",

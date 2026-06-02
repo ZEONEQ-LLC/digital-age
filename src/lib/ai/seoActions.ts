@@ -3,18 +3,6 @@
 import { callLLM } from "@/lib/ai/client";
 import type { AiResult } from "@/lib/ai/types";
 
-// ─────────────────────────────────────────────────────────────────────────
-// PILOT — wird durch generateSeoFields ersetzt.
-// ─────────────────────────────────────────────────────────────────────────
-// Bleibt im Code für 1–2 Wochen Produktivbetrieb, damit ein Rollback
-// schnell verdrahtbar wäre. Im UI ist die Funktion nicht mehr aufgerufen.
-// Eigener Cleanup-PR nach der Bewährungsfrist entfernt sie.
-const SEO_TITLE_SYSTEM =
-  "Generiere einen suchmaschinen-optimierten SEO-Titel für einen Artikel. " +
-  "50–60 Zeichen, prägnant, kein Clickbait. " +
-  "Schweizer Rechtschreibung (ss statt Eszett). " +
-  "Antworte nur mit dem Titel-Text, ohne Anführungszeichen, ohne Erklärung.";
-
 // Body-Cap für den Pipeline-Input. 12000 Zeichen ≈ 1800 dt. Wörter und
 // decken die längsten DB-Artikel weitgehend ab (vorheriger 4000-Cap zeigte
 // dem Modell bei langen Artikeln nur ~25 % des Texts — Keyword-Wahl lief
@@ -23,35 +11,23 @@ const SEO_TITLE_SYSTEM =
 // 4000 ist vernachlässigbar (~0.2 ¢ Haiku-Input).
 const MAX_BODY_CHARS = 12000;
 
-function buildTitlePrompt(args: { title: string; bodyText: string }): string {
-  const title = args.title.trim();
-  const body = args.bodyText.trim().slice(0, MAX_BODY_CHARS);
-  const parts: string[] = [];
-  if (title) parts.push(`Aktueller Arbeitstitel: ${title}`);
-  if (body) parts.push(`Artikel-Inhalt (Auszug):\n${body}`);
-  if (parts.length === 0) {
-    parts.push(
-      "Es liegt noch kein Inhalt vor. Schlage einen platzhalterhaften SEO-Titel basierend auf einem generischen Tech-/KI-Thema vor.",
-    );
+// Plain-String-Output von Einzel-Re-Generate-Aktionen säubern. Modelle
+// wrappen die Antwort manchmal in Codefence oder Anführungszeichen,
+// obwohl der Prompt das verbietet — pragmatischer Strip statt Retry.
+function cleanPlainTextOutput(raw: string): string {
+  let out = raw.trim();
+  if (out.startsWith("```")) {
+    out = out.replace(/^```(?:[a-z]+)?\s*/i, "").replace(/\s*```$/, "").trim();
   }
-  return parts.join("\n\n");
-}
-
-/**
- * @deprecated — ersetzt durch generateSeoFields (siehe unten). Kann nach
- * 1–2 Wochen Produktivbetrieb entfernt werden. UI-Verdrahtung ist bereits
- * weg, der Export bleibt nur für einen schnellen Rollback verfügbar.
- */
-export async function suggestSeoTitle(args: {
-  title: string;
-  bodyText: string;
-}): Promise<AiResult> {
-  return callLLM({
-    system: SEO_TITLE_SYSTEM,
-    prompt: buildTitlePrompt(args),
-    maxTokens: 120,
-    task: "seo_title",
-  });
+  if (
+    (out.startsWith('"') && out.endsWith('"')) ||
+    (out.startsWith("„") && out.endsWith("“")) ||
+    (out.startsWith("«") && out.endsWith("»")) ||
+    (out.startsWith("'") && out.endsWith("'"))
+  ) {
+    out = out.slice(1, -1).trim();
+  }
+  return out;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -296,6 +272,246 @@ export async function generateSeoFields(args: {
     return { ok: false, error: "invalid_json" };
   }
   return { ok: true, fields };
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Einzel-Re-Generate-Aktionen pro SEO-Feld (Title/Description/Slug/Keyword).
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Architektur-Entscheidung: eigene Server-Actions pro Feld statt Master-
+// Pipeline-Wiederverwendung. Pflege-Risiko (Prompt-Drift gegen
+// generateSeoFields) wird bewusst getragen — wenn die Master-Strategie
+// geschärft wird, müssen auch diese 4 Prompts mitgezogen werden.
+//
+// Alle 4 Prompts spiegeln den geschärften Stand aus PR #117/#120:
+// - Brand/Rolle/Schweizer Rechtschreibung kommt zentral aus dem globalen
+//   ai_config.system_prompt — hier nicht dupliziert.
+// - Output: Plain-String, KEIN JSON (im Gegensatz zum Master).
+// - Locale steuert Output-Sprache (DE/EN).
+//
+// Output-Säuberung via cleanPlainTextOutput (Codefence + Quote-Wrapping
+// pragmatisch strippen, statt Retry).
+
+// Helper für den User-Prompt-Aufbau. focusKeyword ist bei den meisten
+// Einzel-Tasks de-facto Pflicht, wird hier aber soft-optional gehandhabt:
+// wenn nicht gesetzt, schlägt das Modell implizit eines mit — der
+// Editor wird in der UI gebeten, vorher das Keyword zu setzen.
+function buildSingleFieldUserPrompt(args: {
+  title: string;
+  bodyText?: string;
+  focusKeyword: string | null;
+  secondaryKeywords?: string[];
+  currentValue?: string | null;
+}): string {
+  const parts: string[] = [];
+  if (args.title.trim()) parts.push(`Aktueller Arbeitstitel: ${args.title.trim()}`);
+  if (args.focusKeyword?.trim()) {
+    parts.push(`Focus-Keyword: ${args.focusKeyword.trim()}`);
+  } else {
+    parts.push("Focus-Keyword: nicht gesetzt — leite eines aus dem Artikel-Inhalt ab und nutze es für die Generierung.");
+  }
+  if (args.secondaryKeywords && args.secondaryKeywords.length > 0) {
+    parts.push(`Sekundär-Keywords: ${args.secondaryKeywords.join(", ")}`);
+  }
+  if (args.currentValue?.trim()) {
+    parts.push(`Aktueller Wert (wird ersetzt): ${args.currentValue.trim()}`);
+  }
+  if (args.bodyText?.trim()) {
+    parts.push(`Artikel-Inhalt (Auszug):\n${args.bodyText.trim().slice(0, MAX_BODY_CHARS)}`);
+  }
+  return parts.join("\n\n");
+}
+
+// ─── seo_title ────────────────────────────────────────────────────────────
+
+function buildSeoTitleSystem(locale: "de-CH" | "en"): string {
+  return [
+    "Aufgabe: Generiere genau EINEN SEO-Titel für einen Magazin-Artikel.",
+    "",
+    `SPRACHE des Outputs: ${
+      locale === "en" ? "Englisch" : "Deutsch (Schweizer Rechtschreibung)"
+    }.`,
+    "",
+    "REGELN:",
+    "  - 50–60 Zeichen.",
+    "  - Focus-Keyword in den ersten 30 Zeichen.",
+    "  - Aktive Sprache; optional eine Zahl oder ein konkretes Versprechen,",
+    "    kein Clickbait.",
+    "  - Konsistent zum Artikel-Inhalt (kein generischer Tech-Filler).",
+    "",
+    "OUTPUT: NUR der Title-Text. Keine Anführungszeichen, kein Markdown,",
+    "keine Vor- oder Nachrede, keine Alternativen oder Listen.",
+  ].join("\n");
+}
+
+export async function regenerateSeoTitle(args: {
+  title: string;
+  bodyText: string;
+  focusKeyword: string | null;
+  secondaryKeywords: string[];
+  currentValue: string | null;
+  locale: "de-CH" | "en";
+}): Promise<AiResult> {
+  const result = await callLLM({
+    system: buildSeoTitleSystem(args.locale),
+    prompt: buildSingleFieldUserPrompt({
+      title: args.title,
+      bodyText: args.bodyText,
+      focusKeyword: args.focusKeyword,
+      secondaryKeywords: args.secondaryKeywords,
+      currentValue: args.currentValue,
+    }),
+    maxTokens: 120,
+    task: "seo_title",
+  });
+  if (result.ok) return { ...result, text: cleanPlainTextOutput(result.text) };
+  return result;
+}
+
+// ─── seo_description ──────────────────────────────────────────────────────
+
+function buildSeoDescriptionSystem(locale: "de-CH" | "en"): string {
+  return [
+    "Aufgabe: Generiere genau EINE Meta-Description für einen Magazin-",
+    "Artikel.",
+    "",
+    `SPRACHE des Outputs: ${
+      locale === "en" ? "Englisch" : "Deutsch (Schweizer Rechtschreibung)"
+    }.`,
+    "",
+    "REGELN:",
+    "  - 150–160 Zeichen.",
+    "  - Focus-Keyword in den ersten 60 Zeichen.",
+    "  - Konkretes Versprechen statt Werbe-Adjektive.",
+    "  - CTA am Ende (z.B. 'Jetzt lesen.', 'Erfahre warum.').",
+    "  - Konsistent zum Artikel-Inhalt.",
+    "",
+    "OUTPUT: NUR der Description-Text. Keine Anführungszeichen, kein",
+    "Markdown, keine Vor- oder Nachrede, keine Alternativen.",
+  ].join("\n");
+}
+
+export async function regenerateSeoDescription(args: {
+  title: string;
+  bodyText: string;
+  focusKeyword: string | null;
+  secondaryKeywords: string[];
+  currentValue: string | null;
+  locale: "de-CH" | "en";
+}): Promise<AiResult> {
+  const result = await callLLM({
+    system: buildSeoDescriptionSystem(args.locale),
+    prompt: buildSingleFieldUserPrompt({
+      title: args.title,
+      bodyText: args.bodyText,
+      focusKeyword: args.focusKeyword,
+      secondaryKeywords: args.secondaryKeywords,
+      currentValue: args.currentValue,
+    }),
+    maxTokens: 200,
+    task: "seo_description",
+  });
+  if (result.ok) return { ...result, text: cleanPlainTextOutput(result.text) };
+  return result;
+}
+
+// ─── seo_slug ─────────────────────────────────────────────────────────────
+
+function buildSeoSlugSystem(locale: "de-CH" | "en"): string {
+  return [
+    "Aufgabe: Generiere genau EINEN URL-Slug für einen Magazin-Artikel.",
+    "",
+    `SPRACHE des Outputs: ${
+      locale === "en" ? "Englisch" : "Deutsch (Schweizer Rechtschreibung)"
+    }.`,
+    "",
+    "REGELN:",
+    "  - kebab-case, ausschliesslich Kleinbuchstaben, Ziffern und",
+    "    Bindestriche. KEINE Umlaute (ä→a, ö→o, ü→u), kein Eszett (ß→ss).",
+    "  - 3–5 Wörter ideal, maximal 60 Zeichen.",
+    "  - Stopwörter weglassen (der/die/das/von/und/im/zu/the/of/and).",
+    "  - Focus-Keyword muss erkennbar drin sein.",
+    "",
+    "OUTPUT: NUR der Slug. Keine Anführungszeichen, kein Markdown,",
+    "keine Vor- oder Nachrede, keine Alternativen, kein '/' am Anfang.",
+  ].join("\n");
+}
+
+export async function regenerateSeoSlug(args: {
+  title: string;
+  focusKeyword: string | null;
+  currentValue: string | null;
+  locale: "de-CH" | "en";
+}): Promise<AiResult> {
+  // Slug braucht weniger Kontext — Title + Keyword reichen. Body würde
+  // nur Token verbrauchen ohne Mehrwert für den Slug-Output.
+  const result = await callLLM({
+    system: buildSeoSlugSystem(args.locale),
+    prompt: buildSingleFieldUserPrompt({
+      title: args.title,
+      focusKeyword: args.focusKeyword,
+      currentValue: args.currentValue,
+    }),
+    maxTokens: 60,
+    task: "seo_slug",
+  });
+  if (result.ok) {
+    // Slug-Format defensiv erzwingen: lowercase, Umlaute, Sonderzeichen
+    // → Bindestriche. Dem Modell vertrauen wir nicht 100% bei der
+    // Slug-Konvention.
+    const cleaned = cleanPlainTextOutput(result.text)
+      .toLowerCase()
+      .replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u").replace(/ß/g, "ss")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    return { ...result, text: cleaned };
+  }
+  return result;
+}
+
+// ─── seo_keyword ──────────────────────────────────────────────────────────
+
+function buildSeoKeywordSystem(locale: "de-CH" | "en"): string {
+  return [
+    "Aufgabe: Generiere genau EIN Focus-Keyword für einen Magazin-Artikel.",
+    "",
+    `SPRACHE des Outputs: ${
+      locale === "en" ? "Englisch" : "Deutsch (Schweizer Rechtschreibung)"
+    }.`,
+    "",
+    "REGELN:",
+    "  - 2–4 Wörter.",
+    "  - Wähle das Keyword, das die Suchintention der Zielleser am",
+    "    genauesten trifft — NICHT das häufigste Wort im Text.",
+    "  - Bevorzuge spezifische Mid-Tail-Phrasen gegenüber generischen",
+    "    Head-Terms.",
+    "  - Das Keyword muss eine realistische Such-Anfrage sein, für die",
+    "    diese Seite ranken kann.",
+    "",
+    "OUTPUT: NUR das Keyword. Keine Anführungszeichen, kein Markdown,",
+    "keine Vor- oder Nachrede, keine Alternativen.",
+  ].join("\n");
+}
+
+export async function regenerateSeoKeyword(args: {
+  title: string;
+  bodyText: string;
+  currentValue: string | null;
+  locale: "de-CH" | "en";
+}): Promise<AiResult> {
+  const result = await callLLM({
+    system: buildSeoKeywordSystem(args.locale),
+    prompt: buildSingleFieldUserPrompt({
+      title: args.title,
+      bodyText: args.bodyText,
+      focusKeyword: null, // hier wäre das die zu generierende Antwort
+      currentValue: args.currentValue,
+    }),
+    maxTokens: 30,
+    task: "seo_keyword",
+  });
+  if (result.ok) return { ...result, text: cleanPlainTextOutput(result.text) };
+  return result;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
