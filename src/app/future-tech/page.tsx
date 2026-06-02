@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 
 import Footer from "@/components/Footer";
 import SpotlightSection from "@/components/SpotlightSection";
@@ -8,6 +9,8 @@ import { articleToListRow } from "@/lib/mappers/articleMappers";
 import { buildListingMetadata } from "@/lib/listingMetadata";
 import { buildItemListJsonLd } from "@/lib/jsonLd";
 import { getBaseUrl } from "@/lib/siteUrl";
+
+export const revalidate = 120;
 
 export const metadata = buildListingMetadata({
   path: "/future-tech",
@@ -89,17 +92,21 @@ export default async function FutureTechPage() {
         dangerouslySetInnerHTML={{ __html: itemListJsonLd }}
       />
       <SpotlightSection articles={featured} />
-      <TopicListing
-        topicLabel="Future Tech"
-        lead="Technologien von morgen — heute verstehen. GenAI, IoT, Blockchain und die Innovationen, die unsere Welt neu gestalten."
-        articles={articles}
-        subcategories={subcategories}
-        categoryColors={categoryColors}
-        trendingTags={trendingTags}
-        authors={authors}
-        topTags={topTags}
-        accentColor="purple"
-      />
+      {/* Suspense wegen useSearchParams in TopicListing — nötig damit
+          die Page static prerendered + via revalidate gecacht werden kann. */}
+      <Suspense fallback={null}>
+        <TopicListing
+          topicLabel="Future Tech"
+          lead="Technologien von morgen — heute verstehen. GenAI, IoT, Blockchain und die Innovationen, die unsere Welt neu gestalten."
+          articles={articles}
+          subcategories={subcategories}
+          categoryColors={categoryColors}
+          trendingTags={trendingTags}
+          authors={authors}
+          topTags={topTags}
+          accentColor="purple"
+        />
+      </Suspense>
       <div style={{ height: "var(--sp-20)" }} />
       <Footer />
     </main>

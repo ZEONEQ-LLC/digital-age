@@ -1,4 +1,8 @@
+// Gemischt: 3 Public-Read-Funktionen (getPublishedPrompts,
+// getFeaturedPrompts, getPromptCategories) am Anon-Client. Rest ist
+// Auth-gebunden (eigene Prompts, Admin-Read, pending-Status).
 import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import type { Database } from "@/lib/database.types";
 
 export type PromptRow = Database["public"]["Tables"]["ai_prompts"]["Row"];
@@ -18,8 +22,9 @@ export type PromptFilters = {
 
 const AUTHOR_SELECT = "author:authors!author_id(id, display_name, slug, handle, avatar_url)";
 
+// PUBLIC: status in (published, featured).
 export async function getPublishedPrompts(filters?: PromptFilters): Promise<PromptWithAuthor[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   let query = supabase
     .from("ai_prompts")
     .select(`*, ${AUTHOR_SELECT}`)
@@ -44,8 +49,9 @@ export async function getPublishedPrompts(filters?: PromptFilters): Promise<Prom
   });
 }
 
+// PUBLIC: status=featured.
 export async function getFeaturedPrompts(limit = 3): Promise<PromptWithAuthor[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("ai_prompts")
     .select(`*, ${AUTHOR_SELECT}`)
@@ -96,8 +102,9 @@ export async function getAllPromptsForAdmin(): Promise<PromptWithAuthor[]> {
   return (data as PromptWithAuthor[] | null) ?? [];
 }
 
+// PUBLIC: status in (published, featured).
 export async function getPromptCategories(): Promise<string[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("ai_prompts")
     .select("category")

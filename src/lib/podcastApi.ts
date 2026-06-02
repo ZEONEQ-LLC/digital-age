@@ -1,4 +1,9 @@
+// Gemischtes Modul: getPublishedPodcasts ist Public-Read → Anon-Client.
+// getMyPodcasts / getPodcastById sind Auth-gebunden (RLS-Schnitt für
+// Author/Editor bzw. Draft-Lookup im Suite-Editor) und bleiben am ssr-
+// Client mit cookies().
 import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import type { Database } from "@/lib/database.types";
 
 export type PodcastRow = Database["public"]["Tables"]["podcasts"]["Row"];
@@ -18,10 +23,11 @@ export type PodcastFilters = {
   category?: string;
 };
 
+// PUBLIC: is_published=true, kein User-Filter.
 export async function getPublishedPodcasts(
   filters?: PodcastFilters,
 ): Promise<PodcastWithRecommender[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   let query = supabase
     .from("podcasts")
     .select(

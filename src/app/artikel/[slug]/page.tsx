@@ -30,6 +30,8 @@ import {
 
 type PageProps = { params: Promise<{ slug: string }> };
 
+export const revalidate = 600;
+
 function formatDateDE(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);

@@ -11,6 +11,8 @@ import { startupToCardVM } from "@/lib/mappers/startupMappers";
 import StartupsBrowser from "./StartupsBrowser";
 import { buildListingMetadata } from "@/lib/listingMetadata";
 
+export const revalidate = 300;
+
 export const metadata = buildListingMetadata({
   path: "/swiss-ai",
   title: "Swiss AI — Schweizer KI-Unternehmen im Verzeichnis",

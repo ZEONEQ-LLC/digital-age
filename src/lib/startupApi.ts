@@ -1,4 +1,9 @@
+// Gemischt: 5 Public-Read-Funktionen (getPublishedStartups,
+// getFeaturedStartups, getStartupBySlug, getStartupIndustries,
+// getStartupCities) am Anon-Client. Admin-Read + Pending-Count bleiben
+// am ssr-Client (RLS-Editor-Schnitt).
 import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import type { Database } from "@/lib/database.types";
 
 export type StartupRow = Database["public"]["Tables"]["ai_startups"]["Row"];
@@ -14,8 +19,9 @@ export type StartupFilters = {
   city?: string;
 };
 
+// PUBLIC: status in (published, featured).
 export async function getPublishedStartups(filters?: StartupFilters): Promise<StartupRow[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   let query = supabase
     .from("ai_startups")
     .select("*")
@@ -41,8 +47,9 @@ export async function getPublishedStartups(filters?: StartupFilters): Promise<St
   });
 }
 
+// PUBLIC: status=featured.
 export async function getFeaturedStartups(limit = 3): Promise<StartupRow[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("ai_startups")
     .select("*")
@@ -53,8 +60,9 @@ export async function getFeaturedStartups(limit = 3): Promise<StartupRow[]> {
   return (data ?? []) as StartupRow[];
 }
 
+// PUBLIC: status in (published, featured).
 export async function getStartupBySlug(slug: string): Promise<StartupRow | null> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("ai_startups")
     .select("*")
@@ -85,8 +93,9 @@ export async function getPendingStartupCount(): Promise<number> {
   return count ?? 0;
 }
 
+// PUBLIC: status in (published, featured).
 export async function getStartupIndustries(): Promise<string[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("ai_startups")
     .select("industry")
@@ -96,8 +105,9 @@ export async function getStartupIndustries(): Promise<string[]> {
   return Array.from(unique).sort();
 }
 
+// PUBLIC: status in (published, featured).
 export async function getStartupCities(): Promise<string[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("ai_startups")
     .select("city")

@@ -1,4 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
+// Alle Funktionen in diesem Modul lesen ausschliesslich öffentliche
+// Inhalte (published Articles) → Anon-Client. Damit fällt der
+// cookies()-Aufruf des ssr-Clients weg und die Public-Pages werden
+// cachebar (revalidate/ISR). Siehe src/lib/supabase/public.ts.
+import { createPublicClient } from "@/lib/supabase/public";
 import type { Database } from "@/lib/database.types";
 
 type ArticleRow = Database["public"]["Tables"]["articles"]["Row"];
@@ -24,7 +28,7 @@ const RELATIONS_SHORT =
 const RELATIONS_FULL = "*, category:categories(*), author:authors(*)";
 
 export async function getFeaturedArticles(limit = 4): Promise<ArticleWithRelations[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("articles")
     .select(RELATIONS_SHORT)
@@ -40,7 +44,7 @@ export async function getArticlesByCategory(
   limit?: number,
   options: { excludeHero?: boolean } = {},
 ): Promise<ArticleWithRelations[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   let query = supabase
     .from("articles")
     .select(
@@ -61,7 +65,7 @@ export async function getFeaturedByCategory(
   categorySlug: string,
   limit = 3,
 ): Promise<ArticleWithRelations[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("articles")
     .select(
@@ -80,7 +84,7 @@ export async function getFeaturedByCategory(
 export async function getHeroOrLatestByCategory(
   categorySlug: string,
 ): Promise<ArticleWithRelations | null> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data: hero } = await supabase
     .from("articles")
     .select(
@@ -107,7 +111,7 @@ export async function getHeroOrLatestByCategory(
 export async function getArticleBySlug(
   slug: string,
 ): Promise<ArticleWithFullRelations | null> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("articles")
     .select(RELATIONS_FULL)

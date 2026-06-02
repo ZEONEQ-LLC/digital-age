@@ -4,6 +4,8 @@ import Footer from "@/components/Footer";
 import { getAllTags } from "@/lib/tags";
 import { buildListingMetadata } from "@/lib/listingMetadata";
 
+export const revalidate = 120;
+
 export const metadata = buildListingMetadata({
   path: "/tags",
   title: "Alle Themen im Überblick — Tag-Verzeichnis von digital-age",

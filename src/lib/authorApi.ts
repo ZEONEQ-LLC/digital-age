@@ -1,4 +1,10 @@
+// Gemischtes Modul: zwei Public-Read-Funktionen (getAuthorByHandle,
+// getArticlesByAuthor) laufen über den Anon-Client → die Public-Author-
+// Profil-Seite kann cachen. Alle anderen Funktionen sind Auth-gebunden
+// (eigenes Author-Lookup über auth.getUser, eigene Articles, eigene
+// Stats, signOut) und bleiben am ssr-Client mit cookies().
 import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import type { Database } from "@/lib/database.types";
 
 export type AuthorRow = Database["public"]["Tables"]["authors"]["Row"];
@@ -41,8 +47,10 @@ export async function getCurrentAuthor(): Promise<AuthorRow | null> {
   return author;
 }
 
+// PUBLIC: RLS "public can read author profiles" (Initial-Schema) erlaubt
+// Anon-SELECT. Kein User-Filter.
 export async function getAuthorByHandle(handle: string): Promise<AuthorRow | null> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("authors")
     .select("*")
@@ -51,8 +59,9 @@ export async function getAuthorByHandle(handle: string): Promise<AuthorRow | nul
   return data;
 }
 
+// PUBLIC: status=published, author_id ist Param (nicht aus Session).
 export async function getArticlesByAuthor(authorId: string): Promise<AuthorArticle[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("articles")
     .select("*, category:categories(slug, name_de, name_en)")
