@@ -5,6 +5,14 @@ import TopicListing from "@/components/TopicListing";
 import { getArticlesByCategory, getFeaturedByCategory } from "@/lib/articleApi";
 import { getTopTags } from "@/lib/tags";
 import { articleToListRow } from "@/lib/mappers/articleMappers";
+import { buildListingMetadata } from "@/lib/listingMetadata";
+
+export const metadata = buildListingMetadata({
+  path: "/ki-im-business",
+  title: "KI im Business — Strategien, Cases und Tools für Profis",
+  description:
+    "Wie Unternehmen Künstliche Intelligenz strategisch einsetzen: Cases aus Banking, Industrie und Verwaltung, plus Tool-Vergleiche aus der DACH-Region.",
+});
 
 const categoryColors: Record<string, string> = {
   "AI in Banking":     "var(--da-green)",

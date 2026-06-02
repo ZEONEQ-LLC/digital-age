@@ -1,6 +1,14 @@
 
 import Footer from "@/components/Footer";
 import NewsletterSignup from "@/components/NewsletterSignup";
+import { buildListingMetadata } from "@/lib/listingMetadata";
+
+export const metadata = buildListingMetadata({
+  path: "/newsletter",
+  title: "Newsletter — KI und Future Tech direkt in deine Inbox",
+  description:
+    "Der digital-age-Newsletter: einmal pro Woche eine kompakte Übersicht zu Künstlicher Intelligenz, Future Tech und neuen Tools. Schweizer Perspektive, kostenlos.",
+});
 
 export default function Page() {
   return (

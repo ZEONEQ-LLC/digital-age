@@ -5,6 +5,14 @@ import TopicListing from "@/components/TopicListing";
 import { getArticlesByCategory, getFeaturedByCategory } from "@/lib/articleApi";
 import { getTopTags } from "@/lib/tags";
 import { articleToListRow } from "@/lib/mappers/articleMappers";
+import { buildListingMetadata } from "@/lib/listingMetadata";
+
+export const metadata = buildListingMetadata({
+  path: "/future-tech",
+  title: "Future Tech — Quanten, Robotik, IoT und neue Materialien",
+  description:
+    "Future-Tech-Analysen: Quantencomputing, Robotik, IoT, neue Materialien und Schweizer Halbleiter. Hintergrund statt Hype, mit Blick auf den Schweizer Markt.",
+});
 
 const categoryColors: Record<string, string> = {
   "GenAI":            "var(--da-green)",
