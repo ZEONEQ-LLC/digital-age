@@ -1,16 +1,27 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { saveAiConfig } from "@/lib/ai/configActions";
 import type { AiTask } from "@/lib/ai/types";
+import { KNOWN_MODELS, isKnownModel } from "@/lib/ai/models";
+
+type TaskGroup = { id: string; label: string; tasks: AiTask[] };
 
 type Props = {
   initialSystemPrompt: string;
   initialDefaultModel: string;
   initialTaskOverrides: Partial<Record<AiTask, string>>;
   taskLabels: Record<AiTask, string>;
+  taskGroups: TaskGroup[];
   lastUpdatedAt: string | null;
 };
+
+// Sentinel-Wert für „Default verwenden" im Override-Dropdown. Wird beim
+// Save zu einem leeren String — saveAiConfig droppt leere Strings, der
+// JSON-Key fällt damit aus dem Override-Objekt raus (Resolver fällt auf
+// default_model zurück). Ein echter Modell-String darf diesen Sentinel
+// nicht enthalten.
+const USE_DEFAULT = "__use_default__";
 
 function formatDateTimeDE(iso: string | null): string {
   if (!iso) return "—";
@@ -30,6 +41,7 @@ export default function AiConfigClient({
   initialDefaultModel,
   initialTaskOverrides,
   taskLabels,
+  taskGroups,
   lastUpdatedAt,
 }: Props) {
   const [systemPrompt, setSystemPrompt] = useState(initialSystemPrompt);
@@ -48,8 +60,33 @@ export default function AiConfigClient({
   }, [toast]);
 
   function setOverride(task: AiTask, value: string) {
-    setOverrides((prev) => ({ ...prev, [task]: value }));
+    setOverrides((prev) => {
+      const next = { ...prev };
+      if (value === USE_DEFAULT) {
+        delete next[task];
+      } else {
+        next[task] = value;
+      }
+      return next;
+    });
   }
+
+  // Alle Modell-Strings, die aktuell irgendwo gesetzt sind (Default oder
+  // Overrides) und NICHT in der kuratierten Liste stehen. Werden als
+  // zusätzliche Dropdown-Option mit "(unbekannt)"-Suffix angeboten —
+  // damit der Editor sieht, dass da ein Altbestand-/Tippfehler-Wert
+  // steht, ohne dass er still verschluckt wird.
+  const unknownModels = useMemo(() => {
+    const acc = new Set<string>();
+    if (defaultModel && !isKnownModel(defaultModel)) acc.add(defaultModel);
+    for (const v of Object.values(overrides)) {
+      if (typeof v === "string" && v !== "" && !isKnownModel(v)) acc.add(v);
+    }
+    return Array.from(acc);
+  }, [defaultModel, overrides]);
+
+  const defaultModelIsUnknown =
+    defaultModel !== "" && !isKnownModel(defaultModel);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -132,6 +169,41 @@ export default function AiConfigClient({
           font-size: 10px;
           letter-spacing: 0.06em;
         }
+        .aic-select {
+          width: 100%;
+          background: var(--da-dark);
+          color: var(--da-text);
+          border: 1px solid var(--da-border);
+          border-radius: 4px;
+          padding: 9px 12px;
+          font-size: 13px;
+          font-family: inherit;
+          box-sizing: border-box;
+          cursor: pointer;
+        }
+        .aic-select:focus { outline: 1px solid var(--da-green); }
+        .aic-select--warn {
+          border-color: var(--da-orange);
+          color: var(--da-orange);
+        }
+        .aic-group-title {
+          color: var(--da-muted);
+          font-family: var(--da-font-mono);
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          margin: 18px 0 10px;
+          padding-bottom: 6px;
+          border-bottom: 1px solid var(--da-border);
+        }
+        .aic-group-title:first-of-type { margin-top: 0; }
+        .aic-warn-line {
+          color: var(--da-orange);
+          font-size: 11px;
+          font-family: var(--da-font-mono);
+          margin-top: 2px;
+        }
         .aic-meta {
           color: var(--da-muted);
           font-size: 12px;
@@ -188,18 +260,34 @@ export default function AiConfigClient({
           <label className="aic-label" htmlFor="aic-default-model">
             Default-Modell
           </label>
-          <input
+          <select
             id="aic-default-model"
-            type="text"
-            className="aic-input"
+            className={`aic-select${defaultModelIsUnknown ? " aic-select--warn" : ""}`}
             value={defaultModel}
             onChange={(e) => setDefaultModel(e.target.value)}
-            placeholder="z.B. claude-haiku-4-5"
-          />
+          >
+            {KNOWN_MODELS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+            {defaultModelIsUnknown && (
+              <option value={defaultModel}>
+                {defaultModel} (unbekannt)
+              </option>
+            )}
+          </select>
+          {defaultModelIsUnknown && (
+            <p className="aic-warn-line">
+              Aktueller Wert nicht in der kuratierten Liste — bitte
+              prüfen und ggf. auf ein bekanntes Modell umstellen.
+            </p>
+          )}
           <p className="aic-hint">
-            Wird verwendet wenn für eine Task kein Override gesetzt ist.
-            Beispiele: <code>claude-haiku-4-5</code>,{" "}
-            <code>claude-sonnet-4-6</code>, <code>claude-opus-4-7</code>.
+            Wird verwendet, wenn für eine Task kein Override gesetzt ist.
+            Die Modell-Liste ist kuratiert in{" "}
+            <code>src/lib/ai/models.ts</code> gepflegt — neue Modelle
+            werden dort als ein-Zeilen-PR ergänzt.
           </p>
         </div>
 
@@ -210,24 +298,57 @@ export default function AiConfigClient({
           >
             Modell-Overrides pro Task
           </p>
-          <div className="aic-task-grid">
-            {(Object.keys(taskLabels) as AiTask[]).map((task) => (
-              <div key={task} className="aic-task-row">
-                <span className="aic-task-label">{taskLabels[task]}</span>
-                <span className="aic-task-key">{task}</span>
-                <input
-                  type="text"
-                  className="aic-input"
-                  value={overrides[task] ?? ""}
-                  onChange={(e) => setOverride(task, e.target.value)}
-                  placeholder="leer = Default verwenden"
-                />
+          {taskGroups.map((group) => (
+            <div key={group.id}>
+              <p className="aic-group-title">{group.label}</p>
+              <div className="aic-task-grid">
+                {group.tasks.map((task) => {
+                  const current = overrides[task] ?? "";
+                  const selectValue = current === "" ? USE_DEFAULT : current;
+                  const isUnknown = current !== "" && !isKnownModel(current);
+                  return (
+                    <div key={task} className="aic-task-row">
+                      <span className="aic-task-label">{taskLabels[task]}</span>
+                      <span className="aic-task-key">{task}</span>
+                      <select
+                        className={`aic-select${isUnknown ? " aic-select--warn" : ""}`}
+                        value={selectValue}
+                        onChange={(e) => setOverride(task, e.target.value)}
+                        aria-label={`Modell für ${taskLabels[task]}`}
+                      >
+                        <option value={USE_DEFAULT}>Default verwenden</option>
+                        {KNOWN_MODELS.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.label}
+                          </option>
+                        ))}
+                        {isUnknown && (
+                          <option value={current}>
+                            {current} (unbekannt)
+                          </option>
+                        )}
+                      </select>
+                      {isUnknown && (
+                        <span className="aic-warn-line">
+                          Nicht in der kuratierten Liste — bitte prüfen.
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
+          {unknownModels.length > 0 && (
+            <p className="aic-warn-line" style={{ marginTop: 14 }}>
+              {unknownModels.length} unbekannte(r) Modell-Wert(e) in der
+              Konfiguration: {unknownModels.join(", ")}
+            </p>
+          )}
           <p className="aic-hint">
-            Leer lassen, wenn diese Task das Default-Modell nutzen soll.
-            Unbekannte Werte werden serverseitig defensiv ignoriert.
+            „Default verwenden“ entfernt den Override und nutzt das
+            global gesetzte Default-Modell für diese Task. Speicher-
+            Format unverändert (JSON in <code>task_model_overrides</code>).
           </p>
         </div>
 

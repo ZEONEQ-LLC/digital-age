@@ -18,6 +18,41 @@ const TASK_LABELS: Record<AiTask, string> = {
   abstract_generate: "Abstract generieren",
 };
 
+// Visuelle Gruppierung der Tasks. Reihenfolge im Array = Reihenfolge in
+// der UI; alle 12 Tasks aus AiTask müssen genau einer Gruppe angehören.
+type TaskGroup = { id: string; label: string; tasks: AiTask[] };
+
+const TASK_GROUPS: TaskGroup[] = [
+  {
+    id: "seo",
+    label: "SEO",
+    tasks: [
+      "seo_pipeline",
+      "seo_review",
+      "seo_title",
+      "seo_description",
+      "seo_slug",
+      "seo_keyword",
+    ],
+  },
+  {
+    id: "content",
+    label: "Content",
+    tasks: [
+      "title_variants",
+      "tone_check",
+      "summary",
+      "abstract_generate",
+      "closing_paragraph",
+    ],
+  },
+  {
+    id: "news",
+    label: "News",
+    tasks: ["news_item_generation"],
+  },
+];
+
 export default async function AiConfigPage() {
   const supabase = await createClient();
   const { data } = await supabase
@@ -51,6 +86,7 @@ export default async function AiConfigPage() {
         initialDefaultModel={initialDefaultModel}
         initialTaskOverrides={initialTaskOverrides}
         taskLabels={TASK_LABELS}
+        taskGroups={TASK_GROUPS}
         lastUpdatedAt={data?.updated_at ?? null}
       />
     </>
