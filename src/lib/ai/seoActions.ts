@@ -15,7 +15,13 @@ const SEO_TITLE_SYSTEM =
   "Schweizer Rechtschreibung (ss statt Eszett). " +
   "Antworte nur mit dem Titel-Text, ohne Anführungszeichen, ohne Erklärung.";
 
-const MAX_BODY_CHARS = 4000;
+// Body-Cap für den Pipeline-Input. 12000 Zeichen ≈ 1800 dt. Wörter und
+// decken die längsten DB-Artikel weitgehend ab (vorheriger 4000-Cap zeigte
+// dem Modell bei langen Artikeln nur ~25 % des Texts — Keyword-Wahl lief
+// dann auf der Intro statt dem Artikel-Kern, was die strategische
+// Keyword-Auswahl unzuverlässig machte). Token-Aufschlag pro Call gegenüber
+// 4000 ist vernachlässigbar (~0.2 ¢ Haiku-Input).
+const MAX_BODY_CHARS = 12000;
 
 function buildTitlePrompt(args: { title: string; bodyText: string }): string {
   const title = args.title.trim();
@@ -75,22 +81,52 @@ export type SeoPipelineResult =
 // Locale-Branch im System-Prompt. Caller-System-Prompt wird vom Config-
 // Resolver in callLLM mit dem globalen ai_config.system_prompt prefix-
 // concatenated (etabliertes Pattern aus resolveLLMConfig).
+// Task-Prompt für die SEO-Pipeline. Brand, Rolle ("SEO-Experte"),
+// Schweizer Rechtschreibung und Output-Disziplin sind bereits im
+// globalen Systemprompt (ai_config.system_prompt) abgedeckt — dieser
+// Task-Prompt setzt direkt auf der SEO-Strategie auf und dupliziert das
+// nicht. Locale steuert nur noch die Output-Sprache.
 function buildSeoPipelineSystem(locale: "de-CH" | "en"): string {
   return [
-    "Du bist ein SEO-Experte für Magazin-Artikel. Generiere SEO-Felder für den folgenden Artikel.",
+    "Aufgabe: Generiere SEO-Felder für einen Magazin-Artikel.",
     "",
-    `SPRACHE: ${locale}.`,
-    locale === "de-CH"
-      ? "  - Bei locale = 'de-CH': Generiere alle Texte auf Deutsch mit Schweizer Rechtschreibung — IMMER 'ss' statt Eszett (Beispiele: 'massgeblich', 'Strasse', 'gross'). NIEMALS Eszett verwenden."
-      : "  - Bei locale = 'en': Generiere alle Texte auf Englisch.",
+    `SPRACHE des Outputs: ${
+      locale === "en" ? "Englisch" : "Deutsch (Schweizer Rechtschreibung)"
+    }.`,
     "",
-    "OUTPUT: NUR ein JSON-Objekt, keine Vor- oder Nachrede, kein Markdown-Codeblock. Schema:",
+    "STRATEGIE — in dieser Reihenfolge anwenden:",
+    "",
+    "1. Themenprofil zuerst.",
+    "   Bestimme zuerst das Kern-Thema des Artikels (2–3 Sätze, interne Notiz).",
+    "   Alle folgenden Felder müssen konsistent zu diesem Themenprofil sein.",
+    "",
+    "2. Focus-Keyword wählen.",
+    "   Wähle das Keyword, das die Suchintention der Zielleser am genauesten",
+    "   trifft — NICHT das häufigste Wort im Text. Bevorzuge spezifische",
+    "   Mid-Tail-Phrasen (2–4 Wörter) gegenüber generischen Head-Terms.",
+    "   Das Keyword muss eine realistische Such-Anfrage sein, für die diese",
+    "   Seite ranken kann.",
+    "",
+    "3. Title-Kandidaten.",
+    "   3 Vorschläge, je 50–60 Zeichen. focusKeyword in den ersten 30 Zeichen",
+    "   jedes Kandidaten. Aktive Sprache; optional eine Zahl oder ein",
+    "   konkretes Versprechen, kein Clickbait.",
+    "",
+    "4. Meta-Description.",
+    "   150–160 Zeichen. focusKeyword in den ersten 60 Zeichen. Konkretes",
+    "   Versprechen statt Werbe-Adjektive. CTA am Ende.",
+    "",
+    "5. Slug.",
+    "   3–5 Wörter ideal, max 60 Zeichen, kebab-case, Stopwörter weglassen,",
+    "   focusKeyword drin.",
+    "",
+    "OUTPUT: NUR ein JSON-Objekt, Schema:",
     "{",
     '  "themenprofil": string,         // 2-3 Sätze interne Notiz zum Artikel-Fokus',
     '  "focusKeyword": string,         // 2-4 Wörter, Hauptkeyword',
-    '  "titleCandidates": [string, string, string],  // 3 Title-Tag-Vorschläge, je 50-60 Zeichen, mit focusKeyword vorn',
-    '  "metaDescription": string,      // 140-160 Zeichen, mit focusKeyword, Call-to-Action am Ende',
-    '  "slugSuggestion": string        // kebab-case, max 60 Zeichen, mit focusKeyword',
+    '  "titleCandidates": [string, string, string],  // 3 Title-Tag-Vorschläge, je 50-60 Zeichen, focusKeyword in den ersten 30 Zeichen',
+    '  "metaDescription": string,      // 150-160 Zeichen, focusKeyword in den ersten 60 Zeichen, CTA am Ende',
+    '  "slugSuggestion": string        // kebab-case, 3-5 Wörter, max 60 Zeichen, mit focusKeyword',
     "}",
   ].join("\n");
 }
@@ -272,25 +308,42 @@ const REVIEW_CATEGORIES: ReadonlySet<SeoReviewCategory> = new Set([
   "readability",
 ]);
 
+// Task-Prompt für die Read-only-SEO-Analyse. Brand, Schweizer
+// Rechtschreibung, Output-Disziplin sind im globalen Systemprompt
+// abgedeckt — hier nur SEO-Strategie + Schema.
 function buildSeoReviewSystem(locale: "de-CH" | "en"): string {
   return [
-    "Du analysierst H1 und ersten Absatz eines Magazin-Artikels nach SEO-Kriterien und gibst konkrete Verbesserungsvorschläge. Du änderst NICHTS, du empfiehlst.",
+    "Aufgabe: Analysiere H1, ersten Absatz und H2-Überschriften eines Magazin-",
+    "Artikels nach SEO-Kriterien und gib konkrete Verbesserungsvorschläge.",
+    "Du empfiehlst nur — du änderst NICHTS am Body und schlägst NIEMALS vor,",
+    "den Text automatisch umzuschreiben. Empfehlungen formulieren, was der",
+    "Redakteur manuell anpassen kann.",
     "",
-    `SPRACHE: ${locale}.`,
-    locale === "de-CH"
-      ? "  - de-CH: Empfehlungen auf Deutsch mit Schweizer Rechtschreibung — IMMER 'ss' statt Eszett. NIEMALS Eszett."
-      : "  - en: Empfehlungen auf Englisch.",
+    `SPRACHE der Empfehlungen: ${
+      locale === "en" ? "Englisch" : "Deutsch (Schweizer Rechtschreibung)"
+    }.`,
     "",
     "ANALYSE-KRITERIEN (in dieser Reihenfolge prüfen):",
-    "  1. Keyword-Platzierung: Steht das Focus-Keyword in H1 und in den ersten 60 Wörtern des Lead?",
-    "  2. H1-Länge: 40-70 Zeichen ideal. Zu kurz = unspezifisch, zu lang = wird abgeschnitten.",
-    "  3. Zahlen/Statistiken: Enthält H1 oder Lead konkrete Zahlen (Jahr, Prozent, Liste-Anzahl)?",
-    "  4. Powerwords: Wörter mit emotionalem Lift wie 'massgeblich', 'entscheidend', 'wichtig', 'neu', 'überraschend', 'erstaunlich' (de) oder 'crucial', 'essential', 'proven', 'breakthrough' (en).",
-    "  5. Lead-Hook: Erster Satz greift den Leser? Spannung, Frage, oder konkretes Versprechen?",
-    "  6. Lesbarkeit: Sätze unter 25 Wörtern? Aktiv statt passiv?",
+    "  1. Keyword-Platzierung im Lead: Steht das Focus-Keyword in H1 und in",
+    "     den ersten 100 Wörtern des Lead-Absatzes? Ideal im ersten Satz,",
+    "     aber NATÜRLICH integriert — KEINE Empfehlung, dass der Absatz mit",
+    "     dem Keyword beginnen MUSS (führt zu unnatürlichen Anfängen).",
+    "  2. Keyword in H2: Kommt das Focus-Keyword in mindestens EINER H2-",
+    "     Überschrift vor? Anti-Pattern: das Keyword in JEDER H2 (heading",
+    "     stuffing) — wenn das im Text zu sehen ist, das als Risiko",
+    "     anmerken. Ideal: 1–2 H2-Mentions.",
+    "  3. H1-Länge: 40-70 Zeichen ideal. Zu kurz = unspezifisch, zu lang =",
+    "     wird in SERP abgeschnitten.",
+    "  4. Zahlen/Statistiken: Enthält H1 oder Lead konkrete Zahlen (Jahr,",
+    "     Prozent, Liste-Anzahl)?",
+    "  5. Powerwords: Wörter mit emotionalem Lift wie 'massgeblich',",
+    "     'entscheidend', 'wichtig', 'neu', 'überraschend', 'erstaunlich'",
+    "     (de) oder 'crucial', 'essential', 'proven', 'breakthrough' (en).",
+    "  6. Lead-Hook: Erster Satz greift den Leser? Spannung, Frage, oder",
+    "     konkretes Versprechen?",
+    "  7. Lesbarkeit: Sätze unter 25 Wörtern? Aktiv statt passiv?",
     "",
-    "OUTPUT: NUR ein JSON-Objekt, kein Markdown-Codeblock, keine Vor- oder Nachrede.",
-    "Schema:",
+    "OUTPUT: NUR ein JSON-Objekt. Schema:",
     "{",
     '  "overallAssessment": string,  // 1 Satz Gesamtbewertung (z.B. "Solide Basis, Lead-Hook fehlt")',
     '  "suggestions": [               // 3-6 Einträge, kein Padding',
@@ -319,7 +372,7 @@ function buildSeoReviewSystem(locale: "de-CH" | "en"): string {
     '      "severity": "critical",',
     '      "category": "keyword",',
     '      "finding": "Focus-Keyword fehlt im ersten Absatz komplett.",',
-    '      "recommendation": "Keyword innerhalb der ersten 30 Wörter natürlich einbauen, idealerweise im ersten Satz."',
+    '      "recommendation": "Keyword innerhalb der ersten 100 Wörter natürlich einbauen, idealerweise im ersten Satz."',
     "    }",
     "  ]",
     "}",
@@ -329,12 +382,20 @@ function buildSeoReviewSystem(locale: "de-CH" | "en"): string {
 function buildSeoReviewPrompt(args: {
   title: string;
   firstParagraph: string;
+  headingsLevel2: string[];
   focusKeyword: string | null;
 }): string {
+  const h2List =
+    args.headingsLevel2.length === 0
+      ? "(keine H2-Überschriften im Artikel)"
+      : args.headingsLevel2.map((h, i) => `  ${i + 1}. ${h}`).join("\n");
   return [
     `H1: ${args.title.trim()}`,
     "",
     `Erster Absatz: ${args.firstParagraph.trim()}`,
+    "",
+    "H2-Überschriften:",
+    h2List,
     "",
     `Focus-Keyword: ${args.focusKeyword?.trim() || "nicht gesetzt"}`,
   ].join("\n");
@@ -437,6 +498,7 @@ function parseSeoReview(raw: string): SeoReview | null {
 export async function analyzeSeoEntry(args: {
   title: string;
   firstParagraph: string;
+  headingsLevel2: string[];
   focusKeyword: string | null;
   locale: "de-CH" | "en";
   articleId: string;
@@ -446,6 +508,7 @@ export async function analyzeSeoEntry(args: {
     prompt: buildSeoReviewPrompt({
       title: args.title,
       firstParagraph: args.firstParagraph,
+      headingsLevel2: args.headingsLevel2,
       focusKeyword: args.focusKeyword,
     }),
     maxTokens: 1200,

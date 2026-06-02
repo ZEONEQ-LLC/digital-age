@@ -27,6 +27,7 @@ type EditorSeoPanelProps = {
   articleTitle?: string;
   articleBodyText?: string;
   articleFirstParagraph?: string;
+  articleHeadingsLevel2?: string[];
   locale: "de-CH" | "en";
 };
 
@@ -232,6 +233,7 @@ export default function EditorSeoPanel({
   articleTitle = "",
   articleBodyText = "",
   articleFirstParagraph = "",
+  articleHeadingsLevel2 = [],
   locale,
 }: EditorSeoPanelProps) {
   // Master-Pipeline-State: Vorschläge + Loading + Error.
@@ -285,6 +287,7 @@ export default function EditorSeoPanel({
       const result = await analyzeSeoEntry({
         title: articleTitle,
         firstParagraph: articleFirstParagraph,
+        headingsLevel2: articleHeadingsLevel2,
         focusKeyword: seo.keyword.trim() === "" ? null : seo.keyword,
         locale,
         articleId,
