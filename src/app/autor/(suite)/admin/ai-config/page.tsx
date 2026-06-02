@@ -3,14 +3,16 @@ import { createClient } from "@/lib/supabase/server";
 import type { AiTask } from "@/lib/ai/types";
 import AiConfigClient from "./AiConfigClient";
 
+// TASK_LABELS enthält alle Tasks, für die das UI ein Override-Dropdown
+// anbietet (= KNOWN_TASKS aus config.ts/configActions.ts). Nach dem
+// (b)-Umbau (kein Einzel-Server-Action pro SEO-Feld mehr — alle 4
+// Einzel-Buttons im SEO-Tab nutzen wieder die seo_pipeline) gibt es im
+// AiTask-Enum keine SEO-Einzel-Tasks mehr; TASK_LABELS deckt damit
+// die volle Enum-Breite ab.
 const TASK_LABELS: Record<AiTask, string> = {
   title_variants: "Titel-Varianten",
   tone_check: "Stil & Tonalität prüfen",
   summary: "Zusammenfassung",
-  seo_title: "SEO-Titel",
-  seo_description: "Meta-Description",
-  seo_slug: "URL-Slug",
-  seo_keyword: "Focus Keyword",
   closing_paragraph: "Schluss-Absatz",
   seo_pipeline: "SEO-Pipeline (Master)",
   seo_review: "SEO-Verbesserungsvorschläge",
@@ -18,22 +20,16 @@ const TASK_LABELS: Record<AiTask, string> = {
   abstract_generate: "Abstract generieren",
 };
 
-// Visuelle Gruppierung der Tasks. Reihenfolge im Array = Reihenfolge in
-// der UI; alle 12 Tasks aus AiTask müssen genau einer Gruppe angehören.
+// Visuelle Gruppierung der UI-sichtbaren Tasks. Reihenfolge im Array =
+// Reihenfolge in der UI; jeder Key in TASK_LABELS muss genau einer Gruppe
+// angehören.
 type TaskGroup = { id: string; label: string; tasks: AiTask[] };
 
 const TASK_GROUPS: TaskGroup[] = [
   {
     id: "seo",
     label: "SEO",
-    tasks: [
-      "seo_pipeline",
-      "seo_review",
-      "seo_title",
-      "seo_description",
-      "seo_slug",
-      "seo_keyword",
-    ],
+    tasks: ["seo_pipeline", "seo_review"],
   },
   {
     id: "content",

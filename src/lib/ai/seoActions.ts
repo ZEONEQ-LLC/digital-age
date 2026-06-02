@@ -1,19 +1,6 @@
 "use server";
 
 import { callLLM } from "@/lib/ai/client";
-import type { AiResult } from "@/lib/ai/types";
-
-// ─────────────────────────────────────────────────────────────────────────
-// PILOT — wird durch generateSeoFields ersetzt.
-// ─────────────────────────────────────────────────────────────────────────
-// Bleibt im Code für 1–2 Wochen Produktivbetrieb, damit ein Rollback
-// schnell verdrahtbar wäre. Im UI ist die Funktion nicht mehr aufgerufen.
-// Eigener Cleanup-PR nach der Bewährungsfrist entfernt sie.
-const SEO_TITLE_SYSTEM =
-  "Generiere einen suchmaschinen-optimierten SEO-Titel für einen Artikel. " +
-  "50–60 Zeichen, prägnant, kein Clickbait. " +
-  "Schweizer Rechtschreibung (ss statt Eszett). " +
-  "Antworte nur mit dem Titel-Text, ohne Anführungszeichen, ohne Erklärung.";
 
 // Body-Cap für den Pipeline-Input. 12000 Zeichen ≈ 1800 dt. Wörter und
 // decken die längsten DB-Artikel weitgehend ab (vorheriger 4000-Cap zeigte
@@ -22,37 +9,6 @@ const SEO_TITLE_SYSTEM =
 // Keyword-Auswahl unzuverlässig machte). Token-Aufschlag pro Call gegenüber
 // 4000 ist vernachlässigbar (~0.2 ¢ Haiku-Input).
 const MAX_BODY_CHARS = 12000;
-
-function buildTitlePrompt(args: { title: string; bodyText: string }): string {
-  const title = args.title.trim();
-  const body = args.bodyText.trim().slice(0, MAX_BODY_CHARS);
-  const parts: string[] = [];
-  if (title) parts.push(`Aktueller Arbeitstitel: ${title}`);
-  if (body) parts.push(`Artikel-Inhalt (Auszug):\n${body}`);
-  if (parts.length === 0) {
-    parts.push(
-      "Es liegt noch kein Inhalt vor. Schlage einen platzhalterhaften SEO-Titel basierend auf einem generischen Tech-/KI-Thema vor.",
-    );
-  }
-  return parts.join("\n\n");
-}
-
-/**
- * @deprecated — ersetzt durch generateSeoFields (siehe unten). Kann nach
- * 1–2 Wochen Produktivbetrieb entfernt werden. UI-Verdrahtung ist bereits
- * weg, der Export bleibt nur für einen schnellen Rollback verfügbar.
- */
-export async function suggestSeoTitle(args: {
-  title: string;
-  bodyText: string;
-}): Promise<AiResult> {
-  return callLLM({
-    system: SEO_TITLE_SYSTEM,
-    prompt: buildTitlePrompt(args),
-    maxTokens: 120,
-    task: "seo_title",
-  });
-}
 
 // ─────────────────────────────────────────────────────────────────────────
 // Master-Pipeline — ein LLM-Call liefert 5 Felder als JSON.
@@ -297,6 +253,7 @@ export async function generateSeoFields(args: {
   }
   return { ok: true, fields };
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────
 // Read-only-Analyse — H1 + erster Absatz + Focus-Keyword -> 3–6 Empfehlungen.

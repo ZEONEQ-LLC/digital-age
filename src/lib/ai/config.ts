@@ -3,19 +3,15 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { AiTask, LLMParams } from "@/lib/ai/types";
 
-// Gültige AiTask-Werte als Runtime-Set für die defensiv-Filterung der
-// task_model_overrides. Die `AiTask`-Union (types.ts) ist Source-of-Truth;
-// dieses Set muss bei jeder Erweiterung dort spiegeln. Keys in
-// `task_model_overrides`, die nicht in dieser Liste stehen, werden
-// ignoriert (kein Crash, kein Throw).
+// Runtime-Set der Tasks, für die das Editor-UI in /autor/admin/ai-config
+// Override-Dropdowns rendert. Spiegelt aktuell die volle AiTask-Union
+// (Source-of-Truth in types.ts). Keys in task_model_overrides, die hier
+// nicht stehen, werden vom Resolver ignoriert (Self-Cleanup-Pfad für
+// stale Werte aus früheren Schema-Ständen).
 const KNOWN_TASKS: ReadonlySet<AiTask> = new Set<AiTask>([
   "title_variants",
   "tone_check",
   "summary",
-  "seo_title",
-  "seo_description",
-  "seo_slug",
-  "seo_keyword",
   "closing_paragraph",
   "seo_pipeline",
   "seo_review",

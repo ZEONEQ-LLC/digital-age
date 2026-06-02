@@ -13,6 +13,7 @@ import {
   type SeoReviewCategory,
 } from "@/lib/ai/seoActions";
 import type { AiErrorKind } from "@/lib/ai/types";
+import { normalizeArticleSlug } from "@/lib/articleSlug";
 
 export type SeoState = {
   title: string;
@@ -82,13 +83,14 @@ function AiButton({
     <button
       type="button"
       disabled={isDisabled}
-      title={interactive ? undefined : AI_TOOLTIP}
+      title={interactive ? (loading ? "Generiere…" : undefined) : AI_TOOLTIP}
       aria-label={ariaLabel}
+      aria-busy={loading || undefined}
       onClick={interactive ? onClick : undefined}
       style={{
         ...aiBtnStyleBase,
-        cursor: isDisabled ? "not-allowed" : "pointer",
-        opacity: isDisabled ? 0.6 : 1,
+        cursor: isDisabled ? (loading ? "wait" : "not-allowed") : "pointer",
+        opacity: isDisabled ? (loading ? 0.85 : 0.6) : 1,
       }}
     >
       {loading ? "⏳" : "✨"} AI
@@ -258,6 +260,109 @@ export default function EditorSeoPanel({
   const [review, setReview] = useState<SeoReview | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewPending, startReviewTransition] = useTransition();
+
+  // Einzel-Re-Generate pro Feld. Beide Pfade (Master "SEO generieren" und
+  // die 4 Einzel-Buttons) rufen dieselbe Server-Action generateSeoFields —
+  // Single Source of Truth, kein Prompt-Drift. Die Einzel-Buttons picken
+  // aus dem Master-Ergebnis nur das Ziel-Feld und schreiben es ins State.
+  // Die anderen Felder werden bewusst NICHT übernommen — der Editor hat
+  // sie nicht angefordert.
+  //
+  // Ein gemeinsamer busy-Slot, weil immer nur ein Re-Generate-Call
+  // gleichzeitig läuft. Error pro Feld separat, damit ein Slug-Fehler
+  // den Title-Generate nicht überschreibt.
+  type RegenField = "title" | "description" | "slug" | "keyword";
+  const [regenBusy, setRegenBusy] = useState<RegenField | null>(null);
+  const [regenErrors, setRegenErrors] = useState<
+    Partial<Record<RegenField, string>>
+  >({});
+
+  // Confirm-Dialog vor Überschreiben eines nicht-leeren Felds. Analog zum
+  // Abstract-Generate-Confirm im EditorClient.
+  function confirmReplace(label: string, current: string): boolean {
+    if (current.trim() === "") return true;
+    return window.confirm(
+      `Bestehender ${label} wird ersetzt. Fortfahren?`,
+    );
+  }
+
+  // Gemeinsamer Re-Generate-Pfad: rufe Master-Pipeline, picke das vom
+  // Caller spezifizierte Feld und schreibe es ins State. Andere Felder
+  // bleiben unangetastet.
+  function runRegenerate(
+    field: RegenField,
+    pick: (fields: SeoFields) => string,
+  ) {
+    setRegenBusy(field);
+    setRegenErrors((prev) => ({ ...prev, [field]: undefined }));
+    void (async () => {
+      try {
+        const result = await generateSeoFields({
+          title: articleTitle,
+          bodyText: articleBodyText,
+          locale,
+          articleId,
+        });
+        if (!result.ok) {
+          setRegenErrors((prev) => ({
+            ...prev,
+            [field]: errorMessageFor(result.error),
+          }));
+          return;
+        }
+        const value = pick(result.fields).trim();
+        if (!value) {
+          setRegenErrors((prev) => ({
+            ...prev,
+            [field]: "Generierung lieferte leeren Text.",
+          }));
+          return;
+        }
+        // Ein onChange-Call mit dem Ziel-Feld. Die übrigen Master-Felder
+        // werden verworfen — der Editor hat nur dieses eine angefordert.
+        onChange({ ...seo, [fieldToStateKey(field)]: value });
+      } finally {
+        setRegenBusy(null);
+      }
+    })();
+  }
+
+  function fieldToStateKey(field: RegenField): keyof SeoState {
+    switch (field) {
+      case "title": return "title";
+      case "description": return "description";
+      case "slug": return "slug";
+      case "keyword": return "keyword";
+    }
+  }
+
+  function handleRegenerateTitle() {
+    if (regenBusy) return;
+    if (!confirmReplace("SEO-Titel", seo.title)) return;
+    runRegenerate("title", (f) => f.titleCandidates[0]);
+  }
+
+  function handleRegenerateDescription() {
+    if (regenBusy) return;
+    if (!confirmReplace("Meta-Description", seo.description)) return;
+    runRegenerate("description", (f) => f.metaDescription);
+  }
+
+  function handleRegenerateSlug() {
+    if (regenBusy) return;
+    if (!confirmReplace("URL-Slug", seo.slug)) return;
+    // Slug-Format defensiv erzwingen — LLM ist nicht 100% zuverlässig
+    // bei der Slug-Konvention. Derselbe Helper wird beim Master-Pfad
+    // angewendet (siehe set("slug", normalizeArticleSlug(...)) unten),
+    // damit beide Pfade identische Slugs liefern.
+    runRegenerate("slug", (f) => normalizeArticleSlug(f.slugSuggestion));
+  }
+
+  function handleRegenerateKeyword() {
+    if (regenBusy) return;
+    if (!confirmReplace("Focus-Keyword", seo.keyword)) return;
+    runRegenerate("keyword", (f) => f.focusKeyword);
+  }
 
   function dismiss(key: string) {
     setDismissedKeys((prev) => {
@@ -672,13 +777,15 @@ export default function EditorSeoPanel({
                   wordBreak: "break-word",
                 }}
               >
-                digital-age.ch/artikel/{pipelineFields.slugSuggestion}
+                digital-age.ch/artikel/{normalizeArticleSlug(pipelineFields.slugSuggestion)}
               </p>
               <div style={{ display: "flex", gap: 8 }}>
                 <button
                   type="button"
                   onClick={() => {
-                    set("slug", pipelineFields.slugSuggestion);
+                    // Slug normalisieren — derselbe Helper wie der Einzel-
+                    // Slug-Button. Damit liefern beide Pfade identische Slugs.
+                    set("slug", normalizeArticleSlug(pipelineFields.slugSuggestion));
                     dismiss("slug");
                   }}
                   style={acceptBtnStyle}
@@ -918,8 +1025,17 @@ export default function EditorSeoPanel({
               onChange={(e) => set("title", e.target.value)}
               placeholder="Titel für Google & Social"
             />
-            <AiButton ariaLabel="AI-Vorschlag für Titel" />
+            <AiButton
+              ariaLabel="AI-Vorschlag für Titel"
+              onClick={handleRegenerateTitle}
+              loading={regenBusy === "title"}
+            />
           </div>
+          {regenErrors.title && (
+            <p role="alert" style={{ color: "#ff8e8e", fontSize: 12, marginTop: 6, fontFamily: "var(--da-font-mono)" }}>
+              {regenErrors.title}
+            </p>
+          )}
         </div>
 
         <div style={{ marginBottom: 18 }}>
@@ -932,8 +1048,17 @@ export default function EditorSeoPanel({
               onChange={(e) => set("description", e.target.value)}
               placeholder="Beschreibung in den Suchergebnissen"
             />
-            <AiButton ariaLabel="AI-Vorschlag für Description" />
+            <AiButton
+              ariaLabel="AI-Vorschlag für Description"
+              onClick={handleRegenerateDescription}
+              loading={regenBusy === "description"}
+            />
           </div>
+          {regenErrors.description && (
+            <p role="alert" style={{ color: "#ff8e8e", fontSize: 12, marginTop: 6, fontFamily: "var(--da-font-mono)" }}>
+              {regenErrors.description}
+            </p>
+          )}
         </div>
 
         <div style={{ marginBottom: 18 }}>
@@ -950,8 +1075,17 @@ export default function EditorSeoPanel({
               onChange={(e) => set("slug", e.target.value.replace(/[^a-z0-9-]/g, ""))}
               placeholder="schweizer-banken-ki-einsatz"
             />
-            <AiButton ariaLabel="AI-Vorschlag für Slug" />
+            <AiButton
+              ariaLabel="AI-Vorschlag für Slug"
+              onClick={handleRegenerateSlug}
+              loading={regenBusy === "slug"}
+            />
           </div>
+          {regenErrors.slug && (
+            <p role="alert" style={{ color: "#ff8e8e", fontSize: 12, marginTop: 6, fontFamily: "var(--da-font-mono)" }}>
+              {regenErrors.slug}
+            </p>
+          )}
         </div>
 
         <div style={{ marginBottom: 18 }}>
@@ -966,8 +1100,17 @@ export default function EditorSeoPanel({
               onChange={(e) => set("keyword", e.target.value)}
               placeholder="z.B. KI im Banking"
             />
-            <AiButton ariaLabel="AI-Vorschlag für Keyword" />
+            <AiButton
+              ariaLabel="AI-Vorschlag für Keyword"
+              onClick={handleRegenerateKeyword}
+              loading={regenBusy === "keyword"}
+            />
           </div>
+          {regenErrors.keyword && (
+            <p role="alert" style={{ color: "#ff8e8e", fontSize: 12, marginTop: 6, fontFamily: "var(--da-font-mono)" }}>
+              {regenErrors.keyword}
+            </p>
+          )}
         </div>
 
         <div>
