@@ -64,6 +64,7 @@ export type SeoFields = {
   titleCandidates: [string, string, string];
   metaDescription: string;
   slugSuggestion: string;
+  semanticTerms: string[];
 };
 
 export type SeoPipelineErrorKind =
@@ -120,13 +121,25 @@ function buildSeoPipelineSystem(locale: "de-CH" | "en"): string {
     "   3–5 Wörter ideal, max 60 Zeichen, kebab-case, Stopwörter weglassen,",
     "   focusKeyword drin.",
     "",
+    "6. Semantische Begriffe.",
+    "   Generiere zusätzlich 8–12 semantische Begriffe — eng verwandt zum",
+    "   focusKeyword PLUS thematische Variationen, die im Body-Text natürlich",
+    "   vorkommen sollten. KEINE blossen Synonyme des focusKeywords, sondern",
+    "   Begriffe, die Sub-Themen, verwandte Konzepte und relevante",
+    "   Suchanfragen-Variationen abdecken. Jeder Begriff 1–4 Wörter, kein",
+    "   Stuffing. Beispiel-Stil für focusKeyword 'KI im Banking': 'Compliance-",
+    "   Automation', 'Regulatorische Anforderungen', 'KI-gestützte",
+    "   Risikoanalyse', 'Banking-Use-Cases' — nicht 'Künstliche Intelligenz",
+    "   im Bankwesen' (reines Synonym).",
+    "",
     "OUTPUT: NUR ein JSON-Objekt, Schema:",
     "{",
     '  "themenprofil": string,         // 2-3 Sätze interne Notiz zum Artikel-Fokus',
     '  "focusKeyword": string,         // 2-4 Wörter, Hauptkeyword',
     '  "titleCandidates": [string, string, string],  // 3 Title-Tag-Vorschläge, je 50-60 Zeichen, focusKeyword in den ersten 30 Zeichen',
     '  "metaDescription": string,      // 150-160 Zeichen, focusKeyword in den ersten 60 Zeichen, CTA am Ende',
-    '  "slugSuggestion": string        // kebab-case, 3-5 Wörter, max 60 Zeichen, mit focusKeyword',
+    '  "slugSuggestion": string,       // kebab-case, 3-5 Wörter, max 60 Zeichen, mit focusKeyword',
+    '  "semanticTerms": string[]       // 8-12 semantische Begriffe (1-4 Wörter), keine Synonyme des focusKeywords',
     "}",
   ].join("\n");
 }
@@ -226,12 +239,30 @@ function parseSeoFields(raw: string): SeoFields | null {
     return null;
   }
 
+  // semanticTerms: defensiv. Fehlt es im Output oder ist es kein Array,
+  // wird ein leeres Array zurückgegeben — kein Schema-Fehler. Filter raus:
+  // Nicht-Strings, leere Strings, Duplikate (case-insensitive).
+  const semanticTerms: string[] = [];
+  if (Array.isArray(p.semanticTerms)) {
+    const seen = new Set<string>();
+    for (const t of p.semanticTerms) {
+      if (typeof t !== "string") continue;
+      const trimmed = t.trim();
+      if (trimmed === "") continue;
+      const key = trimmed.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      semanticTerms.push(trimmed);
+    }
+  }
+
   return {
     themenprofil,
     focusKeyword,
     titleCandidates: [titles[0], titles[1], titles[2]],
     metaDescription,
     slugSuggestion,
+    semanticTerms,
   };
 }
 
@@ -247,7 +278,9 @@ export async function generateSeoFields(args: {
       title: args.title,
       bodyText: args.bodyText,
     }),
-    maxTokens: 600,
+    // Output-Budget: ursprünglich 600 für 5 Felder; semanticTerms (8-12
+    // Strings à 1-4 Wörter) addiert ~80-150 Tokens. 800 gibt Puffer.
+    maxTokens: 800,
     task: "seo_pipeline",
   });
 
@@ -332,16 +365,22 @@ function buildSeoReviewSystem(locale: "de-CH" | "en"): string {
     "     Überschrift vor? Anti-Pattern: das Keyword in JEDER H2 (heading",
     "     stuffing) — wenn das im Text zu sehen ist, das als Risiko",
     "     anmerken. Ideal: 1–2 H2-Mentions.",
-    "  3. H1-Länge: 40-70 Zeichen ideal. Zu kurz = unspezifisch, zu lang =",
+    "  3. Sekundär-Keywords im Body: Sind die gesetzten Sekundär-Keywords",
+    "     im sichtbaren Text (Lead, H2s) erkennbar? Ideal: mindestens 2-3",
+    "     der gesetzten Sekundär-Keywords kommen erkennbar vor (auch in",
+    "     Variationen — keine exakte Übereinstimmung verlangen). Wenn keine",
+    "     Sekundär-Keywords gesetzt sind, diesen Punkt überspringen.",
+    "     Anti-Pattern: alle Sekundär-Keywords in den Lead stopfen.",
+    "  4. H1-Länge: 40-70 Zeichen ideal. Zu kurz = unspezifisch, zu lang =",
     "     wird in SERP abgeschnitten.",
-    "  4. Zahlen/Statistiken: Enthält H1 oder Lead konkrete Zahlen (Jahr,",
+    "  5. Zahlen/Statistiken: Enthält H1 oder Lead konkrete Zahlen (Jahr,",
     "     Prozent, Liste-Anzahl)?",
-    "  5. Powerwords: Wörter mit emotionalem Lift wie 'massgeblich',",
+    "  6. Powerwords: Wörter mit emotionalem Lift wie 'massgeblich',",
     "     'entscheidend', 'wichtig', 'neu', 'überraschend', 'erstaunlich'",
     "     (de) oder 'crucial', 'essential', 'proven', 'breakthrough' (en).",
-    "  6. Lead-Hook: Erster Satz greift den Leser? Spannung, Frage, oder",
+    "  7. Lead-Hook: Erster Satz greift den Leser? Spannung, Frage, oder",
     "     konkretes Versprechen?",
-    "  7. Lesbarkeit: Sätze unter 25 Wörtern? Aktiv statt passiv?",
+    "  8. Lesbarkeit: Sätze unter 25 Wörtern? Aktiv statt passiv?",
     "",
     "OUTPUT: NUR ein JSON-Objekt. Schema:",
     "{",
@@ -417,11 +456,16 @@ function buildSeoReviewPrompt(args: {
   firstParagraph: string;
   headingsLevel2: string[];
   focusKeyword: string | null;
+  secondaryKeywords: string[];
 }): string {
   const h2List =
     args.headingsLevel2.length === 0
       ? "(keine H2-Überschriften im Artikel)"
       : args.headingsLevel2.map((h, i) => `  ${i + 1}. ${h}`).join("\n");
+  const secList =
+    args.secondaryKeywords.length === 0
+      ? "(keine Sekundär-Keywords gesetzt)"
+      : args.secondaryKeywords.map((k, i) => `  ${i + 1}. ${k}`).join("\n");
   return [
     `H1: ${args.title.trim()}`,
     "",
@@ -431,6 +475,9 @@ function buildSeoReviewPrompt(args: {
     h2List,
     "",
     `Focus-Keyword: ${args.focusKeyword?.trim() || "nicht gesetzt"}`,
+    "",
+    "Sekundär-Keywords:",
+    secList,
   ].join("\n");
 }
 
@@ -533,6 +580,7 @@ export async function analyzeSeoEntry(args: {
   firstParagraph: string;
   headingsLevel2: string[];
   focusKeyword: string | null;
+  secondaryKeywords: string[];
   locale: "de-CH" | "en";
   articleId: string;
 }): Promise<SeoReviewResult> {
@@ -543,6 +591,7 @@ export async function analyzeSeoEntry(args: {
       firstParagraph: args.firstParagraph,
       headingsLevel2: args.headingsLevel2,
       focusKeyword: args.focusKeyword,
+      secondaryKeywords: args.secondaryKeywords,
     }),
     // Output-Budget: 3-6 suggestions × (finding 20 + recommendation 45)
     // Wörter + overallAssessment = ca. 400 Wörter Maximum. Bei DE-Output
