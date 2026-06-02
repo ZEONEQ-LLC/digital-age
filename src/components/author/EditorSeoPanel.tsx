@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import AuthorCard from "./AuthorCard";
 import MonoCaption from "./MonoCaption";
+import KeywordPillInput from "./KeywordPillInput";
 import {
   analyzeSeoEntry,
   generateSeoFields,
@@ -18,6 +19,11 @@ export type SeoState = {
   description: string;
   slug: string;
   keyword: string;
+  // Sekundär-Keywords (semantische Begriffe, gesetzt = werden persistiert).
+  // Initial aus article.seo_keywords_secondary; Pipeline-Vorschläge landen
+  // hier NICHT automatisch — sie werden separat in pipelineFields.semanticTerms
+  // gehalten und per Klick übernommen.
+  secondaryKeywords: string[];
 };
 
 type EditorSeoPanelProps = {
@@ -289,6 +295,7 @@ export default function EditorSeoPanel({
         firstParagraph: articleFirstParagraph,
         headingsLevel2: articleHeadingsLevel2,
         focusKeyword: seo.keyword.trim() === "" ? null : seo.keyword,
+        secondaryKeywords: seo.secondaryKeywords,
         locale,
         articleId,
       });
@@ -333,6 +340,24 @@ export default function EditorSeoPanel({
   const showTitles = pipelineFields && !dismissedKeys.has("titles");
   const showDescription = pipelineFields && !dismissedKeys.has("description");
   const showSlug = pipelineFields && !dismissedKeys.has("slug");
+
+  // Sekundär-Keywords-Vorschläge: anzeigen, wenn die Pipeline welche
+  // geliefert hat und der User die Box nicht verworfen hat. Pro Begriff
+  // einzeln "Übernehmen" möglich (landet in seo.secondaryKeywords) oder
+  // "Alle übernehmen".
+  const showSemantic =
+    pipelineFields &&
+    pipelineFields.semanticTerms.length > 0 &&
+    !dismissedKeys.has("semantic");
+  // Begriffe filtern, die schon im State sind — keine Doppel-Pills.
+  const newSemanticSuggestions = pipelineFields
+    ? pipelineFields.semanticTerms.filter(
+        (t) =>
+          !seo.secondaryKeywords.some(
+            (k) => k.toLowerCase() === t.toLowerCase(),
+          ),
+      )
+    : [];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -562,6 +587,71 @@ export default function EditorSeoPanel({
                 <button
                   type="button"
                   onClick={() => dismiss("description")}
+                  style={dismissBtnStyle}
+                >
+                  Verwerfen
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showSemantic && (
+            <div style={suggestionBoxStyle}>
+              <p style={suggestionCaptionStyle}>
+                Semantische Begriffe ({newSemanticSuggestions.length} Vorschläge)
+              </p>
+              <p style={{ color: "var(--da-muted-soft)", fontSize: 11, margin: 0 }}>
+                Beim Body-Schreiben natürlich einbauen, nicht stuffen.
+                Übernommene Begriffe werden als Sekundär-Keywords gespeichert.
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {newSemanticSuggestions.map((term, i) => (
+                  <button
+                    key={`${term}-${i}`}
+                    type="button"
+                    onClick={() => {
+                      const key = term.toLowerCase();
+                      if (seo.secondaryKeywords.some((k) => k.toLowerCase() === key)) return;
+                      set("secondaryKeywords", [...seo.secondaryKeywords, term]);
+                    }}
+                    style={{
+                      background: "rgba(220,214,247,0.10)",
+                      border: "1px solid var(--da-purple)",
+                      color: "var(--da-text-strong)",
+                      padding: "4px 10px",
+                      borderRadius: 3,
+                      fontSize: 12,
+                      fontFamily: "var(--da-font-mono)",
+                      cursor: "pointer",
+                    }}
+                    aria-label={`${term} übernehmen`}
+                  >
+                    + {term}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const merged = [...seo.secondaryKeywords];
+                    const seen = new Set(merged.map((k) => k.toLowerCase()));
+                    for (const term of newSemanticSuggestions) {
+                      if (!seen.has(term.toLowerCase())) {
+                        merged.push(term);
+                        seen.add(term.toLowerCase());
+                      }
+                    }
+                    set("secondaryKeywords", merged);
+                    dismiss("semantic");
+                  }}
+                  style={acceptBtnStyle}
+                >
+                  Alle übernehmen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dismiss("semantic")}
                   style={dismissBtnStyle}
                 >
                   Verwerfen
@@ -864,7 +954,7 @@ export default function EditorSeoPanel({
           </div>
         </div>
 
-        <div>
+        <div style={{ marginBottom: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
             <span style={{ color: "var(--da-text-strong)", fontSize: 13, fontWeight: 600 }}>Focus Keyword</span>
             <span style={{ color: "var(--da-muted)", fontSize: 11 }}>Hauptbegriff für Ranking</span>
@@ -878,6 +968,26 @@ export default function EditorSeoPanel({
             />
             <AiButton ariaLabel="AI-Vorschlag für Keyword" />
           </div>
+        </div>
+
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+            <span style={{ color: "var(--da-text-strong)", fontSize: 13, fontWeight: 600 }}>
+              Sekundär-Keywords ({seo.secondaryKeywords.length})
+            </span>
+            <span style={{ color: "var(--da-muted)", fontSize: 11 }}>
+              Semantische Begriffe für den Body
+            </span>
+          </div>
+          <KeywordPillInput
+            value={seo.secondaryKeywords}
+            onChange={(next) => set("secondaryKeywords", next)}
+          />
+          <p style={{ color: "var(--da-muted-soft)", fontSize: 11, marginTop: 6 }}>
+            Diese Begriffe sollten im Body natürlich vorkommen. Werden im
+            HTML-Meta-Tag und JSON-LD ausgespielt (Editor-Hilfe primär,
+            Public-Render-Effekt gering).
+          </p>
         </div>
       </AuthorCard>
 

@@ -338,6 +338,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     description: article.seo_description ?? "",
     slug: article.slug,
     keyword: article.seo_keyword_primary ?? "",
+    secondaryKeywords: article.seo_keywords_secondary ?? [],
   });
 
   const [savedAt, setSavedAt] = useState<string>("Geladen");
@@ -431,6 +432,9 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     const publishedAtIso = publishedAtDate
       ? `${publishedAtDate}T00:00:00.000Z`
       : null;
+    const cleanSecondary = seo.secondaryKeywords
+      .map((k) => k.trim())
+      .filter((k) => k.length > 0);
     const patch: ArticlePatch = {
       title,
       excerpt: finalExcerpt || null,
@@ -441,6 +445,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       seo_title: seo.title || null,
       seo_description: seo.description || null,
       seo_keyword_primary: seo.keyword || null,
+      seo_keywords_secondary: cleanSecondary,
       published_at: publishedAtIso,
       locale,
       body_blocks: finalDoc,
