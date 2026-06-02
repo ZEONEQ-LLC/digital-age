@@ -244,6 +244,12 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         title: title.trim(),
         bodyText: cleanBody,
         locale,
+        // SEO-Modus: wenn ein Focus-Keyword im SEO-Tab gesetzt ist, baut
+        // der Abstract es natürlich in den Lead ein. Ohne Keyword läuft
+        // die Generierung wie bisher. Seit PR #119 ist der Abstract der
+        // "Lead" für seo_review — Keyword im Lead vermeidet Folge-Befunde
+        // wie "Keyword fehlt im Lead".
+        focusKeyword: seo.keyword.trim() || null,
       });
       if (!result.ok) {
         setAiAbstractError(aiAbstractErrorMessage(result.kind));

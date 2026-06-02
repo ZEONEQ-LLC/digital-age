@@ -6,7 +6,17 @@ import type { AiResult } from "@/lib/ai/types";
 // Locale-Branch im System-Prompt analog buildSeoPipelineSystem. Sprache
 // ist harte Vorgabe — die AI soll NICHT raten oder umschalten, das
 // `locale`-State im EditorClient ist die Quelle der Wahrheit.
-function buildAbstractSystem(locale: "de-CH" | "en"): string {
+//
+// Optionales `focusKeyword`: wenn gesetzt, wird ein SEO-Block in den
+// Prompt eingefügt — Keyword natürlich im Lead-Satz, exakte Schreibweise,
+// nicht erzwungen am Anfang. Begründung: seit PR #119 zählt der Abstract
+// als "Lead" für seo_review; wenn dort das Keyword fehlt, produziert die
+// Folge-Analyse einen Fehl-Befund. Wenn kein Keyword gesetzt ist, läuft
+// die Generierung wie bisher (kein zusätzlicher Block).
+function buildAbstractSystem(
+  locale: "de-CH" | "en",
+  focusKeyword: string | null,
+): string {
   const isDeCh = locale === "de-CH";
   return [
     "Du schreibst einen Abstract (Lead-Paragraph) für einen Magazin-Artikel.",
@@ -22,6 +32,22 @@ function buildAbstractSystem(locale: "de-CH" | "en"): string {
     "  - Kein Cliffhanger, kein Clickbait. Keine rhetorischen Fragen an die Leserin (direkte Anrede in Aussagesätzen ist erlaubt, siehe Regel zur Anredeform unten).",
     "  - Kein Markdown, keine Anführungszeichen drumherum, keine Aufzählungen.",
     "",
+    ...(focusKeyword
+      ? [
+          "SEO — FOCUS-KEYWORD:",
+          `  - Das Focus-Keyword ist: "${focusKeyword}".`,
+          "  - Baue das Keyword NATÜRLICH in den Abstract ein, idealerweise im",
+          "    ersten Satz, in der ersten Hälfte. KEINE Erzwingung, dass der",
+          "    Abstract mit dem Keyword BEGINNEN MUSS — das führt zu",
+          "    unnatürlichen Anfängen. Das Keyword soll wie selbstverständlich",
+          "    im Lead-Satz auftauchen.",
+          "  - Verwende exakt diese Schreibweise des Keywords; keine Synonyme,",
+          "    keine Umstellungen, keine Übersetzung.",
+          "  - Der Abstract ist der sichtbare Lead der Public-Page und zählt",
+          "    für die SEO-Bewertung — das Keyword muss drin sein.",
+          "",
+        ]
+      : []),
     "STILANPASSUNG AN DEN BODY (der Abstract soll wie vom Autor geschrieben klingen, nicht wie AI):",
     isDeCh
       ? "  - Vermeide Gedankenstriche (– und —). Wo ein Gedankenstrich durch Punkt, Komma oder Doppelpunkt ersetzbar ist, nutze diese. Gedankenstriche sind ein typisches KI-Stilmerkmal — setze sie nur, wenn der Body-Text sie selbst als bewusstes Stilmittel verwendet. WICHTIG: Diese Regel betrifft NUR Gedankenstriche zwischen Satzteilen, NICHT Bindestriche in zusammengesetzten Wörtern (z.B. 'KI-Outputs', 'Human-in-the-Loop' bleiben korrekt)."
@@ -70,9 +96,11 @@ export async function generateAbstract(args: {
   title: string;
   bodyText: string;
   locale: "de-CH" | "en";
+  focusKeyword?: string | null;
 }): Promise<AiResult> {
+  const trimmedKeyword = args.focusKeyword?.trim() || null;
   const result = await callLLM({
-    system: buildAbstractSystem(args.locale),
+    system: buildAbstractSystem(args.locale, trimmedKeyword),
     prompt: buildAbstractPrompt(args),
     maxTokens: 300,
     task: "abstract_generate",
