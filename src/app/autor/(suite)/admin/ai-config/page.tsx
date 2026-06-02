@@ -3,17 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 import type { AiTask } from "@/lib/ai/types";
 import AiConfigClient from "./AiConfigClient";
 
-// TASK_LABELS enthält nur Tasks, für die das UI ein Override-Dropdown
-// anbietet (= KNOWN_TASKS aus config.ts/configActions.ts). SEO-Einzel-
-// Tasks (seo_title/description/slug/keyword) sind bewusst nicht hier:
-// sie existieren im AiTask-Enum nur für Token-Logging-Granularität,
-// laufen aber auf default_model — siehe Kommentar in config.ts.
-type DisplayedTask = Exclude<
-  AiTask,
-  "seo_title" | "seo_description" | "seo_slug" | "seo_keyword"
->;
-
-const TASK_LABELS: Record<DisplayedTask, string> = {
+// TASK_LABELS enthält alle Tasks, für die das UI ein Override-Dropdown
+// anbietet (= KNOWN_TASKS aus config.ts/configActions.ts). Nach dem
+// (b)-Umbau (kein Einzel-Server-Action pro SEO-Feld mehr — alle 4
+// Einzel-Buttons im SEO-Tab nutzen wieder die seo_pipeline) gibt es im
+// AiTask-Enum keine SEO-Einzel-Tasks mehr; TASK_LABELS deckt damit
+// die volle Enum-Breite ab.
+const TASK_LABELS: Record<AiTask, string> = {
   title_variants: "Titel-Varianten",
   tone_check: "Stil & Tonalität prüfen",
   summary: "Zusammenfassung",
@@ -27,7 +23,7 @@ const TASK_LABELS: Record<DisplayedTask, string> = {
 // Visuelle Gruppierung der UI-sichtbaren Tasks. Reihenfolge im Array =
 // Reihenfolge in der UI; jeder Key in TASK_LABELS muss genau einer Gruppe
 // angehören.
-type TaskGroup = { id: string; label: string; tasks: DisplayedTask[] };
+type TaskGroup = { id: string; label: string; tasks: AiTask[] };
 
 const TASK_GROUPS: TaskGroup[] = [
   {
@@ -69,8 +65,8 @@ export default async function AiConfigPage() {
     string,
     unknown
   >;
-  const initialTaskOverrides: Partial<Record<DisplayedTask, string>> = {};
-  for (const t of Object.keys(TASK_LABELS) as DisplayedTask[]) {
+  const initialTaskOverrides: Partial<Record<AiTask, string>> = {};
+  for (const t of Object.keys(TASK_LABELS) as AiTask[]) {
     const v = rawOverrides[t];
     if (typeof v === "string") initialTaskOverrides[t] = v;
   }

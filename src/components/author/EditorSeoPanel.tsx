@@ -7,16 +7,13 @@ import KeywordPillInput from "./KeywordPillInput";
 import {
   analyzeSeoEntry,
   generateSeoFields,
-  regenerateSeoDescription,
-  regenerateSeoKeyword,
-  regenerateSeoSlug,
-  regenerateSeoTitle,
   type SeoFields,
   type SeoReview,
   type SeoReviewSeverity,
   type SeoReviewCategory,
 } from "@/lib/ai/seoActions";
-import type { AiErrorKind, AiResult } from "@/lib/ai/types";
+import type { AiErrorKind } from "@/lib/ai/types";
+import { normalizeArticleSlug } from "@/lib/articleSlug";
 
 export type SeoState = {
   title: string;
@@ -264,31 +261,21 @@ export default function EditorSeoPanel({
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewPending, startReviewTransition] = useTransition();
 
-  // Einzel-Re-Generate pro Feld. Ein gemeinsamer busy-Slot, weil immer nur
-  // ein Re-Generate-Call gleichzeitig läuft (UX-konsistent). Error pro Feld
-  // separat, damit ein Slug-Fehler den Title-Generate nicht überschreibt.
+  // Einzel-Re-Generate pro Feld. Beide Pfade (Master "SEO generieren" und
+  // die 4 Einzel-Buttons) rufen dieselbe Server-Action generateSeoFields —
+  // Single Source of Truth, kein Prompt-Drift. Die Einzel-Buttons picken
+  // aus dem Master-Ergebnis nur das Ziel-Feld und schreiben es ins State.
+  // Die anderen Felder werden bewusst NICHT übernommen — der Editor hat
+  // sie nicht angefordert.
+  //
+  // Ein gemeinsamer busy-Slot, weil immer nur ein Re-Generate-Call
+  // gleichzeitig läuft. Error pro Feld separat, damit ein Slug-Fehler
+  // den Title-Generate nicht überschreibt.
   type RegenField = "title" | "description" | "slug" | "keyword";
   const [regenBusy, setRegenBusy] = useState<RegenField | null>(null);
   const [regenErrors, setRegenErrors] = useState<
     Partial<Record<RegenField, string>>
   >({});
-
-  function applyRegenResult(
-    field: RegenField,
-    targetKey: keyof SeoState,
-    result: AiResult,
-  ) {
-    if (!result.ok) {
-      setRegenErrors((prev) => ({ ...prev, [field]: errorMessageFor(result.kind) }));
-      return;
-    }
-    const text = result.text.trim();
-    if (!text) {
-      setRegenErrors((prev) => ({ ...prev, [field]: "Generierung lieferte leeren Text." }));
-      return;
-    }
-    onChange({ ...seo, [targetKey]: text });
-  }
 
   // Confirm-Dialog vor Überschreiben eines nicht-leeren Felds. Analog zum
   // Abstract-Generate-Confirm im EditorClient.
@@ -299,88 +286,82 @@ export default function EditorSeoPanel({
     );
   }
 
-  function handleRegenerateTitle() {
-    if (regenBusy) return;
-    if (!confirmReplace("SEO-Titel", seo.title)) return;
-    setRegenBusy("title");
-    setRegenErrors((prev) => ({ ...prev, title: undefined }));
+  // Gemeinsamer Re-Generate-Pfad: rufe Master-Pipeline, picke das vom
+  // Caller spezifizierte Feld und schreibe es ins State. Andere Felder
+  // bleiben unangetastet.
+  function runRegenerate(
+    field: RegenField,
+    pick: (fields: SeoFields) => string,
+  ) {
+    setRegenBusy(field);
+    setRegenErrors((prev) => ({ ...prev, [field]: undefined }));
     void (async () => {
       try {
-        const result = await regenerateSeoTitle({
+        const result = await generateSeoFields({
           title: articleTitle,
           bodyText: articleBodyText,
-          focusKeyword: seo.keyword || null,
-          secondaryKeywords: seo.secondaryKeywords,
-          currentValue: seo.title || null,
           locale,
+          articleId,
         });
-        applyRegenResult("title", "title", result);
+        if (!result.ok) {
+          setRegenErrors((prev) => ({
+            ...prev,
+            [field]: errorMessageFor(result.error),
+          }));
+          return;
+        }
+        const value = pick(result.fields).trim();
+        if (!value) {
+          setRegenErrors((prev) => ({
+            ...prev,
+            [field]: "Generierung lieferte leeren Text.",
+          }));
+          return;
+        }
+        // Ein onChange-Call mit dem Ziel-Feld. Die übrigen Master-Felder
+        // werden verworfen — der Editor hat nur dieses eine angefordert.
+        onChange({ ...seo, [fieldToStateKey(field)]: value });
       } finally {
         setRegenBusy(null);
       }
     })();
+  }
+
+  function fieldToStateKey(field: RegenField): keyof SeoState {
+    switch (field) {
+      case "title": return "title";
+      case "description": return "description";
+      case "slug": return "slug";
+      case "keyword": return "keyword";
+    }
+  }
+
+  function handleRegenerateTitle() {
+    if (regenBusy) return;
+    if (!confirmReplace("SEO-Titel", seo.title)) return;
+    runRegenerate("title", (f) => f.titleCandidates[0]);
   }
 
   function handleRegenerateDescription() {
     if (regenBusy) return;
     if (!confirmReplace("Meta-Description", seo.description)) return;
-    setRegenBusy("description");
-    setRegenErrors((prev) => ({ ...prev, description: undefined }));
-    void (async () => {
-      try {
-        const result = await regenerateSeoDescription({
-          title: articleTitle,
-          bodyText: articleBodyText,
-          focusKeyword: seo.keyword || null,
-          secondaryKeywords: seo.secondaryKeywords,
-          currentValue: seo.description || null,
-          locale,
-        });
-        applyRegenResult("description", "description", result);
-      } finally {
-        setRegenBusy(null);
-      }
-    })();
+    runRegenerate("description", (f) => f.metaDescription);
   }
 
   function handleRegenerateSlug() {
     if (regenBusy) return;
     if (!confirmReplace("URL-Slug", seo.slug)) return;
-    setRegenBusy("slug");
-    setRegenErrors((prev) => ({ ...prev, slug: undefined }));
-    void (async () => {
-      try {
-        const result = await regenerateSeoSlug({
-          title: articleTitle,
-          focusKeyword: seo.keyword || null,
-          currentValue: seo.slug || null,
-          locale,
-        });
-        applyRegenResult("slug", "slug", result);
-      } finally {
-        setRegenBusy(null);
-      }
-    })();
+    // Slug-Format defensiv erzwingen — LLM ist nicht 100% zuverlässig
+    // bei der Slug-Konvention. Derselbe Helper wird beim Master-Pfad
+    // angewendet (siehe set("slug", normalizeArticleSlug(...)) unten),
+    // damit beide Pfade identische Slugs liefern.
+    runRegenerate("slug", (f) => normalizeArticleSlug(f.slugSuggestion));
   }
 
   function handleRegenerateKeyword() {
     if (regenBusy) return;
     if (!confirmReplace("Focus-Keyword", seo.keyword)) return;
-    setRegenBusy("keyword");
-    setRegenErrors((prev) => ({ ...prev, keyword: undefined }));
-    void (async () => {
-      try {
-        const result = await regenerateSeoKeyword({
-          title: articleTitle,
-          bodyText: articleBodyText,
-          currentValue: seo.keyword || null,
-          locale,
-        });
-        applyRegenResult("keyword", "keyword", result);
-      } finally {
-        setRegenBusy(null);
-      }
-    })();
+    runRegenerate("keyword", (f) => f.focusKeyword);
   }
 
   function dismiss(key: string) {
@@ -796,13 +777,15 @@ export default function EditorSeoPanel({
                   wordBreak: "break-word",
                 }}
               >
-                digital-age.ch/artikel/{pipelineFields.slugSuggestion}
+                digital-age.ch/artikel/{normalizeArticleSlug(pipelineFields.slugSuggestion)}
               </p>
               <div style={{ display: "flex", gap: 8 }}>
                 <button
                   type="button"
                   onClick={() => {
-                    set("slug", pipelineFields.slugSuggestion);
+                    // Slug normalisieren — derselbe Helper wie der Einzel-
+                    // Slug-Button. Damit liefern beide Pfade identische Slugs.
+                    set("slug", normalizeArticleSlug(pipelineFields.slugSuggestion));
                     dismiss("slug");
                   }}
                   style={acceptBtnStyle}

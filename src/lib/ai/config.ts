@@ -4,13 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import type { AiTask, LLMParams } from "@/lib/ai/types";
 
 // Runtime-Set der Tasks, für die das Editor-UI in /autor/admin/ai-config
-// Override-Dropdowns rendert. Tasks, die zwar im AiTask-Enum existieren
-// (für Token-Logging-Granularität in ai_usage_log), aber UI-seitig keinen
-// eigenen Override haben, fehlen hier bewusst — der Resolver fällt für sie
-// auf default_model zurück. Konkret betrifft das die SEO-Einzel-Tasks
-// (seo_title/description/slug/keyword): sie laufen aktiv als Server-
-// Actions, sollen aber kein eigenes Modell-Toggle bekommen (Konsens nach
-// PR #120-Diskussion — granulare pro-Einzel-Task-Wahl ist Overkill).
+// Override-Dropdowns rendert. Spiegelt aktuell die volle AiTask-Union
+// (Source-of-Truth in types.ts). Keys in task_model_overrides, die hier
+// nicht stehen, werden vom Resolver ignoriert (Self-Cleanup-Pfad für
+// stale Werte aus früheren Schema-Ständen).
 const KNOWN_TASKS: ReadonlySet<AiTask> = new Set<AiTask>([
   "title_variants",
   "tone_check",

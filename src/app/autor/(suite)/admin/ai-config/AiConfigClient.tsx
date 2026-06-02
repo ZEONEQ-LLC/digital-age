@@ -5,18 +5,13 @@ import { saveAiConfig } from "@/lib/ai/configActions";
 import type { AiTask } from "@/lib/ai/types";
 import { KNOWN_MODELS, isKnownModel } from "@/lib/ai/models";
 
-// `taskLabels` enthält bewusst nicht ALLE AiTask-Werte: SEO-Einzel-Tasks
-// (seo_title/description/slug/keyword) laufen ohne eigenes UI-Dropdown
-// (siehe Kommentare in src/lib/ai/config.ts und ai-config/page.tsx).
-// Deshalb Partial — die Komponente iteriert über `taskGroups`, die
-// dieselbe Subset-Liste tragen.
 type TaskGroup = { id: string; label: string; tasks: AiTask[] };
 
 type Props = {
   initialSystemPrompt: string;
   initialDefaultModel: string;
   initialTaskOverrides: Partial<Record<AiTask, string>>;
-  taskLabels: Partial<Record<AiTask, string>>;
+  taskLabels: Record<AiTask, string>;
   taskGroups: TaskGroup[];
   lastUpdatedAt: string | null;
 };

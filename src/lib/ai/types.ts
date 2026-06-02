@@ -13,14 +13,14 @@ export type AiTask =
   | "title_variants"
   | "tone_check"
   | "summary"
-  | "seo_title"
-  | "seo_description"
-  | "seo_slug"
-  | "seo_keyword"
   | "closing_paragraph"
-  // Master-Button "SEO generieren" — 1 LLM-Call liefert 5 Felder als JSON
+  // Master-Button "SEO generieren" — 1 LLM-Call liefert 5+ Felder als JSON
   // (Themenprofil, Focus-Keyword, 3 Title-Kandidaten, Meta-Description,
-  // Slug-Vorschlag). Ersetzt die seo_title-Pilot-Verdrahtung im UI.
+  // Slug-Vorschlag, semantische Begriffe). Wird auch von den 4 Einzel-
+  // Re-Generate-Buttons im SEO-Tab wiederverwendet — sie picken nur das
+  // jeweilige Ziel-Feld aus dem Master-Ergebnis (Single Source of Truth,
+  // kein Prompt-Drift). Eigene seo_title/description/slug/keyword-Tasks
+  // existieren bewusst nicht.
   | "seo_pipeline"
   // Read-only SEO-Analyse von H1 + erster Absatz + Focus-Keyword. Liefert
   // 3–6 strukturierte Empfehlungen (severity + category + finding +
