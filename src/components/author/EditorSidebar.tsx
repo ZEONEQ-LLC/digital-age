@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import AuthorCard from "./AuthorCard";
-import FeaturedImageBox from "./FeaturedImageBox";
+import FeaturedImageBox, { type CoverMetadata } from "./FeaturedImageBox";
 import MonoCaption from "./MonoCaption";
 import { updateArticleAuthor, updateFeaturedStatus } from "@/lib/authorAdminActions";
 
@@ -14,6 +14,8 @@ type EditorSidebarProps = {
   articleId: string;
   coverImageUrl: string;
   onCoverChange: (url: string) => void;
+  coverMetadata: CoverMetadata;
+  onCoverMetadataChange: (next: CoverMetadata) => void;
   publishedAtDate: string; // YYYY-MM-DD, "" wenn nicht gesetzt
   onPublishedAtChange: (date: string) => void;
   isEditor: boolean;
@@ -32,7 +34,7 @@ const AI_BUTTONS = [
   "Zusammenfassung erstellen",
 ];
 
-export default function EditorSidebar({ wordCount, readMinutes, category, tags, articleId, coverImageUrl, onCoverChange, publishedAtDate, onPublishedAtChange, isEditor, allAuthors, currentAuthorId, initialIsFeatured, initialIsHero }: EditorSidebarProps) {
+export default function EditorSidebar({ wordCount, readMinutes, category, tags, articleId, coverImageUrl, onCoverChange, coverMetadata, onCoverMetadataChange, publishedAtDate, onPublishedAtChange, isEditor, allAuthors, currentAuthorId, initialIsFeatured, initialIsHero }: EditorSidebarProps) {
   const [assignedAuthor, setAssignedAuthor] = useState(currentAuthorId);
   const [authorToast, setAuthorToast] = useState<string | null>(null);
   const [authorPending, startAuthorTransition] = useTransition();
@@ -119,6 +121,8 @@ export default function EditorSidebar({ wordCount, readMinutes, category, tags, 
         articleId={articleId}
         coverImageUrl={coverImageUrl}
         onCoverChange={onCoverChange}
+        metadata={coverMetadata}
+        onMetadataChange={onCoverMetadataChange}
       />
 
       <AuthorCard padding={18}>

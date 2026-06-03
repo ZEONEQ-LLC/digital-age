@@ -76,6 +76,9 @@ export type ArticlePatch = {
   category_id?: string;
   subcategory?: string | null;
   cover_image_url?: string | null;
+  cover_image_alt?: string | null;
+  cover_image_caption?: string | null;
+  cover_image_source?: string | null;
   tags?: string[];
   seo_title?: string | null;
   seo_description?: string | null;
