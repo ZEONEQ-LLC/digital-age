@@ -40,6 +40,21 @@ export default function FeaturedImageBox({
   // beeinflussen den Indikator nicht (Pflicht-Charakter siehe Modal-Label).
   const altSet = metadata.alt.trim().length > 0;
 
+  // Cover-Wechsel und Cover-Entfernen muessen die drei Metadaten-Felder
+  // zuruecksetzen, sonst haengt ein ALT vom alten Bild am neuen — Daten-
+  // Integritaetsfehler. State-Pfad: hier setzen → EditorClient.setCoverMetadata
+  // → buildPatchUnchecked trimmt leeren String zu null → DB speichert null.
+  function resetMetadata() {
+    onMetadataChange({ alt: "", caption: "", source: "" });
+  }
+
+  // Wrapper fuer Upload-Callback: setzt URL UND resettet Metadaten in
+  // einem Render-Cycle, damit der State konsistent bleibt.
+  function handleCoverUploaded(url: string) {
+    onCoverChange(url);
+    resetMetadata();
+  }
+
   async function handleRemove() {
     if (!coverImageUrl) return;
     if (!confirm("Beitragsbild entfernen?")) return;
@@ -54,6 +69,7 @@ export default function FeaturedImageBox({
         }
       }
       onCoverChange("");
+      resetMetadata();
     } finally {
       setBusy(false);
     }
@@ -66,7 +82,7 @@ export default function FeaturedImageBox({
         <ImageUploader
           articleId={articleId}
           currentImageUrl={coverImageUrl || undefined}
-          onUploadComplete={onCoverChange}
+          onUploadComplete={handleCoverUploaded}
         />
         {coverImageUrl && (
           <>

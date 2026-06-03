@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 // Modal für die drei Hero-Cover-Metadaten-Felder (ALT, Caption, Bildquelle).
 // Aus Platzgründen ausgelagert in ein Modal statt inline in der Sidebar.
@@ -58,6 +59,11 @@ export default function CoverMetadataModal({
   }, [open, onClose]);
 
   if (!open) return null;
+  // SSR-Guard: createPortal an document.body funktioniert nur im Client.
+  // EditorSeoPanel rendert das Modal eh nur, wenn der User die Bild-
+  // Details-Button klickt — bis dahin ist `open=false` und wir kehren oben
+  // schon zurueck.
+  if (typeof document === "undefined") return null;
 
   const altLength = alt.length;
   const altOverLimit = altLength > ALT_SOFT_LIMIT;
@@ -70,11 +76,11 @@ export default function CoverMetadataModal({
     });
   }
 
-  return (
+  return createPortal(
     <>
       <style>{`
         .cmm-backdrop {
-          position: fixed; inset: 0; z-index: 120;
+          position: fixed; inset: 0; z-index: 1000;
           background: rgba(0, 0, 0, 0.6);
           display: flex; align-items: flex-start; justify-content: center;
           padding: 80px 24px 24px;
@@ -261,6 +267,7 @@ export default function CoverMetadataModal({
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
