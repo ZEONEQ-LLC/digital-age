@@ -368,6 +368,9 @@ export type Database = {
           body_blocks: Json | null
           body_md: string | null
           category_id: string
+          cover_image_alt: string | null
+          cover_image_caption: string | null
+          cover_image_source: string | null
           cover_image_url: string | null
           created_at: string
           excerpt: string | null
@@ -395,6 +398,9 @@ export type Database = {
           body_blocks?: Json | null
           body_md?: string | null
           category_id: string
+          cover_image_alt?: string | null
+          cover_image_caption?: string | null
+          cover_image_source?: string | null
           cover_image_url?: string | null
           created_at?: string
           excerpt?: string | null
@@ -422,6 +428,9 @@ export type Database = {
           body_blocks?: Json | null
           body_md?: string | null
           category_id?: string
+          cover_image_alt?: string | null
+          cover_image_caption?: string | null
+          cover_image_source?: string | null
           cover_image_url?: string | null
           created_at?: string
           excerpt?: string | null

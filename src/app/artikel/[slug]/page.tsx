@@ -131,6 +131,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   );
   const canonical = `${baseUrl}/artikel/${article.slug}`;
   const ogImage = resolveOgImage(article, baseUrl);
+  // og:image.alt + twitter:image.alt: bevorzugt cover_image_alt, sonst
+  // Fallback auf article.title (Bestand hat leere ALT; ALT ist erst in
+  // einem spaeteren PR Pre-Publish-Pflichtfeld).
+  const ogImageAlt = article.cover_image_alt?.trim() || article.title;
   const authorHandle = article.author?.handle ?? article.author?.slug;
   const authorName = article.author?.display_name;
   const authorUrl = authorHandle ? `${baseUrl}/autor/${authorHandle}` : undefined;
@@ -166,7 +170,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
           url: ogImage,
           width: OG_IMAGE_WIDTH,
           height: OG_IMAGE_HEIGHT,
-          alt: article.title,
+          alt: ogImageAlt,
         },
       ],
       authors: authorUrl ? [authorUrl] : authorName ? [authorName] : undefined,
@@ -179,7 +183,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       card: "summary_large_image",
       title,
       description,
-      images: [{ url: ogImage, alt: article.title }],
+      images: [{ url: ogImage, alt: ogImageAlt }],
     },
   };
 }
@@ -412,27 +416,56 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
       </header>
 
       <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 var(--sp-8) var(--sp-12)" }}>
-        <div style={{ position: "relative", borderRadius: "10px", overflow: "hidden" }}>
-          <Image
-            src={getCoverUrl(article)}
-            alt={article.title}
-            width={1600}
-            height={900}
-            sizes="(max-width: 1100px) 100vw, 1100px"
-            priority
-            unoptimized
-            style={{ width: "100%", height: "auto", maxHeight: "520px", objectFit: "cover", display: "block" }}
-          />
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              inset: 0,
-              background: "linear-gradient(to top, rgba(28,28,30,0.3) 0%, transparent 40%)",
-              pointerEvents: "none",
-            }}
-          />
-        </div>
+        <figure style={{ margin: 0 }}>
+          <div style={{ position: "relative", borderRadius: "10px", overflow: "hidden" }}>
+            <Image
+              src={getCoverUrl(article)}
+              alt={article.cover_image_alt?.trim() || article.title}
+              width={1600}
+              height={900}
+              sizes="(max-width: 1100px) 100vw, 1100px"
+              priority
+              unoptimized
+              style={{ width: "100%", height: "auto", maxHeight: "520px", objectFit: "cover", display: "block" }}
+            />
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "linear-gradient(to top, rgba(28,28,30,0.3) 0%, transparent 40%)",
+                pointerEvents: "none",
+              }}
+            />
+          </div>
+          {article.cover_image_caption?.trim() && (
+            <figcaption
+              style={{
+                marginTop: 10,
+                color: "var(--da-text)",
+                fontSize: 14,
+                fontWeight: 600,
+                textAlign: "center",
+              }}
+            >
+              {article.cover_image_caption}
+            </figcaption>
+          )}
+          {article.cover_image_source?.trim() && (
+            <small
+              style={{
+                display: "block",
+                marginTop: 4,
+                color: "var(--da-muted-soft)",
+                fontSize: 12,
+                fontStyle: "italic",
+                textAlign: "center",
+              }}
+            >
+              {article.cover_image_source}
+            </small>
+          )}
+        </figure>
       </div>
 
       <ArticleBodyGrid hasToc={tocItems.length > 0}>

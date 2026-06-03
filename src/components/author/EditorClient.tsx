@@ -62,6 +62,14 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   const [title, setTitle] = useState(article.title);
   const [excerpt, setExcerpt] = useState(article.excerpt ?? "");
   const [cover, setCover] = useState(article.cover_image_url ?? "");
+  // Hero-Cover Bild-Metadaten (ALT/Caption/Source). Alle drei sind in der
+  // DB nullable; State haelt sie als string mit "" als leer-Wert. Beim
+  // Save in buildPatchUnchecked werden leere Strings zu null normalisiert.
+  const [coverMetadata, setCoverMetadata] = useState({
+    alt: article.cover_image_alt ?? "",
+    caption: article.cover_image_caption ?? "",
+    source: article.cover_image_source ?? "",
+  });
   const [categoryId, setCategoryId] = useState(article.category_id);
   const [subcategory, setSubcategory] = useState(article.subcategory ?? "");
   const [tagList, setTagList] = useState<string[]>(article.tags ?? []);
@@ -439,6 +447,9 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       title,
       excerpt: finalExcerpt || null,
       cover_image_url: cover || null,
+      cover_image_alt: coverMetadata.alt.trim() || null,
+      cover_image_caption: coverMetadata.caption.trim() || null,
+      cover_image_source: coverMetadata.source.trim() || null,
       category_id: categoryId,
       subcategory: subcategory || null,
       tags: cleanTags,
@@ -1163,6 +1174,8 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             articleId={article.id}
             coverImageUrl={cover}
             onCoverChange={setCover}
+            coverMetadata={coverMetadata}
+            onCoverMetadataChange={setCoverMetadata}
             publishedAtDate={publishedAtDate}
             onPublishedAtChange={setPublishedAtDate}
             isEditor={isEditor}
