@@ -82,18 +82,27 @@ async function fetchArticleEntries(
   try {
     const { data, error } = await supabase
       .from("articles")
-      .select("slug, updated_at")
+      .select("slug, updated_at, cover_image_url")
       .eq("status", "published");
     if (error) {
       console.error("[sitemap] articles error:", error.message);
       return [];
     }
-    return (data ?? []).map((a) => ({
-      url: `${base}/artikel/${a.slug}`,
-      lastModified: a.updated_at ? new Date(a.updated_at) : undefined,
-      changeFrequency: "monthly" as const,
-      priority: 0.8,
-    }));
+    return (data ?? []).map((a) => {
+      // Image-Sitemap: Cover als image:image-Eintrag, wenn vorhanden.
+      // Next.js MetadataRoute.Sitemap.images ist string[] (nur URL) — kein
+      // caption/title-Slot, daher wird cover_image_alt NICHT in die Sitemap
+      // geschrieben. Bewusste Einschraenkung, kein Custom-XML-Hack.
+      const cover = absolutizeCoverUrl(a.cover_image_url, base);
+      const entry: MetadataRoute.Sitemap[number] = {
+        url: `${base}/artikel/${a.slug}`,
+        lastModified: a.updated_at ? new Date(a.updated_at) : undefined,
+        changeFrequency: "monthly" as const,
+        priority: 0.8,
+      };
+      if (cover) entry.images = [cover];
+      return entry;
+    });
   } catch (err) {
     console.error(
       "[sitemap] articles threw:",
@@ -101,6 +110,21 @@ async function fetchArticleEntries(
     );
     return [];
   }
+}
+
+// Absolutiert die cover_image_url analog zu resolveOgImage in
+// src/app/artikel/[slug]/page.tsx: bereits absolute URLs (Supabase-Storage)
+// bleiben unveraendert, relative Pfade bekommen die Basis-URL davor. Leerer
+// oder null Wert liefert null — Aufrufer entscheidet ob ein OG-Fallback
+// gesetzt wird (Sitemap: kein Fallback, Eintrag bleibt ohne images-Feld).
+function absolutizeCoverUrl(
+  raw: string | null | undefined,
+  base: string,
+): string | null {
+  const c = raw?.trim();
+  if (!c) return null;
+  if (/^https?:\/\//i.test(c)) return c;
+  return `${base}${c.startsWith("/") ? "" : "/"}${c}`;
 }
 
 async function fetchTagEntries(
