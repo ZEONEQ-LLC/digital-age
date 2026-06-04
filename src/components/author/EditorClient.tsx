@@ -26,6 +26,7 @@ import {
   submitForReview,
   type ArticlePatch,
 } from "@/lib/authorActions";
+import { validatePublishGate } from "@/lib/publishGate";
 import type { SuiteArticle, RevisionWithEditor, ArticleStatus } from "@/lib/authorApi";
 import { markdownToBlocks } from "@/lib/markdownBlocks";
 import type { Block, BlockDocument } from "@/types/blocks";
@@ -613,6 +614,32 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     const prepared = prepareSave();
     if (!prepared) return;
     const { finalDoc, finalExcerpt } = prepared;
+
+    // Pre-Publish-Gate nur beim Erst-Publish (published_at war beim Laden
+    // null). Bei Re-Publish/Archiv-Re-Publish bleibt das bisherige
+    // Verhalten unveraendert. Quelle ist der frisch gesyncte Stand aus
+    // prepareSave (finalExcerpt) plus die Live-Editor-State-Werte —
+    // damit ein gerade getippter Abstract zaehlt, ohne Tab-Wechsel.
+    // Server validiert zusaetzlich; UI-Check ist Anzeigequalitaet.
+    const isFirstPublish = article.published_at == null;
+    if (isFirstPublish) {
+      const gate = validatePublishGate({
+        seo_title: seo.title,
+        seo_description: seo.description,
+        slug: seo.slug,
+        seo_keyword_primary: seo.keyword,
+        excerpt: finalExcerpt,
+        cover_image_url: cover,
+        cover_image_alt: coverMetadata.alt,
+      });
+      if (!gate.ok) {
+        setError(
+          `Publizieren nicht möglich — es fehlen: ${gate.missing.join(", ")}.`,
+        );
+        return;
+      }
+    }
+
     startTransition(async () => {
       try {
         await saveArticle(article.id, buildPatchUnchecked(finalDoc, finalExcerpt));
