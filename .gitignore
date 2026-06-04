@@ -175,6 +175,8 @@ src/images/digital-age-og-fallback.jpg
 # Backfill-Skript-Ausgabe (User-lokal, kann generierte Abstracts enthalten)
 migration/wp_alt_vorschlaege.txt
 migration/excerpt-backfill-log.json
+migration/excerpt-inputs.md
+migration/excerpt-outputs.json
 
 # Temporäre Diagnose-Skripte (im Repo-Root)
 /_*.tmp.ts
