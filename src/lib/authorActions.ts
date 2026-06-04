@@ -9,6 +9,7 @@ import {
   sendArticleSubmittedForReviewNotification,
 } from "@/lib/articles/mail";
 import { emptyBlockDocument, type BlockDocument } from "@/types/blocks";
+import { validatePublishGate } from "@/lib/publishGate";
 import type { Database, Json } from "@/lib/database.types";
 
 type ArticleRow = Database["public"]["Tables"]["articles"]["Row"];
@@ -285,12 +286,40 @@ export async function publishArticle(id: string): Promise<ArticleRow> {
   // (bestehende Logik). Wenn es vorher schon einen Wert hatte, war der
   // Artikel mindestens einmal live → keine zweite "ist veröffentlicht"-
   // Mail. Deckt Re-Publish-after-Edit UND archived→published-Edge-Case ab.
+  //
+  // Select zieht zusaetzlich die SEO-Pflichtfelder fuer den Pre-Publish-
+  // Gate (siehe Block direkt unter dieser Query). Beim Re-Publish wird
+  // der Gate uebersprungen, damit Bestandsartikel ohne komplette Felder
+  // weiter publizierbar bleiben.
   const { data: current } = await supabase
     .from("articles")
-    .select("published_at, slug, title, author:authors(display_name, email)")
+    .select(
+      "published_at, slug, title, excerpt, seo_title, seo_description, seo_keyword_primary, cover_image_url, cover_image_alt, author:authors(display_name, email)",
+    )
     .eq("id", id)
     .single();
   const wasPublishedBefore = current?.published_at != null;
+
+  // Pre-Publish-Gate: nur beim Erst-Publish (published_at IS NULL) muessen
+  // die Pflichtfelder gesetzt sein. Bei Re-Publish (auch nach Archiv) bleibt
+  // der bestehende Flow unveraendert. Validiert VOR dem status-Update,
+  // damit ein blockierter Publish den status nicht anfasst.
+  if (!wasPublishedBefore && current) {
+    const gate = validatePublishGate({
+      seo_title: current.seo_title,
+      seo_description: current.seo_description,
+      slug: current.slug,
+      seo_keyword_primary: current.seo_keyword_primary,
+      excerpt: current.excerpt,
+      cover_image_url: current.cover_image_url,
+      cover_image_alt: current.cover_image_alt,
+    });
+    if (!gate.ok) {
+      throw new Error(
+        `Publizieren nicht möglich — es fehlen: ${gate.missing.join(", ")}.`,
+      );
+    }
+  }
 
   const patch: Partial<ArticleRow> = { status: "published" };
   if (!wasPublishedBefore) {
