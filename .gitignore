@@ -172,5 +172,9 @@ migration/extract_logos.py
 migration/responsive/
 src/images/digital-age-og-fallback.jpg
 
+# Backfill-Skript-Ausgabe (User-lokal, kann generierte Abstracts enthalten)
+migration/wp_alt_vorschlaege.txt
+migration/excerpt-backfill-log.json
+
 # Temporäre Diagnose-Skripte (im Repo-Root)
 /_*.tmp.ts
