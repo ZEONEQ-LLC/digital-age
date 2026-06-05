@@ -2,6 +2,7 @@ import { Suspense } from "react";
 
 import Footer from "@/components/Footer";
 import SpotlightSection from "@/components/SpotlightSection";
+import TopicHeader from "@/components/TopicHeader";
 import TopicListing from "@/components/TopicListing";
 import { getArticlesByCategory, getFeaturedByCategory } from "@/lib/articleApi";
 import { getTopTags } from "@/lib/tags";
@@ -92,12 +93,21 @@ export default async function FutureTechPage() {
         dangerouslySetInnerHTML={{ __html: itemListJsonLd }}
       />
       <SpotlightSection articles={featured} />
+      {/* Header server-rendered (mit H1) — bewusst AUSSERHALB der Suspense-
+          Boundary, damit die H1 im SSR-HTML steht. Vorher sass der ganze
+          Header inkl. H1 in TopicListing innerhalb der Suspense und wurde
+          durch fallback={null} im rohen HTML verschluckt. */}
+      <TopicHeader
+        topicLabel="Future Tech"
+        lead="Technologien von morgen — heute verstehen. GenAI, IoT, Blockchain und die Innovationen, die unsere Welt neu gestalten."
+        articleCount={articles.length}
+        bgImages={articles.slice(0, 5).map((a) => a.image)}
+        accentColor="purple"
+      />
       {/* Suspense wegen useSearchParams in TopicListing — nötig damit
           die Page static prerendered + via revalidate gecacht werden kann. */}
       <Suspense fallback={null}>
         <TopicListing
-          topicLabel="Future Tech"
-          lead="Technologien von morgen — heute verstehen. GenAI, IoT, Blockchain und die Innovationen, die unsere Welt neu gestalten."
           articles={articles}
           subcategories={subcategories}
           categoryColors={categoryColors}
