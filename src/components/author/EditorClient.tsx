@@ -736,9 +736,22 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         }
         .a-edit-tab--active { color: var(--da-green); border-bottom-color: var(--da-green); }
         .a-edit-content-grid {
-          display: grid; grid-template-columns: 1fr 280px;
-          gap: 28px; align-items: start;
+          display: grid;
+          grid-template-columns: 1fr 280px;
+          grid-template-rows: auto auto;
+          gap: 28px;
+          align-items: start;
         }
+        /* Drei Direct-Children: head (Title/Abstract/Meta) → sidebar →
+           body (Zone 3 + Footer). Auf Desktop: head links oben, body links
+           unten, sidebar rechts spannend ueber beide rows. Auf <=1100px
+           (Media-Query weiter unten) wird das Grid einspaltig und alle
+           drei landen in DOM-Reihenfolge untereinander — head → sidebar
+           → body, womit die Metadaten-/Bild-Felder oberhalb des Body-
+           Editors erreichbar bleiben. */
+        .a-edit-col-head      { grid-column: 1; grid-row: 1; }
+        .a-edit-sidebar-aside { grid-column: 2; grid-row: 1 / span 2; position: sticky; top: 24px; }
+        .a-edit-col-body      { grid-column: 1; grid-row: 2; }
         .a-edit-mode-toggle {
           display: inline-flex; background: var(--da-card);
           border: 1px solid var(--da-border); border-radius: 6px; padding: 3px;
@@ -876,7 +889,18 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           .a-edit-content-grid { grid-template-columns: 1fr 260px; gap: 20px; }
         }
         @media (max-width: 1100px) {
-          .a-edit-content-grid { grid-template-columns: 1fr; }
+          .a-edit-content-grid {
+            grid-template-columns: 1fr;
+            grid-template-rows: auto auto auto;
+          }
+          /* Single-Column-Reihenfolge: head → sidebar → body. Sidebar
+             zwischen Meta-Row und Body-Editor, damit Hero-Bild +
+             Veroeffentlichungsdatum + Author auf Tablets/Schmalformat
+             oberhalb des Editors erreichbar bleiben (statt unter Zone 4
+             im Off-Screen-Bereich). */
+          .a-edit-col-head      { grid-column: 1; grid-row: 1; }
+          .a-edit-sidebar-aside { grid-column: 1; grid-row: 2; position: static; top: auto; }
+          .a-edit-col-body      { grid-column: 1; grid-row: 3; }
           .a-edit-meta-row { grid-template-columns: 1fr; }
         }
       `}</style>
@@ -1012,7 +1036,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         className={`a-edit-content-grid editor-theme-${editorTheme}`}
         style={{ display: tab === "content" ? undefined : "none" }}
       >
-          <div>
+          <div className="a-edit-col-head">
             {guardResult && !guardResult.allowed && (
               <div
                 style={{
@@ -1168,7 +1192,28 @@ export default function EditorClient({ article, revisions, categories, isEditor,
                 </select>
               </div>
             </div>
+          </div>
 
+          <EditorSidebar
+            wordCount={wordCount}
+            readMinutes={readMinutes}
+            category={categoryName}
+            tags={tagList}
+            articleId={article.id}
+            coverImageUrl={cover}
+            onCoverChange={setCover}
+            coverMetadata={coverMetadata}
+            onCoverMetadataChange={setCoverMetadata}
+            publishedAtDate={publishedAtDate}
+            onPublishedAtChange={setPublishedAtDate}
+            isEditor={isEditor}
+            allAuthors={allAuthors}
+            currentAuthorId={article.author_id}
+            initialIsFeatured={article.is_featured ?? false}
+            initialIsHero={article.is_hero ?? false}
+          />
+
+          <div className="a-edit-col-body">
             {/* Zone 3 — Body */}
             <div className="a-edit-body-card">
               <span
@@ -1192,25 +1237,6 @@ export default function EditorClient({ article, revisions, categories, isEditor,
               onChangeRelatedArticles={setRelatedArticles}
             />
           </div>
-
-          <EditorSidebar
-            wordCount={wordCount}
-            readMinutes={readMinutes}
-            category={categoryName}
-            tags={tagList}
-            articleId={article.id}
-            coverImageUrl={cover}
-            onCoverChange={setCover}
-            coverMetadata={coverMetadata}
-            onCoverMetadataChange={setCoverMetadata}
-            publishedAtDate={publishedAtDate}
-            onPublishedAtChange={setPublishedAtDate}
-            isEditor={isEditor}
-            allAuthors={allAuthors}
-            currentAuthorId={article.author_id}
-            initialIsFeatured={article.is_featured ?? false}
-            initialIsHero={article.is_hero ?? false}
-          />
       </div>
 
       <MdCleanupModal
