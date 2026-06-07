@@ -5,7 +5,8 @@
 //   - ## / ### / #### Header → BlockReader-kompatible Heading-Blocks via
 //     bestehendes markdownToBlocks (wiederverwendet, kein eigener Parser).
 //   - Eine Heading-Sektion `## Quellen` am Ende wird abgetrennt und
-//     zeilenweise als `[N] Titel URL` geparst → BlockDocument.sources[].
+//     zeilenweise als Source-Eintrag geparst → BlockDocument.sources[].
+//     Akzeptierte Quellen-Formate siehe parseSourceLine() unten.
 //   - Inline-Refs `[N]` (auch in Clustern `[1][2][3]` oder ungeordnet
 //     `[2][3][4][6][7][8][1]`) werden in `[^N]` umgeschrieben — der
 //     Token-Form, die blocksToTiptap als daSourceRef-Node erkennt.
@@ -15,11 +16,17 @@
 // `{ text: "⚠ Quelle ergänzen" }` aufgefüllt, damit die N-Werte stabil
 // bleiben und der Autor die Lücken sieht.
 //
-// Idempotenz-Schutz: Wenn keine `## Quellen`-Sektion gefunden wurde,
+// Idempotenz-Schutz: Wenn keine Sources-Sektion gefunden wurde,
 // signalisiert das Top-Level-Result `foundSourcesSection: false` — der
 // EditorClient lässt in dem Fall das bestehende doc.sources unangetastet,
 // statt es mit einem leeren Array zu überschreiben (sonst gingen die beim
 // ersten Cleanup angelegten Quellen beim zweiten Klick verloren).
+//
+// SICHERHEITSNETZ (Lehre aus Andreas-Kamm-Vorfall, Phase 11):
+// Quellen-Zeilen, die der Parser nicht greifen kann, werden NICHT mehr
+// still verworfen. Sie wandern unter einem neuen `## Sources`-Heading-
+// Block an das Body-Ende, plus die UI bekommt eine Warnung. Damit ist
+// stiller Datenverlust unter keinen Umstaenden moeglich.
 
 import { markdownToBlocks } from "@/lib/markdownBlocks";
 import type { Block, Source } from "@/types/blocks";
@@ -32,17 +39,49 @@ export type CleanupResult = {
   blocks: Block[];
   sources: Source[];
   foundSourcesSection: boolean;
+  // Zeilen aus der Sources-Sektion, die der Parser nicht zu einem
+  // strukturierten Source-Eintrag bringen konnte. Werden bereits ans
+  // Body-Ende angehaengt (Sicherheitsnetz) — die UI nutzt nur die Anzahl
+  // fuer den Warn-Banner.
+  unparseableSourceLines: string[];
+  // True wenn die Sources-Sektion einen Mix aus Zeilen mit explizitem
+  // [N]-Index UND ohne Index enthielt. Dann werden ALLE positionsbasiert
+  // neu nummeriert, etwaige Autor-Indizes werden ueberschrieben — UI
+  // warnt darueber.
+  renumberedDueToMix: boolean;
 };
 
 export function cleanupMarkdown(md: string): CleanupResult {
   const { body, sourcesLines, foundSourcesSection } = splitSourcesSection(md);
-  const sourcesMap = parseSourcesLines(sourcesLines);
+  const { map: sourcesMap, unparseableLines, renumberedDueToMix } =
+    parseSourcesLines(sourcesLines);
   const knownNs = new Set(sourcesMap.keys());
   const refBody = rewriteInlineRefs(body, knownNs);
   const normalizedBody = normalizeStarItalics(refBody);
-  const blocks = markdownToBlocks(normalizedBody);
+
+  // Sicherheitsnetz: unparseable Quellen-Zeilen ans Body-Ende anhaengen,
+  // damit nichts verloren geht. Heading davor, damit der Autor sieht,
+  // wo die unverarbeiteten Zeilen sind.
+  let bodyAugmented = normalizedBody;
+  if (unparseableLines.length > 0) {
+    bodyAugmented = bodyAugmented.replace(/\s+$/, "");
+    if (bodyAugmented.length > 0) bodyAugmented += "\n\n";
+    bodyAugmented += "## Sources\n\n";
+    bodyAugmented += unparseableLines
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0)
+      .join("\n\n");
+  }
+
+  const blocks = markdownToBlocks(bodyAugmented);
   const sources = buildSourcesArray(sourcesMap);
-  return { blocks, sources, foundSourcesSection };
+  return {
+    blocks,
+    sources,
+    foundSourcesSection,
+    unparseableSourceLines: unparseableLines,
+    renumberedDueToMix,
+  };
 }
 
 // ============================================================
@@ -81,38 +120,188 @@ export function splitSourcesSection(md: string): SplitResult {
   return { body, sourcesLines, foundSourcesSection: true };
 }
 
-// Strenger Regex: `[N] Titel https://url` mit URL-Verankerung am
-// Zeilenende. Erlaubt Doppelpunkt/Apostroph im Titel via lazy `.*?`.
-const SRC_LINE_STRICT = /^\s*\[(\d+)\]\s+(.*?)\s+(https?:\/\/\S+)\s*$/;
-// Fallback ohne URL — Quelle mit nur Titel, url bleibt undefined.
-const SRC_LINE_FALLBACK = /^\s*\[(\d+)\]\s+(.+?)\s*$/;
+// ============================================================
+// Source-Zeilen-Parser (Phase 11 — erweitert)
+// ============================================================
+//
+// Akzeptierte Formate (INNERHALB der Sources-Sektion):
+//   - `[1] Titel https://url`   ← Strict (vorher)
+//   - `[1] Titel`               ← Fallback (vorher)
+//   - `• Titel: [text](url)`    ← Bullet + Markdown-Link (Andreas' Fall)
+//   - `• Titel – Autor: https://url`   ← Bullet + Plain-URL
+//   - `- Titel https://url`     ← MD-Liste
+//   - `1. Titel https://url`    ← Numerische Liste
+//   - `(1) Titel https://url`   ← Klammer-Index
+//   - `[Titel](https://url)`    ← MD-Link ohne Index
+//
+// Bewusst NICHT akzeptiert:
+//   - `[1]: https://url "Titel"`  ← MD-reference-link-Definition
+//   - `**[1]** Titel https://url` ← Bold-Index
+//   - Reine `Titel URL`-Zeilen ohne Bullet/Index/Link  ← landen im
+//     unparseableSourceLines-Sicherheitsnetz (Scope-Praezisierung Ali:
+//     kein voraussetzungsloses "Plain"-Format, sonst werden normale
+//     Absaetze mit URLs faelschlich als Quellen gelesen)
 
-// Parst die Zeilen unterhalb des `## Quellen`-Headings. Returnt
-// Map<N, {text, url?}>. Bei doppelten N gewinnt der letzte Eintrag.
-// Zeilen, die weder strict noch fallback matchen, werden verworfen.
-export function parseSourcesLines(
-  lines: string[],
-): Map<number, { text: string; url?: string }> {
-  const out = new Map<number, { text: string; url?: string }>();
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line) continue;
-    const strict = SRC_LINE_STRICT.exec(line);
-    if (strict) {
-      const n = parseInt(strict[1], 10);
-      out.set(n, { text: strict[2].trim(), url: strict[3] });
-      continue;
-    }
-    const fallback = SRC_LINE_FALLBACK.exec(line);
-    if (fallback) {
-      const n = parseInt(fallback[1], 10);
-      out.set(n, { text: fallback[2].trim() });
-      continue;
-    }
-    // Nicht parsbare Zeile (z.B. Sub-Heading "## Notes" weiter unten,
-    // Leerzeichen-Reste, freier Text) — verwerfen.
+// Bullet-/List-Marker am Zeilenanfang (Pflicht ist mind. einer der
+// expliziten Marker — Plain-Text ohne Marker faellt durch).
+// Wichtig: ASCII-Dash `-` zaehlt nur dann als Bullet, wenn er von
+// Whitespace gefolgt wird; sonst koennte ein Titel wie "ai-agents"
+// als Bullet plus "agents" missinterpretiert werden.
+const BULLET_RE = /^[•\*\+–—](?:\s|\t)*|^-\s+/;
+
+// Leading-Index-Patterns
+const INDEX_BRACKET_RE = /^\[(\d+)\]\s*[:.\-–—]?\s*/;
+const INDEX_PAREN_RE = /^\((\d+)\)\s*[:.\-–—]?\s*/;
+const INDEX_PAREN_CLOSE_RE = /^(\d+)\)\s+/;
+const INDEX_DOT_RE = /^(\d+)\.\s+/;
+
+// URL-Extraction — Markdown-Link bevorzugt (URL ist explizit), sonst
+// Plain-URL am Zeilenende.
+const MD_LINK_RE = /\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/;
+const TRAILING_URL_RE = /(https?:\/\/\S+)\s*$/;
+
+export type ParsedSourceEntry = {
+  explicitN: number | null;
+  text: string;
+  url?: string;
+};
+
+export type ParseSourcesResult = {
+  map: Map<number, { text: string; url?: string }>;
+  unparseableLines: string[];
+  renumberedDueToMix: boolean;
+};
+
+// Parst eine einzelne Zeile. Return null = nicht parsbar (landet im
+// Sicherheitsnetz). Pipeline:
+//   1. Trim
+//   2. Bullet-Marker am Anfang abstreifen (optional)
+//   3. Leading-Index extrahieren (optional, [N] / (N) / N) / N.)
+//   4. URL extrahieren: erst MD-Link, dann Plain-URL am Ende
+//   5. Titel = Rest, getrimmt, mit trailing `:`/`-`/Dash entfernt
+//   6. Wenn Titel UND URL leer → null
+export function parseSourceLine(raw: string): ParsedSourceEntry | null {
+  let line = raw.trim();
+  if (!line) return null;
+
+  // Merken, ob Zeile irgendeinen "Quellen-Marker" hatte (Bullet, Index
+  // oder MD-Link). Ohne JEDEN Marker faellt die Zeile durch — Plain
+  // "Titel URL"-Zeilen sind bewusst kein gueltiges Quellen-Format.
+  let hadMarker = false;
+
+  const bulletMatch = BULLET_RE.exec(line);
+  if (bulletMatch) {
+    hadMarker = true;
+    line = line.slice(bulletMatch[0].length).trim();
   }
-  return out;
+
+  let explicitN: number | null = null;
+  let m: RegExpExecArray | null = null;
+  if ((m = INDEX_BRACKET_RE.exec(line)) !== null) {
+    explicitN = parseInt(m[1], 10);
+    line = line.slice(m[0].length).trim();
+    hadMarker = true;
+  } else if ((m = INDEX_PAREN_RE.exec(line)) !== null) {
+    explicitN = parseInt(m[1], 10);
+    line = line.slice(m[0].length).trim();
+    hadMarker = true;
+  } else if ((m = INDEX_PAREN_CLOSE_RE.exec(line)) !== null) {
+    explicitN = parseInt(m[1], 10);
+    line = line.slice(m[0].length).trim();
+    hadMarker = true;
+  } else if ((m = INDEX_DOT_RE.exec(line)) !== null) {
+    explicitN = parseInt(m[1], 10);
+    line = line.slice(m[0].length).trim();
+    hadMarker = true;
+  }
+
+  let url: string | undefined;
+  let text: string;
+
+  const mdLink = MD_LINK_RE.exec(line);
+  if (mdLink) {
+    hadMarker = true;
+    url = mdLink[2];
+    const before = line.slice(0, mdLink.index).trim();
+    const linkText = mdLink[1].trim();
+    if (before) {
+      text = before;
+    } else {
+      // Titel-Text aus dem Link nur uebernehmen, wenn er nicht selbst die URL ist.
+      text = linkText && linkText !== url ? linkText : "";
+    }
+  } else {
+    const trailingUrl = TRAILING_URL_RE.exec(line);
+    if (trailingUrl) {
+      url = trailingUrl[1];
+      text = line.slice(0, trailingUrl.index).trim();
+    } else {
+      text = line;
+    }
+  }
+
+  text = text.replace(/[:\-–—]\s*$/, "").trim();
+
+  // Plain-Text ohne JEDEN Marker (kein Bullet, kein Index, kein MD-Link)
+  // ist kein gueltiger Quellen-Eintrag.
+  if (!hadMarker) return null;
+
+  if (!text && !url) return null;
+  // Fallback: nur URL, kein Titel → URL ist auch der Titel-Text.
+  if (!text && url) text = url;
+
+  return { explicitN, text, url };
+}
+
+// Parst die Zeilen unterhalb des Sources-Headings.
+//
+// Nummerierungs-Strategie (Konsequenz der Ali-Vorgabe "konservativ + warnen"):
+//   - Alle parsbaren Zeilen haben explizite N → Map(explicitN → entry).
+//     Inline-Refs `[N]` im Body bleiben gueltig.
+//   - Keine Zeile hat explizite N → positionsbasiert auto-nummerieren.
+//   - MIX (manche mit, manche ohne) → ALLE positionsbasiert
+//     auto-nummerieren, etwaige Autor-Indizes werden ueberschrieben,
+//     `renumberedDueToMix: true` signalisiert das an die UI fuer den
+//     Warn-Banner. Bewusst NICHT still: das ist die Sicherheits-
+//     entscheidung — lieber sichtbar umnummerieren als heimlich
+//     vermischen und gegen die Autor-Erwartung arbeiten.
+export function parseSourcesLines(lines: string[]): ParseSourcesResult {
+  const parsed: ParsedSourceEntry[] = [];
+  const unparseable: string[] = [];
+
+  for (const raw of lines) {
+    if (!raw.trim()) continue;
+    const entry = parseSourceLine(raw);
+    if (entry) {
+      parsed.push(entry);
+    } else {
+      unparseable.push(raw);
+    }
+  }
+
+  const hasExplicit = parsed.some((e) => e.explicitN !== null);
+  const allExplicit = parsed.every((e) => e.explicitN !== null);
+
+  const map = new Map<number, { text: string; url?: string }>();
+  let renumberedDueToMix = false;
+
+  if (parsed.length > 0 && allExplicit) {
+    for (const e of parsed) {
+      map.set(e.explicitN as number, {
+        text: e.text,
+        ...(e.url ? { url: e.url } : {}),
+      });
+    }
+  } else {
+    for (let i = 0; i < parsed.length; i++) {
+      const e = parsed[i];
+      const n = i + 1;
+      map.set(n, { text: e.text, ...(e.url ? { url: e.url } : {}) });
+    }
+    if (hasExplicit) renumberedDueToMix = true;
+  }
+
+  return { map, unparseableLines: unparseable, renumberedDueToMix };
 }
 
 // Ersetzt `[N]`-Inline-Refs durch `[^N]`, NUR wenn N in knownNs steht.
@@ -150,7 +339,7 @@ export function normalizeStarItalics(md: string): string {
   const bolds: string[] = [];
   out = out.replace(/\*\*([^*\n]+?)\*\*/g, (m) => {
     bolds.push(m);
-    return `${bolds.length - 1}`;
+    return `${bolds.length - 1}`;
   });
   // 3.
   out = out.replace(
@@ -158,7 +347,7 @@ export function normalizeStarItalics(md: string): string {
     "_$1_",
   );
   // 4.
-  out = out.replace(/(\d+)/g, (_m, idx) => bolds[parseInt(idx, 10)]);
+  out = out.replace(/(\d+)/g, (_m, idx) => bolds[parseInt(idx, 10)]);
   return out;
 }
 

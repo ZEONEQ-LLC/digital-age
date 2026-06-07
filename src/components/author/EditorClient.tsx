@@ -187,9 +187,20 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   // (typisch bei Copy aus GUI-Editoren) — dort kollabieren Linebreaks
   // schon vor dem getJSON/getText. Die Textarea bewahrt `\n` bytegenau.
   const [mdCleanupOpen, setMdCleanupOpen] = useState(false);
+  // Warn-Banner nach Cleanup — informiert ueber unparseable Quellen-Zeilen
+  // (jetzt im Sicherheitsnetz, nicht mehr verworfen) und ueber Mix-Faelle,
+  // in denen explizite Autor-Indizes durch Auto-Nummerierung ueberschrieben
+  // wurden. Pro Cleanup neu gesetzt; vom User per ✕ wegklickbar.
+  const [mdCleanupWarning, setMdCleanupWarning] = useState<string | null>(null);
 
   function applyMdCleanup(markdown: string) {
-    const { blocks, sources, foundSourcesSection } = cleanupMarkdown(markdown);
+    const {
+      blocks,
+      sources,
+      foundSourcesSection,
+      unparseableSourceLines,
+      renumberedDueToMix,
+    } = cleanupMarkdown(markdown);
     const tiptap = blocksToTiptap({
       version: BLOCK_SCHEMA_VERSION,
       blocks,
@@ -206,6 +217,24 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         sources: foundSourcesSection ? sources : base.sources,
       };
     });
+
+    // Warn-Banner zusammenstellen.
+    const warns: string[] = [];
+    if (unparseableSourceLines.length > 0) {
+      const n = unparseableSourceLines.length;
+      warns.push(
+        n === 1
+          ? "1 Quellen-Zeile konnte nicht als Quelle erkannt werden — wurde als Text in den Body übernommen. Format prüfen."
+          : `${n} Quellen-Zeilen konnten nicht als Quellen erkannt werden — wurden als Text in den Body übernommen. Format prüfen.`,
+      );
+    }
+    if (renumberedDueToMix) {
+      warns.push(
+        "Die Quellen-Sektion enthielt manche Zeilen mit [N]-Index und manche ohne — alle Quellen wurden positionsbasiert neu nummeriert.",
+      );
+    }
+    setMdCleanupWarning(warns.length > 0 ? warns.join(" ") : null);
+
     setMdCleanupOpen(false);
   }
 
@@ -980,6 +1009,49 @@ export default function EditorClient({ article, revisions, categories, isEditor,
 
       {error && <div className="a-edit-error">{error}</div>}
 
+      {mdCleanupWarning && (
+        <div
+          role="status"
+          style={{
+            background: "rgba(255, 165, 0, 0.10)",
+            border: "1px solid var(--da-orange, #ff9f0a)",
+            color: "var(--da-text)",
+            padding: "10px 14px",
+            borderRadius: 6,
+            fontSize: 13,
+            lineHeight: 1.5,
+            marginBottom: 16,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: 12,
+          }}
+        >
+          <span>
+            <strong style={{ color: "var(--da-orange, #ff9f0a)" }}>
+              MD-Cleanup-Hinweis:
+            </strong>{" "}
+            {mdCleanupWarning}
+          </span>
+          <button
+            type="button"
+            onClick={() => setMdCleanupWarning(null)}
+            style={{
+              background: "transparent",
+              border: 0,
+              color: "var(--da-muted)",
+              cursor: "pointer",
+              fontSize: 14,
+              padding: 0,
+              lineHeight: 1,
+            }}
+            aria-label="Hinweis schliessen"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <div className="a-edit-tabs">
         {[
           { id: "content", label: "Inhalt" },
@@ -1210,7 +1282,12 @@ export default function EditorClient({ article, revisions, categories, isEditor,
 
       <MdCleanupModal
         open={mdCleanupOpen}
-        bodyHasContent={(doc?.blocks?.length ?? 0) > 0}
+        // Live-Check aus dem Tiptap-Editor statt stale React-State.
+        // doc.blocks wird von applyMdCleanup nicht synchron aktualisiert
+        // (setContent geht direkt in Tiptap), darum wuerde ein stale-
+        // Boolean beim zweiten Cleanup faelschlich "leer" sagen und die
+        // Confirm-Warnung silent schlucken.
+        getBodyHasContent={() => !(bodyEditorRef.current?.isEmpty() ?? true)}
         onClose={() => setMdCleanupOpen(false)}
         onApply={applyMdCleanup}
       />
