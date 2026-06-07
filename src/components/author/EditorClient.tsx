@@ -4,10 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, useTransition } from "react";
 import AuthorStatusBadge from "@/components/author/AuthorStatusBadge";
+import EditorDetailsTab from "@/components/author/EditorDetailsTab";
 import EditorRevisions from "@/components/author/EditorRevisions";
 import EditorSeoPanel, { type SeoState } from "@/components/author/EditorSeoPanel";
-import EditorSidebar from "@/components/author/EditorSidebar";
-import TagInput from "@/components/author/TagInput";
 import ArticleBody from "@/components/ArticleBody";
 import BlockReader from "@/components/BlockReader";
 import InlineText from "@/components/InlineText";
@@ -41,7 +40,7 @@ import { contentWhitelistMatch, runEditorRoundtripGuard, runRoundtripGuard, stri
 import { cleanupMarkdown } from "@/lib/editor/mdCleanup";
 import { generateAbstract } from "@/lib/ai/abstractActions";
 
-type Tab = "content" | "preview" | "seo" | "revisions";
+type Tab = "content" | "details" | "preview" | "seo" | "revisions";
 
 type Props = {
   article: SuiteArticle;
@@ -685,7 +684,6 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   const canPublish = isEditor && (status === "draft" || status === "in_review");
   const canArchive = isEditor && status === "published";
   const canDelete = status === "draft";
-  const categoryName = categories.find((c) => c.id === categoryId)?.name_de ?? "—";
 
   return (
     <>
@@ -736,8 +734,40 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         }
         .a-edit-tab--active { color: var(--da-green); border-bottom-color: var(--da-green); }
         .a-edit-content-grid {
-          display: grid; grid-template-columns: 1fr 280px;
-          gap: 28px; align-items: start;
+          /* Single-Column-Layout — Setup-Felder (Hero, Datum, Kategorie,
+             Tags, Featured, Author) leben jetzt im eigenen Details-Tab,
+             Content-Tab konzentriert sich auf Inhalt (Titel + Abstract +
+             Body + Footer). Kein zweiter Sidebar-Slot mehr noetig. */
+          display: block;
+        }
+        /* Sprache-Inline-Select vor dem Titel — kompakte Anzeige der
+           harten Vorgabe (de-CH / en), die das og:locale + html-lang +
+           AI-Prompt-Sprache steuert. Bewusst hier oben statt im Details-
+           Tab: Sprache ist Content-relevant und sollte beim Editing
+           immer sichtbar sein. */
+        .a-edit-locale-strip {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+        .a-edit-locale-strip__label {
+          color: var(--da-faint);
+          font-family: var(--da-font-mono);
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+        }
+        .a-edit-locale-strip__select {
+          background: var(--da-card);
+          border: 1px solid var(--da-border);
+          border-radius: 4px;
+          color: var(--da-text);
+          padding: 4px 8px;
+          font-size: 12px;
+          font-family: var(--da-font-mono);
+          font-weight: 600;
         }
         .a-edit-mode-toggle {
           display: inline-flex; background: var(--da-card);
@@ -801,22 +831,16 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           font-style: italic; resize: none; padding: 0;
           font-family: inherit;
         }
-        .a-edit-meta-row {
-          display: grid; grid-template-columns: 1fr 1fr 1fr;
-          gap: 12px; margin-bottom: 18px;
+        /* Mini-Counter unter dem Body-Editor — Live-Feedback fuer
+           Word-Count + Lesezeit. Visuell schmal, damit der Editor-
+           Fokus auf dem Body bleibt. */
+        .a-edit-mini-stats {
+          display: flex; justify-content: flex-end; gap: 18px;
+          margin-top: 6px;
+          font-family: var(--da-font-mono); font-size: 11px;
+          color: var(--da-muted-soft);
         }
-        .a-edit-meta-input, .a-edit-meta-select {
-          width: 100%; background: var(--da-card);
-          border: 1px solid var(--da-border); border-radius: 4px;
-          color: var(--da-text); padding: 8px 12px;
-          font-size: 13px; font-family: inherit;
-        }
-        .a-edit-meta-label {
-          color: var(--da-faint); font-size: 10px; font-weight: 700;
-          font-family: var(--da-font-mono); letter-spacing: 0.12em;
-          text-transform: uppercase; margin-bottom: 5px;
-          display: block;
-        }
+        .a-edit-mini-stats strong { color: var(--da-text); font-weight: 600; }
         .a-edit-body-card {
           background: var(--da-card); border: 1px solid var(--da-border);
           border-radius: 8px;
@@ -871,13 +895,6 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         .a-edit-mode-hint {
           color: var(--da-muted-soft); font-size: 11px;
           font-family: var(--da-font-mono);
-        }
-        @media (max-width: 1280px) {
-          .a-edit-content-grid { grid-template-columns: 1fr 260px; gap: 20px; }
-        }
-        @media (max-width: 1100px) {
-          .a-edit-content-grid { grid-template-columns: 1fr; }
-          .a-edit-meta-row { grid-template-columns: 1fr; }
         }
       `}</style>
 
@@ -966,6 +983,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       <div className="a-edit-tabs">
         {[
           { id: "content", label: "Inhalt" },
+          { id: "details", label: "Details" },
           { id: "preview", label: "Vorschau" },
           { id: "seo", label: "SEO & Meta" },
           { id: "revisions", label: "Revisionen" },
@@ -1050,6 +1068,22 @@ export default function EditorClient({ article, revisions, categories, isEditor,
               </div>
             )}
 
+            {/* Sprache-Strip — kompakter Inline-Select VOR dem Titel.
+                Sprache steuert og:locale + html-lang + AI-Prompt-Sprache,
+                ist also Content-relevant und gehoert ueber den Titel. */}
+            <div className="a-edit-locale-strip">
+              <span className="a-edit-locale-strip__label">Sprache</span>
+              <select
+                className="a-edit-locale-strip__select"
+                value={locale}
+                onChange={(e) => setLocale(e.target.value as "de-CH" | "en")}
+                aria-label="Sprache des Artikels"
+              >
+                <option value="de-CH">de-CH</option>
+                <option value="en">en</option>
+              </select>
+            </div>
+
             {/* Zone 1 — Titel */}
             <div className="a-edit-zone-card a-edit-zone-card--padded">
               <span className="a-edit-zone-label" style={{ marginBottom: 8 }}>
@@ -1114,61 +1148,6 @@ export default function EditorClient({ article, revisions, categories, isEditor,
               )}
             </div>
 
-            <div className="a-edit-meta-row">
-              <div>
-                <label className="a-edit-meta-label">Kategorie</label>
-                <select
-                  className="a-edit-meta-select"
-                  value={categoryId}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    if (next === categoryId) return;
-                    // Featured/Hero werden serverseitig auf false gesetzt
-                    // (siehe saveArticle), aber wir warnen den User vorher.
-                    if ((article.is_featured || article.is_hero) && next !== article.category_id) {
-                      const ok = window.confirm(
-                        "Dieser Artikel ist als Featured oder Hero markiert. Beim Wechsel der Kategorie werden Featured- und Hero-Status zurückgesetzt. Fortfahren?",
-                      );
-                      if (!ok) return;
-                    }
-                    setCategoryId(next);
-                  }}
-                >
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name_de}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="a-edit-meta-label">Subkategorie</label>
-                <input
-                  className="a-edit-meta-input"
-                  value={subcategory}
-                  onChange={(e) => setSubcategory(e.target.value)}
-                  placeholder='z.B. "AI in Banking"'
-                />
-              </div>
-              <div>
-                <label className="a-edit-meta-label">Tags</label>
-                <TagInput
-                  value={tagList}
-                  onChange={setTagList}
-                  placeholder="Tag suchen oder neu anlegen…"
-                />
-              </div>
-              <div>
-                <label className="a-edit-meta-label">Sprache</label>
-                <select
-                  className="a-edit-meta-select"
-                  value={locale}
-                  onChange={(e) => setLocale(e.target.value as "de-CH" | "en")}
-                >
-                  <option value="de-CH">Deutsch (Schweiz)</option>
-                  <option value="en">Englisch</option>
-                </select>
-              </div>
-            </div>
-
             {/* Zone 3 — Body */}
             <div className="a-edit-body-card">
               <span
@@ -1185,6 +1164,10 @@ export default function EditorClient({ article, revisions, categories, isEditor,
                 onMdCleanup={() => setMdCleanupOpen(true)}
               />
             </div>
+            <div className="a-edit-mini-stats" aria-label="Live-Statistik">
+              <span><strong>{wordCount}</strong> Wörter</span>
+              <span><strong>{readMinutes} min</strong> Lesezeit</span>
+            </div>
             <TiptapFooterEditor
               disclaimer={disclaimer}
               onChangeDisclaimer={setDisclaimer}
@@ -1192,25 +1175,37 @@ export default function EditorClient({ article, revisions, categories, isEditor,
               onChangeRelatedArticles={setRelatedArticles}
             />
           </div>
+      </div>
 
-          <EditorSidebar
-            wordCount={wordCount}
-            readMinutes={readMinutes}
-            category={categoryName}
-            tags={tagList}
-            articleId={article.id}
-            coverImageUrl={cover}
-            onCoverChange={setCover}
-            coverMetadata={coverMetadata}
-            onCoverMetadataChange={setCoverMetadata}
-            publishedAtDate={publishedAtDate}
-            onPublishedAtChange={setPublishedAtDate}
-            isEditor={isEditor}
-            allAuthors={allAuthors}
-            currentAuthorId={article.author_id}
-            initialIsFeatured={article.is_featured ?? false}
-            initialIsHero={article.is_hero ?? false}
-          />
+      {/* Details-Tab — alle Artikel-Setup-Felder (Hero, Datum, Featured,
+          Author, Kategorie/Subkat/Tags). Bleibt wie Content-Tab dauerhaft
+          gemountet, damit Featured-Toggle-State (Server-Action-Pending)
+          ueber Tab-Wechsel nicht verloren geht. */}
+      <div style={{ display: tab === "details" ? undefined : "none" }}>
+        <EditorDetailsTab
+          articleId={article.id}
+          coverImageUrl={cover}
+          onCoverChange={setCover}
+          coverMetadata={coverMetadata}
+          onCoverMetadataChange={setCoverMetadata}
+          publishedAtDate={publishedAtDate}
+          onPublishedAtChange={setPublishedAtDate}
+          isEditor={isEditor}
+          allAuthors={allAuthors}
+          currentAuthorId={article.author_id}
+          initialIsFeatured={article.is_featured ?? false}
+          initialIsHero={article.is_hero ?? false}
+          categoryId={categoryId}
+          onCategoryChange={setCategoryId}
+          categories={categories}
+          subcategory={subcategory}
+          onSubcategoryChange={setSubcategory}
+          tagList={tagList}
+          onTagListChange={setTagList}
+          articleIsFeatured={article.is_featured ?? false}
+          articleIsHero={article.is_hero ?? false}
+          articleCategoryId={article.category_id}
+        />
       </div>
 
       <MdCleanupModal
