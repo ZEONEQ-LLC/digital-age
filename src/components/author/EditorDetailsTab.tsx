@@ -213,6 +213,41 @@ export default function EditorDetailsTab({
       `}</style>
 
       <div className="a-edit-details">
+        <AuthorCard padding={18}>
+          <MonoCaption>Klassifizierung</MonoCaption>
+          <div className="a-edit-details__meta-row" style={{ marginTop: 12 }}>
+            <div>
+              <label className="a-edit-details__label">Kategorie</label>
+              <select
+                className="a-edit-details__select"
+                value={categoryId}
+                onChange={(e) => handleCategoryChange(e.target.value)}
+              >
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name_de}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="a-edit-details__label">Subkategorie</label>
+              <input
+                className="a-edit-details__input"
+                value={subcategory}
+                onChange={(e) => onSubcategoryChange(e.target.value)}
+                placeholder='z.B. "AI in Banking"'
+              />
+            </div>
+            <div>
+              <label className="a-edit-details__label">Tags</label>
+              <TagInput
+                value={tagList}
+                onChange={onTagListChange}
+                placeholder="Tag suchen oder neu anlegen…"
+              />
+            </div>
+          </div>
+        </AuthorCard>
+
         <FeaturedImageBox
           articleId={articleId}
           coverImageUrl={coverImageUrl}
@@ -335,41 +370,6 @@ export default function EditorDetailsTab({
             )}
           </AuthorCard>
         )}
-
-        <AuthorCard padding={18}>
-          <MonoCaption>Klassifizierung</MonoCaption>
-          <div className="a-edit-details__meta-row" style={{ marginTop: 12 }}>
-            <div>
-              <label className="a-edit-details__label">Kategorie</label>
-              <select
-                className="a-edit-details__select"
-                value={categoryId}
-                onChange={(e) => handleCategoryChange(e.target.value)}
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name_de}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="a-edit-details__label">Subkategorie</label>
-              <input
-                className="a-edit-details__input"
-                value={subcategory}
-                onChange={(e) => onSubcategoryChange(e.target.value)}
-                placeholder='z.B. "AI in Banking"'
-              />
-            </div>
-            <div>
-              <label className="a-edit-details__label">Tags</label>
-              <TagInput
-                value={tagList}
-                onChange={onTagListChange}
-                placeholder="Tag suchen oder neu anlegen…"
-              />
-            </div>
-          </div>
-        </AuthorCard>
       </div>
 
       {heroConflict && (

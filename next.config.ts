@@ -15,6 +15,17 @@ type RedirectEntry = {
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["claude-box.orb.local"],
+  // Vercel-Default-Body-Limit fuer Server Actions ist 1 MB. Cover-Bild-
+  // Uploads (ImageUploader komprimiert mit Ziel 0.5 MB, das wird aber
+  // nicht garantiert) reissen das regelmaessig — der Browser zeigt dann
+  // "An unexpected response was received from the server". Wir heben das
+  // Limit auf 5 MB an, identisch zum serverseitigen ARTICLE_MAX_BYTES
+  // in src/lib/storageActions.ts → uploadArticleImage.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "5mb",
+    },
+  },
   // Next.js' Default-Verhalten (308 von /foo/ auf /foo) deaktivieren, damit
   // unsere Custom-Redirects die Slash-Variante direkt matchen können —
   // sonst Double-Redirect (308 slash-strip + 308 custom). Map enthält pro
