@@ -116,11 +116,13 @@ export default function EditorSidebar({ wordCount, readMinutes, category, tags, 
   }
 
   return (
-    // position: sticky lebt jetzt in der CSS-Klasse `a-edit-sidebar-aside`
-    // (in EditorClient definiert), damit ein Media-Query auf schmalen
-    // Screens (<=1100px) das Sticky-Verhalten abschalten kann — sonst
-    // klebt die Sidebar im umflossenen Single-Column-Layout am Viewport.
-    <aside className="a-edit-sidebar-aside" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    // Layout-Eigenschaften (position: sticky, display, flex/grid, gap)
+    // leben jetzt komplett in der CSS-Klasse `a-edit-sidebar-aside` (in
+    // EditorClient definiert), damit Media-Queries auf schmalen Screens
+    // (<=1180px) sowohl Sticky abschalten als auch von Flex-Column auf
+    // 2-Spalten-Grid wechseln koennen. Inline-Style wuerde die Media-
+    // Query-Klasse ueberschreiben.
+    <aside className="a-edit-sidebar-aside">
       <FeaturedImageBox
         articleId={articleId}
         coverImageUrl={coverImageUrl}

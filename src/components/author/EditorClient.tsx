@@ -750,7 +750,18 @@ export default function EditorClient({ article, revisions, categories, isEditor,
            → body, womit die Metadaten-/Bild-Felder oberhalb des Body-
            Editors erreichbar bleiben. */
         .a-edit-col-head      { grid-column: 1; grid-row: 1; }
-        .a-edit-sidebar-aside { grid-column: 2; grid-row: 1 / span 2; position: sticky; top: 24px; }
+        .a-edit-sidebar-aside {
+          /* Grid-Position rechts ueber beide Rows + sticky beim Scroll. */
+          grid-column: 2;
+          grid-row: 1 / span 2;
+          position: sticky;
+          top: 24px;
+          /* Inner-Layout der Cards: Flex-Column mit gap. Wird in der
+             Mobile-Media-Query unten auf 2-Spalten-Grid umgestellt. */
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
         .a-edit-col-body      { grid-column: 1; grid-row: 2; }
         .a-edit-mode-toggle {
           display: inline-flex; background: var(--da-card);
@@ -888,10 +899,24 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         @media (max-width: 1280px) {
           .a-edit-content-grid { grid-template-columns: 1fr 260px; gap: 20px; }
         }
-        @media (max-width: 1100px) {
+        @media (max-width: 1180px) {
+          /* Breakpoint absichtlich auf 1180 statt 1100 — iPad 11"
+             Landscape liegt bei 1194px und faellt damit knapp ins
+             Desktop-Layout zurueck, was bei dem schmalen Rest fuer die
+             rechte Sidebar zu engen, gequetschten Cards fuehrt. Ali-
+             Vorgabe nach manuellem iPad-Test: bis 1180 inklusive
+             Single-Column rendern, ab 1181 normales 2-Spalten-Desktop-
+             Grid. */
           .a-edit-content-grid {
             grid-template-columns: 1fr;
             grid-template-rows: auto auto auto;
+            /* Symmetrische Save-Area links/rechts — Cards (Sidebar +
+               Body-Editor) liegen sonst beim Single-Column-Mode rechts
+               buendig am Container-Innenrand auf, waehrend links durch
+               die TopNav/AuthorSidebar visuell ein Anker existiert. Plus
+               iOS-safe-area-Insets fuer iPad Landscape respektieren. */
+            padding-left: max(12px, env(safe-area-inset-left, 0px));
+            padding-right: max(12px, env(safe-area-inset-right, 0px));
           }
           /* Single-Column-Reihenfolge: head → sidebar → body. Sidebar
              zwischen Meta-Row und Body-Editor, damit Hero-Bild +
@@ -902,6 +927,26 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           .a-edit-sidebar-aside { grid-column: 1; grid-row: 2; position: static; top: auto; }
           .a-edit-col-body      { grid-column: 1; grid-row: 3; }
           .a-edit-meta-row { grid-template-columns: 1fr; }
+
+          /* Sidebar-Inhalt in 2-Spalten-Grid statt vertikalem Flex-Stack
+             — sonst nehmen die Cards (Datum, Author, Stats, Featured)
+             zusammen im Single-Column-Mode deutlich zu viel vertikalen
+             Platz ein, bevor der User zum Body-Editor scrollt. Cards
+             ohne grid-column-Override teilen sich die zwei Spalten.
+             FeaturedImageBox (erstes Child) und AI-Assistent (letztes
+             Child) bleiben volle Breite, weil sie sich in einer halben
+             Spalte schlecht layouten (Hero ist 16:9 visuell dominant,
+             AI-Buttons sind lange Beschriftungen). */
+          .a-edit-sidebar-aside {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            align-items: start;
+          }
+          .a-edit-sidebar-aside > :first-child,
+          .a-edit-sidebar-aside > :last-child {
+            grid-column: 1 / -1;
+          }
         }
       `}</style>
 
