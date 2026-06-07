@@ -2,6 +2,10 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Block, BlockDocument, Source } from "@/types/blocks";
+import {
+  buildSourceOrder,
+  computeSourceListItems,
+} from "./blockReader/sources";
 
 type BlockReaderProps = {
   doc?: BlockDocument;
@@ -189,37 +193,8 @@ function imageMargin(size: string, alignment: string): string {
   return "32px auto";
 }
 
-// Walks blocks to find `[^N]` markers in appearance order. Returns:
-//   - mapping: originalN → displayN (1-indexed, in order of first occurrence)
-//   - order: sequence of originalN values (display position = index + 1)
-function buildSourceOrder(blocks: Block[]): {
-  mapping: Map<number, number>;
-  order: number[];
-} {
-  const mapping = new Map<number, number>();
-  const order: number[] = [];
-  const re = /\[\^(\d+)\]/g;
-
-  function scan(text: string) {
-    for (const m of text.matchAll(re)) {
-      const n = parseInt(m[1], 10);
-      if (!mapping.has(n)) {
-        mapping.set(n, order.length + 1);
-        order.push(n);
-      }
-    }
-  }
-
-  for (const b of blocks) {
-    if (b.type === "heading" || b.type === "paragraph" || b.type === "quote") {
-      scan(b.content);
-    } else if (b.type === "list") {
-      for (const item of b.items) scan(item);
-    }
-  }
-
-  return { mapping, order };
-}
+// buildSourceOrder + computeSourceListItems leben in ./blockReader/sources.ts
+// (oben importiert), damit sie ohne React-Renderer testbar sind.
 
 function renderBlock(
   b: Block,
@@ -429,17 +404,13 @@ function renderBlock(
   }
 }
 
-// Renders the source list at the end of the article. Order is determined by
-// `order` (first-appearance in body), not by sources[] index — implements
-// the auto-renumbering spec. Dangling references (Marker auf nicht-
-// existierende Quelle) werden übersprungen.
+// Renders the source list at the end of the article. Items werden von
+// computeSourceListItems (in ./blockReader/sources.ts) bestimmt:
+//   - Body MIT [^N]-Refs → in Auftrittsreihenfolge (Auto-Renumber-Spec)
+//   - Body OHNE Refs aber sources vorhanden → alle in Array-Reihenfolge
+// Visuelle Gestaltung unveraendert.
 function renderSourceList(sources: Source[], order: number[]): ReactNode {
-  if (order.length === 0) return null;
-  const items: { display: number; source: Source }[] = [];
-  order.forEach((originalN, i) => {
-    const s = sources[originalN - 1];
-    if (s) items.push({ display: i + 1, source: s });
-  });
+  const items = computeSourceListItems(sources, order);
   if (items.length === 0) return null;
   return (
     <section

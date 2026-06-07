@@ -1,4 +1,5 @@
-// Manueller Test-Runner fuer src/lib/editor/mdCleanup.ts.
+// Manueller Test-Runner fuer src/lib/editor/mdCleanup.ts UND die
+// BlockReader-Source-Logik in src/components/blockReader/sources.ts.
 //
 // Kein Vitest/Jest im Repo eingerichtet — dieses Skript laeuft die
 // Testfaelle als simple console.log-Pass/Fail-Suite. Aufruf:
@@ -12,6 +13,11 @@ import {
   parseSourceLine,
   parseSourcesLines,
 } from "../mdCleanup";
+import {
+  buildSourceOrder,
+  computeSourceListItems,
+} from "../../../components/blockReader/sources";
+import type { Block, Source } from "../../../types/blocks";
 
 let passes = 0;
 let fails = 0;
@@ -189,6 +195,97 @@ section("Integrationstest: Andreas' kompletter MD-Input");
   ok("Erste Quelle hat URL",
     result.sources[0]?.url === "https://hbs.edu/x",
     `got: ${JSON.stringify(result.sources[0]?.url)}`);
+}
+
+// ============================================================
+// 8) BlockReader-Source-Logik — Fall (A) + (B) + (C)
+// ============================================================
+section("BlockReader sources: Fall (A) Body MIT [^N]-Refs");
+
+{
+  const blocks: Block[] = [
+    { id: "b1", type: "paragraph", content: "Erster Absatz mit Ref [^1] und [^3]." },
+    { id: "b2", type: "paragraph", content: "Zweiter Absatz mit [^2]." },
+  ];
+  const sources: Source[] = [
+    { id: "s1", text: "Quelle 1", url: "https://example.com/1" },
+    { id: "s2", text: "Quelle 2", url: "https://example.com/2" },
+    { id: "s3", text: "Quelle 3", url: "https://example.com/3" },
+  ];
+  const { order } = buildSourceOrder(blocks);
+  ok("order in Auftrittsreihenfolge: [1, 3, 2]",
+    JSON.stringify(order) === JSON.stringify([1, 3, 2]),
+    `got: ${JSON.stringify(order)}`);
+
+  const items = computeSourceListItems(sources, order);
+  ok("3 Items in Auftrittsreihenfolge", items.length === 3);
+  ok("Item 1 = Quelle 1 (display 1)",
+    items[0].display === 1 && items[0].source.text === "Quelle 1");
+  ok("Item 2 = Quelle 3 (display 2 — Auftrittsreihenfolge!)",
+    items[1].display === 2 && items[1].source.text === "Quelle 3");
+  ok("Item 3 = Quelle 2 (display 3)",
+    items[2].display === 3 && items[2].source.text === "Quelle 2");
+}
+
+section("BlockReader sources: Fall (A) Mischfall — bewusst konservativ");
+
+{
+  // 3 sources, aber nur Ref auf [^1] und [^3] im Body.
+  // Konservative Entscheidung: nur die referenzierten werden gerendert.
+  // Quelle 2 (nicht referenziert) bleibt unsichtbar — KEINE Regression
+  // ggue. heutiger Public-Page.
+  const blocks: Block[] = [
+    { id: "b1", type: "paragraph", content: "Refs nur auf [^1] und [^3]." },
+  ];
+  const sources: Source[] = [
+    { id: "s1", text: "Q1", url: "https://example.com/1" },
+    { id: "s2", text: "Q2 (nicht referenziert)", url: "https://example.com/2" },
+    { id: "s3", text: "Q3", url: "https://example.com/3" },
+  ];
+  const { order } = buildSourceOrder(blocks);
+  const items = computeSourceListItems(sources, order);
+  ok("Mischfall: nur referenzierte (2 Items)", items.length === 2);
+  ok("Nicht-referenzierte Q2 fehlt — konservativ wie heute",
+    !items.some((i) => i.source.text === "Q2 (nicht referenziert)"));
+}
+
+section("BlockReader sources: Fall (B) Body OHNE Refs — NEU (Andreas-Fall)");
+
+{
+  const blocks: Block[] = [
+    { id: "b1", type: "paragraph", content: "Body komplett ohne Refs." },
+    { id: "b2", type: "paragraph", content: "Noch ein Absatz, immer noch keine [^N]." },
+  ];
+  const sources: Source[] = [
+    { id: "s1", text: "Andreas' Quelle 1", url: "https://hbs.edu/1" },
+    { id: "s2", text: "Andreas' Quelle 2", url: "https://example.com/2" },
+    { id: "s3", text: "Andreas' Quelle 3" },
+  ];
+  const { order } = buildSourceOrder(blocks);
+  ok("Body hat 0 Refs → order leer", order.length === 0);
+
+  const items = computeSourceListItems(sources, order);
+  ok("Fall B: alle 3 sources werden gerendert", items.length === 3);
+  ok("In Array-Reihenfolge nummeriert 1, 2, 3",
+    items[0].display === 1 && items[1].display === 2 && items[2].display === 3);
+  ok("Erste Quelle = sources[0]",
+    items[0].source.text === "Andreas' Quelle 1");
+  ok("Letzte Quelle ohne URL OK",
+    items[2].source.text === "Andreas' Quelle 3" && items[2].source.url === undefined);
+}
+
+section("BlockReader sources: Edge-Cases");
+
+{
+  ok("0 sources + 0 refs → 0 items",
+    computeSourceListItems([], []).length === 0);
+  // Dangling Ref: order=[5] auf nur 2 sources
+  const danglingItems = computeSourceListItems(
+    [{ id: "s1", text: "Q1" }, { id: "s2", text: "Q2" }],
+    [5],
+  );
+  ok("Dangling [^5]-Ref bei nur 2 sources → 0 items (Skip)",
+    danglingItems.length === 0);
 }
 
 // ============================================================
