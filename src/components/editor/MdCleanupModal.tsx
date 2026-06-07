@@ -9,14 +9,20 @@ import { useEffect, useRef, useState } from "react";
 // dazwischen liegt. Pipeline danach unverändert.
 type Props = {
   open: boolean;
-  bodyHasContent: boolean;
+  // Callback statt Boolean-Prop, damit der "hat der Body Inhalt?"-Check
+  // beim Apply-Klick aus dem Live-Editor-Zustand kommt (nicht aus stale
+  // React-State). Hintergrund: applyMdCleanup ersetzt den Body via
+  // setContent, aktualisiert aber den umliegenden doc.blocks-State nicht
+  // synchron — beim zweiten Cleanup wuerde ein Boolean-Prop aus doc.blocks
+  // weiterhin "leer" sagen und die Confirm-Warnung silent schlucken.
+  getBodyHasContent: () => boolean;
   onClose: () => void;
   onApply: (markdown: string) => void;
 };
 
 export default function MdCleanupModal({
   open,
-  bodyHasContent,
+  getBodyHasContent,
   onClose,
   onApply,
 }: Props) {
@@ -38,7 +44,7 @@ export default function MdCleanupModal({
   function handleApply() {
     const trimmed = value.trim();
     if (!trimmed) return;
-    if (bodyHasContent) {
+    if (getBodyHasContent()) {
       const ok = window.confirm(
         "Der bestehende Body-Inhalt wird ersetzt. Fortfahren? (Undo mit Strg+Z möglich.)",
       );
