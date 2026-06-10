@@ -10,6 +10,11 @@
 // Special-Blocks ab.
 
 import type { Block } from "@/types/blocks";
+import { imageLinkRe } from "@/lib/markdownLinkUrl";
+
+// Bild am Zeilenanfang `![alt](url)` — URL darf balancierte innere Klammern
+// enthalten (siehe @/lib/markdownLinkUrl). Group 1 = Alt, Group 2 = URL.
+const IMAGE_RE = imageLinkRe();
 
 function deriveFilename(url: string): string {
   const last = url.split("?")[0].split("/").pop() ?? "";
@@ -127,7 +132,7 @@ export function markdownToBlocks(md: string): Block[] {
       out.push({ id: id(), type: "list", ordered, items });
       continue;
     }
-    const imgMatch = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)/);
+    const imgMatch = trimmed.match(IMAGE_RE);
     if (imgMatch) {
       const url = imgMatch[2];
       out.push({

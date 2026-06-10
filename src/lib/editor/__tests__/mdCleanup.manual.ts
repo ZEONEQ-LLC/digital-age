@@ -14,6 +14,11 @@ import {
   parseSourcesLines,
 } from "../mdCleanup";
 import {
+  externalLinkRe,
+  imageLinkRe,
+  mdHttpLinkRe,
+} from "../../markdownLinkUrl";
+import {
   buildSourceOrder,
   computeSourceListItems,
 } from "../../../components/blockReader/sources";
@@ -286,6 +291,161 @@ section("BlockReader sources: Edge-Cases");
   );
   ok("Dangling [^5]-Ref bei nur 2 sources → 0 items (Skip)",
     danglingItems.length === 0);
+}
+
+// ============================================================
+// Paren-URL-Fix: Helper @/lib/markdownLinkUrl
+// ============================================================
+section("Helper externalLinkRe — balancierte Klammern in URL");
+
+{
+  // Der Kern-Fall: FINMA-Gesetzeskuerzel "(amla)" in der URL.
+  const m = externalLinkRe().exec(
+    "[Legal basis – FINMA](https://www.finma.ch/en/act-(amla)/)",
+  );
+  ok("matcht Link mit innerer Klammer", m !== null);
+  ok("Text sauber", m?.[1] === "Legal basis – FINMA", `got: ${JSON.stringify(m?.[1])}`);
+  ok("URL vollstaendig inkl. (amla)/",
+    m?.[2] === "https://www.finma.ch/en/act-(amla)/", `got: ${JSON.stringify(m?.[2])}`);
+  ok("kein Resttext nach dem Match (Full-Match endet am Link-`)`)",
+    m !== null && m.index + m[0].length === "[Legal basis – FINMA](https://www.finma.ch/en/act-(amla)/)".length);
+}
+
+{
+  // REGRESSION: normale URL ohne Klammer — bit-identisch zu vorher.
+  const m = externalLinkRe().exec("[T](https://example.com/foo/bar)");
+  ok("normale URL ohne Klammer unveraendert",
+    m?.[2] === "https://example.com/foo/bar", `got: ${JSON.stringify(m?.[2])}`);
+}
+
+{
+  // Mehrere Klammerpaare.
+  const m = externalLinkRe().exec("[T](https://x.com/(a)/mid/(b)/)");
+  ok("mehrere Klammerpaare voll erfasst",
+    m?.[2] === "https://x.com/(a)/mid/(b)/", `got: ${JSON.stringify(m?.[2])}`);
+}
+
+{
+  // Klammer am URL-Ende (Wikipedia-Disambiguation).
+  const m = externalLinkRe().exec(
+    "[Foo](https://en.wikipedia.org/wiki/Foo_(disambiguation))",
+  );
+  ok("Klammer am URL-Ende voll erfasst",
+    m?.[2] === "https://en.wikipedia.org/wiki/Foo_(disambiguation)",
+    `got: ${JSON.stringify(m?.[2])}`);
+}
+
+{
+  // DEGENERIERT: unbalancierte Klammer ohne schliessendes Markdown-`)`.
+  // Darf NICHT haengen und NICHT als Link matchen (degradiert zu Literal).
+  const m = externalLinkRe().exec("[T](https://x.com/(a");
+  ok("unbalanciert → kein Match (kein Hang, kein Crash)", m === null);
+}
+
+{
+  // REGRESSION: leere URL `[T]()` matchte vorher nicht (`[^)]+` = 1+),
+  // soll weiterhin nicht matchen.
+  const m = externalLinkRe().exec("[T]()");
+  ok("leere URL → kein Match (bit-identisch zu vorher)", m === null);
+}
+
+section("Helper mdHttpLinkRe — strikt http, balancierte Klammern");
+
+{
+  const m = mdHttpLinkRe().exec(
+    "Vorlauf [Titel](https://www.finma.ch/en/anti-money-laundering-act-(amla)/) Nachlauf",
+  );
+  ok("http-Link mit (amla) voll erfasst",
+    m?.[2] === "https://www.finma.ch/en/anti-money-laundering-act-(amla)/",
+    `got: ${JSON.stringify(m?.[2])}`);
+}
+
+{
+  // Non-http (z.B. mailto) wird wie vorher NICHT als MD_LINK erkannt.
+  const m = mdHttpLinkRe().exec("[T](mailto:foo@bar.ch)");
+  ok("non-http → kein Match (Praefix-Pflicht unveraendert)", m === null);
+}
+
+section("Helper imageLinkRe — Bild-URL balancierte Klammern");
+
+{
+  const m = imageLinkRe().exec("![alt text](https://cdn.x.com/img-(v2).png)");
+  ok("Bild-URL mit Klammer voll erfasst",
+    m?.[2] === "https://cdn.x.com/img-(v2).png", `got: ${JSON.stringify(m?.[2])}`);
+  ok("Alt-Text sauber", m?.[1] === "alt text");
+}
+
+{
+  // REGRESSION: normale Bild-URL unveraendert.
+  const m = imageLinkRe().exec("![a](https://cdn.x.com/img.png)");
+  ok("normale Bild-URL unveraendert", m?.[2] === "https://cdn.x.com/img.png");
+}
+
+// ============================================================
+// Paren-URL-Fix: mdCleanup-Integration (parseSourceLine)
+// ============================================================
+section("parseSourceLine — FINMA-Quelle mit (amla)-URL (echter Defekt-Fall)");
+
+{
+  // Reale Zeile aus ai-in-banking-compliance #3 (Body-Quellen-Liste).
+  const entry = parseSourceLine(
+    "[3] [Legal basis for combating money laundering – FINMA](https://www.finma.ch/en/documentation/legal-basis/laws-andordinances/anti-money-laundering-act-(amla)/)",
+  );
+  ok("explicitN = 3", entry?.explicitN === 3);
+  ok("Titel sauber, ohne URL-Reste",
+    entry?.text === "Legal basis for combating money laundering – FINMA",
+    `got: ${JSON.stringify(entry?.text)}`);
+  ok("URL vollstaendig inkl. (amla)/ — kein Abschneiden",
+    entry?.url === "https://www.finma.ch/en/documentation/legal-basis/laws-andordinances/anti-money-laundering-act-(amla)/",
+    `got: ${JSON.stringify(entry?.url)}`);
+}
+
+// ============================================================
+// Paren-URL-Fix: Public-Render-Regex gegen ECHTE FINMA-Strings #3-#7
+// (BlockReader + InlineText nutzen beide externalLinkRe() — ein Check
+//  deckt beide ab). Simuliert die Inline-Parser-Schleife: Link finden,
+//  href pruefen, sicherstellen dass KEIN "/)" als Resttext uebrigbleibt.
+// ============================================================
+section("Render-Regex gegen echte ai-in-banking-compliance Quellen #3-#7");
+
+{
+  // Echte Body-Quellen-Listen-Items (aus der Diagnose, read-only entnommen).
+  const realItems: { n: number; s: string; expectUrl: string }[] = [
+    {
+      n: 3,
+      s: "[Legal basis for combating money laundering – FINMA](https://www.finma.ch/en/documentation/legal-basis/laws-andordinances/anti-money-laundering-act-(amla)/)",
+      expectUrl: "https://www.finma.ch/en/documentation/legal-basis/laws-andordinances/anti-money-laundering-act-(amla)/",
+    },
+    {
+      n: 4,
+      s: "[Money laundering supervision: findings from the on-site supervisory checks – FINMA](https://www.finma.ch/en/documentation/dossier/dossiergeldwaeschereibekaempfung/geldwaeschereiaufsicht-erkenntnisse-ausden-vor-ort-kontrollen/)",
+      expectUrl: "https://www.finma.ch/en/documentation/dossier/dossiergeldwaeschereibekaempfung/geldwaeschereiaufsicht-erkenntnisse-ausden-vor-ort-kontrollen/",
+    },
+    {
+      n: 5,
+      s: "[Money laundering and sanctions – FINMA](https://www.finma.ch/en/documentation/dossier/dossiergeldwaeschereibekaempfung/geldwaescherei-und-sanktionen/)",
+      expectUrl: "https://www.finma.ch/en/documentation/dossier/dossiergeldwaeschereibekaempfung/geldwaescherei-und-sanktionen/",
+    },
+    {
+      n: 6,
+      s: "[Money laundering (2024) – FINMA](https://www.finma.ch/en/documentation/dossier/dossier-geldwaeschereibekaempfung/geldwaescherei-2024/)",
+      expectUrl: "https://www.finma.ch/en/documentation/dossier/dossier-geldwaeschereibekaempfung/geldwaescherei-2024/",
+    },
+    {
+      n: 7,
+      s: "[Combating money laundering in the context of financial market supervision – FINMA](https://www.finma.ch/en/supervision/cross-sector-issues/combatingmoney-laundering/)",
+      expectUrl: "https://www.finma.ch/en/supervision/cross-sector-issues/combatingmoney-laundering/",
+    },
+  ];
+  for (const it of realItems) {
+    const m = externalLinkRe().exec(it.s);
+    ok(`#${it.n}: href vollstaendig`, m?.[2] === it.expectUrl,
+      `got: ${JSON.stringify(m?.[2])}`);
+    // Kein "/)" Resttext: Full-Match muss bis zum Ende des Link-Strings reichen.
+    const leftover = m ? it.s.slice(m.index + m[0].length) : it.s;
+    ok(`#${it.n}: kein "/)"-Resttext nach dem Link`, leftover === "",
+      `leftover: ${JSON.stringify(leftover)}`);
+  }
 }
 
 // ============================================================
