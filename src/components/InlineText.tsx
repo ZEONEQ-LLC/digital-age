@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Source } from "@/types/blocks";
+import { externalLinkRe } from "@/lib/markdownLinkUrl";
 
 // Standalone-Renderer für Inline-Marker (Markdown-Subset + Custom-Marker).
 // Wird verwendet wo wir kurzen Text mit Formatting rendern wollen, ohne
@@ -58,7 +59,9 @@ function buildPatterns(sourceUrlByN: Map<number, string>): Pattern[] {
       ),
     },
     {
-      re: /\[([^\]]+)\]\(([^)]+)\)/,
+      // Externer Link `[text](url)` — URL darf balancierte innere Klammern
+      // enthalten (siehe @/lib/markdownLinkUrl). Group 1 = Text, 2 = URL.
+      re: externalLinkRe(),
       render: (m, key, renderInner) => (
         <a key={key} href={m[2]} target="_blank" rel="noopener noreferrer">
           {renderInner(m[1])}

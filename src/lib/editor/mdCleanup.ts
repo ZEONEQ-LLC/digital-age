@@ -29,6 +29,7 @@
 // stiller Datenverlust unter keinen Umstaenden moeglich.
 
 import { markdownToBlocks } from "@/lib/markdownBlocks";
+import { mdHttpLinkRe } from "@/lib/markdownLinkUrl";
 import type { Block, Source } from "@/types/blocks";
 
 // ============================================================
@@ -157,7 +158,9 @@ const INDEX_DOT_RE = /^(\d+)\.\s+/;
 
 // URL-Extraction — Markdown-Link bevorzugt (URL ist explizit), sonst
 // Plain-URL am Zeilenende.
-const MD_LINK_RE = /\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/;
+// URL-Capture erlaubt balancierte innere Klammern (siehe
+// @/lib/markdownLinkUrl) — sonst bricht z.B. eine FINMA-URL mit "(amla)" ab.
+const MD_LINK_RE = mdHttpLinkRe();
 const TRAILING_URL_RE = /(https?:\/\/\S+)\s*$/;
 
 export type ParsedSourceEntry = {

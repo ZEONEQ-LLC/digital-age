@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Block, BlockDocument, Source } from "@/types/blocks";
+import { externalLinkRe } from "@/lib/markdownLinkUrl";
 import {
   buildSourceOrder,
   computeSourceListItems,
@@ -55,7 +56,9 @@ function buildPatterns(): Pattern[] {
       ),
     },
     {
-      re: /\[([^\]]+)\]\(([^)]+)\)/,
+      // Externer Link `[text](url)` — URL darf balancierte innere Klammern
+      // enthalten (siehe @/lib/markdownLinkUrl). Group 1 = Text, 2 = URL.
+      re: externalLinkRe(),
       render: (m, key, renderInner) => (
         <a key={key} href={m[2]} target="_blank" rel="noopener noreferrer">
           {renderInner(m[1])}
