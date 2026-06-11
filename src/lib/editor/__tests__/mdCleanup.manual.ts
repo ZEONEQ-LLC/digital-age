@@ -12,7 +12,10 @@ import {
   cleanupMarkdown,
   parseSourceLine,
   parseSourcesLines,
+  normalizeStarItalics,
+  normalizeWhitespace,
 } from "../mdCleanup";
+import { markdownToBlocks } from "../../markdownBlocks";
 import {
   externalLinkRe,
   imageLinkRe,
@@ -232,13 +235,12 @@ section("BlockReader sources: Fall (A) Body MIT [^N]-Refs");
     items[2].display === 3 && items[2].source.text === "Quelle 2");
 }
 
-section("BlockReader sources: Fall (A) Mischfall — bewusst konservativ");
+section("BlockReader sources: Mischfall — alle zeigen (referenziert + Pool)");
 
 {
-  // 3 sources, aber nur Ref auf [^1] und [^3] im Body.
-  // Konservative Entscheidung: nur die referenzierten werden gerendert.
-  // Quelle 2 (nicht referenziert) bleibt unsichtbar — KEINE Regression
-  // ggue. heutiger Public-Page.
+  // 3 sources, aber nur Ref auf [^1] und [^3] im Body. Neue Policy: alle 3
+  // werden gezeigt — referenzierte zuerst, die nicht-referenzierte Q2 wird
+  // hinten angehaengt (vorher blieb sie unsichtbar).
   const blocks: Block[] = [
     { id: "b1", type: "paragraph", content: "Refs nur auf [^1] und [^3]." },
   ];
@@ -249,9 +251,11 @@ section("BlockReader sources: Fall (A) Mischfall — bewusst konservativ");
   ];
   const { order } = buildSourceOrder(blocks);
   const items = computeSourceListItems(sources, order);
-  ok("Mischfall: nur referenzierte (2 Items)", items.length === 2);
-  ok("Nicht-referenzierte Q2 fehlt — konservativ wie heute",
-    !items.some((i) => i.source.text === "Q2 (nicht referenziert)"));
+  ok("Mischfall: alle 3 Quellen sichtbar", items.length === 3);
+  ok("Reihenfolge: Q1 (display1), Q3 (display2), dann Pool Q2 (display3)",
+    items[0].source.text === "Q1" && items[0].display === 1 &&
+      items[1].source.text === "Q3" && items[1].display === 2 &&
+      items[2].source.text === "Q2 (nicht referenziert)" && items[2].display === 3);
 }
 
 section("BlockReader sources: Fall (B) Body OHNE Refs — NEU (Andreas-Fall)");
@@ -284,13 +288,48 @@ section("BlockReader sources: Edge-Cases");
 {
   ok("0 sources + 0 refs → 0 items",
     computeSourceListItems([], []).length === 0);
-  // Dangling Ref: order=[5] auf nur 2 sources
+  // Dangling Ref: order=[5] auf nur 2 sources. Der dangling Marker wird
+  // uebersprungen; die 2 Pool-Quellen werden trotzdem angehaengt (neue
+  // "alle zeigen"-Policy).
   const danglingItems = computeSourceListItems(
     [{ id: "s1", text: "Q1" }, { id: "s2", text: "Q2" }],
     [5],
   );
-  ok("Dangling [^5]-Ref bei nur 2 sources → 0 items (Skip)",
-    danglingItems.length === 0);
+  ok("Dangling [^5] bei 2 sources → 2 Pool-Items (display 1,2)",
+    danglingItems.length === 2 &&
+      danglingItems[0].display === 1 &&
+      danglingItems[1].display === 2);
+}
+
+section("BlockReader sources: alle Quellen zeigen (referenziert + Pool)");
+
+{
+  const sources: Source[] = [
+    { id: "s1", text: "Q1" },
+    { id: "s2", text: "Q2" },
+    { id: "s3", text: "Q3" },
+    { id: "s4", text: "Q4" },
+  ];
+  // Body zitiert nur [^2] und [^1] (in dieser Reihenfolge); 3 + 4 sind Pool.
+  const items = computeSourceListItems(sources, [2, 1]);
+  ok("alle 4 Quellen werden gezeigt (2 referenziert + 2 Pool)",
+    items.length === 4, `got ${items.length}`);
+  ok("referenziert zuerst in Auftrittsreihenfolge: display1=Q2, display2=Q1",
+    items[0].source.text === "Q2" && items[0].display === 1 &&
+      items[1].source.text === "Q1" && items[1].display === 2);
+  ok("Pool-Quellen hinten in Array-Reihenfolge: display3=Q3, display4=Q4",
+    items[2].source.text === "Q3" && items[2].display === 3 &&
+      items[3].source.text === "Q4" && items[3].display === 4);
+  ok("Display-Nummern lueckenlos 1..4 (positions-konsistent fuer <ol>)",
+    items.every((it, i) => it.display === i + 1));
+}
+
+{
+  // Vollstaendig zitiert → unveraendert (kein Pool-Anhang).
+  const sources: Source[] = [{ id: "a", text: "A" }, { id: "b", text: "B" }];
+  const items = computeSourceListItems(sources, [1, 2]);
+  ok("alles zitiert → genau die referenzierten, unveraendert",
+    items.length === 2 && items[0].source.text === "A" && items[1].source.text === "B");
 }
 
 // ============================================================
@@ -446,6 +485,63 @@ section("Render-Regex gegen echte ai-in-banking-compliance Quellen #3-#7");
     ok(`#${it.n}: kein "/)"-Resttext nach dem Link`, leftover === "",
       `leftover: ${JSON.stringify(leftover)}`);
   }
+}
+
+// ============================================================
+// Hang-Fix #1: NBSP nach Block-Marker + Progress-Guard
+// ============================================================
+section("normalizeWhitespace — NBSP & Zero-width");
+
+{
+  ok("NBSP nach ## → normales Space",
+    normalizeWhitespace("##\u00A0Titel") === "## Titel",
+    JSON.stringify(normalizeWhitespace("##\u00A0Titel")));
+  ok("Zero-width-Zeichen entfernt",
+    normalizeWhitespace("a\u200Bb\uFEFFc") === "abc");
+  ok("normaler Text unveraendert",
+    normalizeWhitespace("## Titel\n- punkt") === "## Titel\n- punkt");
+}
+
+section("markdownToBlocks — Progress-Guard (kein Hang/OOM)");
+
+{
+  // Vor dem Fix: Endlosschleife → OOM. Jetzt: terminiert, Zeile wird Absatz.
+  const b1 = markdownToBlocks("##\u00A0Hidden Treasures");
+  ok("NBSP-Heading terminiert (1 Block)", Array.isArray(b1) && b1.length === 1);
+  const b2 = markdownToBlocks("![incomplete image ohne closing");
+  ok("unvollstaendiges ![ terminiert (1 Block)", Array.isArray(b2) && b2.length === 1);
+}
+
+section("cleanupMarkdown — NBSP-Heading wird korrekt zu Heading (Bug #1)");
+
+{
+  const md = ["Intro paragraph.", "", "##\u00A0The expensive Part", "", "Body text."].join("\n");
+  const res = cleanupMarkdown(md);
+  const heading = res.blocks.find((b) => b.type === "heading");
+  ok("Heading erkannt — kein Hang, keine Demotion zu Absatz",
+    !!heading && heading.type === "heading" && heading.content === "The expensive Part",
+    JSON.stringify(heading));
+}
+
+// ============================================================
+// Daten-Fix #2: normalizeStarItalics zerstoert keine Zahlen
+// ============================================================
+section("normalizeStarItalics — Zahlen bleiben erhalten (Bug #2)");
+
+{
+  const inp = "In 2024 we saw **growth** and 50 banks.";
+  ok("Jahr + Zahl + Bold: nichts wird 'undefined'",
+    normalizeStarItalics(inp) === inp, JSON.stringify(normalizeStarItalics(inp)));
+  ok("Zahlen ohne Bold unveraendert",
+    normalizeStarItalics("year 2024 value 50") === "year 2024 value 50");
+  ok("[^N]-Ref bleibt intakt",
+    normalizeStarItalics("Ref [^2] and 2011.") === "Ref [^2] and 2011.",
+    JSON.stringify(normalizeStarItalics("Ref [^2] and 2011.")));
+  ok("*italic* → _italic_", normalizeStarItalics("a *word* b") === "a _word_ b");
+  ok("***x*** → **_x_**", normalizeStarItalics("***x***") === "**_x_**");
+  ok("mehrere Bolds + Zahlen gemischt",
+    normalizeStarItalics("**A** 1 **B** 2") === "**A** 1 **B** 2",
+    JSON.stringify(normalizeStarItalics("**A** 1 **B** 2")));
 }
 
 // ============================================================

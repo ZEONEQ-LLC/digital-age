@@ -52,8 +52,22 @@ export type CleanupResult = {
   renumberedDueToMix: boolean;
 };
 
+// Vereinheitlicht ungewoehnliche horizontale Whitespace-Zeichen (allen voran
+// das non-breaking space U+00A0, das beim Copy-Paste aus Web/Word entsteht)
+// zu regulaerem Space; entfernt Zero-width-Zeichen. Grund: die Block-Marker-
+// Erkennung in markdownToBlocks prueft auf Literale wie "## " (U+0020),
+// waehrend der Absatz-Fallback `\s` nutzt (matcht auch U+00A0). Bei
+// `## Titel` konsumierte daher KEIN Zweig die Zeile → Endlosschleife.
+export function normalizeWhitespace(md: string): string {
+  return md
+    .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, " ")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "");
+}
+
 export function cleanupMarkdown(md: string): CleanupResult {
-  const { body, sourcesLines, foundSourcesSection } = splitSourcesSection(md);
+  const normalized = normalizeWhitespace(md);
+  const { body, sourcesLines, foundSourcesSection } =
+    splitSourcesSection(normalized);
   const { map: sourcesMap, unparseableLines, renumberedDueToMix } =
     parseSourcesLines(sourcesLines);
   const knownNs = new Set(sourcesMap.keys());
@@ -338,19 +352,24 @@ export function rewriteInlineRefs(body: string, knownNs: Set<number>): string {
 export function normalizeStarItalics(md: string): string {
   // 1.
   let out = md.replace(/\*\*\*([^*\n]+?)\*\*\*/g, "**_$1_**");
-  // 2.
+  // 2. Platzhalter MUSS kollisionsfrei zu echten Zahlen im Text sein —
+  //    blanke Ziffern (`${n}`) waren in Schritt 4 nicht von Jahreszahlen,
+  //    Betraegen oder `[^N]`-Refs unterscheidbar und zerstoerten diese
+  //    (jede Zahl wurde zu `undefined`). Der Index wird daher mit einem
+  //    Private-Use-Area-Zeichen (U+E000) umrahmt, das in gepastetem
+  //    Markdown nicht vorkommt.
   const bolds: string[] = [];
   out = out.replace(/\*\*([^*\n]+?)\*\*/g, (m) => {
     bolds.push(m);
-    return `${bolds.length - 1}`;
+    return `\uE000${bolds.length - 1}\uE000`;
   });
   // 3.
   out = out.replace(
     /(?<![A-Za-z0-9_])\*([^\s*][^*\n]*?[^\s*]|[^\s*])\*(?![A-Za-z0-9_])/g,
     "_$1_",
   );
-  // 4.
-  out = out.replace(/(\d+)/g, (_m, idx) => bolds[parseInt(idx, 10)]);
+  // 4. Platzhalter zurueck.
+  out = out.replace(/\uE000(\d+)\uE000/g, (_m, idx) => bolds[parseInt(idx, 10)]);
   return out;
 }
 
