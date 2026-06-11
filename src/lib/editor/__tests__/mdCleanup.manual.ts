@@ -12,7 +12,10 @@ import {
   cleanupMarkdown,
   parseSourceLine,
   parseSourcesLines,
+  normalizeStarItalics,
+  normalizeWhitespace,
 } from "../mdCleanup";
+import { markdownToBlocks } from "../../markdownBlocks";
 import {
   externalLinkRe,
   imageLinkRe,
@@ -446,6 +449,63 @@ section("Render-Regex gegen echte ai-in-banking-compliance Quellen #3-#7");
     ok(`#${it.n}: kein "/)"-Resttext nach dem Link`, leftover === "",
       `leftover: ${JSON.stringify(leftover)}`);
   }
+}
+
+// ============================================================
+// Hang-Fix #1: NBSP nach Block-Marker + Progress-Guard
+// ============================================================
+section("normalizeWhitespace — NBSP & Zero-width");
+
+{
+  ok("NBSP nach ## → normales Space",
+    normalizeWhitespace("##\u00A0Titel") === "## Titel",
+    JSON.stringify(normalizeWhitespace("##\u00A0Titel")));
+  ok("Zero-width-Zeichen entfernt",
+    normalizeWhitespace("a\u200Bb\uFEFFc") === "abc");
+  ok("normaler Text unveraendert",
+    normalizeWhitespace("## Titel\n- punkt") === "## Titel\n- punkt");
+}
+
+section("markdownToBlocks — Progress-Guard (kein Hang/OOM)");
+
+{
+  // Vor dem Fix: Endlosschleife → OOM. Jetzt: terminiert, Zeile wird Absatz.
+  const b1 = markdownToBlocks("##\u00A0Hidden Treasures");
+  ok("NBSP-Heading terminiert (1 Block)", Array.isArray(b1) && b1.length === 1);
+  const b2 = markdownToBlocks("![incomplete image ohne closing");
+  ok("unvollstaendiges ![ terminiert (1 Block)", Array.isArray(b2) && b2.length === 1);
+}
+
+section("cleanupMarkdown — NBSP-Heading wird korrekt zu Heading (Bug #1)");
+
+{
+  const md = ["Intro paragraph.", "", "##\u00A0The expensive Part", "", "Body text."].join("\n");
+  const res = cleanupMarkdown(md);
+  const heading = res.blocks.find((b) => b.type === "heading");
+  ok("Heading erkannt — kein Hang, keine Demotion zu Absatz",
+    !!heading && heading.type === "heading" && heading.content === "The expensive Part",
+    JSON.stringify(heading));
+}
+
+// ============================================================
+// Daten-Fix #2: normalizeStarItalics zerstoert keine Zahlen
+// ============================================================
+section("normalizeStarItalics — Zahlen bleiben erhalten (Bug #2)");
+
+{
+  const inp = "In 2024 we saw **growth** and 50 banks.";
+  ok("Jahr + Zahl + Bold: nichts wird 'undefined'",
+    normalizeStarItalics(inp) === inp, JSON.stringify(normalizeStarItalics(inp)));
+  ok("Zahlen ohne Bold unveraendert",
+    normalizeStarItalics("year 2024 value 50") === "year 2024 value 50");
+  ok("[^N]-Ref bleibt intakt",
+    normalizeStarItalics("Ref [^2] and 2011.") === "Ref [^2] and 2011.",
+    JSON.stringify(normalizeStarItalics("Ref [^2] and 2011.")));
+  ok("*italic* → _italic_", normalizeStarItalics("a *word* b") === "a _word_ b");
+  ok("***x*** → **_x_**", normalizeStarItalics("***x***") === "**_x_**");
+  ok("mehrere Bolds + Zahlen gemischt",
+    normalizeStarItalics("**A** 1 **B** 2") === "**A** 1 **B** 2",
+    JSON.stringify(normalizeStarItalics("**A** 1 **B** 2")));
 }
 
 // ============================================================

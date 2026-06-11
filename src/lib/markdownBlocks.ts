@@ -168,6 +168,15 @@ export function markdownToBlocks(md: string): Block[] {
       buf.push(lines[i]);
       i++;
     }
+    // Progress-Guard: Die aktuelle Zeile wurde von keinem Block-Zweig oben
+    // konsumiert, der Absatz-Loop schluckte sie aber wegen der `\s`-basierten
+    // Exclusion ebenfalls nicht (z.B. Marker + NBSP wie `## Titel`, oder
+    // unvollstaendiges `![`). Ohne dieses Vorruecken liefe `i` nie weiter →
+    // Endlosschleife. Zeile zwingend als Absatz nehmen.
+    if (buf.length === 0) {
+      buf.push(lines[i]);
+      i++;
+    }
     out.push({ id: id(), type: "paragraph", content: buf.join("\n") });
   }
 
