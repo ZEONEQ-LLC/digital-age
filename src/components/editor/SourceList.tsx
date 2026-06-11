@@ -90,8 +90,8 @@ export default function SourceList({
         .qsrc-main { flex: 1; min-width: 0; }
         .qsrc-text { font-size: 14px; line-height: 1.5; color: var(--da-text); }
         .qsrc-url { color: var(--da-muted-soft); font-size: 11px; margin-top: 4px; font-family: var(--da-font-mono); word-break: break-all; }
-        .qsrc-badge { display: inline-block; font-size: 10px; font-family: var(--da-font-mono); letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 6px; border-radius: 3px; margin-top: 6px; }
-        .qsrc-badge--unref { color: var(--da-muted); border: 1px solid var(--da-border); }
+        .qsrc-badge { display: inline-block; font-size: 10px; font-family: var(--da-font-mono); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 8px; border-radius: 3px; margin-top: 6px; }
+        .qsrc-badge--unref { color: var(--st-warning-fg, var(--da-orange)); background: var(--st-warning-bg, rgba(255, 140, 66, 0.12)); border: 1px solid var(--st-warning-fg, var(--da-orange)); }
         .qsrc-actions { display: flex; flex-direction: column; gap: 6px; flex: 0 0 auto; }
         .qsrc-btn { background: transparent; color: var(--da-muted-soft); border: 1px solid var(--da-border); border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer; font-family: inherit; }
         .qsrc-btn:hover { color: var(--da-text); }
@@ -116,7 +116,7 @@ export default function SourceList({
               return (
                 <div key={s.id} className="qsrc-item" style={{ flexDirection: "column", borderColor: "var(--da-green)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span className="qsrc-n">[^{i + 1}]</span>
+                    <span className="qsrc-n">{i + 1}</span>
                     <span style={{ color: "var(--da-muted)", fontSize: 11, fontFamily: "var(--da-font-mono)" }}>
                       {labels.referenced}
                     </span>
@@ -135,7 +135,7 @@ export default function SourceList({
             const isRef = referenced.has(i);
             return (
               <div key={s.id} className="qsrc-item">
-                <span className="qsrc-n">[^{i + 1}]</span>
+                <span className="qsrc-n">{i + 1}</span>
                 <div className="qsrc-main">
                   <div className="qsrc-text">{s.text}</div>
                   {s.url && <div className="qsrc-url">{s.url}</div>}
