@@ -235,13 +235,12 @@ section("BlockReader sources: Fall (A) Body MIT [^N]-Refs");
     items[2].display === 3 && items[2].source.text === "Quelle 2");
 }
 
-section("BlockReader sources: Fall (A) Mischfall — bewusst konservativ");
+section("BlockReader sources: Mischfall — alle zeigen (referenziert + Pool)");
 
 {
-  // 3 sources, aber nur Ref auf [^1] und [^3] im Body.
-  // Konservative Entscheidung: nur die referenzierten werden gerendert.
-  // Quelle 2 (nicht referenziert) bleibt unsichtbar — KEINE Regression
-  // ggue. heutiger Public-Page.
+  // 3 sources, aber nur Ref auf [^1] und [^3] im Body. Neue Policy: alle 3
+  // werden gezeigt — referenzierte zuerst, die nicht-referenzierte Q2 wird
+  // hinten angehaengt (vorher blieb sie unsichtbar).
   const blocks: Block[] = [
     { id: "b1", type: "paragraph", content: "Refs nur auf [^1] und [^3]." },
   ];
@@ -252,9 +251,11 @@ section("BlockReader sources: Fall (A) Mischfall — bewusst konservativ");
   ];
   const { order } = buildSourceOrder(blocks);
   const items = computeSourceListItems(sources, order);
-  ok("Mischfall: nur referenzierte (2 Items)", items.length === 2);
-  ok("Nicht-referenzierte Q2 fehlt — konservativ wie heute",
-    !items.some((i) => i.source.text === "Q2 (nicht referenziert)"));
+  ok("Mischfall: alle 3 Quellen sichtbar", items.length === 3);
+  ok("Reihenfolge: Q1 (display1), Q3 (display2), dann Pool Q2 (display3)",
+    items[0].source.text === "Q1" && items[0].display === 1 &&
+      items[1].source.text === "Q3" && items[1].display === 2 &&
+      items[2].source.text === "Q2 (nicht referenziert)" && items[2].display === 3);
 }
 
 section("BlockReader sources: Fall (B) Body OHNE Refs — NEU (Andreas-Fall)");
@@ -287,13 +288,48 @@ section("BlockReader sources: Edge-Cases");
 {
   ok("0 sources + 0 refs → 0 items",
     computeSourceListItems([], []).length === 0);
-  // Dangling Ref: order=[5] auf nur 2 sources
+  // Dangling Ref: order=[5] auf nur 2 sources. Der dangling Marker wird
+  // uebersprungen; die 2 Pool-Quellen werden trotzdem angehaengt (neue
+  // "alle zeigen"-Policy).
   const danglingItems = computeSourceListItems(
     [{ id: "s1", text: "Q1" }, { id: "s2", text: "Q2" }],
     [5],
   );
-  ok("Dangling [^5]-Ref bei nur 2 sources → 0 items (Skip)",
-    danglingItems.length === 0);
+  ok("Dangling [^5] bei 2 sources → 2 Pool-Items (display 1,2)",
+    danglingItems.length === 2 &&
+      danglingItems[0].display === 1 &&
+      danglingItems[1].display === 2);
+}
+
+section("BlockReader sources: alle Quellen zeigen (referenziert + Pool)");
+
+{
+  const sources: Source[] = [
+    { id: "s1", text: "Q1" },
+    { id: "s2", text: "Q2" },
+    { id: "s3", text: "Q3" },
+    { id: "s4", text: "Q4" },
+  ];
+  // Body zitiert nur [^2] und [^1] (in dieser Reihenfolge); 3 + 4 sind Pool.
+  const items = computeSourceListItems(sources, [2, 1]);
+  ok("alle 4 Quellen werden gezeigt (2 referenziert + 2 Pool)",
+    items.length === 4, `got ${items.length}`);
+  ok("referenziert zuerst in Auftrittsreihenfolge: display1=Q2, display2=Q1",
+    items[0].source.text === "Q2" && items[0].display === 1 &&
+      items[1].source.text === "Q1" && items[1].display === 2);
+  ok("Pool-Quellen hinten in Array-Reihenfolge: display3=Q3, display4=Q4",
+    items[2].source.text === "Q3" && items[2].display === 3 &&
+      items[3].source.text === "Q4" && items[3].display === 4);
+  ok("Display-Nummern lueckenlos 1..4 (positions-konsistent fuer <ol>)",
+    items.every((it, i) => it.display === i + 1));
+}
+
+{
+  // Vollstaendig zitiert → unveraendert (kein Pool-Anhang).
+  const sources: Source[] = [{ id: "a", text: "A" }, { id: "b", text: "B" }];
+  const items = computeSourceListItems(sources, [1, 2]);
+  ok("alles zitiert → genau die referenzierten, unveraendert",
+    items.length === 2 && items[0].source.text === "A" && items[1].source.text === "B");
 }
 
 // ============================================================

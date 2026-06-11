@@ -40,47 +40,51 @@ export function buildSourceOrder(blocks: Block[]): {
 }
 
 // Entscheidet, welche Source-Eintraege die Quellen-Liste am Artikel-Ende
-// anzeigt. Drei Faelle, klar getrennt:
+// anzeigt. Policy: ALLE Quellen werden gezeigt — eine vollstaendige
+// Quellenliste soll nicht teilweise verschwinden, nur weil nicht jede
+// Quelle inline mit [^N] zitiert ist. Zwei Gruppen, in dieser Reihenfolge:
 //
-//   (A) Body hat MINDESTENS einen [^N]-Inline-Ref (order.length > 0).
-//       Heutiges Verhalten unveraendert: nur die referenzierten Quellen
-//       in Auftrittsreihenfolge, Display-Nummer = Auftritts-Rang.
-//       Dangling-Refs (Marker auf nicht-existierende Quelle) werden
-//       uebersprungen.
+//   1) Referenzierte Quellen — in Auftrittsreihenfolge der [^N]-Marker,
+//      Display-Nummer = Auftritts-Rang (passt zu den Inline-Hochzahlen via
+//      buildSourceOrder.mapping). Dangling-Refs (Marker auf nicht-
+//      existierende Quelle) werden uebersprungen.
 //
-//   (B) Body hat 0 [^N]-Refs UND sources[] ist nicht leer (Andreas-Fall).
-//       NEU: alle sources werden in Array-Reihenfolge nummeriert
-//       angezeigt. Damit verschwinden importierte Quellen-Listen nicht
-//       mehr unsichtbar im sources-Pool.
+//   2) Nicht-referenzierte Quellen ("Pool") — in sources[]-Array-
+//      Reihenfolge hinten angehaengt, mit fortlaufenden Display-Nummern.
 //
-//   (C) Mischfall — manche Quellen referenziert, andere nicht. Da
-//       (A) bereits greift, sobald MINDESTENS ein Ref vorhanden ist,
-//       behandeln wir (C) wie (A): nur die referenzierten zeigen.
-//       Bewusste konservative Entscheidung — vermeidet Regression
-//       fuer bestehende Artikel und respektiert "Pool-Quellen, die
-//       der Author bewusst nicht referenziert hat" (sie waren auch
-//       vorher unsichtbar). Wenn ein Mix-Mode-Verhalten spaeter
-//       explizit gewuenscht ist, kann das separat addressiert werden.
+// Frueher (vor diesem Change) wurden bei mind. einem [^N]-Ref NUR die
+// referenzierten gezeigt; Pool-Quellen blieben unsichtbar. Das verbarg
+// importierte Quellenlisten, von denen nur ein Teil inline zitiert war.
 //
-// Returns leere Liste wenn sources leer ist und keine Refs existieren.
+// Returns leere Liste nur wenn sources[] leer ist.
 export type SourceListItem = { display: number; source: Source };
 
 export function computeSourceListItems(
   sources: Source[],
   order: number[],
 ): SourceListItem[] {
-  // Fall (A) + (C) — bestehendes Verhalten.
-  if (order.length > 0) {
-    const items: SourceListItem[] = [];
-    order.forEach((originalN, i) => {
-      const s = sources[originalN - 1];
-      if (s) items.push({ display: i + 1, source: s });
-    });
-    return items;
-  }
-  // Fall (B) — neu: alle Quellen in Array-Reihenfolge.
-  if (sources.length > 0) {
-    return sources.map((s, i) => ({ display: i + 1, source: s }));
-  }
-  return [];
+  const items: SourceListItem[] = [];
+  const usedIdx = new Set<number>();
+
+  // 1) Referenzierte zuerst — Display = Auftritts-Rang (i + 1), damit es zu
+  //    den Inline-Hochzahlen passt. Reihenfolge/Nummerierung unveraendert.
+  order.forEach((originalN, i) => {
+    const idx = originalN - 1;
+    const s = sources[idx];
+    if (s && !usedIdx.has(idx)) {
+      items.push({ display: i + 1, source: s });
+      usedIdx.add(idx);
+    }
+  });
+
+  // 2) Restliche (nicht inline-referenzierte) Quellen hinten anhaengen.
+  let next = items.reduce((max, it) => Math.max(max, it.display), 0) + 1;
+  sources.forEach((s, idx) => {
+    if (!usedIdx.has(idx)) {
+      items.push({ display: next, source: s });
+      next += 1;
+    }
+  });
+
+  return items;
 }
