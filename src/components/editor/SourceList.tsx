@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Source } from "@/types/blocks";
+import type { Source, SourceUrlStatus } from "@/types/blocks";
 
 // Verwaltungs-Liste der Quellen (Quellen-Tab im Editor). Zeigt jede Quelle
 // mit ihrer Nummer N (= Position), Text und URL; erlaubt Inline-Bearbeiten
@@ -25,6 +25,10 @@ type Labels = {
   referenced: string;
   newHeading: string;
   confirmDelete: string;
+  check: string;
+  checking: string;
+  checkHint: string;
+  status: Record<SourceUrlStatus, string>;
 };
 
 type Props = {
@@ -35,6 +39,19 @@ type Props = {
   onUpdate: (index: number, patch: { text: string; url?: string }) => void;
   onCreate: (src: { text: string; url?: string }) => void;
   onDelete: (index: number) => void;
+  // Nur gesetzt fuer Editor:innen → blendet den "URLs pruefen"-Button ein.
+  onCheckUrls?: () => void;
+  checking?: boolean;
+};
+
+// Farbgebung der Status-Badges via Design-System-Status-Tokens.
+const STATUS_STYLE: Record<SourceUrlStatus, { fg: string; bg: string }> = {
+  ok: { fg: "var(--st-success-fg, #32ff7e)", bg: "var(--st-success-bg, rgba(50,255,126,0.12))" },
+  redirect: { fg: "var(--st-info-fg, #dcd6f7)", bg: "var(--st-info-bg, rgba(220,214,247,0.10))" },
+  blocked: { fg: "var(--st-warning-fg, #ff8c42)", bg: "var(--st-warning-bg, rgba(255,140,66,0.12))" },
+  dead: { fg: "var(--st-error-fg, #ff5c5c)", bg: "var(--st-error-bg, rgba(255,92,92,0.10))" },
+  error: { fg: "var(--da-muted, #b0b0b0)", bg: "transparent" },
+  timeout: { fg: "var(--da-muted, #b0b0b0)", bg: "transparent" },
 };
 
 export default function SourceList({
@@ -45,6 +62,8 @@ export default function SourceList({
   onUpdate,
   onCreate,
   onDelete,
+  onCheckUrls,
+  checking = false,
 }: Props) {
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
@@ -105,7 +124,19 @@ export default function SourceList({
         .qsrc-ghost { background: transparent; color: var(--da-muted-soft); border: 1px solid var(--da-border); padding: 9px 16px; border-radius: 4px; font-size: 13px; cursor: pointer; font-family: inherit; }
         .qsrc-new { margin-top: 20px; border-top: 1px solid var(--da-border); padding-top: 16px; }
         .qsrc-new-h { font-family: var(--da-font-display); font-size: 15px; margin: 0 0 4px; color: var(--da-text); }
+        .qsrc-checkbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+        .qsrc-checkhint { font-size: 11px; color: var(--da-muted-soft); }
+        .qsrc-st { display: inline-block; font-size: 10px; font-family: var(--da-font-mono); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 8px; border-radius: 3px; margin-top: 6px; margin-left: 8px; }
       `}</style>
+
+      {onCheckUrls && (
+        <div className="qsrc-checkbar">
+          <button type="button" className="qsrc-ghost" onClick={onCheckUrls} disabled={checking}>
+            {checking ? labels.checking : labels.check}
+          </button>
+          <span className="qsrc-checkhint">{labels.checkHint}</span>
+        </div>
+      )}
 
       {sources.length === 0 ? (
         <p style={{ color: "var(--da-muted)", fontSize: 14 }}>{labels.empty}</p>
@@ -140,6 +171,19 @@ export default function SourceList({
                   <div className="qsrc-text">{s.text}</div>
                   {s.url && <div className="qsrc-url">{s.url}</div>}
                   {!isRef && <span className="qsrc-badge qsrc-badge--unref">{labels.unreferenced}</span>}
+                  {s.urlStatus && (
+                    <span
+                      className="qsrc-st"
+                      style={{
+                        color: STATUS_STYLE[s.urlStatus].fg,
+                        background: STATUS_STYLE[s.urlStatus].bg,
+                        border: `1px solid ${STATUS_STYLE[s.urlStatus].fg}`,
+                      }}
+                      title={s.urlStatusCode ? `HTTP ${s.urlStatusCode}` : undefined}
+                    >
+                      {labels.status[s.urlStatus]}
+                    </span>
+                  )}
                 </div>
                 <div className="qsrc-actions">
                   <button type="button" className="qsrc-btn" onClick={() => startEdit(i, s)}>{labels.edit}</button>

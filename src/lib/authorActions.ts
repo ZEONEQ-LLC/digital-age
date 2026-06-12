@@ -9,6 +9,7 @@ import {
   sendArticleSubmittedForReviewNotification,
 } from "@/lib/articles/mail";
 import { emptyBlockDocument, type BlockDocument } from "@/types/blocks";
+import { checkSourcesUrls } from "@/lib/editor/urlCheck";
 import { validatePublishGate } from "@/lib/publishGate";
 import type { Database, Json } from "@/lib/database.types";
 
@@ -239,16 +240,40 @@ export async function submitForReview(id: string): Promise<ArticleRow> {
   // Doppelklick fliegt der zweite Aufruf raus bevor er Mails versenden kann.
   const { data: current } = await supabase
     .from("articles")
-    .select("status, title, author:authors(display_name, email)")
+    .select("status, title, body_blocks, author:authors(display_name, email)")
     .eq("id", id)
     .single();
   if (current?.status !== "draft") {
     throw new Error("Nur Drafts können zur Review eingereicht werden.");
   }
 
+  // URL-Quellen-Check beim Weiterreichen zur Review: prueft die Erreichbarkeit
+  // aller Quellen-URLs und persistiert das Ergebnis an den Quellen, damit die
+  // Editor:in es im Review sieht. Fehlertolerant — ein gescheiterter Check
+  // darf den Submit nie blockieren.
+  let blocksUpdate: Json | undefined;
+  const doc = current.body_blocks as unknown as BlockDocument | null;
+  if (doc && Array.isArray(doc.sources) && doc.sources.some((s) => s.url)) {
+    try {
+      const checkedSources = await checkSourcesUrls(
+        doc.sources,
+        new Date().toISOString(),
+      );
+      blocksUpdate = { ...doc, sources: checkedSources } as unknown as Json;
+    } catch (e) {
+      console.error(
+        `[article] source url check failed, submitting without statuses, articleId=${id}`,
+        e,
+      );
+    }
+  }
+
   const { data, error } = await supabase
     .from("articles")
-    .update({ status: "in_review" })
+    .update({
+      status: "in_review",
+      ...(blocksUpdate ? { body_blocks: blocksUpdate } : {}),
+    })
     .eq("id", id)
     .select("*")
     .single();

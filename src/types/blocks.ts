@@ -75,7 +75,32 @@ export type Block =
 
 export type BlockType = Block["type"];
 
-export type Source = { id: string; text: string; url?: string };
+// Ergebnis einer URL-Erreichbarkeitspruefung einer Quelle.
+//   ok       — 2xx
+//   redirect — final 3xx (selten, da Redirects verfolgt werden)
+//   blocked  — 401/403/429: Server blockt Bots → NICHT zwingend tot
+//   dead     — 404/410: Ziel existiert nicht
+//   error    — sonstige 4xx/5xx oder ungueltige URL
+//   timeout  — keine Antwort innerhalb des Limits / Netz-/DNS-Fehler
+export type SourceUrlStatus =
+  | "ok"
+  | "redirect"
+  | "blocked"
+  | "dead"
+  | "error"
+  | "timeout";
+
+export type Source = {
+  id: string;
+  text: string;
+  url?: string;
+  // Optionale Resultate des letzten URL-Checks (persistiert im body_blocks-
+  // JSONB; kein Schema-Change). Werden beim Submit-zur-Review automatisch und
+  // ueber den Editor-Button gesetzt.
+  urlStatus?: SourceUrlStatus;
+  urlStatusCode?: number;
+  urlCheckedAt?: string; // ISO-Timestamp
+};
 
 export type BlockDocument = {
   version: typeof BLOCK_SCHEMA_VERSION;

@@ -20,6 +20,7 @@ import {
   appendSource,
   removeSourceAt,
 } from "@/components/editor/sourceListOps";
+import { checkSourceUrlsAction } from "@/lib/editor/sourceCheckActions";
 import { SunIcon } from "@/components/tiptap-icons/sun-icon";
 import { MoonStarIcon } from "@/components/tiptap-icons/moon-star-icon";
 import TiptapAbstractEditor, { type TiptapAbstractEditorHandle } from "@/components/author/tiptap/TiptapAbstractEditor";
@@ -110,6 +111,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   })();
 
   const [doc, setDoc] = useState<BlockDocument | null>(initialDoc);
+  const [checkingUrls, setCheckingUrls] = useState(false);
   // Markdown-Restbestand: body_md wird zwar weiter regeneriert (saveArticle
   // macht das serverseitig), ist hier aber nicht mehr editierbar. State
   // bleibt für die Plain-Text-Aggregation unten (bodyText/firstParagraph).
@@ -1466,6 +1468,19 @@ export default function EditorClient({ article, revisions, categories, isEditor,
                 confirmDelete: en
                   ? "Delete this source? It is not referenced in the body."
                   : "Diese Quelle löschen? Sie ist im Body nicht referenziert.",
+                check: en ? "Check URLs" : "URLs prüfen",
+                checking: en ? "Checking…" : "Prüfe…",
+                checkHint: en
+                  ? "Blocked/uncertain ≠ dead — some sites block bots."
+                  : "Blockiert/unklar ≠ tot — manche Seiten blocken Bots.",
+                status: {
+                  ok: "OK",
+                  redirect: en ? "Redirect" : "Weiterleitung",
+                  blocked: en ? "Blocked" : "Blockiert",
+                  dead: en ? "404 / dead" : "404 / tot",
+                  error: en ? "Error" : "Fehler",
+                  timeout: "Timeout",
+                },
               }}
               onUpdate={(index, patch) => {
                 if (!doc) return;
@@ -1479,6 +1494,36 @@ export default function EditorClient({ article, revisions, categories, isEditor,
                 if (!doc) return;
                 setDoc({ ...doc, sources: removeSourceAt(doc.sources, index, referenced) });
               }}
+              checking={checkingUrls}
+              onCheckUrls={
+                isEditor
+                  ? async () => {
+                      if (!doc) return;
+                      setCheckingUrls(true);
+                      try {
+                        const outcomes = await checkSourceUrlsAction(
+                          doc.sources.map((s) => s.url ?? null),
+                        );
+                        const nowIso = new Date().toISOString();
+                        const nextSources = doc.sources.map((s, i) => {
+                          const o = outcomes[i];
+                          if (!o) return s;
+                          return {
+                            ...s,
+                            urlStatus: o.status,
+                            urlStatusCode: o.code ?? undefined,
+                            urlCheckedAt: nowIso,
+                          };
+                        });
+                        setDoc({ ...doc, sources: nextSources });
+                      } catch (e) {
+                        console.error("URL-Check fehlgeschlagen:", e);
+                      } finally {
+                        setCheckingUrls(false);
+                      }
+                    }
+                  : undefined
+              }
             />
           </div>
         );
