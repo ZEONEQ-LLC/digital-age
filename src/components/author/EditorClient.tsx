@@ -12,6 +12,15 @@ import BlockReader from "@/components/BlockReader";
 import InlineText from "@/components/InlineText";
 import MdCleanupModal from "@/components/editor/MdCleanupModal";
 import SourcePicker, { newSourceId } from "@/components/editor/SourcePicker";
+import SourceList from "@/components/editor/SourceList";
+import {
+  referencedSourceIndices,
+  deletableSourceIndices,
+  updateSourceAt,
+  appendSource,
+  removeSourceAt,
+} from "@/components/editor/sourceListOps";
+import { checkSourceUrlsAction } from "@/lib/editor/sourceCheckActions";
 import { SunIcon } from "@/components/tiptap-icons/sun-icon";
 import { MoonStarIcon } from "@/components/tiptap-icons/moon-star-icon";
 import TiptapAbstractEditor, { type TiptapAbstractEditorHandle } from "@/components/author/tiptap/TiptapAbstractEditor";
@@ -40,7 +49,7 @@ import { contentWhitelistMatch, runEditorRoundtripGuard, runRoundtripGuard, stri
 import { cleanupMarkdown } from "@/lib/editor/mdCleanup";
 import { generateAbstract } from "@/lib/ai/abstractActions";
 
-type Tab = "content" | "details" | "preview" | "seo" | "revisions";
+type Tab = "content" | "details" | "sources" | "preview" | "seo" | "revisions";
 
 type Props = {
   article: SuiteArticle;
@@ -102,6 +111,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   })();
 
   const [doc, setDoc] = useState<BlockDocument | null>(initialDoc);
+  const [checkingUrls, setCheckingUrls] = useState(false);
   // Markdown-Restbestand: body_md wird zwar weiter regeneriert (saveArticle
   // macht das serverseitig), ist hier aber nicht mehr editierbar. State
   // bleibt für die Plain-Text-Aggregation unten (bodyText/firstParagraph).
@@ -1056,6 +1066,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         {[
           { id: "content", label: "Inhalt" },
           { id: "details", label: "Details" },
+          { id: "sources", label: locale === "en" ? "Sources" : "Quellen" },
           { id: "preview", label: "Vorschau" },
           { id: "seo", label: "SEO & Meta" },
           { id: "revisions", label: "Revisionen" },
@@ -1074,7 +1085,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
               //              doc-Stand (Diagnose-Leck 1).
               // buildBlockDocumentFromEditor ist nebenwirkungsfrei (purer
               // Read+Transform, kein Save/Guard/Dirty-Trigger).
-              if (t.id === "preview" || t.id === "seo") {
+              if (t.id === "preview" || t.id === "seo" || t.id === "sources") {
                 try {
                   const next = buildBlockDocumentFromEditor();
                   setDoc(next);
@@ -1428,6 +1439,95 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           })()}
         </div>
       )}
+
+      {tab === "sources" && (() => {
+        const sources = doc?.sources ?? [];
+        const referenced = referencedSourceIndices(doc?.blocks ?? []);
+        const deletable = deletableSourceIndices(sources.length, referenced);
+        const en = locale === "en";
+        return (
+          <div style={{ maxWidth: 720 }}>
+            <SourceList
+              sources={sources}
+              referenced={referenced}
+              deletable={deletable}
+              labels={{
+                empty: en
+                  ? "No sources yet. Add one below, or insert a source reference in the body."
+                  : "Noch keine Quellen. Unten anlegen, oder im Body einen Quellen-Verweis einfügen.",
+                edit: en ? "Edit" : "Bearbeiten",
+                delete: en ? "Delete" : "Löschen",
+                cancel: en ? "Cancel" : "Abbrechen",
+                save: en ? "Save" : "Speichern",
+                add: en ? "Add source" : "Quelle anlegen",
+                textLabel: en ? "Source text" : "Quellen-Text",
+                urlLabel: "URL (optional)",
+                unreferenced: en ? "not referenced" : "nicht referenziert",
+                referenced: en ? "N stays unchanged" : "N bleibt unverändert",
+                newHeading: en ? "New source" : "Neue Quelle",
+                confirmDelete: en
+                  ? "Delete this source? It is not referenced in the body."
+                  : "Diese Quelle löschen? Sie ist im Body nicht referenziert.",
+                check: en ? "Check URLs" : "URLs prüfen",
+                checking: en ? "Checking…" : "Prüfe…",
+                checkHint: en
+                  ? "Blocked/uncertain ≠ dead — some sites block bots."
+                  : "Blockiert/unklar ≠ tot — manche Seiten blocken Bots.",
+                status: {
+                  ok: "OK",
+                  redirect: en ? "Redirect" : "Weiterleitung",
+                  blocked: en ? "Blocked" : "Blockiert",
+                  dead: en ? "404 / dead" : "404 / tot",
+                  error: en ? "Error" : "Fehler",
+                  timeout: "Timeout",
+                },
+              }}
+              onUpdate={(index, patch) => {
+                if (!doc) return;
+                setDoc({ ...doc, sources: updateSourceAt(doc.sources, index, patch) });
+              }}
+              onCreate={(src) => {
+                if (!doc) return;
+                setDoc({ ...doc, sources: appendSource(doc.sources, src, newSourceId()) });
+              }}
+              onDelete={(index) => {
+                if (!doc) return;
+                setDoc({ ...doc, sources: removeSourceAt(doc.sources, index, referenced) });
+              }}
+              checking={checkingUrls}
+              onCheckUrls={
+                isEditor
+                  ? async () => {
+                      if (!doc) return;
+                      setCheckingUrls(true);
+                      try {
+                        const outcomes = await checkSourceUrlsAction(
+                          doc.sources.map((s) => s.url ?? null),
+                        );
+                        const nowIso = new Date().toISOString();
+                        const nextSources = doc.sources.map((s, i) => {
+                          const o = outcomes[i];
+                          if (!o) return s;
+                          return {
+                            ...s,
+                            urlStatus: o.status,
+                            urlStatusCode: o.code ?? undefined,
+                            urlCheckedAt: nowIso,
+                          };
+                        });
+                        setDoc({ ...doc, sources: nextSources });
+                      } catch (e) {
+                        console.error("URL-Check fehlgeschlagen:", e);
+                      } finally {
+                        setCheckingUrls(false);
+                      }
+                    }
+                  : undefined
+              }
+            />
+          </div>
+        );
+      })()}
 
       {/* SEO-Panel dauerhaft gemountet, nur per CSS ein-/ausgeblendet —
           analog zum Content-Tab. Grund: das Panel hält lokalen State für
