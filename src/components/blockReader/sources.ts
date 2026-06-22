@@ -57,7 +57,11 @@ export function buildSourceOrder(blocks: Block[]): {
 // importierte Quellenlisten, von denen nur ein Teil inline zitiert war.
 //
 // Returns leere Liste nur wenn sources[] leer ist.
-export type SourceListItem = { display: number; source: Source };
+// `index` ist die 0-basierte Array-Position der Quelle in sources[] (=
+// Storage-N − 1). Additiv ergaenzt, damit Editor-Konsumenten (Quellen-Tab)
+// von der Anzeige-Reihenfolge auf die Mutations-Position zurueckschliessen
+// koennen. BlockReader ignoriert das Feld (rendert nur display + source).
+export type SourceListItem = { display: number; index: number; source: Source };
 
 export function computeSourceListItems(
   sources: Source[],
@@ -72,7 +76,7 @@ export function computeSourceListItems(
     const idx = originalN - 1;
     const s = sources[idx];
     if (s && !usedIdx.has(idx)) {
-      items.push({ display: i + 1, source: s });
+      items.push({ display: i + 1, index: idx, source: s });
       usedIdx.add(idx);
     }
   });
@@ -81,10 +85,58 @@ export function computeSourceListItems(
   let next = items.reduce((max, it) => Math.max(max, it.display), 0) + 1;
   sources.forEach((s, idx) => {
     if (!usedIdx.has(idx)) {
-      items.push({ display: next, source: s });
+      items.push({ display: next, index: idx, source: s });
       next += 1;
     }
   });
 
   return items;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Single Source of Truth fuer die Anzeige-Nummern im Editor.
+//
+// Beide neuen Funktionen leiten ihre Zahlen AUSSCHLIESSLICH aus den
+// bestehenden Renderer-Helpern (buildSourceOrder + computeSourceListItems)
+// ab — kein zweiter, paralleler Nummerierungs-Algorithmus. Damit zeigen
+// Quellen-Tab, Picker und Editor-Inline-Refs garantiert dieselbe Nummer wie
+// die oeffentliche Seite (BlockReader).
+// ─────────────────────────────────────────────────────────────────────────
+
+// Liefert die Anzeige-Reihenfolge + -Nummern fuer den Quellen-Tab/Picker:
+// referenzierte zuerst (Auftrittsreihenfolge), dann nicht-referenzierte. Jede
+// SourceListItem traegt `index` (Array-Position) fuer positionsbasierte
+// Mutationen. Identisch zur Liste am Artikel-Ende.
+export function computeSourceDisplayItems(
+  blocks: Block[],
+  sources: Source[],
+): SourceListItem[] {
+  const { order } = buildSourceOrder(blocks);
+  return computeSourceListItems(sources, order);
+}
+
+// Editor-Live-Pfad (Tiptap): `orderedNs` sind die Storage-N der `[^N]`-Refs
+// in Auftrittsreihenfolge, wie sie aus dem Tiptap-Doc gesammelt werden. Gibt
+// `n → Inline-Anzeige-Nummer` zurueck, exakt wie der Renderer fuer die
+// Hochzahlen im Fliesstext.
+//
+// Bewusst ueber buildSourceOrder().mapping — das ist die EXAKTE Quelle der
+// Inline-Nummern auf der oeffentlichen Seite (BlockReader.applySourceMapping
+// nutzt dieselbe mapping). Damit stimmt der Editor selbst im Dangling-Fall
+// mit der Seite ueberein (Dangling-Ref bekommt seinen Auftritts-Rang, auch
+// wenn dazu keine Quelle in der Liste existiert). Reiner Reuse via
+// synthetischem Block — kein zweiter Rang-Algorithmus. Kein sources-Argument
+// noetig: die Inline-Nummer haengt nur an der Auftrittsreihenfolge.
+export function displayNumberByRefN(orderedNs: number[]): Map<number, number> {
+  const synthetic: Block[] =
+    orderedNs.length > 0
+      ? [
+          {
+            id: "__source-ref-scan__",
+            type: "paragraph",
+            content: orderedNs.map((n) => `[^${n}]`).join(" "),
+          },
+        ]
+      : [];
+  return buildSourceOrder(synthetic).mapping;
 }

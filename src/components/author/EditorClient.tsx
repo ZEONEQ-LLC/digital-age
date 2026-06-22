@@ -20,6 +20,7 @@ import {
   appendSource,
   removeSourceAt,
 } from "@/components/editor/sourceListOps";
+import { computeSourceDisplayItems } from "@/components/blockReader/sources";
 import { checkSourceUrlsAction } from "@/lib/editor/sourceCheckActions";
 import { SunIcon } from "@/components/tiptap-icons/sun-icon";
 import { MoonStarIcon } from "@/components/tiptap-icons/moon-star-icon";
@@ -1444,11 +1445,14 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         const sources = doc?.sources ?? [];
         const referenced = referencedSourceIndices(doc?.blocks ?? []);
         const deletable = deletableSourceIndices(sources.length, referenced);
+        // Anzeige in Renderer-Endreihenfolge + Renderer-Nummern (Single
+        // Source of Truth). Mutationen laufen weiter ueber item.index.
+        const items = computeSourceDisplayItems(doc?.blocks ?? [], sources);
         const en = locale === "en";
         return (
           <div style={{ maxWidth: 720 }}>
             <SourceList
-              sources={sources}
+              items={items}
               referenced={referenced}
               deletable={deletable}
               labels={{

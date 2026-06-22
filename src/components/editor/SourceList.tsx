@@ -2,12 +2,19 @@
 
 import { useState } from "react";
 import type { Source, SourceUrlStatus } from "@/types/blocks";
+import type { SourceListItem } from "@/components/blockReader/sources";
 
 // Verwaltungs-Liste der Quellen (Quellen-Tab im Editor). Zeigt jede Quelle
-// mit ihrer Nummer N (= Position), Text und URL; erlaubt Inline-Bearbeiten
-// von Text/URL (positionsstabil), Anlegen neuer Quellen und Loeschen — wobei
-// Loeschen NUR fuer sicher-loeschbare Indizes angeboten wird (siehe
-// sourceListOps.deletableSourceIndices: unreferenziertes Schwanz-Ende).
+// mit ihrer ANZEIGE-Nummer und in der Reihenfolge der oeffentlichen Seite
+// (referenzierte zuerst nach Auftritt, dann nicht-referenzierte) — die Zahlen
+// stammen aus derselben Quelle wie der Renderer (computeSourceDisplayItems).
+// Erlaubt Inline-Bearbeiten von Text/URL (positionsstabil), Anlegen neuer
+// Quellen und Loeschen — wobei Loeschen NUR fuer sicher-loeschbare Indizes
+// angeboten wird (siehe sourceListOps.deletableSourceIndices).
+//
+// WICHTIG: Die ANZEIGE ist umsortiert, die MUTATIONEN laufen weiter ueber die
+// Array-Position (`item.index`). Storage-Semantik (`[^N]` → sources[N-1])
+// bleibt unangetastet.
 //
 // Mutationen laufen ueber Callbacks; der Owner (EditorClient) haelt
 // doc.sources und wendet die reinen Ops aus sourceListOps an.
@@ -32,7 +39,9 @@ type Labels = {
 };
 
 type Props = {
-  sources: Source[];
+  // Bereits in Anzeige-Reihenfolge (referenziert zuerst, dann Pool) + mit
+  // Anzeige-Nummer und Array-Position aus computeSourceDisplayItems.
+  items: SourceListItem[];
   referenced: Set<number>; // 0-basierte Indizes, die im Body via [^N] zitiert sind
   deletable: Set<number>; // 0-basierte Indizes, die sicher loeschbar sind
   labels: Labels;
@@ -55,7 +64,7 @@ const STATUS_STYLE: Record<SourceUrlStatus, { fg: string; bg: string }> = {
 };
 
 export default function SourceList({
-  sources,
+  items,
   referenced,
   deletable,
   labels,
@@ -138,16 +147,16 @@ export default function SourceList({
         </div>
       )}
 
-      {sources.length === 0 ? (
+      {items.length === 0 ? (
         <p style={{ color: "var(--da-muted)", fontSize: 14 }}>{labels.empty}</p>
       ) : (
         <div className="qsrc-list">
-          {sources.map((s, i) => {
+          {items.map(({ display, index: i, source: s }) => {
             if (editIndex === i) {
               return (
                 <div key={s.id} className="qsrc-item" style={{ flexDirection: "column", borderColor: "var(--da-green)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span className="qsrc-n">{i + 1}</span>
+                    <span className="qsrc-n">{display}</span>
                     <span style={{ color: "var(--da-muted)", fontSize: 11, fontFamily: "var(--da-font-mono)" }}>
                       {labels.referenced}
                     </span>
@@ -166,7 +175,7 @@ export default function SourceList({
             const isRef = referenced.has(i);
             return (
               <div key={s.id} className="qsrc-item">
-                <span className="qsrc-n">{i + 1}</span>
+                <span className="qsrc-n">{display}</span>
                 <div className="qsrc-main">
                   <div className="qsrc-text">{s.text}</div>
                   {s.url && <div className="qsrc-url">{s.url}</div>}
