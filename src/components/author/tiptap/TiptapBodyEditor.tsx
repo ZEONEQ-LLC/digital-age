@@ -1,13 +1,17 @@
 "use client";
 
-import { forwardRef, useImperativeHandle, useRef } from "react";
+import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from "react";
 import {
   EditorContent,
   EditorContext,
   useEditor,
   type Editor,
 } from "@tiptap/react";
+import type { Node as PMNode } from "@tiptap/pm/model";
 import { BubbleMenu } from "@tiptap/react/menus";
+
+import { displayNumberByRefN } from "@/components/blockReader/sources";
+import { SourceRefDisplayContext } from "./sourceRefDisplay";
 
 import { StarterKit } from "@tiptap/starter-kit";
 import { Image } from "@tiptap/extension-image";
@@ -127,9 +131,42 @@ type Props = {
   onMdCleanup?: () => void;
 };
 
+// Sammelt die Storage-N der daSourceRef-Nodes in DOKUMENT-Reihenfolge.
+// Reiner Read-Walk ueber den ProseMirror-Doc — kein dispatch, keine Mutation.
+function collectRefNs(doc: PMNode): number[] {
+  const ns: number[] = [];
+  doc.descendants((node) => {
+    if (node.type.name === "daSourceRef") ns.push(node.attrs.n as number);
+  });
+  return ns;
+}
+
+function sameMap(a: Map<number, number>, b: Map<number, number>): boolean {
+  if (a.size !== b.size) return false;
+  for (const [k, v] of a) if (b.get(k) !== v) return false;
+  return true;
+}
+
 const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
   function TiptapBodyEditor({ articleId, initialContent, onEditorReady, onRequestSourcePick, onMdCleanup }, ref) {
     const toolbarRef = useRef<HTMLDivElement>(null);
+
+    // Live-Map `n → Auftritts-Rang` fuer die Inline-Source-Ref-NodeViews.
+    // Wird pro Doc-Aenderung neu aus dem Doc abgeleitet (Single Source of
+    // Truth: displayNumberByRefN → buildSourceOrder). REINE ANZEIGE.
+    const [refDisplayMap, setRefDisplayMap] = useState<Map<number, number>>(
+      () => new Map(),
+    );
+    const refMapRef = useRef<Map<number, number>>(refDisplayMap);
+    const recomputeRefMap = useCallback((ed: Editor) => {
+      const next = displayNumberByRefN(collectRefNs(ed.state.doc));
+      // Nur bei echter Aenderung neu setzen — die meisten Keystrokes aendern
+      // die Ref-Reihenfolge nicht, also kein Re-Render der Toolbar/NodeViews.
+      if (!sameMap(next, refMapRef.current)) {
+        refMapRef.current = next;
+        setRefDisplayMap(next);
+      }
+    }, []);
 
     const uploadAdapter = async (file: File, onProgress?: (e: { progress: number }) => void, abortSignal?: AbortSignal): Promise<string> => {
       onProgress?.({ progress: 0 });
@@ -199,6 +236,11 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
       content: initialContent,
       onCreate({ editor: ed }) {
         onEditorReady?.(ed);
+        recomputeRefMap(ed);
+      },
+      onUpdate({ editor: ed }) {
+        // Doc-Aenderung → Ref-Reihenfolge ggf. neu. Read-only Scan.
+        recomputeRefMap(ed);
       },
     });
 
@@ -347,7 +389,9 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
             className="a-edit-tiptap-resizable"
             style={{ background: "var(--da-darker)", color: "var(--da-text)", padding: 24 }}
           >
-            <EditorContent editor={editor} role="presentation" />
+            <SourceRefDisplayContext.Provider value={refDisplayMap}>
+              <EditorContent editor={editor} role="presentation" />
+            </SourceRefDisplayContext.Provider>
             {editor && (
               <BubbleMenu editor={editor} options={{ placement: "top" }} shouldShow={({ editor: ed }) => ed.isActive("image")}>
                 <ImageBubbleMenu editor={editor} />

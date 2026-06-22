@@ -20,6 +20,10 @@ import {
   appendSource,
   removeSourceAt,
 } from "@/components/editor/sourceListOps";
+import {
+  computeSourceDisplayItems,
+  sourceDisplayItemsForRefNs,
+} from "@/components/blockReader/sources";
 import { checkSourceUrlsAction } from "@/lib/editor/sourceCheckActions";
 import { SunIcon } from "@/components/tiptap-icons/sun-icon";
 import { MoonStarIcon } from "@/components/tiptap-icons/moon-star-icon";
@@ -58,6 +62,24 @@ type Props = {
   isEditor: boolean;
   allAuthors: { id: string; display_name: string; role: string }[];
 };
+
+// Sammelt die Storage-N der daSourceRef-Nodes aus einem Tiptap-Doc-JSON in
+// Dokument-Reihenfolge. Read-only. Spiegelt collectRefNs im TiptapBodyEditor
+// (dort ueber den PM-Doc) — hier ueber das JSON, weil EditorClient nur den
+// Handle (getJSON) hat. Fuettert den Picker mit Renderer-Reihenfolge/-Nummern.
+function collectRefNsFromTiptapJson(root: unknown): number[] {
+  const ns: number[] = [];
+  const walk = (n: unknown) => {
+    if (!n || typeof n !== "object") return;
+    const node = n as { type?: string; attrs?: { n?: unknown }; content?: unknown[] };
+    if (node.type === "daSourceRef" && typeof node.attrs?.n === "number") {
+      ns.push(node.attrs.n);
+    }
+    if (Array.isArray(node.content)) node.content.forEach(walk);
+  };
+  walk(root);
+  return ns;
+}
 
 export default function EditorClient({ article, revisions, categories, isEditor, allAuthors }: Props) {
   const router = useRouter();
@@ -120,10 +142,22 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   const [sourceInsertHandler, setSourceInsertHandler] = useState<
     ((n: number) => void) | null
   >(null);
+  // Array-Index → Renderer-Anzeige-Nummer fuer den Picker. Beim Oeffnen aus
+  // dem LIVE Body-Doc abgeleitet (aktueller als der synchronisierte doc-State).
+  const [pickerDisplayByIndex, setPickerDisplayByIndex] = useState<
+    Map<number, number> | null
+  >(null);
 
   // Wrap in einer setter-Funktion (Form mit Vorher-State), damit setState
   // den Callback nicht als Reducer behandelt.
   function requestSourcePick(insertMarker: (n: number) => void) {
+    // Live-Ref-Ns aus dem Body-Doc sammeln → Renderer-Reihenfolge/-Nummern.
+    const json = bodyEditorRef.current?.getJSON();
+    const orderedNs = json ? collectRefNsFromTiptapJson(json) : [];
+    const items = sourceDisplayItemsForRefNs(orderedNs, doc?.sources ?? []);
+    const map = new Map<number, number>();
+    for (const it of items) map.set(it.index, it.display);
+    setPickerDisplayByIndex(map);
     setSourceInsertHandler(() => insertMarker);
   }
 
@@ -1307,6 +1341,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         open={sourceInsertHandler !== null}
         onClose={() => setSourceInsertHandler(null)}
         sources={doc?.sources ?? []}
+        displayByIndex={pickerDisplayByIndex ?? undefined}
         onPickExisting={(n) => {
           sourceInsertHandler?.(n);
           setSourceInsertHandler(null);
@@ -1444,11 +1479,14 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         const sources = doc?.sources ?? [];
         const referenced = referencedSourceIndices(doc?.blocks ?? []);
         const deletable = deletableSourceIndices(sources.length, referenced);
+        // Anzeige in Renderer-Endreihenfolge + Renderer-Nummern (Single
+        // Source of Truth). Mutationen laufen weiter ueber item.index.
+        const items = computeSourceDisplayItems(doc?.blocks ?? [], sources);
         const en = locale === "en";
         return (
           <div style={{ maxWidth: 720 }}>
             <SourceList
-              sources={sources}
+              items={items}
               referenced={referenced}
               deletable={deletable}
               labels={{

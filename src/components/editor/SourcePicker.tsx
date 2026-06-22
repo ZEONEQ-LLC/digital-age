@@ -14,6 +14,12 @@ type Props = {
   // Optional, damit alte Aufrufer (z.B. Pages-Editor) ohne Anpassung
   // weiterlaufen.
   onUpdateExisting?: (index: number, source: { text: string; url?: string }) => void;
+  // Optional: Array-Index → Renderer-Anzeige-Nummer (Single Source of Truth,
+  // computeSourceDisplayItems). Wenn gesetzt, zeigt der Picker die
+  // Renderer-Nummer und sortiert die Liste in Renderer-Reihenfolge
+  // (referenziert zuerst). Das uebergebene N bei onPickExisting bleibt die
+  // ARRAY-Position (Storage-Semantik). Alte Aufrufer ohne Map → Array-Folge.
+  displayByIndex?: Map<number, number>;
 };
 
 const newSourceId = () =>
@@ -30,7 +36,15 @@ export default function SourcePicker({
   onPickExisting,
   onCreateNew,
   onUpdateExisting,
+  displayByIndex,
 }: Props) {
+  // Anzeige-Nummer einer Array-Position (Fallback: Position + 1).
+  const displayOf = (i: number) => displayByIndex?.get(i) ?? i + 1;
+  // Render-Reihenfolge: nach Renderer-Anzeige-Nummer sortiert, falls Map da.
+  const order =
+    displayByIndex
+      ? sources.map((_, i) => i).sort((a, b) => displayOf(a) - displayOf(b))
+      : sources.map((_, i) => i);
   const [mode, setMode] = useState<"pick" | "create">("pick");
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
@@ -206,7 +220,8 @@ export default function SourcePicker({
                 </p>
               ) : (
                 <div className="src-list">
-                  {sources.map((s, i) => {
+                  {order.map((i) => {
+                    const s = sources[i];
                     const editing = editIndex === i;
                     if (editing) {
                       return (
@@ -221,7 +236,7 @@ export default function SourcePicker({
                           }}
                         >
                           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-                            <span className="src-item-n">[^{i + 1}]</span>
+                            <span className="src-item-n">[^{displayOf(i)}]</span>
                             <span style={{ color: "var(--da-muted)", fontSize: 11, fontFamily: "var(--da-font-mono)" }}>
                               N bleibt unverändert
                             </span>
@@ -283,7 +298,7 @@ export default function SourcePicker({
                             fontFamily: "inherit",
                           }}
                         >
-                          <span className="src-item-n">[^{i + 1}]</span>
+                          <span className="src-item-n">[^{displayOf(i)}]</span>
                           <span style={{ flex: 1, minWidth: 0 }}>
                             <div className="src-item-text">{s.text}</div>
                             {s.url && <div className="src-item-url">{s.url}</div>}
