@@ -13,6 +13,7 @@ import {
   computeSourceListItems,
   computeSourceDisplayItems,
   displayNumberByRefN,
+  sourceDisplayItemsForRefNs,
 } from "../sources";
 import type { Block, Source } from "../../../types/blocks";
 
@@ -124,6 +125,20 @@ section("Konsistenz: Inline-Nummer == Quellen-Tab-Nummer (valide Refs)");
   // Konkret: s4 zuerst (Inline 1, Tab 1), s2 (Inline 2, Tab 2).
   ok("s4 → 1 in beiden", byN.get(4) === 1 && items.find((it) => it.source.id === "s4")!.display === 1);
   ok("s2 → 2 in beiden", byN.get(2) === 2 && items.find((it) => it.source.id === "s2")!.display === 2);
+}
+
+section("sourceDisplayItemsForRefNs — Picker-Pfad (Live-Ns → geordnete Items)");
+{
+  // Muss identisch zu computeSourceDisplayItems mit aequivalenten Blocks sein.
+  const fromNs = sourceDisplayItemsForRefNs([5], S(5));
+  const fromBlocks = computeSourceDisplayItems([para("[^5]")], S(5));
+  ok("Live-Ns == Blocks-Pfad (Repro 5/1)", fmt(fromNs) === fmt(fromBlocks), `${fmt(fromNs)} | ${fmt(fromBlocks)}`);
+  ok("Picker zeigt alle 5 Quellen", fromNs.length === 5);
+  ok("s5 zuerst (display 1, index 4)", fromNs[0].source.id === "s5" && fromNs[0].display === 1 && fromNs[0].index === 4);
+}
+{
+  ok("leere Ns → Pool in Array-Reihenfolge",
+    fmt(sourceDisplayItemsForRefNs([], S(3))) === "1:0:s1 2:1:s2 3:2:s3");
 }
 
 process.stdout.write(`\nResult: ${passes} pass, ${fails} fail\n`);

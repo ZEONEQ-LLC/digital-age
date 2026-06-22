@@ -115,28 +115,44 @@ export function computeSourceDisplayItems(
   return computeSourceListItems(sources, order);
 }
 
-// Editor-Live-Pfad (Tiptap): `orderedNs` sind die Storage-N der `[^N]`-Refs
-// in Auftrittsreihenfolge, wie sie aus dem Tiptap-Doc gesammelt werden. Gibt
-// `n → Inline-Anzeige-Nummer` zurueck, exakt wie der Renderer fuer die
-// Hochzahlen im Fliesstext.
+// Bruecke fuer die Editor-Live-Pfade: aus den im Tiptap-Doc gesammelten
+// Ref-Ns (in Auftrittsreihenfolge) einen synthetischen Block bauen, der die
+// bestehenden Renderer-Helper fuettert. EIN Ort fuer diese Konstruktion,
+// damit beide Live-Pfade exakt dieselbe Pipeline nutzen.
+function syntheticBlocksFromRefNs(orderedNs: number[]): Block[] {
+  if (orderedNs.length === 0) return [];
+  return [
+    {
+      id: "__source-ref-scan__",
+      type: "paragraph",
+      content: orderedNs.map((n) => `[^${n}]`).join(" "),
+    },
+  ];
+}
+
+// Editor-Live-Pfad (Inline-NodeView): `orderedNs` sind die Storage-N der
+// `[^N]`-Refs in Auftrittsreihenfolge, wie sie aus dem Tiptap-Doc gesammelt
+// werden. Gibt `n → Inline-Anzeige-Nummer` zurueck, exakt wie der Renderer
+// fuer die Hochzahlen im Fliesstext.
 //
 // Bewusst ueber buildSourceOrder().mapping — das ist die EXAKTE Quelle der
 // Inline-Nummern auf der oeffentlichen Seite (BlockReader.applySourceMapping
 // nutzt dieselbe mapping). Damit stimmt der Editor selbst im Dangling-Fall
 // mit der Seite ueberein (Dangling-Ref bekommt seinen Auftritts-Rang, auch
-// wenn dazu keine Quelle in der Liste existiert). Reiner Reuse via
-// synthetischem Block — kein zweiter Rang-Algorithmus. Kein sources-Argument
+// wenn dazu keine Quelle in der Liste existiert). Kein sources-Argument
 // noetig: die Inline-Nummer haengt nur an der Auftrittsreihenfolge.
 export function displayNumberByRefN(orderedNs: number[]): Map<number, number> {
-  const synthetic: Block[] =
-    orderedNs.length > 0
-      ? [
-          {
-            id: "__source-ref-scan__",
-            type: "paragraph",
-            content: orderedNs.map((n) => `[^${n}]`).join(" "),
-          },
-        ]
-      : [];
-  return buildSourceOrder(synthetic).mapping;
+  return buildSourceOrder(syntheticBlocksFromRefNs(orderedNs)).mapping;
+}
+
+// Editor-Live-Pfad (SourcePicker): wie computeSourceDisplayItems, aber aus den
+// Live-Ref-Ns des Editors statt aus Block[]. Der Picker oeffnet aus dem
+// Body-Editor, dessen Doc aktueller ist als der synchronisierte doc.blocks-
+// State. Liefert ALLE Quellen in Renderer-Reihenfolge (referenziert zuerst,
+// dann Pool) inkl. index — fuer Sortierung + Anzeige-Nummern im Picker.
+export function sourceDisplayItemsForRefNs(
+  orderedNs: number[],
+  sources: Source[],
+): SourceListItem[] {
+  return computeSourceDisplayItems(syntheticBlocksFromRefNs(orderedNs), sources);
 }
