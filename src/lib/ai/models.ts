@@ -22,9 +22,9 @@ export type ModelOption = {
 
 export const KNOWN_MODELS: readonly ModelOption[] = [
   { id: "claude-haiku-4-5", label: "Claude Haiku 4.5 — schnell, günstig" },
-  { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 — ausgewogen" },
-  { id: "claude-opus-4-6", label: "Claude Opus 4.6 — stark" },
-  { id: "claude-opus-4-7", label: "Claude Opus 4.7 — stärkstes Reasoning" },
+  { id: "claude-sonnet-5", label: "Claude Sonnet 5 — ausgewogen" },
+  { id: "claude-opus-4-8", label: "Claude Opus 4.8 — stärkstes Reasoning" },
+  { id: "claude-fable-5", label: "Claude Fable 5 — Frontier, teuer" },
 ];
 
 export const KNOWN_MODEL_IDS: ReadonlySet<string> = new Set(

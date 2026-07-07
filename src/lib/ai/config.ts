@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { isKnownModel } from "@/lib/ai/models";
 import type { AiTask, LLMParams } from "@/lib/ai/types";
 
 // Runtime-Set der Tasks, für die das Editor-UI in /autor/admin/ai-config
@@ -63,14 +64,22 @@ export async function resolveLLMConfig(params: LLMParams): Promise<LLMParams> {
   const effectiveSystem =
     dbSystem + (dbSystem && callerSystem ? "\n\n" : "") + callerSystem;
 
-  // Override-Auswahl: nur akzeptieren, wenn (a) Key in KNOWN_TASKS und
-  // (b) Wert ein nicht-leerer String ist. Sonst `default_model`.
+  // Override-Auswahl: nur akzeptieren, wenn (a) Key in KNOWN_TASKS, (b) Wert
+  // ein nicht-leerer String UND (c) ein bekanntes Modell ist. Ein Override
+  // mit entfernter/unbekannter ID (Altbestand, Tippfehler) faellt defensiv
+  // auf `default_model` zurueck — statt eine ungueltige ID an die API zu
+  // schicken (404). Ist auch `default_model` unbekannt, greift zuletzt der
+  // Env-Fallback im Provider (`ANTHROPIC_MODEL`).
   const overrides = row.task_model_overrides ?? {};
   const candidate =
     KNOWN_TASKS.has(params.task as AiTask) ? overrides[params.task] : undefined;
-  const effectiveModel =
+  const overrideModel =
     typeof candidate === "string" && candidate.trim() !== ""
       ? candidate.trim()
+      : undefined;
+  const effectiveModel =
+    overrideModel && isKnownModel(overrideModel)
+      ? overrideModel
       : row.default_model;
 
   return {
