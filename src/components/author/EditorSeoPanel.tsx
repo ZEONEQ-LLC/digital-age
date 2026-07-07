@@ -324,6 +324,10 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
   // und die Staleness-Prüfung. `copiedIndex` steuert das "Kopiert ✓"-Feedback.
   const [review, setReview] = useState<SeoReview | null>(initialReview);
   const [reviewAt, setReviewAt] = useState<string | null>(initialReviewAt);
+  // Kam das aktuelle Review aus einem Co-Pilot-Lauf? Dann erklaert der
+  // Staleness-Hinweis, dass der Body NACH der Analyse (Highlights/ALTs)
+  // geaendert wurde — statt "erneut analysieren" (Fix 4).
+  const [reviewFromCopilot, setReviewFromCopilot] = useState(false);
 
   useImperativeHandle(
     ref,
@@ -332,6 +336,7 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
         setReview(r);
         setReviewAt(at);
         setReviewError(null);
+        setReviewFromCopilot(true);
       },
     }),
     [],
@@ -563,6 +568,7 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
         return;
       }
       setReview(result.review);
+      setReviewFromCopilot(false);
       setReviewAt(result.reviewedAt);
       setCopiedIndex(null);
     });
@@ -1132,7 +1138,9 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
                   </span>
                   {isReviewStale(articleUpdatedAt, reviewAt) && (
                     <span style={{ color: "var(--da-orange, #ff9f0a)", fontSize: 11 }}>
-                      Artikel wurde seit der Analyse geändert — ggf. erneut analysieren.
+                      {reviewFromCopilot
+                        ? "Analyse aus Co-Pilot-Lauf — Body wurde danach noch angepasst (Highlights/ALT)."
+                        : "Artikel wurde seit der Analyse geändert — ggf. erneut analysieren."}
                     </span>
                   )}
                 </div>

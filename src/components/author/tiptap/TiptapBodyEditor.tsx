@@ -154,6 +154,9 @@ type Props = {
   // AI: Kernaussagen vorschlagen (Modal-Flow im Parent). Der Button reicht nur
   // den Klick nach oben; Server Action + Modal + Anwenden gehoeren dem Parent.
   onRequestHighlights?: () => void;
+  // AI: ALT-Texte fuer Inline-Bilder ohne ALT generieren. Klick nach oben;
+  // Generierung + setImageAlts (kein Save) macht der Parent.
+  onRequestImageAlts?: () => void;
 };
 
 // Sammelt die Storage-N der daSourceRef-Nodes in DOKUMENT-Reihenfolge.
@@ -224,7 +227,7 @@ function findTextRange(
 }
 
 const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
-  function TiptapBodyEditor({ articleId, initialContent, onEditorReady, onRequestSourcePick, onMdCleanup, onRequestHighlights }, ref) {
+  function TiptapBodyEditor({ articleId, initialContent, onEditorReady, onRequestSourcePick, onMdCleanup, onRequestHighlights, onRequestImageAlts }, ref) {
     const toolbarRef = useRef<HTMLDivElement>(null);
 
     // Live-Map `n → Auftritts-Rang` fuer die Inline-Source-Ref-NodeViews.
@@ -554,6 +557,29 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
                     }}
                   >
                     ✨
+                  </span>
+                </Button>
+              )}
+              {onRequestImageAlts && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  tooltip="AI: ALT-Texte für Bilder ohne ALT generieren"
+                  aria-label="AI-Bild-ALT-Texte"
+                  onClick={onRequestImageAlts}
+                >
+                  <span
+                    className="tiptap-button-icon"
+                    style={{
+                      fontSize: 14,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 18,
+                      height: 18,
+                    }}
+                  >
+                    🖼
                   </span>
                 </Button>
               )}

@@ -18,7 +18,22 @@ type Props = {
   initialSource: string;
   onSave: (next: { alt: string; caption: string; source: string }) => void;
   onClose: () => void;
+  // AI: ALT generieren (Fix 5a). Gibt das Ergebnis zurueck; das Modal setzt es
+  // ins lokale ALT-Feld (self-contained → kein Clobbern von Caption/Source,
+  // persistiert erst beim "Uebernehmen"+Save).
+  canGenerateAlt?: boolean;
+  onGenerateAlt?: () => Promise<
+    { ok: true; alt: string } | { ok: false; error: string }
+  >;
 };
+
+function altErrorText(kind: string): string {
+  if (kind === "rate_limit") return "Limit erreicht, später erneut versuchen.";
+  if (kind === "timeout") return "Zeitüberschreitung — bitte erneut versuchen.";
+  if (kind === "auth" || kind === "config") return "AI aktuell nicht verfügbar.";
+  if (kind === "invalid_json") return "Antwort nicht auslesbar. Bitte erneut.";
+  return "ALT-Generierung fehlgeschlagen.";
+}
 
 const ALT_SOFT_LIMIT = 125;
 
@@ -29,10 +44,27 @@ export default function CoverMetadataModal({
   initialSource,
   onSave,
   onClose,
+  canGenerateAlt,
+  onGenerateAlt,
 }: Props) {
   const [alt, setAlt] = useState(initialAlt);
   const [caption, setCaption] = useState(initialCaption);
   const [source, setSource] = useState(initialSource);
+  const [altGenBusy, setAltGenBusy] = useState(false);
+  const [altGenError, setAltGenError] = useState<string | null>(null);
+
+  async function handleGenerateAlt() {
+    if (!onGenerateAlt || altGenBusy) return;
+    setAltGenError(null);
+    setAltGenBusy(true);
+    try {
+      const r = await onGenerateAlt();
+      if (r.ok) setAlt(r.alt);
+      else setAltGenError(altErrorText(r.error));
+    } finally {
+      setAltGenBusy(false);
+    }
+  }
 
   // Initial-Sync beim Oeffnen: drei Felder von den aktuellen Article-
   // Werten neu seeden, damit ein vorheriges Abbrechen einer Edit-Session
@@ -42,7 +74,6 @@ export default function CoverMetadataModal({
   // den Inline-Animations-Pfad brechen.
   useEffect(() => {
     if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAlt(initialAlt);
       setCaption(initialCaption);
       setSource(initialSource);
@@ -197,7 +228,31 @@ export default function CoverMetadataModal({
             <div className="cmm-field">
               <div className="cmm-label-row">
                 <label className="cmm-label" htmlFor="cmm-alt">Alt-Text</label>
-                <span className="cmm-pflicht">Pflicht beim Publish</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {onGenerateAlt && (
+                    <button
+                      type="button"
+                      onClick={handleGenerateAlt}
+                      disabled={!canGenerateAlt || altGenBusy}
+                      title={canGenerateAlt ? undefined : "Zuerst ein Cover-Bild setzen"}
+                      style={{
+                        background: "rgba(220,214,247,0.1)",
+                        color: "var(--da-purple)",
+                        border: "1px solid var(--da-purple)",
+                        borderRadius: 3,
+                        padding: "4px 9px",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        cursor: !canGenerateAlt || altGenBusy ? "not-allowed" : "pointer",
+                        opacity: !canGenerateAlt || altGenBusy ? 0.55 : 1,
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {altGenBusy ? "⏳ Generiere…" : "✨ ALT generieren"}
+                    </button>
+                  )}
+                  <span className="cmm-pflicht">Pflicht beim Publish</span>
+                </div>
               </div>
               <textarea
                 id="cmm-alt"
@@ -208,6 +263,11 @@ export default function CoverMetadataModal({
                 placeholder="Was zeigt das Bild? Kurz, beschreibend."
                 aria-describedby="cmm-alt-hint"
               />
+              {altGenError && (
+                <p style={{ color: "var(--da-red, #ff5c5c)", fontSize: 11, margin: 0 }}>
+                  {altGenError}
+                </p>
+              )}
               <div className="cmm-label-row">
                 <p id="cmm-alt-hint" className="cmm-hint">
                   Beschreibt das Bild fuer Screenreader und Bild-SEO. Kein
