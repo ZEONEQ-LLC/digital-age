@@ -1,7 +1,20 @@
 import PageTitle from "@/components/author/PageTitle";
 import { createClient } from "@/lib/supabase/server";
 import type { AiTask } from "@/lib/ai/types";
+import {
+  SEO_PROMPT_IDS,
+  SEO_DEFAULT_STRATEGIES,
+  type SeoPromptId,
+} from "@/lib/ai/seoPrompts";
 import AiConfigClient from "./AiConfigClient";
+
+// Editierbare Strategie-Prompts (Prompt-ID → UI-Label). Placeholder = der
+// Code-Default aus seoPrompts.ts; leeres Feld = Code-Standard.
+const PROMPT_LABELS: Record<SeoPromptId, string> = {
+  seo_keyword_candidates: "SEO — Keyword-Kandidaten (Stufe 1)",
+  seo_derive: "SEO — Ableitung aus Keyword (Stufe 2)",
+  seo_review: "SEO — Verbesserungsvorschläge (Analyse)",
+};
 
 // TASK_LABELS enthält alle Tasks, für die das UI ein Override-Dropdown
 // anbietet (= KNOWN_TASKS aus config.ts/configActions.ts). Nach dem
@@ -53,7 +66,9 @@ export default async function AiConfigPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("ai_config")
-    .select("system_prompt, default_model, task_model_overrides, updated_at")
+    .select(
+      "system_prompt, default_model, task_model_overrides, task_prompt_overrides, updated_at",
+    )
     .eq("id", "global")
     .single();
 
@@ -71,6 +86,21 @@ export default async function AiConfigPage() {
     if (typeof v === "string") initialTaskOverrides[t] = v;
   }
 
+  const rawPromptOverrides = (data?.task_prompt_overrides ?? {}) as Record<
+    string,
+    unknown
+  >;
+  const initialPromptOverrides: Record<string, string> = {};
+  for (const id of SEO_PROMPT_IDS) {
+    const v = rawPromptOverrides[id];
+    if (typeof v === "string") initialPromptOverrides[id] = v;
+  }
+  const promptEntries = SEO_PROMPT_IDS.map((id) => ({
+    id,
+    label: PROMPT_LABELS[id],
+    placeholder: SEO_DEFAULT_STRATEGIES[id],
+  }));
+
   return (
     <>
       <PageTitle
@@ -83,6 +113,8 @@ export default async function AiConfigPage() {
         initialTaskOverrides={initialTaskOverrides}
         taskLabels={TASK_LABELS}
         taskGroups={TASK_GROUPS}
+        promptEntries={promptEntries}
+        initialPromptOverrides={initialPromptOverrides}
         lastUpdatedAt={data?.updated_at ?? null}
       />
     </>

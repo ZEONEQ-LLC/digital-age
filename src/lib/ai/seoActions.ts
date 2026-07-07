@@ -1,12 +1,47 @@
 "use server";
 
 import { callLLM } from "@/lib/ai/client";
+import { createClient } from "@/lib/supabase/server";
 import {
   buildSeoKeywordCandidatesSystem,
   buildSeoKeywordCandidatesPrompt,
   buildSeoDeriveSystem,
   buildSeoDerivePrompt,
+  buildSeoReviewSystem,
+  buildSeoReviewPrompt,
 } from "@/lib/ai/seoPrompts";
+
+// Liest die editierbaren Strategie-Overrides aus ai_config.task_prompt_overrides
+// (Muster wie news_ticker generation_prompt: DB-Wert + Code-Fallback). Nur
+// nicht-leere String-Werte werden zurueckgegeben; alles andere → Key fehlt,
+// der Builder faellt auf den Code-Default. Bei jedem Fehler (Tabelle/Spalte
+// fehlt, RLS, 0 Rows) → {} (graceful, Code-Default greift). Kein Cache —
+// frisch pro Call, konsistent mit resolveLLMConfig.
+async function getTaskPromptOverrides(): Promise<Record<string, string>> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("ai_config")
+      .select("task_prompt_overrides")
+      .eq("id", "global")
+      .single();
+    if (error || !data) return {};
+    const raw = (data as { task_prompt_overrides?: unknown })
+      .task_prompt_overrides;
+    if (!raw || typeof raw !== "object") return {};
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      if (typeof v === "string" && v.trim() !== "") out[k] = v;
+    }
+    return out;
+  } catch (err) {
+    console.warn(
+      "[seo] task_prompt_overrides read failed, using code defaults:",
+      err instanceof Error ? err.message : String(err),
+    );
+    return {};
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // Zweistufige SEO-Pipeline.
@@ -221,8 +256,12 @@ export async function generateSeoKeywordCandidates(args: {
   articleId: string;
   rejectedKeywords: string[];
 }): Promise<SeoKeywordCandidatesResult> {
+  const overrides = await getTaskPromptOverrides();
   const result = await callLLM({
-    system: buildSeoKeywordCandidatesSystem(args.locale),
+    system: buildSeoKeywordCandidatesSystem(
+      args.locale,
+      overrides["seo_keyword_candidates"],
+    ),
     prompt: buildSeoKeywordCandidatesPrompt({
       title: args.title,
       bodyText: args.bodyText,
@@ -255,8 +294,9 @@ export async function generateSeoFromKeyword(args: {
   locale: "de-CH" | "en";
   articleId: string;
 }): Promise<SeoDeriveResult> {
+  const overrides = await getTaskPromptOverrides();
   const result = await callLLM({
-    system: buildSeoDeriveSystem(args.locale),
+    system: buildSeoDeriveSystem(args.locale, overrides["seo_derive"]),
     prompt: buildSeoDerivePrompt({
       title: args.title,
       bodyText: args.bodyText,
@@ -362,146 +402,6 @@ const REVIEW_CATEGORIES: ReadonlySet<SeoReviewCategory> = new Set([
   "readability",
 ]);
 
-// Task-Prompt für die Read-only-SEO-Analyse. Brand, Schweizer
-// Rechtschreibung, Output-Disziplin sind im globalen Systemprompt
-// abgedeckt — hier nur SEO-Strategie + Schema.
-function buildSeoReviewSystem(locale: "de-CH" | "en"): string {
-  return [
-    "Aufgabe: Analysiere H1, ersten Absatz und H2-Überschriften eines Magazin-",
-    "Artikels nach SEO-Kriterien und gib konkrete Verbesserungsvorschläge.",
-    "Du empfiehlst nur — du änderst NICHTS am Body und schlägst NIEMALS vor,",
-    "den Text automatisch umzuschreiben. Empfehlungen formulieren, was der",
-    "Redakteur manuell anpassen kann.",
-    "",
-    `SPRACHE der Empfehlungen: ${
-      locale === "en" ? "Englisch" : "Deutsch (Schweizer Rechtschreibung)"
-    }.`,
-    "",
-    "ANALYSE-KRITERIEN (in dieser Reihenfolge prüfen):",
-    "  1. Keyword-Platzierung im Lead: Steht das Focus-Keyword in H1 und in",
-    "     den ersten 100 Wörtern des Lead-Absatzes? Ideal im ersten Satz,",
-    "     aber NATÜRLICH integriert — KEINE Empfehlung, dass der Absatz mit",
-    "     dem Keyword beginnen MUSS (führt zu unnatürlichen Anfängen).",
-    "  2. Keyword in H2: Kommt das Focus-Keyword in mindestens EINER H2-",
-    "     Überschrift vor? Anti-Pattern: das Keyword in JEDER H2 (heading",
-    "     stuffing) — wenn das im Text zu sehen ist, das als Risiko",
-    "     anmerken. Ideal: 1–2 H2-Mentions.",
-    "  3. Sekundär-Keywords im Body: Sind die gesetzten Sekundär-Keywords",
-    "     im sichtbaren Text (Lead, H2s) erkennbar? Ideal: mindestens 2-3",
-    "     der gesetzten Sekundär-Keywords kommen erkennbar vor (auch in",
-    "     Variationen — keine exakte Übereinstimmung verlangen). Wenn keine",
-    "     Sekundär-Keywords gesetzt sind, diesen Punkt überspringen.",
-    "     Anti-Pattern: alle Sekundär-Keywords in den Lead stopfen.",
-    "  4. H1-Länge: 40-70 Zeichen ideal. Zu kurz = unspezifisch, zu lang =",
-    "     wird in SERP abgeschnitten.",
-    "  5. Zahlen/Statistiken: Enthält H1 oder Lead konkrete Zahlen (Jahr,",
-    "     Prozent, Liste-Anzahl)?",
-    "  6. Powerwords: Wörter mit emotionalem Lift wie 'massgeblich',",
-    "     'entscheidend', 'wichtig', 'neu', 'überraschend', 'erstaunlich'",
-    "     (de) oder 'crucial', 'essential', 'proven', 'breakthrough' (en).",
-    "  7. Lead-Hook: Erster Satz greift den Leser? Spannung, Frage, oder",
-    "     konkretes Versprechen?",
-    "  8. Lesbarkeit: Sätze unter 25 Wörtern? Aktiv statt passiv?",
-    "",
-    "OUTPUT: NUR ein JSON-Objekt. Schema:",
-    "{",
-    '  "overallAssessment": string,  // 1 Satz Gesamtbewertung (z.B. "Solide Basis, Lead-Hook fehlt")',
-    '  "suggestions": [               // 3-6 Einträge, kein Padding',
-    "    {",
-    '      "severity": "critical" | "important" | "nice_to_have",',
-    '      "category": "keyword" | "length" | "numbers" | "powerwords" | "hook" | "readability",',
-    '      "finding": string,        // 1 Satz: was beobachtet wurde (z.B. "Focus-Keyword fehlt im ersten Absatz")',
-    '      "recommendation": string  // Konkreter Vorschlag — siehe Regel unten',
-    "    }",
-    "  ]",
-    "}",
-    "",
-    "REGEL für jede recommendation — STRIKT EINHALTEN:",
-    "Jede recommendation MUSS einen KONKRETEN, sofort umsetzbaren Vorschlag",
-    "enthalten, der auf den TATSÄCHLICHEN Inhalt dieses Artikels zugeschnitten",
-    "ist. Was 'konkret' heisst, je nach Kategorie:",
-    "  - keyword / hook / readability:",
-    "      Liefere einen VOLLSTÄNDIG AUSFORMULIERTEN alternativen Satz oder",
-    "      H1/H2-Vorschlag — keinen Platzhalter wie 'baue das Keyword ein'.",
-    "      Beispiel akzeptabel: \"Reformuliere den ersten Satz zu: 'KI im",
-    "      Banking verkürzt Compliance-Reviews von Stunden auf Minuten.'\"",
-    "      Beispiel NICHT akzeptabel: 'Baue das Keyword im ersten Absatz ein.'",
-    "  - length:",
-    "      Nenne die Ziel-Länge UND liefere einen konkret gekürzten/",
-    "      erweiterten Alternativ-Text. Beispiel: \"Kürze auf 60 Zeichen,",
-    "      z.B. 'How AI Cuts Banking Compliance Reviews from Hours to Minutes'.\"",
-    "  - numbers:",
-    "      Wenn der Artikel-Text eine konkrete Zahl/Statistik enthält",
-    "      (Prozent, Jahr, Anzahl), nenne diese SPEZIFISCHE Zahl im Vorschlag,",
-    "      keine generische 'z.B. 5 Ways'. Wenn keine Zahl im sichtbaren Text",
-    "      vorhanden ist: schreibe das explizit ('Lead enthält keine konkrete",
-    "      Zahl — bei Recherche eine ergänzen, sonst diesen Punkt überspringen').",
-    "  - powerwords:",
-    "      Nenne 1-2 konkrete Powerwords, die in DIESEN Text passen würden,",
-    "      und zeige den Einbau-Ort.",
-    "",
-    "ANTI-PATTERNS — NIEMALS produzieren:",
-    "  - 'z.B.' ohne konkretes Beispiel danach",
-    "  - Generische Tipps ohne Bezug auf den Artikel-Text",
-    "  - Platzhalter wie 'einen Powerword einbauen' ohne den Powerword zu nennen",
-    "",
-    "WORTLIMITS:",
-    "  - overallAssessment: maximal 15 Wörter, ein Satz.",
-    "  - finding: maximal 20 Wörter pro Item, ein Satz.",
-    "  - recommendation: 15-45 Wörter pro Item, 1-3 Sätze. Genug Raum für den",
-    "    konkreten Vorschlag inklusive Beispiel-Text, aber kein Rambling.",
-    "",
-    "BEISPIEL für den gewünschten Stil (en):",
-    "{",
-    '  "overallAssessment": "Strong opening but weak keyword placement.",',
-    '  "suggestions": [',
-    "    {",
-    '      "severity": "critical",',
-    '      "category": "keyword",',
-    '      "finding": "Focus-Keyword fehlt im ersten Absatz komplett.",',
-    '      "recommendation": "Reformuliere den ersten Satz zu: \'AI Co-Pilots in Banking verkürzen Compliance-Reviews von Stunden auf Minuten — und entlasten Berater von Routine-Recherche.\'"',
-    "    },",
-    "    {",
-    '      "severity": "important",',
-    '      "category": "length",',
-    '      "finding": "H1 ist mit 82 Zeichen zu lang, wird in SERP abgeschnitten.",',
-    '      "recommendation": "Kürze auf 58 Zeichen, z.B. \'AI Co-Pilots in Banking: Less Routine, More Insight\'."',
-    "    }",
-    "  ]",
-    "}",
-  ].join("\n");
-}
-
-function buildSeoReviewPrompt(args: {
-  title: string;
-  firstParagraph: string;
-  headingsLevel2: string[];
-  focusKeyword: string | null;
-  secondaryKeywords: string[];
-}): string {
-  const h2List =
-    args.headingsLevel2.length === 0
-      ? "(keine H2-Überschriften im Artikel)"
-      : args.headingsLevel2.map((h, i) => `  ${i + 1}. ${h}`).join("\n");
-  const secList =
-    args.secondaryKeywords.length === 0
-      ? "(keine Sekundär-Keywords gesetzt)"
-      : args.secondaryKeywords.map((k, i) => `  ${i + 1}. ${k}`).join("\n");
-  return [
-    `H1: ${args.title.trim()}`,
-    "",
-    `Erster Absatz: ${args.firstParagraph.trim()}`,
-    "",
-    "H2-Überschriften:",
-    h2List,
-    "",
-    `Focus-Keyword: ${args.focusKeyword?.trim() || "nicht gesetzt"}`,
-    "",
-    "Sekundär-Keywords:",
-    secList,
-  ].join("\n");
-}
-
 function parseSeoReview(raw: string): SeoReview | null {
   const text = stripCodeFence(raw);
   let parsed: unknown;
@@ -605,8 +505,9 @@ export async function analyzeSeoEntry(args: {
   locale: "de-CH" | "en";
   articleId: string;
 }): Promise<SeoReviewResult> {
+  const overrides = await getTaskPromptOverrides();
   const result = await callLLM({
-    system: buildSeoReviewSystem(args.locale),
+    system: buildSeoReviewSystem(args.locale, overrides["seo_review"]),
     prompt: buildSeoReviewPrompt({
       title: args.title,
       firstParagraph: args.firstParagraph,

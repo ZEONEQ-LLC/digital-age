@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { AiTask } from "@/lib/ai/types";
+import { cleanPromptOverrides, type SeoPromptId } from "@/lib/ai/seoPrompts";
 
 // Editor-Check wie in den anderen Admin-Server-Actions. Wir erwarten,
 // dass RLS ohnehin greift — aber die Action soll Nicht-Editoren mit einer
@@ -43,6 +44,10 @@ export type SaveAiConfigInput = {
   systemPrompt: string;
   defaultModel: string;
   taskModelOverrides: Partial<Record<AiTask, string>>;
+  // Editierbare Strategie-Overrides pro SEO-Prompt-ID (nicht AiTask —
+  // seo_pipeline ist zwei Prompts). Leere/whitespace-Werte werden beim
+  // Speichern gedroppt (Resolver faellt dann auf den Code-Default).
+  taskPromptOverrides: Partial<Record<SeoPromptId, string>>;
 };
 
 export type SaveAiConfigResult =
@@ -78,6 +83,11 @@ export async function saveAiConfig(
     cleaned[task] = trimmed;
   }
 
+  // Strategie-Prompt-Overrides säubern (gleiche Politik: leer/whitespace →
+  // Key weg; unbekannte Prompt-IDs ignorieren). Logik in seoPrompts.ts, damit
+  // sie mit dem Prompt-ID-Schlüsselraum an einer Stelle lebt.
+  const cleanedPrompts = cleanPromptOverrides(input.taskPromptOverrides);
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("ai_config")
@@ -85,6 +95,7 @@ export async function saveAiConfig(
       system_prompt: input.systemPrompt,
       default_model: defaultModel,
       task_model_overrides: cleaned,
+      task_prompt_overrides: cleanedPrompts,
       updated_at: new Date().toISOString(),
       updated_by: editor.id,
     })
