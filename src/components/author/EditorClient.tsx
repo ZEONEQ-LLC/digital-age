@@ -6,11 +6,21 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import AuthorStatusBadge from "@/components/author/AuthorStatusBadge";
 import EditorDetailsTab from "@/components/author/EditorDetailsTab";
 import EditorRevisions from "@/components/author/EditorRevisions";
-import EditorSeoPanel, { type SeoState } from "@/components/author/EditorSeoPanel";
+import EditorSeoPanel, { type SeoState, type EditorSeoPanelHandle } from "@/components/author/EditorSeoPanel";
+import CopilotPanel from "@/components/author/CopilotPanel";
 import { normalizeStoredReview } from "@/lib/ai/seoReview";
 import HighlightSuggestModal from "@/components/editor/HighlightSuggestModal";
 import { generateHighlightSuggestions } from "@/lib/ai/highlightActions";
+import { generateSeoFields, analyzeSeoEntry } from "@/lib/ai/seoActions";
+import { generateImageAlt } from "@/lib/ai/imageActions";
 import type { HighlightSuggestion } from "@/lib/ai/highlightPrompts";
+import {
+  shouldGenerateAlt,
+  shouldApplyCopilotSlug,
+  type CopilotStep,
+  type CopilotReport,
+} from "@/lib/copilot";
+import type { Json } from "@/lib/database.types";
 import ArticleBody from "@/components/ArticleBody";
 import BlockReader from "@/components/BlockReader";
 import InlineText from "@/components/InlineText";
@@ -223,6 +233,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   );
 
   const bodyEditorRef = useRef<TiptapBodyEditorHandle | null>(null);
+  const seoPanelRef = useRef<EditorSeoPanelHandle | null>(null);
   const abstractEditorRef = useRef<TiptapAbstractEditorHandle | null>(null);
 
   // Persistiertes SEO-Review (aus article.seo_review, jsonb). Tolerant
@@ -276,6 +287,13 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   const [highlightError, setHighlightError] = useState<string | null>(null);
 
   const MIN_BODY_FOR_HIGHLIGHTS = 200;
+
+  // ── Co-Pilot-Modus (Phase 1) ──────────────────────────────────────────
+  const [copilotRunning, setCopilotRunning] = useState(false);
+  const [copilotSteps, setCopilotSteps] = useState<CopilotStep[]>([]);
+  const [copilotReport, setCopilotReport] = useState<CopilotReport | null>(
+    (article.copilot_last_run as CopilotReport | null) ?? null,
+  );
 
   async function handleRequestHighlights() {
     if (highlightBusy) return;
@@ -835,6 +853,262 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     });
   }
 
+  // Co-Pilot-Lauf: sequenzielle AI-Schritte, ein abschliessender Save.
+  // Ergebnis-Werte fuer den Save kommen aus LOKALEN Variablen (nicht aus dem
+  // async setState-State), sonst wuerde buildPatchUnchecked die alten Werte
+  // sehen. Highlights + Inline-ALTs mutieren den Editor imperativ → sie
+  // landen ueber buildBlockDocumentFromEditor (LIVE) automatisch im finalDoc.
+  async function handleRunCopilot() {
+    if (copilotRunning || pending) return;
+    setError(null);
+    setCopilotRunning(true);
+    setCopilotSteps([]);
+    const startedAt = new Date().toISOString();
+    const steps: CopilotStep[] = [];
+    const pushStep = (
+      step: CopilotStep["step"],
+      status: CopilotStep["status"],
+      detail: string,
+    ) => {
+      steps.push({ step, status, detail });
+      setCopilotSteps([...steps]);
+    };
+    let rateLimited = false;
+    let seoResult: {
+      title: string;
+      description: string;
+      keyword: string;
+      slug: string;
+      secondary: string[];
+    } | null = null;
+    let heroAlt: string | null = null;
+
+    try {
+      // ── Schritt 1: SEO generieren + setzen ──
+      try {
+        const r = await generateSeoFields({
+          title,
+          bodyText,
+          locale,
+          articleId: article.id,
+        });
+        if (!r.ok) {
+          if (r.error === "rate_limit") rateLimited = true;
+          pushStep("seo", "failed", aiAbstractErrorMessage(r.error));
+        } else {
+          const f = r.fields;
+          const applySlug = shouldApplyCopilotSlug(article.published_at);
+          seoResult = {
+            title: f.titleCandidates[0],
+            description: f.metaDescription,
+            keyword: f.focusKeyword,
+            slug: applySlug ? f.slugSuggestion : seo.slug,
+            secondary: f.semanticTerms,
+          };
+          setSeo((prev) => ({
+            ...prev,
+            title: f.titleCandidates[0],
+            description: f.metaDescription,
+            keyword: f.focusKeyword,
+            slug: applySlug ? f.slugSuggestion : prev.slug,
+            secondaryKeywords: f.semanticTerms,
+          }));
+          pushStep(
+            "seo",
+            "ok",
+            `Keyword „${f.focusKeyword}"${applySlug ? "" : ", Slug unverändert (publiziert)"}`,
+          );
+        }
+      } catch (e) {
+        pushStep("seo", "failed", e instanceof Error ? e.message : "Fehler");
+      }
+
+      // ── Schritt 2: SEO-Analyse (mit neuem Keyword) ──
+      if (rateLimited) {
+        pushStep("analyze", "skipped", "Rate-Limit");
+      } else {
+        try {
+          const kw = seoResult ? seoResult.keyword : seo.keyword;
+          const sec = seoResult ? seoResult.secondary : seo.secondaryKeywords;
+          const r = await analyzeSeoEntry({
+            title,
+            firstParagraph,
+            headingsLevel2,
+            focusKeyword: kw || null,
+            secondaryKeywords: sec,
+            locale,
+            articleId: article.id,
+          });
+          if (!r.ok) {
+            if (r.error === "rate_limit") rateLimited = true;
+            pushStep("analyze", "failed", aiAbstractErrorMessage(r.error));
+          } else {
+            seoPanelRef.current?.applyCopilotReview(r.review, r.reviewedAt);
+            pushStep("analyze", "ok", `${r.review.suggestions.length} Vorschläge`);
+          }
+        } catch (e) {
+          pushStep("analyze", "failed", e instanceof Error ? e.message : "Fehler");
+        }
+      }
+
+      // ── Schritt 3: Highlights generieren + anwenden ──
+      if (rateLimited) {
+        pushStep("highlights", "skipped", "Rate-Limit");
+      } else {
+        const plain = bodyEditorRef.current?.getPlainText().trim() ?? "";
+        if (plain.length < MIN_BODY_FOR_HIGHLIGHTS) {
+          pushStep("highlights", "skipped", "Body-Text zu kurz");
+        } else {
+          try {
+            const r = await generateHighlightSuggestions({
+              bodyText: plain,
+              locale,
+              articleId: article.id,
+            });
+            if (!r.ok) {
+              if (r.error === "rate_limit") rateLimited = true;
+              pushStep("highlights", "failed", aiAbstractErrorMessage(r.error));
+            } else {
+              const total = r.suggestions.length;
+              const applied =
+                bodyEditorRef.current?.applyHighlights(
+                  r.suggestions.map((s) => s.quote),
+                ) ?? 0;
+              const missed = total - applied;
+              pushStep(
+                "highlights",
+                total === 0 ? "skipped" : "ok",
+                total === 0
+                  ? "keine Vorschläge"
+                  : `${applied} angewendet${missed > 0 ? `, ${missed} nicht gefunden` : ""}`,
+              );
+            }
+          } catch (e) {
+            pushStep("highlights", "failed", e instanceof Error ? e.message : "Fehler");
+          }
+        }
+      }
+
+      // ── Schritt 4: Bild-ALT (Hero + Inline ohne ALT) ──
+      {
+        const heroUrl = cover.trim();
+        const inlineImages = bodyEditorRef.current?.getImages() ?? [];
+        const targets: { kind: "hero" | "inline"; url: string }[] = [];
+        if (heroUrl && shouldGenerateAlt(coverMetadata.alt)) {
+          targets.push({ kind: "hero", url: heroUrl });
+        }
+        for (const img of inlineImages) {
+          if (img.url && shouldGenerateAlt(img.alt)) {
+            targets.push({ kind: "inline", url: img.url });
+          }
+        }
+        if (targets.length === 0) {
+          pushStep("image_alt", "skipped", "keine Bilder ohne ALT");
+        } else if (rateLimited) {
+          pushStep("image_alt", "skipped", "Rate-Limit");
+        } else {
+          let done = 0;
+          let failed = 0;
+          const inlineAlts: Record<string, string> = {};
+          for (const t of targets) {
+            if (rateLimited) break;
+            try {
+              const r = await generateImageAlt({
+                imageUrl: t.url,
+                articleTitle: title,
+                locale,
+                articleId: article.id,
+              });
+              if (!r.ok) {
+                if (r.error === "rate_limit") {
+                  rateLimited = true;
+                  break;
+                }
+                failed += 1;
+                continue;
+              }
+              if (t.kind === "hero") {
+                heroAlt = r.alt;
+                setCoverMetadata((prev) => ({ ...prev, alt: r.alt }));
+              } else {
+                inlineAlts[t.url] = r.alt;
+              }
+              done += 1;
+            } catch {
+              failed += 1;
+            }
+          }
+          if (Object.keys(inlineAlts).length > 0) {
+            bodyEditorRef.current?.setImageAlts(inlineAlts);
+          }
+          const detail = [
+            `${done} gesetzt`,
+            failed > 0 ? `${failed} fehlgeschlagen` : "",
+            rateLimited ? "Rest Rate-Limit" : "",
+          ]
+            .filter(Boolean)
+            .join(", ");
+          pushStep(
+            "image_alt",
+            done > 0 ? "ok" : failed > 0 ? "failed" : "skipped",
+            detail,
+          );
+        }
+      }
+
+      // ── Report + finaler Save (EIN saveArticle → EINE Content-Revision) ──
+      const report: CopilotReport = {
+        started_at: startedAt,
+        finished_at: new Date().toISOString(),
+        steps,
+      };
+      setCopilotReport(report);
+
+      const prepared = prepareSave();
+      if (!prepared) {
+        // Guard blockiert (prepareSave hat den Fehler gesetzt) → nichts
+        // gespeichert, Report bleibt live im Panel.
+        return;
+      }
+      const { finalDoc, finalExcerpt } = prepared;
+      const patch: ArticlePatch = {
+        ...buildPatchUnchecked(finalDoc, finalExcerpt),
+        ...(seoResult
+          ? {
+              seo_title: seoResult.title || null,
+              seo_description: seoResult.description || null,
+              seo_keyword_primary: seoResult.keyword || null,
+              seo_keywords_secondary: seoResult.secondary
+                .map((k) => k.trim())
+                .filter(Boolean),
+            }
+          : {}),
+        ...(seoResult &&
+        shouldApplyCopilotSlug(article.published_at) &&
+        seoResult.slug &&
+        seoResult.slug !== article.slug
+          ? { slug: seoResult.slug }
+          : {}),
+        ...(heroAlt != null ? { cover_image_alt: heroAlt || null } : {}),
+        copilot_last_run: report as unknown as Json,
+      };
+      try {
+        const updated = await saveArticle(article.id, patch);
+        setStatus(updated.status);
+        setSavedAt("Gespeichert (Co-Pilot)");
+        setDoc(finalDoc);
+        setExcerpt(finalExcerpt);
+        router.refresh();
+      } catch (e) {
+        setError(
+          e instanceof Error ? e.message : "Co-Pilot: Speichern fehlgeschlagen.",
+        );
+      }
+    } finally {
+      setCopilotRunning(false);
+    }
+  }
+
   async function handleDelete() {
     if (!confirm("Diesen Draft endgültig löschen?")) return;
     setError(null);
@@ -1243,6 +1517,15 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         style={{ display: tab === "content" ? undefined : "none" }}
       >
           <div>
+            <div style={{ marginBottom: 16 }}>
+              <CopilotPanel
+                running={copilotRunning}
+                steps={copilotSteps}
+                lastRun={copilotReport}
+                disabled={copilotRunning || pending}
+                onRun={handleRunCopilot}
+              />
+            </div>
             {highlightMiss && (
               <div
                 role="status"
@@ -1736,6 +2019,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           Body-Bearbeitung wechselt und zurückkommt. */}
       <div style={{ maxWidth: 720, display: tab === "seo" ? undefined : "none" }}>
         <EditorSeoPanel
+          ref={seoPanelRef}
           seo={seo}
           onChange={setSeo}
           articleId={article.id}

@@ -15,6 +15,7 @@ const PROMPT_LABELS: Record<EditablePromptId, string> = {
   seo_derive: "SEO — Ableitung aus Keyword (Stufe 2)",
   seo_review: "SEO — Verbesserungsvorschläge (Analyse)",
   highlight_suggestions: "Highlight-Vorschläge",
+  image_alt: "Bild-ALT-Texte",
 };
 
 // TASK_LABELS enthält alle Tasks, für die das UI ein Override-Dropdown
@@ -33,6 +34,7 @@ const TASK_LABELS: Record<AiTask, string> = {
   news_item_generation: "News-Ticker Item-Generation",
   abstract_generate: "Abstract generieren",
   highlight_suggestions: "Highlight-Vorschläge",
+  image_alt: "Bild-ALT-Texte",
 };
 
 // Visuelle Gruppierung der UI-sichtbaren Tasks. Reihenfolge im Array =
@@ -55,6 +57,7 @@ const TASK_GROUPS: TaskGroup[] = [
       "summary",
       "abstract_generate",
       "highlight_suggestions",
+      "image_alt",
       "closing_paragraph",
     ],
   },

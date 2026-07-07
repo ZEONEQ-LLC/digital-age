@@ -88,6 +88,9 @@ export type ArticlePatch = {
   seo_keywords_secondary?: string[];
   published_at?: string | null;
   locale?: "de-CH" | "en";
+  // Co-Pilot-Report des letzten Laufs (CopilotReport-Struktur). Loest keine
+  // content-Revision aus (nicht in der Trigger-Feldliste).
+  copilot_last_run?: Json | null;
 };
 
 export async function saveArticle(id: string, patch: ArticlePatch): Promise<ArticleRow> {

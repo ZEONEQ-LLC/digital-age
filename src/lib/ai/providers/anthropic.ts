@@ -50,13 +50,28 @@ export class AnthropicProvider implements LLMProvider {
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), REQUEST_TIMEOUT_MS);
 
+    // Ohne images: reiner Text-String (unveraendertes Verhalten). Mit images:
+    // Content-Block-Array aus Text + Image-Blocks (URL-Source).
+    const userContent: Anthropic.MessageParam["content"] =
+      params.images && params.images.length > 0
+        ? [
+            { type: "text", text: params.prompt },
+            ...params.images.map(
+              (img): Anthropic.ImageBlockParam => ({
+                type: "image",
+                source: { type: "url", url: img.source.url },
+              }),
+            ),
+          ]
+        : params.prompt;
+
     try {
       const resp = await client.messages.create(
         {
           model,
           max_tokens: params.maxTokens,
           system: params.system,
-          messages: [{ role: "user", content: params.prompt }],
+          messages: [{ role: "user", content: userContent }],
         },
         { signal: ac.signal },
       );

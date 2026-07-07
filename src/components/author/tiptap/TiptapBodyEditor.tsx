@@ -90,6 +90,13 @@ export type TiptapBodyEditorHandle = {
   // Zitat in EINER Transaktion → EIN Undo-Schritt. Returnt die Zahl der
   // tatsaechlich markierten Stellen (nicht gefundene werden uebersprungen).
   applyHighlights: (quotes: string[]) => number;
+  // Alle Inline-Bilder (src + aktueller alt) — fuer den Co-Pilot, um Bilder
+  // ohne ALT zu finden.
+  getImages: () => { url: string; alt: string }[];
+  // Setzt ALT auf Inline-Bilder per src-Match, aber NUR wenn das Bild aktuell
+  // KEINEN ALT hat (nie ueberschreiben). Eine Transaktion. Returnt die Zahl
+  // der gesetzten ALTs.
+  setImageAlts: (alts: Record<string, string>) => number;
 };
 
 type EditorLike = {
@@ -371,6 +378,39 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
         }
         chain.run();
         return ranges.length;
+      },
+      getImages: () => {
+        if (!editor) return [];
+        const out: { url: string; alt: string }[] = [];
+        editor.state.doc.descendants((node) => {
+          if (node.type.name === "image") {
+            out.push({
+              url: (node.attrs.src as string) ?? "",
+              alt: (node.attrs.alt as string) ?? "",
+            });
+          }
+        });
+        return out;
+      },
+      setImageAlts: (alts) => {
+        if (!editor) return 0;
+        const { state } = editor;
+        let tr = state.tr;
+        let count = 0;
+        // Positionen aendern sich durch ALT-Attribut-Updates nicht → in einer
+        // Transaktion sammeln. NUR setzen, wenn aktuell KEIN ALT gesetzt ist.
+        state.doc.descendants((node, pos) => {
+          if (node.type.name !== "image") return;
+          const src = (node.attrs.src as string) ?? "";
+          const cur = (node.attrs.alt as string) ?? "";
+          const next = alts[src];
+          if (typeof next === "string" && next.trim() !== "" && cur.trim() === "") {
+            tr = tr.setNodeAttribute(pos, "alt", next);
+            count += 1;
+          }
+        });
+        if (count > 0) editor.view.dispatch(tr);
+        return count;
       },
     }), [editor]);
 

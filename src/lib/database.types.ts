@@ -375,6 +375,7 @@ export type Database = {
           cover_image_caption: string | null
           cover_image_source: string | null
           cover_image_url: string | null
+          copilot_last_run: Json | null
           created_at: string
           excerpt: string | null
           id: string
@@ -407,6 +408,7 @@ export type Database = {
           cover_image_caption?: string | null
           cover_image_source?: string | null
           cover_image_url?: string | null
+          copilot_last_run?: Json | null
           created_at?: string
           excerpt?: string | null
           id?: string
@@ -439,6 +441,7 @@ export type Database = {
           cover_image_caption?: string | null
           cover_image_source?: string | null
           cover_image_url?: string | null
+          copilot_last_run?: Json | null
           created_at?: string
           excerpt?: string | null
           id?: string

@@ -39,11 +39,25 @@ export type AiTask =
   // Highlight-Vorschlaege: die AI schlaegt 3-6 woertliche Kernaussagen zum
   // Markieren (Bold + Green-Highlight) vor. Toolbar-Button im Body-Editor,
   // Anwendung erst nach Auswahl im Modal. Output ist JSON (quote + reason).
-  | "highlight_suggestions";
+  | "highlight_suggestions"
+  // Bild-ALT-Text-Generierung (Vision): ein Bild wird an das Modell
+  // uebergeben, Output ist JSON ({alt}). Vom Co-Pilot fuer Hero + Inline-
+  // Bilder ohne ALT genutzt. Braucht ein vision-faehiges Modell (Haiku 4.5
+  // und Sonnet 5 koennen Image-Content-Blocks).
+  | "image_alt"; // (Registrierung in config.ts/configActions.ts KNOWN_TASKS + Admin)
+
+// Minimaler Image-Input fuer Vision-Tasks. Aktuell nur URL-Source (die
+// Bild-URLs sind public Supabase-Storage-URLs, die Anthropic selbst laden
+// kann); base64 waere eine spaetere Erweiterung derselben Naht.
+export type LLMImage = { source: { kind: "url"; url: string } };
 
 export type LLMParams = {
   system: string;
   prompt: string;
+  // Optionale Bilder (Vision). Wenn gesetzt, baut der Provider den user-
+  // content als Block-Array (Text + Image-Blocks); ohne images unveraendert
+  // ein reiner Text-String.
+  images?: LLMImage[];
   maxTokens: number;
   task: AiTask;
   // Optionales Modell-Override pro Call. Wenn gesetzt, nutzt der
