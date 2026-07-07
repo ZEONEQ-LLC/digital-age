@@ -443,14 +443,25 @@ export default function AiConfigClient({
                     {entry.label}
                     {customized && <span className="aic-badge">angepasst</span>}
                   </span>
-                  <button
-                    type="button"
-                    className="aic-reset"
-                    disabled={!customized}
-                    onClick={() => setPromptOverride(entry.id, "")}
-                  >
-                    Auf Default zurücksetzen
-                  </button>
+                  <div style={{ display: "flex", gap: 8, flex: "0 0 auto" }}>
+                    <button
+                      type="button"
+                      className="aic-reset"
+                      disabled={customized}
+                      onClick={() => setPromptOverride(entry.id, entry.placeholder)}
+                      title="Kopiert den Code-Default ins Feld — danach editierbar (gilt als Override)."
+                    >
+                      Default in Feld übernehmen
+                    </button>
+                    <button
+                      type="button"
+                      className="aic-reset"
+                      disabled={!customized}
+                      onClick={() => setPromptOverride(entry.id, "")}
+                    >
+                      Auf Default zurücksetzen
+                    </button>
+                  </div>
                 </div>
                 <span className="aic-task-key">{entry.id}</span>
                 <textarea
