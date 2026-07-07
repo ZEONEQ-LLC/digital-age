@@ -75,6 +75,11 @@ export type TiptapBodyEditorHandle = {
   // HTML-Pfad zerstört Linebreaks, der Cleanup liest deshalb nicht aus
   // dem Editor sondern aus einer Plain-Textarea im Modal.)
   setContent: (json: TiptapDoc) => void;
+  // "Im Text anzeigen" aus dem SEO-Review: sucht `query` (whitespace-tolerant)
+  // im Body, selektiert das erste Vorkommen und scrollt es in den Blick.
+  // REIN visuell (Selection) — keine Doc-Mutation, Roundtrip-Guard unberuehrt.
+  // Returnt false, wenn kein Treffer (Text wurde evtl. geaendert).
+  highlightText: (query: string) => boolean;
 };
 
 type EditorLike = {
@@ -145,6 +150,57 @@ function sameMap(a: Map<number, number>, b: Map<number, number>): boolean {
   if (a.size !== b.size) return false;
   for (const [k, v] of a) if (b.get(k) !== v) return false;
   return true;
+}
+
+// Sucht `query` whitespace-tolerant im PM-Doc und liefert die Doc-Positionen
+// des ersten Vorkommens (from/to) oder null. Baut dazu den reinen Text +
+// eine Positions-Map (Zeichen-Index → Doc-Position) auf, normalisiert
+// Whitespace (Runs → einzelne Spaces) mit Rueck-Map, und matcht
+// case-insensitive. Rein lesend — kein dispatch.
+function findTextRange(
+  doc: PMNode,
+  query: string,
+): { from: number; to: number } | null {
+  const needle = query.replace(/\s+/g, " ").trim().toLowerCase();
+  if (needle === "") return null;
+
+  let raw = "";
+  const rawPos: number[] = [];
+  doc.descendants((node, pos) => {
+    if (node.isText && typeof node.text === "string") {
+      const t = node.text;
+      for (let k = 0; k < t.length; k++) {
+        raw += t[k];
+        rawPos.push(pos + k);
+      }
+    }
+    return true;
+  });
+
+  // Whitespace normalisieren, Rueck-Map normalisierter Index → raw Index.
+  let norm = "";
+  const normToRaw: number[] = [];
+  let prevSpace = false;
+  for (let i = 0; i < raw.length; i++) {
+    const isWs = /\s/.test(raw[i]);
+    if (isWs) {
+      if (prevSpace) continue;
+      norm += " ";
+      normToRaw.push(i);
+      prevSpace = true;
+    } else {
+      norm += raw[i];
+      normToRaw.push(i);
+      prevSpace = false;
+    }
+  }
+
+  const idx = norm.toLowerCase().indexOf(needle);
+  if (idx === -1) return null;
+
+  const startRaw = normToRaw[idx];
+  const endRaw = normToRaw[idx + needle.length - 1];
+  return { from: rawPos[startRaw], to: rawPos[endRaw] + 1 };
 }
 
 const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
@@ -259,6 +315,20 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
       },
       setContent: (json) => {
         editor?.commands.setContent(json as Parameters<typeof editor.commands.setContent>[0], { emitUpdate: true });
+      },
+      highlightText: (query) => {
+        if (!editor) return false;
+        const range = findTextRange(editor.state.doc, query);
+        if (!range) return false;
+        // Selektieren + in den Blick scrollen. Reine Selection-Aenderung
+        // (kein Doc-Update) → onUpdate/Guard bleiben unberuehrt.
+        editor
+          .chain()
+          .focus()
+          .setTextSelection(range)
+          .scrollIntoView()
+          .run();
+        return true;
       },
     }), [editor]);
 

@@ -2,6 +2,7 @@
 
 import { callLLM } from "@/lib/ai/client";
 import { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/database.types";
 import {
   buildSeoKeywordCandidatesSystem,
   buildSeoKeywordCandidatesPrompt,
@@ -376,6 +377,10 @@ export type SeoReviewSuggestion = {
   severity: SeoReviewSeverity;
   category: SeoReviewCategory;
   finding: string;
+  // EXAKTES wörtliches Zitat der betroffenen Stelle aus H1/Lead/H2. "" wenn
+  // kein konkreter Textbezug (z.B. "keine H2 vorhanden") oder Alt-Daten ohne
+  // das Feld.
+  targetQuote: string;
   recommendation: string;
 };
 
@@ -385,7 +390,10 @@ export type SeoReview = {
 };
 
 export type SeoReviewResult =
-  | { ok: true; review: SeoReview }
+  // reviewedAt: Zeitstempel der Persistenz (seo_review_at) oder null, wenn
+  // nicht gespeichert werden konnte (z.B. RLS-Block bei publiziertem Artikel
+  // eines Nicht-Editors). Die Analyse gilt trotzdem als ok.
+  | { ok: true; review: SeoReview; reviewedAt: string | null }
   | { ok: false; error: SeoPipelineErrorKind };
 
 const REVIEW_SEVERITIES: ReadonlySet<SeoReviewSeverity> = new Set([
@@ -489,6 +497,9 @@ function parseSeoReview(raw: string): SeoReview | null {
       severity: s.severity as SeoReviewSeverity,
       category: s.category as SeoReviewCategory,
       finding: s.finding,
+      // Tolerant: fehlend/kein String → "". KEIN Hard-Fail (Abwärtskompat
+      // zu Alt-Reviews ohne das Feld).
+      targetQuote: typeof s.targetQuote === "string" ? s.targetQuote : "",
       recommendation: s.recommendation,
     });
   }
@@ -534,5 +545,34 @@ export async function analyzeSeoEntry(args: {
     );
     return { ok: false, error: "invalid_json" };
   }
-  return { ok: true, review };
+
+  // Persistenz nach erfolgreichem Parse: seo_review + seo_review_at in EINER
+  // Transaktion (RPC setzt seo_review_at = now() == updated_at). SECURITY
+  // INVOKER → bestehende Artikel-RLS greift. Scheitert die Persistenz (RLS-
+  // Block, unbekannte id) → reviewedAt bleibt null, die Analyse wird trotzdem
+  // zurückgegeben. Ein fehlgeschlagener Parse (oben) speichert NICHT und
+  // überschreibt den letzten Stand somit nicht.
+  let reviewedAt: string | null = null;
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("save_seo_review", {
+      p_article_id: args.articleId,
+      p_review: review as unknown as Json,
+    });
+    if (error) {
+      console.warn(
+        `[seo-review] persist failed for ${args.articleId}:`,
+        error.message,
+      );
+    } else {
+      reviewedAt = (data as string | null) ?? null;
+    }
+  } catch (err) {
+    console.warn(
+      `[seo-review] persist threw for ${args.articleId}:`,
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+
+  return { ok: true, review, reviewedAt };
 }

@@ -386,6 +386,8 @@ export type Database = {
           seo_description: string | null
           seo_keyword_primary: string | null
           seo_keywords_secondary: string[]
+          seo_review: Json | null
+          seo_review_at: string | null
           seo_title: string | null
           slug: string
           status: Database["public"]["Enums"]["article_status"]
@@ -416,6 +418,8 @@ export type Database = {
           seo_description?: string | null
           seo_keyword_primary?: string | null
           seo_keywords_secondary?: string[]
+          seo_review?: Json | null
+          seo_review_at?: string | null
           seo_title?: string | null
           slug: string
           status?: Database["public"]["Enums"]["article_status"]
@@ -446,6 +450,8 @@ export type Database = {
           seo_description?: string | null
           seo_keyword_primary?: string | null
           seo_keywords_secondary?: string[]
+          seo_review?: Json | null
+          seo_review_at?: string | null
           seo_title?: string | null
           slug?: string
           status?: Database["public"]["Enums"]["article_status"]
@@ -1133,6 +1139,7 @@ export type Database = {
         Args: { p_new_name: string; p_tag_id: string }
         Returns: Json
       }
+      save_seo_review: { Args: { p_article_id: string; p_review: Json }; Returns: string }
       suggest_startup_slug: { Args: { p_name: string }; Returns: string }
     }
     Enums: {
