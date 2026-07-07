@@ -1141,6 +1141,7 @@ export type Database = {
       }
       save_seo_review: { Args: { p_article_id: string; p_review: Json }; Returns: string }
       suggest_startup_slug: { Args: { p_name: string }; Returns: string }
+      update_seo_review_done: { Args: { p_article_id: string; p_review: Json }; Returns: boolean }
     }
     Enums: {
       article_status: "draft" | "in_review" | "published" | "archived"
