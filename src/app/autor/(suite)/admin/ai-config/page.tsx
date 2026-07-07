@@ -2,18 +2,19 @@ import PageTitle from "@/components/author/PageTitle";
 import { createClient } from "@/lib/supabase/server";
 import type { AiTask } from "@/lib/ai/types";
 import {
-  SEO_PROMPT_IDS,
-  SEO_DEFAULT_STRATEGIES,
-  type SeoPromptId,
-} from "@/lib/ai/seoPrompts";
+  EDITABLE_PROMPT_IDS,
+  EDITABLE_DEFAULT_STRATEGIES,
+  type EditablePromptId,
+} from "@/lib/ai/promptRegistry";
 import AiConfigClient from "./AiConfigClient";
 
 // Editierbare Strategie-Prompts (Prompt-ID → UI-Label). Placeholder = der
-// Code-Default aus seoPrompts.ts; leeres Feld = Code-Standard.
-const PROMPT_LABELS: Record<SeoPromptId, string> = {
+// Code-Default aus der Registry; leeres Feld = Code-Standard.
+const PROMPT_LABELS: Record<EditablePromptId, string> = {
   seo_keyword_candidates: "SEO — Keyword-Kandidaten (Stufe 1)",
   seo_derive: "SEO — Ableitung aus Keyword (Stufe 2)",
   seo_review: "SEO — Verbesserungsvorschläge (Analyse)",
+  highlight_suggestions: "Highlight-Vorschläge",
 };
 
 // TASK_LABELS enthält alle Tasks, für die das UI ein Override-Dropdown
@@ -31,6 +32,7 @@ const TASK_LABELS: Record<AiTask, string> = {
   seo_review: "SEO-Verbesserungsvorschläge",
   news_item_generation: "News-Ticker Item-Generation",
   abstract_generate: "Abstract generieren",
+  highlight_suggestions: "Highlight-Vorschläge",
 };
 
 // Visuelle Gruppierung der UI-sichtbaren Tasks. Reihenfolge im Array =
@@ -52,6 +54,7 @@ const TASK_GROUPS: TaskGroup[] = [
       "tone_check",
       "summary",
       "abstract_generate",
+      "highlight_suggestions",
       "closing_paragraph",
     ],
   },
@@ -91,14 +94,14 @@ export default async function AiConfigPage() {
     unknown
   >;
   const initialPromptOverrides: Record<string, string> = {};
-  for (const id of SEO_PROMPT_IDS) {
+  for (const id of EDITABLE_PROMPT_IDS) {
     const v = rawPromptOverrides[id];
     if (typeof v === "string") initialPromptOverrides[id] = v;
   }
-  const promptEntries = SEO_PROMPT_IDS.map((id) => ({
+  const promptEntries = EDITABLE_PROMPT_IDS.map((id) => ({
     id,
     label: PROMPT_LABELS[id],
-    placeholder: SEO_DEFAULT_STRATEGIES[id],
+    placeholder: EDITABLE_DEFAULT_STRATEGIES[id],
   }));
 
   return (

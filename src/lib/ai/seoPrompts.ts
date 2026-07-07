@@ -373,38 +373,6 @@ export function buildSeoReviewPrompt(args: {
   ].join("\n");
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// Prompt-ID-Schluesselraum fuer die editierbaren Strategie-Overrides.
-// BEWUSST NICHT die AiTask-Enum: seo_pipeline ist zwei Prompts (Kandidaten +
-// Ableitung). Gespeichert in ai_config.task_prompt_overrides { promptId: text }.
-// ─────────────────────────────────────────────────────────────────────────
-
-export const SEO_PROMPT_IDS = [
-  "seo_keyword_candidates",
-  "seo_derive",
-  "seo_review",
-] as const;
-
-export type SeoPromptId = (typeof SEO_PROMPT_IDS)[number];
-
-// Code-Default-Strategien pro Prompt-ID — von der Admin-UI als Placeholder
-// genutzt und der Fallback, wenn kein Override gesetzt ist.
-export const SEO_DEFAULT_STRATEGIES: Record<SeoPromptId, string> = {
-  seo_keyword_candidates: SEO_KEYWORD_CANDIDATES_STRATEGY,
-  seo_derive: SEO_DERIVE_STRATEGY,
-  seo_review: SEO_REVIEW_STRATEGY,
-};
-
-// Saeuberung analog Modell-Overrides: nur bekannte Prompt-IDs, leere/
-// whitespace-only Werte fallen raus (Key weg → Resolver nimmt Code-Default).
-// getrimmt gespeichert.
-export function cleanPromptOverrides(
-  raw: Partial<Record<string, unknown>>,
-): Partial<Record<SeoPromptId, string>> {
-  const out: Partial<Record<SeoPromptId, string>> = {};
-  for (const id of SEO_PROMPT_IDS) {
-    const v = raw[id];
-    if (typeof v === "string" && v.trim() !== "") out[id] = v.trim();
-  }
-  return out;
-}
+// Der Prompt-ID-Schluesselraum + cleanPromptOverrides liegen jetzt in
+// promptRegistry.ts (generalisiert ueber SEO hinaus). Die SEO_*_STRATEGY-
+// Konstanten oben werden von dort importiert.

@@ -23,10 +23,12 @@ import {
   buildSeoReviewSystem,
   SEO_REVIEW_STRATEGY,
   SEO_REVIEW_SCHEMA,
-  SEO_PROMPT_IDS,
-  SEO_DEFAULT_STRATEGIES,
-  cleanPromptOverrides,
 } from "../seoPrompts";
+import {
+  EDITABLE_PROMPT_IDS,
+  EDITABLE_DEFAULT_STRATEGIES,
+  cleanPromptOverrides,
+} from "../promptRegistry";
 
 let passes = 0;
 let fails = 0;
@@ -151,13 +153,14 @@ section("seo_review — proposedText + Einfuege-Anker im Schema (Iteration 2)");
     buildSeoReviewSystem("de-CH", "NUR STRATEGIE").includes('"proposedText": string'));
 }
 
-section("Prompt-IDs + Code-Defaults");
+section("Prompt-IDs + Code-Defaults (Registry, generalisiert)");
 {
-  ok("3 Prompt-IDs", SEO_PROMPT_IDS.length === 3);
+  ok("4 Prompt-IDs (inkl. highlight_suggestions)", EDITABLE_PROMPT_IDS.length === 4);
   ok("IDs korrekt",
-    SEO_PROMPT_IDS.join(",") === "seo_keyword_candidates,seo_derive,seo_review");
-  for (const id of SEO_PROMPT_IDS) {
-    const def = SEO_DEFAULT_STRATEGIES[id];
+    EDITABLE_PROMPT_IDS.join(",") ===
+      "seo_keyword_candidates,seo_derive,seo_review,highlight_suggestions");
+  for (const id of EDITABLE_PROMPT_IDS) {
+    const def = EDITABLE_DEFAULT_STRATEGIES[id];
     ok(`Default fuer ${id} nicht leer`, typeof def === "string" && def.trim().length > 0);
     ok(`Default fuer ${id} sprachneutral (keine SPRACHE-Zeile)`, !def.includes("SPRACHE "));
   }

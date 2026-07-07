@@ -35,7 +35,11 @@ export type AiTask =
   // Abstract-Generierung aus dem Body-Text. Wird vom Toolbar-Button im
   // Abstract-Editor aufgerufen. Locale (de-CH | en) ist harte Vorgabe im
   // System-Prompt, Output ist Plain-Token-Text (kein JSON).
-  | "abstract_generate";
+  | "abstract_generate"
+  // Highlight-Vorschlaege: die AI schlaegt 3-6 woertliche Kernaussagen zum
+  // Markieren (Bold + Green-Highlight) vor. Toolbar-Button im Body-Editor,
+  // Anwendung erst nach Auswahl im Modal. Output ist JSON (quote + reason).
+  | "highlight_suggestions";
 
 export type LLMParams = {
   system: string;

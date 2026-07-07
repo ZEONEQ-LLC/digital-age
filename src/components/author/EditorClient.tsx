@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import AuthorStatusBadge from "@/components/author/AuthorStatusBadge";
 import EditorDetailsTab from "@/components/author/EditorDetailsTab";
 import EditorRevisions from "@/components/author/EditorRevisions";
 import EditorSeoPanel, { type SeoState } from "@/components/author/EditorSeoPanel";
 import { normalizeStoredReview } from "@/lib/ai/seoReview";
+import HighlightSuggestModal from "@/components/editor/HighlightSuggestModal";
+import { generateHighlightSuggestions } from "@/lib/ai/highlightActions";
+import type { HighlightSuggestion } from "@/lib/ai/highlightPrompts";
 import ArticleBody from "@/components/ArticleBody";
 import BlockReader from "@/components/BlockReader";
 import InlineText from "@/components/InlineText";
@@ -260,6 +263,58 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     const t = setTimeout(() => setHighlightMiss(false), 5000);
     return () => clearTimeout(t);
   }, [highlightMiss]);
+
+  // AI-Highlight-Vorschläge (Modal-Flow). Der Body-Editor-Button ruft die
+  // Server Action mit dem LIVE marker-freien Body-Text; das Modal zeigt die
+  // Vorschläge, Anwenden setzt Bold + Green-Highlight (Dokument-Änderung,
+  // Undo-fähig).
+  const [highlightModalOpen, setHighlightModalOpen] = useState(false);
+  const [highlightSuggestions, setHighlightSuggestions] = useState<
+    HighlightSuggestion[]
+  >([]);
+  const [highlightBusy, setHighlightBusy] = useState(false);
+  const [highlightError, setHighlightError] = useState<string | null>(null);
+
+  const MIN_BODY_FOR_HIGHLIGHTS = 200;
+
+  async function handleRequestHighlights() {
+    if (highlightBusy) return;
+    setHighlightError(null);
+    const plain = bodyEditorRef.current?.getPlainText().trim() ?? "";
+    if (plain.length < MIN_BODY_FOR_HIGHLIGHTS) {
+      setHighlightError(
+        "Body-Text zu kurz für Highlight-Vorschläge (mindestens 200 Zeichen).",
+      );
+      return;
+    }
+    setHighlightBusy(true);
+    try {
+      const result = await generateHighlightSuggestions({
+        bodyText: plain,
+        locale,
+        articleId: article.id,
+      });
+      if (!result.ok) {
+        setHighlightError(aiAbstractErrorMessage(result.error));
+        return;
+      }
+      setHighlightSuggestions(result.suggestions);
+      setHighlightModalOpen(true);
+    } finally {
+      setHighlightBusy(false);
+    }
+  }
+
+  // Stabil für den useMemo im Modal: prüft, ob ein Zitat im Body auffindbar ist.
+  const isHighlightFindable = useCallback(
+    (quote: string) => bodyEditorRef.current?.hasText(quote) ?? false,
+    [],
+  );
+
+  function handleApplyHighlights(quotes: string[]) {
+    bodyEditorRef.current?.applyHighlights(quotes);
+    setHighlightModalOpen(false);
+  }
 
   // Liest den aktuellen Abstract-Stand aus dem Tiptap-Editor und
   // serialisiert ihn in den Token-String, der in `articles.excerpt`
@@ -1204,6 +1259,47 @@ export default function EditorClient({ article, revisions, categories, isEditor,
                 Stelle nicht gefunden — Text wurde evtl. geändert.
               </div>
             )}
+            {highlightBusy && (
+              <div
+                role="status"
+                style={{
+                  color: "var(--da-muted)",
+                  fontFamily: "var(--da-font-mono)",
+                  fontSize: 13,
+                  marginBottom: 14,
+                }}
+              >
+                ⏳ Generiere Highlight-Vorschläge…
+              </div>
+            )}
+            {highlightError && (
+              <div
+                role="alert"
+                style={{
+                  background: "rgba(255, 92, 92, 0.10)",
+                  border: "1px solid var(--da-red, #ff5c5c)",
+                  color: "var(--da-red, #ff5c5c)",
+                  padding: "10px 14px",
+                  borderRadius: 6,
+                  fontSize: 13,
+                  marginBottom: 14,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <span>{highlightError}</span>
+                <button
+                  type="button"
+                  onClick={() => setHighlightError(null)}
+                  style={{ background: "transparent", border: 0, color: "inherit", cursor: "pointer", fontSize: 13 }}
+                  aria-label="Fehlermeldung schliessen"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
             {guardResult && !guardResult.allowed && (
               <div
                 style={{
@@ -1335,6 +1431,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
                 initialContent={initialBodyTiptap}
                 onRequestSourcePick={requestSourcePick}
                 onMdCleanup={() => setMdCleanupOpen(true)}
+                onRequestHighlights={handleRequestHighlights}
               />
             </div>
             <div className="a-edit-mini-stats" aria-label="Live-Statistik">
@@ -1380,6 +1477,14 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           articleCategoryId={article.category_id}
         />
       </div>
+
+      <HighlightSuggestModal
+        open={highlightModalOpen}
+        suggestions={highlightSuggestions}
+        isFindable={isHighlightFindable}
+        onApply={handleApplyHighlights}
+        onClose={() => setHighlightModalOpen(false)}
+      />
 
       <MdCleanupModal
         open={mdCleanupOpen}

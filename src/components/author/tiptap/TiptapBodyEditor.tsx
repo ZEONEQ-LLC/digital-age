@@ -80,6 +80,16 @@ export type TiptapBodyEditorHandle = {
   // REIN visuell (Selection) — keine Doc-Mutation, Roundtrip-Guard unberuehrt.
   // Returnt false, wenn kein Treffer (Text wurde evtl. geaendert).
   highlightText: (query: string) => boolean;
+  // Marker-freier Plain-Text des Body — Input fuer den AI-Task
+  // highlight_suggestions (damit die Zitate im Text wiederfindbar sind).
+  getPlainText: () => string;
+  // Ist `query` (whitespace-tolerant) im aktuellen Text auffindbar? Fuer die
+  // Modal-Checkboxen (nicht gefundene Vorschlaege deaktivieren).
+  hasText: (query: string) => boolean;
+  // Setzt Bold + Green-Highlight (exakt die Toolbar-Marks) auf jedes gefundene
+  // Zitat in EINER Transaktion → EIN Undo-Schritt. Returnt die Zahl der
+  // tatsaechlich markierten Stellen (nicht gefundene werden uebersprungen).
+  applyHighlights: (quotes: string[]) => number;
 };
 
 type EditorLike = {
@@ -134,6 +144,9 @@ type Props = {
   // reichen den Klick als Event nach oben, der Parent zieht via
   // getText()/setContent() durch die Pipeline.
   onMdCleanup?: () => void;
+  // AI: Kernaussagen vorschlagen (Modal-Flow im Parent). Der Button reicht nur
+  // den Klick nach oben; Server Action + Modal + Anwenden gehoeren dem Parent.
+  onRequestHighlights?: () => void;
 };
 
 // Sammelt die Storage-N der daSourceRef-Nodes in DOKUMENT-Reihenfolge.
@@ -204,7 +217,7 @@ function findTextRange(
 }
 
 const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
-  function TiptapBodyEditor({ articleId, initialContent, onEditorReady, onRequestSourcePick, onMdCleanup }, ref) {
+  function TiptapBodyEditor({ articleId, initialContent, onEditorReady, onRequestSourcePick, onMdCleanup, onRequestHighlights }, ref) {
     const toolbarRef = useRef<HTMLDivElement>(null);
 
     // Live-Map `n → Auftritts-Rang` fuer die Inline-Source-Ref-NodeViews.
@@ -330,6 +343,35 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
           .run();
         return true;
       },
+      getPlainText: () => editor?.state.doc.textContent ?? "",
+      hasText: (query) =>
+        editor ? findTextRange(editor.state.doc, query) !== null : false,
+      applyHighlights: (quotes) => {
+        if (!editor) return 0;
+        // Alle Ranges vorab auf dem aktuellen Doc lokalisieren, Duplikate
+        // (case-insensitive) filtern.
+        const ranges: { from: number; to: number }[] = [];
+        const seen = new Set<string>();
+        for (const q of quotes) {
+          const key = q.trim().toLowerCase();
+          if (key === "" || seen.has(key)) continue;
+          seen.add(key);
+          const r = findTextRange(editor.state.doc, q);
+          if (r) ranges.push(r);
+        }
+        if (ranges.length === 0) return 0;
+        // EIN chain-Aufruf = eine Transaktion = ein Undo-Schritt. Marks aendern
+        // keine Positionen → die vorab bestimmten Ranges bleiben gueltig.
+        let chain = editor.chain().focus();
+        for (const r of ranges) {
+          chain = chain
+            .setTextSelection(r)
+            .setMark("bold")
+            .setMark("highlight", { color: HIGHLIGHT_GREEN_HEX });
+        }
+        chain.run();
+        return ranges.length;
+      },
     }), [editor]);
 
     return (
@@ -449,6 +491,29 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
                     }}
                   >
                     MD
+                  </span>
+                </Button>
+              )}
+              {onRequestHighlights && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  tooltip="AI: Kernaussagen markieren (Bold + Highlight)"
+                  aria-label="AI-Highlight-Vorschläge"
+                  onClick={onRequestHighlights}
+                >
+                  <span
+                    className="tiptap-button-icon"
+                    style={{
+                      fontSize: 14,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 18,
+                      height: 18,
+                    }}
+                  >
+                    ✨
                   </span>
                 </Button>
               )}
