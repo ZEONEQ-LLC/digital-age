@@ -1,17 +1,25 @@
 "use server";
 
 import { callLLM } from "@/lib/ai/client";
-
-// Body-Cap für den Pipeline-Input. 12000 Zeichen ≈ 1800 dt. Wörter und
-// decken die längsten DB-Artikel weitgehend ab (vorheriger 4000-Cap zeigte
-// dem Modell bei langen Artikeln nur ~25 % des Texts — Keyword-Wahl lief
-// dann auf der Intro statt dem Artikel-Kern, was die strategische
-// Keyword-Auswahl unzuverlässig machte). Token-Aufschlag pro Call gegenüber
-// 4000 ist vernachlässigbar (~0.2 ¢ Haiku-Input).
-const MAX_BODY_CHARS = 12000;
+import {
+  buildSeoKeywordCandidatesSystem,
+  buildSeoKeywordCandidatesPrompt,
+  buildSeoDeriveSystem,
+  buildSeoDerivePrompt,
+} from "@/lib/ai/seoPrompts";
 
 // ─────────────────────────────────────────────────────────────────────────
-// Master-Pipeline — ein LLM-Call liefert 5 Felder als JSON.
+// Zweistufige SEO-Pipeline.
+//   Stufe 1: generateSeoKeywordCandidates -> 3-5 Focus-Keyword-Kandidaten.
+//   Stufe 2: generateSeoFromKeyword       -> restliche Felder aus dem
+//            gewaehlten Keyword abgeleitet.
+// Beide Stufen laufen unter demselben Task `seo_pipeline` — EIN Modell-
+// Override im Admin-UI steuert die ganze Pipeline (kein neuer Task noetig).
+//
+// generateSeoFields (Kompat) komponiert beide Stufen zu einem SeoFields und
+// bedient die 4 Einzel-Regenerate-Buttons in EditorSeoPanel, die
+// unveraendert bleiben (Kosten: 2 Calls statt 1 pro Einzel-Regenerate —
+// die technisch zwingende Folge der Entkopplung, siehe PR-Text).
 // ─────────────────────────────────────────────────────────────────────────
 
 export type SeoFields = {
@@ -22,6 +30,10 @@ export type SeoFields = {
   slugSuggestion: string;
   semanticTerms: string[];
 };
+
+// Wie SeoFields, aber ohne focusKeyword — das ist in Stufe 2 die Vorgabe,
+// nicht das Ergebnis.
+export type SeoDerivedFields = Omit<SeoFields, "focusKeyword">;
 
 export type SeoPipelineErrorKind =
   | "config"
@@ -35,87 +47,13 @@ export type SeoPipelineResult =
   | { ok: true; fields: SeoFields }
   | { ok: false; error: SeoPipelineErrorKind };
 
-// Locale-Branch im System-Prompt. Caller-System-Prompt wird vom Config-
-// Resolver in callLLM mit dem globalen ai_config.system_prompt prefix-
-// concatenated (etabliertes Pattern aus resolveLLMConfig).
-// Task-Prompt für die SEO-Pipeline. Brand, Rolle ("SEO-Experte"),
-// Schweizer Rechtschreibung und Output-Disziplin sind bereits im
-// globalen Systemprompt (ai_config.system_prompt) abgedeckt — dieser
-// Task-Prompt setzt direkt auf der SEO-Strategie auf und dupliziert das
-// nicht. Locale steuert nur noch die Output-Sprache.
-function buildSeoPipelineSystem(locale: "de-CH" | "en"): string {
-  return [
-    "Aufgabe: Generiere SEO-Felder für einen Magazin-Artikel.",
-    "",
-    `SPRACHE des Outputs: ${
-      locale === "en" ? "Englisch" : "Deutsch (Schweizer Rechtschreibung)"
-    }.`,
-    "",
-    "STRATEGIE — in dieser Reihenfolge anwenden:",
-    "",
-    "1. Themenprofil zuerst.",
-    "   Bestimme zuerst das Kern-Thema des Artikels (2–3 Sätze, interne Notiz).",
-    "   Alle folgenden Felder müssen konsistent zu diesem Themenprofil sein.",
-    "",
-    "2. Focus-Keyword wählen.",
-    "   Wähle das Keyword, das die Suchintention der Zielleser am genauesten",
-    "   trifft — NICHT das häufigste Wort im Text. Bevorzuge spezifische",
-    "   Mid-Tail-Phrasen (2–4 Wörter) gegenüber generischen Head-Terms.",
-    "   Das Keyword muss eine realistische Such-Anfrage sein, für die diese",
-    "   Seite ranken kann.",
-    "",
-    "3. Title-Kandidaten.",
-    "   3 Vorschläge, je 50–60 Zeichen. focusKeyword in den ersten 30 Zeichen",
-    "   jedes Kandidaten. Aktive Sprache; optional eine Zahl oder ein",
-    "   konkretes Versprechen, kein Clickbait.",
-    "",
-    "4. Meta-Description.",
-    "   150–160 Zeichen. focusKeyword in den ersten 60 Zeichen. Konkretes",
-    "   Versprechen statt Werbe-Adjektive. CTA am Ende.",
-    "",
-    "5. Slug.",
-    "   3–5 Wörter ideal, max 60 Zeichen, kebab-case, Stopwörter weglassen,",
-    "   focusKeyword drin.",
-    "",
-    "6. Semantische Begriffe.",
-    "   Generiere zusätzlich 8–12 semantische Begriffe — eng verwandt zum",
-    "   focusKeyword PLUS thematische Variationen, die im Body-Text natürlich",
-    "   vorkommen sollten. KEINE blossen Synonyme des focusKeywords, sondern",
-    "   Begriffe, die Sub-Themen, verwandte Konzepte und relevante",
-    "   Suchanfragen-Variationen abdecken. Jeder Begriff 1–4 Wörter, kein",
-    "   Stuffing. Beispiel-Stil für focusKeyword 'KI im Banking': 'Compliance-",
-    "   Automation', 'Regulatorische Anforderungen', 'KI-gestützte",
-    "   Risikoanalyse', 'Banking-Use-Cases' — nicht 'Künstliche Intelligenz",
-    "   im Bankwesen' (reines Synonym).",
-    "",
-    "OUTPUT: NUR ein JSON-Objekt, Schema:",
-    "{",
-    '  "themenprofil": string,         // 2-3 Sätze interne Notiz zum Artikel-Fokus',
-    '  "focusKeyword": string,         // 2-4 Wörter, Hauptkeyword',
-    '  "titleCandidates": [string, string, string],  // 3 Title-Tag-Vorschläge, je 50-60 Zeichen, focusKeyword in den ersten 30 Zeichen',
-    '  "metaDescription": string,      // 150-160 Zeichen, focusKeyword in den ersten 60 Zeichen, CTA am Ende',
-    '  "slugSuggestion": string,       // kebab-case, 3-5 Wörter, max 60 Zeichen, mit focusKeyword',
-    '  "semanticTerms": string[]       // 8-12 semantische Begriffe (1-4 Wörter), keine Synonyme des focusKeywords',
-    "}",
-  ].join("\n");
-}
+export type SeoKeywordCandidatesResult =
+  | { ok: true; candidates: string[] }
+  | { ok: false; error: SeoPipelineErrorKind };
 
-function buildSeoPipelinePrompt(args: {
-  title: string;
-  bodyText: string;
-}): string {
-  const title = args.title.trim();
-  const body = args.bodyText.trim().slice(0, MAX_BODY_CHARS);
-  const parts: string[] = [];
-  if (title) parts.push(`Artikel-Titel: ${title}`);
-  if (body) parts.push(`Artikel-Inhalt (Auszug):\n${body}`);
-  if (parts.length === 0) {
-    parts.push(
-      "Es liegt noch kein Inhalt vor. Generiere SEO-Felder für einen generischen Artikel zu KI/Tech.",
-    );
-  }
-  return parts.join("\n\n");
-}
+export type SeoDeriveResult =
+  | { ok: true; fields: SeoDerivedFields }
+  | { ok: false; error: SeoPipelineErrorKind };
 
 // Strippt einen optionalen Markdown-Codefence (```json ... ```) falls das
 // Modell ihn entgegen der Anweisung doch produziert. Spart einen Retry
@@ -137,14 +75,14 @@ function truncateForLog(s: string): string {
   return s.length > RAW_LOG_MAX ? `${s.slice(0, RAW_LOG_MAX)}…[truncated]` : s;
 }
 
-function parseSeoFields(raw: string): SeoFields | null {
+function parseKeywordCandidates(raw: string): string[] | null {
   const text = stripCodeFence(raw);
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch (err) {
     console.error(
-      "[seo-pipeline] JSON.parse failed:",
+      "[seo-keywords] JSON.parse failed:",
       err instanceof Error ? err.message : String(err),
       "| raw:",
       truncateForLog(raw),
@@ -153,7 +91,62 @@ function parseSeoFields(raw: string): SeoFields | null {
   }
   if (!parsed || typeof parsed !== "object") {
     console.error(
-      "[seo-pipeline] Schema validation failed (missing or wrong type): top-level not an object | raw:",
+      "[seo-keywords] Schema validation failed: top-level not an object | raw:",
+      truncateForLog(raw),
+    );
+    return null;
+  }
+  const p = parsed as Record<string, unknown>;
+  if (!Array.isArray(p.candidates)) {
+    console.error(
+      "[seo-keywords] Schema validation failed: candidates not an array | raw:",
+      truncateForLog(raw),
+    );
+    return null;
+  }
+  // Nicht-Strings, leere Strings, Duplikate (case-insensitive) filtern.
+  // Auf max 5 begrenzen (Prompt-Kontrakt 3-5).
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const c of p.candidates) {
+    if (typeof c !== "string") continue;
+    const trimmed = c.trim();
+    if (trimmed === "") continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(trimmed);
+    if (out.length >= 5) break;
+  }
+  if (out.length === 0) {
+    console.error(
+      "[seo-keywords] Schema validation failed: no usable candidate strings | raw:",
+      truncateForLog(raw),
+    );
+    return null;
+  }
+  return out;
+}
+
+// Wie das frühere parseSeoFields, aber OHNE focusKeyword — das ist in
+// Stufe 2 die Vorgabe, nicht das Ergebnis.
+function parseSeoDerived(raw: string): SeoDerivedFields | null {
+  const text = stripCodeFence(raw);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch (err) {
+    console.error(
+      "[seo-derive] JSON.parse failed:",
+      err instanceof Error ? err.message : String(err),
+      "| raw:",
+      truncateForLog(raw),
+    );
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object") {
+    console.error(
+      "[seo-derive] Schema validation failed (missing or wrong type): top-level not an object | raw:",
       truncateForLog(raw),
     );
     return null;
@@ -161,7 +154,6 @@ function parseSeoFields(raw: string): SeoFields | null {
   const p = parsed as Record<string, unknown>;
 
   const themenprofil = typeof p.themenprofil === "string" ? p.themenprofil : null;
-  const focusKeyword = typeof p.focusKeyword === "string" ? p.focusKeyword : null;
   const metaDescription =
     typeof p.metaDescription === "string" ? p.metaDescription : null;
   const slugSuggestion =
@@ -170,7 +162,6 @@ function parseSeoFields(raw: string): SeoFields | null {
 
   if (
     themenprofil === null ||
-    focusKeyword === null ||
     metaDescription === null ||
     slugSuggestion === null ||
     titles === null ||
@@ -178,10 +169,9 @@ function parseSeoFields(raw: string): SeoFields | null {
     !titles.every((t): t is string => typeof t === "string")
   ) {
     console.error(
-      "[seo-pipeline] Schema validation failed (missing or wrong type):",
+      "[seo-derive] Schema validation failed (missing or wrong type):",
       JSON.stringify({
         themenprofil: typeof p.themenprofil,
-        focusKeyword: typeof p.focusKeyword,
         metaDescription: typeof p.metaDescription,
         slugSuggestion: typeof p.slugSuggestion,
         titleCandidatesIsArray: Array.isArray(p.titleCandidates),
@@ -195,7 +185,7 @@ function parseSeoFields(raw: string): SeoFields | null {
     return null;
   }
 
-  // semanticTerms: defensiv. Fehlt es im Output oder ist es kein Array,
+  // semanticTerms: defensiv (Verhalten wie zuvor). Fehlt es oder kein Array,
   // wird ein leeres Array zurückgegeben — kein Schema-Fehler. Filter raus:
   // Nicht-Strings, leere Strings, Duplikate (case-insensitive).
   const semanticTerms: string[] = [];
@@ -214,7 +204,6 @@ function parseSeoFields(raw: string): SeoFields | null {
 
   return {
     themenprofil,
-    focusKeyword,
     titleCandidates: [titles[0], titles[1], titles[2]],
     metaDescription,
     slugSuggestion,
@@ -222,20 +211,58 @@ function parseSeoFields(raw: string): SeoFields | null {
   };
 }
 
-export async function generateSeoFields(args: {
+// Stufe 1: 3-5 Focus-Keyword-Kandidaten. `rejectedKeywords` sind bereits
+// verworfene Vorschläge (kumuliert im Panel), die als Negativ-Liste in den
+// Prompt gehen, damit der nächste Lauf andere Blickwinkel wählt.
+export async function generateSeoKeywordCandidates(args: {
   title: string;
   bodyText: string;
   locale: "de-CH" | "en";
   articleId: string;
-}): Promise<SeoPipelineResult> {
+  rejectedKeywords: string[];
+}): Promise<SeoKeywordCandidatesResult> {
   const result = await callLLM({
-    system: buildSeoPipelineSystem(args.locale),
-    prompt: buildSeoPipelinePrompt({
+    system: buildSeoKeywordCandidatesSystem(args.locale),
+    prompt: buildSeoKeywordCandidatesPrompt({
       title: args.title,
       bodyText: args.bodyText,
+      rejectedKeywords: args.rejectedKeywords,
     }),
-    // Output-Budget: ursprünglich 600 für 5 Felder; semanticTerms (8-12
-    // Strings à 1-4 Wörter) addiert ~80-150 Tokens. 800 gibt Puffer.
+    // Output-Budget: 3-5 kurze Strings + JSON-Hülle. 300 gibt Puffer.
+    maxTokens: 300,
+    task: "seo_pipeline",
+  });
+
+  if (!result.ok) {
+    return { ok: false, error: result.kind };
+  }
+
+  const candidates = parseKeywordCandidates(result.text);
+  if (!candidates) {
+    console.error(
+      `[seo-keywords] JSON-Parse failed for article ${args.articleId}`,
+    );
+    return { ok: false, error: "invalid_json" };
+  }
+  return { ok: true, candidates };
+}
+
+// Stufe 2: leitet die restlichen Felder aus dem GEWÄHLTEN Keyword ab.
+export async function generateSeoFromKeyword(args: {
+  title: string;
+  bodyText: string;
+  chosenKeyword: string;
+  locale: "de-CH" | "en";
+  articleId: string;
+}): Promise<SeoDeriveResult> {
+  const result = await callLLM({
+    system: buildSeoDeriveSystem(args.locale),
+    prompt: buildSeoDerivePrompt({
+      title: args.title,
+      bodyText: args.bodyText,
+      chosenKeyword: args.chosenKeyword,
+    }),
+    // Output-Budget wie zuvor für die abgeleiteten Felder (~800).
     maxTokens: 800,
     task: "seo_pipeline",
   });
@@ -244,14 +271,51 @@ export async function generateSeoFields(args: {
     return { ok: false, error: result.kind };
   }
 
-  const fields = parseSeoFields(result.text);
+  const fields = parseSeoDerived(result.text);
   if (!fields) {
     console.error(
-      `[seo-pipeline] JSON-Parse failed for article ${args.articleId}`,
+      `[seo-derive] JSON-Parse failed for article ${args.articleId}`,
     );
     return { ok: false, error: "invalid_json" };
   }
   return { ok: true, fields };
+}
+
+// Kompat-Pfad für die 4 Einzel-Regenerate-Buttons in EditorSeoPanel: liefert
+// wie früher ein vollständiges SeoFields. Komponiert die zwei Stufen —
+// Stufe 1 (erster Kandidat = Keyword) + Stufe 2 (Ableitung). Bewusst KEINE
+// Negativ-Liste (Einzel-Regenerate braucht keine). Zwei LLM-Calls statt
+// einem; die Buttons selbst bleiben unverändert (siehe PR-Text).
+export async function generateSeoFields(args: {
+  title: string;
+  bodyText: string;
+  locale: "de-CH" | "en";
+  articleId: string;
+}): Promise<SeoPipelineResult> {
+  const candidates = await generateSeoKeywordCandidates({
+    title: args.title,
+    bodyText: args.bodyText,
+    locale: args.locale,
+    articleId: args.articleId,
+    rejectedKeywords: [],
+  });
+  if (!candidates.ok) {
+    return { ok: false, error: candidates.error };
+  }
+  const focusKeyword = candidates.candidates[0];
+
+  const derived = await generateSeoFromKeyword({
+    title: args.title,
+    bodyText: args.bodyText,
+    chosenKeyword: focusKeyword,
+    locale: args.locale,
+    articleId: args.articleId,
+  });
+  if (!derived.ok) {
+    return { ok: false, error: derived.error };
+  }
+
+  return { ok: true, fields: { focusKeyword, ...derived.fields } };
 }
 
 

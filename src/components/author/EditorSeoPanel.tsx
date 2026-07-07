@@ -7,7 +7,10 @@ import KeywordPillInput from "./KeywordPillInput";
 import {
   analyzeSeoEntry,
   generateSeoFields,
+  generateSeoKeywordCandidates,
+  generateSeoFromKeyword,
   type SeoFields,
+  type SeoDerivedFields,
   type SeoReview,
   type SeoReviewSeverity,
   type SeoReviewCategory,
@@ -250,9 +253,24 @@ export default function EditorSeoPanel({
   // Vergleich (z.B. 3 Titel-Kandidaten). Eine "Übernehmen"-Aktion auf einem
   // Title-Kandidaten dismisst das gesamte Title-Set, weil dann eine
   // konkrete Auswahl getroffen wurde.
-  const [pipelineFields, setPipelineFields] = useState<SeoFields | null>(null);
+  // Stufe 1 — Focus-Keyword-Kandidaten. `rejectedKeywords` kumuliert die über
+  // mehrere Runden verworfenen Vorschläge (Session-State, nicht persistiert)
+  // und geht als Negativ-Liste in den nächsten Stage-1-Call.
+  const [keywordCandidates, setKeywordCandidates] = useState<string[] | null>(
+    null,
+  );
+  const [rejectedKeywords, setRejectedKeywords] = useState<string[]>([]);
+  const [keywordPending, startKeywordTransition] = useTransition();
+  const [keywordError, setKeywordError] = useState<string | null>(null);
+
+  // Stufe 2 — abgeleitete Felder aus dem gewählten Keyword. `derivingKeyword`
+  // merkt sich das Keyword für den Retry, falls Stufe 2 fehlschlägt.
+  const [pipelineFields, setPipelineFields] = useState<SeoDerivedFields | null>(
+    null,
+  );
   const [pipelineError, setPipelineError] = useState<string | null>(null);
   const [pipelinePending, startPipelineTransition] = useTransition();
+  const [derivingKeyword, setDerivingKeyword] = useState<string | null>(null);
   const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(new Set());
 
   // Review-State (read-only, kein Cache). "Analysieren" erneut zu klicken
@@ -372,14 +390,83 @@ export default function EditorSeoPanel({
     });
   }
 
-  function handleGenerate() {
+  // Stufe 1 starten (Master-Button). Setzt Negativ-Liste + Stage-2-Reste
+  // zurück — ein frischer Lauf beginnt ohne Alt-Ausschlüsse.
+  function handleGenerateCandidates() {
+    setKeywordError(null);
+    setKeywordCandidates(null);
+    setRejectedKeywords([]);
+    setPipelineFields(null);
+    setPipelineError(null);
+    setDerivingKeyword(null);
+    setDismissedKeys(new Set());
+    startKeywordTransition(async () => {
+      const result = await generateSeoKeywordCandidates({
+        title: articleTitle,
+        bodyText: articleBodyText,
+        locale,
+        articleId,
+        rejectedKeywords: [],
+      });
+      if (!result.ok) {
+        setKeywordError(errorMessageFor(result.error));
+        return;
+      }
+      setKeywordCandidates(result.candidates);
+    });
+  }
+
+  // "Alle verwerfen": aktuelle Kandidaten in die Negativ-Liste aufnehmen und
+  // neue generieren. Alte Kandidaten bleiben sichtbar (Buttons disabled), bis
+  // der neue Satz da ist — weniger Flackern.
+  function handleRejectAllCandidates() {
+    const current = keywordCandidates ?? [];
+    const nextRejected = [...rejectedKeywords];
+    const seen = new Set(nextRejected.map((k) => k.toLowerCase()));
+    for (const c of current) {
+      const key = c.toLowerCase();
+      if (!seen.has(key)) {
+        nextRejected.push(c);
+        seen.add(key);
+      }
+    }
+    setRejectedKeywords(nextRejected);
+    setKeywordError(null);
+    startKeywordTransition(async () => {
+      const result = await generateSeoKeywordCandidates({
+        title: articleTitle,
+        bodyText: articleBodyText,
+        locale,
+        articleId,
+        rejectedKeywords: nextRejected,
+      });
+      if (!result.ok) {
+        setKeywordError(errorMessageFor(result.error));
+        return;
+      }
+      setKeywordCandidates(result.candidates);
+    });
+  }
+
+  // Kandidat auswählen: Keyword in den seo-State übernehmen (wie das heutige
+  // Übernehmen), Kandidaten-Box schliessen, Stufe 2 automatisch starten.
+  function handleSelectKeyword(candidate: string) {
+    onChange({ ...seo, keyword: candidate });
+    setKeywordCandidates(null);
+    runDerive(candidate);
+  }
+
+  // Stufe 2: Ableitung aus dem gewählten Keyword. Auch der Retry-Pfad.
+  function runDerive(keyword: string) {
     setPipelineError(null);
     setPipelineFields(null);
     setDismissedKeys(new Set());
+    setDerivingKeyword(keyword);
     startPipelineTransition(async () => {
-      const result = await generateSeoFields({
+      const result = await generateSeoFromKeyword({
         title: articleTitle,
         bodyText: articleBodyText,
+        chosenKeyword: keyword,
         locale,
         articleId,
       });
@@ -389,6 +476,12 @@ export default function EditorSeoPanel({
       }
       setPipelineFields(result.fields);
     });
+  }
+
+  // Stufe-2-Fehler: erneut versuchen, ohne Stufe 1 zu wiederholen. Das
+  // gewählte Keyword bleibt übernommen.
+  function handleRetryDerive() {
+    if (derivingKeyword) runDerive(derivingKeyword);
   }
 
   function handleAnalyze() {
@@ -441,7 +534,6 @@ export default function EditorSeoPanel({
   const set = <K extends keyof SeoState>(k: K, v: SeoState[K]) => onChange({ ...seo, [k]: v });
 
   const showThemenprofil = pipelineFields && !dismissedKeys.has("themenprofil");
-  const showKeyword = pipelineFields && !dismissedKeys.has("keyword");
   const showTitles = pipelineFields && !dismissedKeys.has("titles");
   const showDescription = pipelineFields && !dismissedKeys.has("description");
   const showSlug = pipelineFields && !dismissedKeys.has("slug");
@@ -478,15 +570,16 @@ export default function EditorSeoPanel({
           <div>
             <MonoCaption>AI-Pipeline</MonoCaption>
             <p style={{ color: "var(--da-muted)", fontSize: 13, marginTop: 6, lineHeight: 1.5 }}>
-              Generiert mit einem Klick Themenprofil, Focus-Keyword, drei
-              Title-Kandidaten, Meta-Description und Slug-Vorschlag.
+              Schritt 1: Focus-Keyword-Kandidaten vorschlagen. Nach deiner
+              Auswahl leitet Schritt 2 Themenprofil, Title-Kandidaten,
+              Meta-Description, Slug und semantische Begriffe daraus ab.
               Sprache richtet sich nach der Artikel-Locale ({locale}).
             </p>
           </div>
           <button
             type="button"
-            onClick={handleGenerate}
-            disabled={pipelinePending}
+            onClick={handleGenerateCandidates}
+            disabled={keywordPending || pipelinePending}
             style={{
               background: "var(--da-purple)",
               color: "var(--da-dark)",
@@ -495,8 +588,8 @@ export default function EditorSeoPanel({
               padding: "12px 18px",
               fontSize: 14,
               fontWeight: 700,
-              cursor: pipelinePending ? "not-allowed" : "pointer",
-              opacity: pipelinePending ? 0.7 : 1,
+              cursor: keywordPending || pipelinePending ? "not-allowed" : "pointer",
+              opacity: keywordPending || pipelinePending ? 0.7 : 1,
               fontFamily: "inherit",
               alignSelf: "flex-start",
               display: "inline-flex",
@@ -504,9 +597,9 @@ export default function EditorSeoPanel({
               gap: 8,
             }}
           >
-            {pipelinePending ? "⏳ Generiere SEO-Vorschläge…" : "✨ SEO generieren"}
+            {keywordPending ? "⏳ Generiere Keyword-Kandidaten…" : "✨ SEO generieren"}
           </button>
-          {pipelineError && (
+          {keywordError && (
             <p
               role="alert"
               style={{
@@ -516,13 +609,117 @@ export default function EditorSeoPanel({
                 fontFamily: "var(--da-font-mono)",
               }}
             >
-              {pipelineError}
+              {keywordError}
             </p>
           )}
         </div>
       </AuthorCard>
 
-      {/* Vorschlags-Boxen — erscheinen nur nach erfolgreichem Generate. */}
+      {/* Stufe 1 — Focus-Keyword-Kandidaten. */}
+      {keywordCandidates && keywordCandidates.length > 0 && (
+        <div style={suggestionBoxStyle}>
+          <p style={suggestionCaptionStyle}>Focus-Keyword-Kandidaten</p>
+          <p style={{ color: "var(--da-muted-soft)", fontSize: 11, margin: 0 }}>
+            Wähle ein Keyword — daraus werden Titel, Meta-Description und
+            semantische Begriffe abgeleitet.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {keywordCandidates.map((cand, i) => (
+              <div
+                key={`${cand}-${i}`}
+                style={{
+                  background: "var(--da-dark)",
+                  border: "1px solid var(--da-border)",
+                  borderRadius: 3,
+                  padding: 10,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <p
+                  style={{
+                    color: "var(--da-text)",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    margin: 0,
+                    wordBreak: "break-word",
+                    flex: 1,
+                  }}
+                >
+                  {cand}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleSelectKeyword(cand)}
+                  disabled={keywordPending || pipelinePending}
+                  style={{
+                    ...acceptBtnStyle,
+                    cursor: keywordPending || pipelinePending ? "not-allowed" : "pointer",
+                    opacity: keywordPending || pipelinePending ? 0.6 : 1,
+                    flex: "0 0 auto",
+                  }}
+                >
+                  Auswählen
+                </button>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={handleRejectAllCandidates}
+              disabled={keywordPending || pipelinePending}
+              style={{
+                ...dismissBtnStyle,
+                cursor: keywordPending || pipelinePending ? "not-allowed" : "pointer",
+                opacity: keywordPending || pipelinePending ? 0.6 : 1,
+              }}
+            >
+              {keywordPending ? "⏳ Generiere…" : "Alle verwerfen → neue Vorschläge"}
+            </button>
+            {rejectedKeywords.length > 0 && (
+              <span style={{ color: "var(--da-muted-soft)", fontSize: 11, fontFamily: "var(--da-font-mono)" }}>
+                {rejectedKeywords.length} verworfen
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Stufe 2 — Ableitungs-Status: Loading bzw. Fehler mit Retry. */}
+      {pipelinePending && (
+        <p
+          style={{
+            color: "var(--da-muted)",
+            fontSize: 13,
+            margin: 0,
+            fontFamily: "var(--da-font-mono)",
+          }}
+        >
+          ⏳ Leite SEO-Felder aus dem Keyword ab…
+        </p>
+      )}
+      {pipelineError && !pipelinePending && (
+        <div style={suggestionBoxStyle}>
+          <p role="alert" style={{ color: "#ff8e8e", fontSize: 13, margin: 0 }}>
+            {pipelineError}
+          </p>
+          {derivingKeyword && (
+            <p style={{ color: "var(--da-muted-soft)", fontSize: 11, margin: 0 }}>
+              Keyword „{derivingKeyword}“ bleibt übernommen.
+            </p>
+          )}
+          <div>
+            <button type="button" onClick={handleRetryDerive} style={acceptBtnStyle}>
+              Erneut versuchen
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Vorschlags-Boxen — erscheinen nur nach erfolgreicher Ableitung. */}
       {pipelineFields && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {showThemenprofil && (
@@ -548,41 +745,6 @@ export default function EditorSeoPanel({
                   style={dismissBtnStyle}
                 >
                   Schliessen
-                </button>
-              </div>
-            </div>
-          )}
-
-          {showKeyword && (
-            <div style={suggestionBoxStyle}>
-              <p style={suggestionCaptionStyle}>Focus-Keyword</p>
-              <p
-                style={{
-                  color: "var(--da-text)",
-                  fontSize: 15,
-                  fontWeight: 600,
-                  margin: 0,
-                }}
-              >
-                {pipelineFields.focusKeyword}
-              </p>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    set("keyword", pipelineFields.focusKeyword);
-                    dismiss("keyword");
-                  }}
-                  style={acceptBtnStyle}
-                >
-                  Übernehmen
-                </button>
-                <button
-                  type="button"
-                  onClick={() => dismiss("keyword")}
-                  style={dismissBtnStyle}
-                >
-                  Verwerfen
                 </button>
               </div>
             </div>
