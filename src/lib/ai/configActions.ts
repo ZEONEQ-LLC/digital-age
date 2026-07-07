@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { AiTask } from "@/lib/ai/types";
-import { cleanPromptOverrides, type SeoPromptId } from "@/lib/ai/seoPrompts";
+import {
+  cleanPromptOverrides,
+  type EditablePromptId,
+} from "@/lib/ai/promptRegistry";
 
 // Editor-Check wie in den anderen Admin-Server-Actions. Wir erwarten,
 // dass RLS ohnehin greift — aber die Action soll Nicht-Editoren mit einer
@@ -38,16 +41,17 @@ const KNOWN_TASKS: ReadonlySet<AiTask> = new Set<AiTask>([
   "seo_review",
   "news_item_generation",
   "abstract_generate",
+  "highlight_suggestions",
 ]);
 
 export type SaveAiConfigInput = {
   systemPrompt: string;
   defaultModel: string;
   taskModelOverrides: Partial<Record<AiTask, string>>;
-  // Editierbare Strategie-Overrides pro SEO-Prompt-ID (nicht AiTask —
+  // Editierbare Strategie-Overrides pro Prompt-ID (nicht AiTask —
   // seo_pipeline ist zwei Prompts). Leere/whitespace-Werte werden beim
   // Speichern gedroppt (Resolver faellt dann auf den Code-Default).
-  taskPromptOverrides: Partial<Record<SeoPromptId, string>>;
+  taskPromptOverrides: Partial<Record<EditablePromptId, string>>;
 };
 
 export type SaveAiConfigResult =
