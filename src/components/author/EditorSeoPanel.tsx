@@ -6,6 +6,7 @@ import MonoCaption from "./MonoCaption";
 import KeywordPillInput from "./KeywordPillInput";
 import {
   analyzeSeoEntry,
+  saveSeoReviewDone,
   generateSeoFields,
   generateSeoKeywordCandidates,
   generateSeoFromKeyword,
@@ -554,6 +555,21 @@ export default function EditorSeoPanel({
     setReviewAt(null);
     setReviewError(null);
     setCopiedIndex(null);
+  }
+
+  // Abhaken: done-Flag lokal togglen + sofort persistieren (fire-and-forget).
+  // seo_review_at bleibt unangetastet (RPC + Trigger-Ausnahme) → "Stand:" und
+  // Staleness bleiben stabil.
+  function handleToggleDone(index: number) {
+    if (!review) return;
+    const next = {
+      ...review,
+      suggestions: review.suggestions.map((s, i) =>
+        i === index ? { ...s, done: !s.done } : s,
+      ),
+    };
+    setReview(next);
+    void saveSeoReviewDone(articleId, next);
   }
 
   function handleCopyRecommendation(index: number, text: string) {
@@ -1141,9 +1157,29 @@ export default function EditorSeoPanel({
                         display: "flex",
                         flexDirection: "column",
                         gap: 8,
+                        opacity: s.done ? 0.55 : 1,
                       }}
                     >
                       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <label
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 5,
+                            cursor: "pointer",
+                            color: "var(--da-muted-soft)",
+                            fontSize: 11,
+                            fontFamily: "var(--da-font-mono)",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={s.done}
+                            onChange={() => handleToggleDone(i)}
+                            aria-label="Empfehlung als erledigt markieren"
+                          />
+                          Erledigt
+                        </label>
                         <span
                           style={{
                             background: style.badgeBg,
@@ -1204,10 +1240,54 @@ export default function EditorSeoPanel({
                       >
                         {s.recommendation}
                       </p>
+                      {s.proposedText.trim() !== "" && (
+                        <div
+                          style={{
+                            background: "var(--da-darker)",
+                            border: "1px solid var(--da-border)",
+                            borderRadius: 3,
+                            padding: "8px 10px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              color: "var(--da-faint)",
+                              fontSize: 9,
+                              fontFamily: "var(--da-font-mono)",
+                              letterSpacing: "0.1em",
+                              textTransform: "uppercase",
+                              marginBottom: 4,
+                            }}
+                          >
+                            Text zum Einsetzen
+                          </div>
+                          <div
+                            style={{
+                              color: "var(--da-text)",
+                              fontSize: 13,
+                              fontFamily: "var(--da-font-mono)",
+                              whiteSpace: "pre-wrap",
+                              lineHeight: 1.5,
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {s.proposedText}
+                          </div>
+                        </div>
+                      )}
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 2 }}>
                         <button
                           type="button"
-                          onClick={() => handleCopyRecommendation(i, s.recommendation)}
+                          onClick={() =>
+                            handleCopyRecommendation(
+                              i,
+                              // proposedText ist der einsetzbare Wortlaut;
+                              // Fallback recommendation fuer Alt-Daten ohne Feld.
+                              s.proposedText.trim() !== ""
+                                ? s.proposedText
+                                : s.recommendation,
+                            )
+                          }
                           style={reviewActionBtnStyle}
                         >
                           {copiedIndex === i ? "Kopiert ✓" : "Vorschlag kopieren"}

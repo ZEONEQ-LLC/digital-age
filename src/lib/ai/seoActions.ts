@@ -377,11 +377,18 @@ export type SeoReviewSuggestion = {
   severity: SeoReviewSeverity;
   category: SeoReviewCategory;
   finding: string;
-  // EXAKTES wörtliches Zitat der betroffenen Stelle aus H1/Lead/H2. "" wenn
-  // kein konkreter Textbezug (z.B. "keine H2 vorhanden") oder Alt-Daten ohne
-  // das Feld.
+  // EXAKTES wörtliches Zitat der betroffenen Stelle aus H1/Lead/H2. Bei
+  // Ersetzen der zu ändernde Text, bei Einfügen der wörtliche Anker. "" wenn
+  // kein sinnvoller Anker oder Alt-Daten ohne das Feld.
   targetQuote: string;
+  // NUR der konkrete Ersatz-/Einfügetext (finaler Wortlaut). "" wenn es
+  // keinen konkreten Textvorschlag gibt oder Alt-Daten ohne das Feld.
+  proposedText: string;
+  // Erklärung (was/warum/wo) — NICHT der Ersatztext selbst.
   recommendation: string;
+  // Clientseitiger Abhak-Status, im seo_review-jsonb persistiert. Kommt NICHT
+  // vom LLM; frische Analyse = false. Alt-Daten ohne das Feld → false.
+  done: boolean;
 };
 
 export type SeoReview = {
@@ -498,9 +505,12 @@ function parseSeoReview(raw: string): SeoReview | null {
       category: s.category as SeoReviewCategory,
       finding: s.finding,
       // Tolerant: fehlend/kein String → "". KEIN Hard-Fail (Abwärtskompat
-      // zu Alt-Reviews ohne das Feld).
+      // zu Alt-Reviews ohne diese Felder).
       targetQuote: typeof s.targetQuote === "string" ? s.targetQuote : "",
+      proposedText: typeof s.proposedText === "string" ? s.proposedText : "",
       recommendation: s.recommendation,
+      // done kommt nie vom LLM — frische Analyse ist immer unabgehakt.
+      done: false,
     });
   }
 
@@ -575,4 +585,37 @@ export async function analyzeSeoEntry(args: {
   }
 
   return { ok: true, review, reviewedAt };
+}
+
+// Persistiert den Abhak-Status (done-Flags im seo_review-jsonb) OHNE
+// seo_review_at zu ändern — sonst würde jedes Häkchen "Stand:" und die
+// Staleness-Prüfung verfälschen. Der articles-updated_at-Trigger bumpt bei
+// reinen seo_review-Updates ebenfalls NICHT (siehe Migration). SECURITY
+// INVOKER in der RPC → bestehende Artikel-RLS. Legt kein Review neu an
+// (RPC updated nur, wenn seo_review bereits gesetzt ist).
+export async function saveSeoReviewDone(
+  articleId: string,
+  review: SeoReview,
+): Promise<{ ok: boolean }> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("update_seo_review_done", {
+      p_article_id: articleId,
+      p_review: review as unknown as Json,
+    });
+    if (error) {
+      console.warn(
+        `[seo-review] done persist failed for ${articleId}:`,
+        error.message,
+      );
+      return { ok: false };
+    }
+    return { ok: (data as boolean | null) ?? false };
+  } catch (err) {
+    console.warn(
+      `[seo-review] done persist threw for ${articleId}:`,
+      err instanceof Error ? err.message : String(err),
+    );
+    return { ok: false };
+  }
 }

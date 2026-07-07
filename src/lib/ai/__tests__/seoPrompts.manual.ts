@@ -133,6 +133,24 @@ section("seo_review — targetQuote + Regeln im Schema (Code, override-fest)");
     buildSeoReviewSystem("de-CH", "NUR STRATEGIE").includes('"targetQuote": string'));
 }
 
+section("seo_review — proposedText + Einfuege-Anker im Schema (Iteration 2)");
+{
+  ok("Schema hat proposedText-Feld", SEO_REVIEW_SCHEMA.includes('"proposedText": string'));
+  ok("Regel (c): proposedText nur Wortlaut",
+    SEO_REVIEW_SCHEMA.includes("proposedText enthält AUSSCHLIESSLICH"));
+  ok("Regel (d): Einfuege-Anker",
+    SEO_REVIEW_SCHEMA.includes("EINFÜGE-Empfehlungen") &&
+      SEO_REVIEW_SCHEMA.includes("wörtlicher ANKER"));
+  ok("Regel (d): Platzierung explizit nennen",
+    SEO_REVIEW_SCHEMA.includes("Platzierung explizit"));
+  ok("BEISPIEL enthaelt proposedText", SEO_REVIEW_SCHEMA.includes('"proposedText": "AI Co-Pilots in Banking:'));
+  ok("BEISPIEL zeigt eine Einfuegung (numbers-Anker)",
+    SEO_REVIEW_SCHEMA.includes('"targetQuote": "The regulatory landscape'));
+  // Override-fest: auch bei gesetzter Strategie bleibt proposedText im Schema.
+  ok("proposedText auch bei Strategie-Override im System-Prompt",
+    buildSeoReviewSystem("de-CH", "NUR STRATEGIE").includes('"proposedText": string'));
+}
+
 section("Prompt-IDs + Code-Defaults");
 {
   ok("3 Prompt-IDs", SEO_PROMPT_IDS.length === 3);

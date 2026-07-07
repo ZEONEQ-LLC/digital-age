@@ -63,6 +63,22 @@ section("normalizeStoredReview — valide + Alt-Daten");
   });
   ok("valides Review geparst", r !== null && r.suggestions.length === 1);
   ok("targetQuote erhalten", r?.suggestions[0].targetQuote === "Der erste Satz.");
+  // validSug hat kein proposedText/done → Defaults.
+  ok('fehlendes proposedText → ""', r?.suggestions[0].proposedText === "");
+  ok("fehlendes done → false", r?.suggestions[0].done === false);
+
+  // Neue Felder vorhanden → erhalten.
+  const withNew = normalizeStoredReview({
+    overallAssessment: "Neu.",
+    suggestions: [{ ...validSug, proposedText: "Neuer Satz.", done: true }],
+  });
+  ok("proposedText erhalten", withNew?.suggestions[0].proposedText === "Neuer Satz.");
+  ok("done=true erhalten", withNew?.suggestions[0].done === true);
+  ok("done nur bei ===true (anderes truthy → false)",
+    normalizeStoredReview({
+      overallAssessment: "x",
+      suggestions: [{ ...validSug, done: "yes" }],
+    })?.suggestions[0].done === false);
 
   // Alt-Daten: Suggestion OHNE targetQuote → "" (kein Hard-Fail).
   const alt = normalizeStoredReview({
