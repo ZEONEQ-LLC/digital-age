@@ -118,6 +118,21 @@ section("seo_review — Split vollstaendig, Schema am Ende");
     buildSeoReviewSystem("de-CH", "REVIEW-OVR").includes("REVIEW-OVR"));
 }
 
+section("seo_review — targetQuote + Regeln im Schema (Code, override-fest)");
+{
+  ok("Schema hat targetQuote-Feld", SEO_REVIEW_SCHEMA.includes('"targetQuote": string'));
+  ok("Regel (a) woertlich verankert",
+    SEO_REVIEW_SCHEMA.includes("wörtlich") && SEO_REVIEW_SCHEMA.includes("targetQuote MUSS"));
+  ok('Regel (a) leeres targetQuote erlaubt', SEO_REVIEW_SCHEMA.includes('targetQuote = ""'));
+  ok("Regel (b) Konsolidierung verankert",
+    SEO_REVIEW_SCHEMA.includes("EINER recommendation") &&
+      SEO_REVIEW_SCHEMA.includes("dieselbe Textstelle"));
+  ok("BEISPIEL enthaelt targetQuote", SEO_REVIEW_SCHEMA.includes('"targetQuote": "Banks are increasingly'));
+  // Auch bei gesetztem Strategie-Override bleibt das Schema (targetQuote) aktiv.
+  ok("targetQuote auch bei Strategie-Override im System-Prompt",
+    buildSeoReviewSystem("de-CH", "NUR STRATEGIE").includes('"targetQuote": string'));
+}
+
 section("Prompt-IDs + Code-Defaults");
 {
   ok("3 Prompt-IDs", SEO_PROMPT_IDS.length === 3);

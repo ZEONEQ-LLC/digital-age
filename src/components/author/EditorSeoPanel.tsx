@@ -16,7 +16,32 @@ import {
   type SeoReviewCategory,
 } from "@/lib/ai/seoActions";
 import type { AiErrorKind } from "@/lib/ai/types";
+import { isReviewStale, truncateQuote } from "@/lib/ai/seoReview";
 import { normalizeArticleSlug } from "@/lib/articleSlug";
+
+function formatReviewDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("de-CH", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+const reviewActionBtnStyle: React.CSSProperties = {
+  background: "transparent",
+  color: "var(--da-purple)",
+  border: "1px solid var(--da-purple)",
+  borderRadius: 3,
+  padding: "4px 10px",
+  fontSize: 11,
+  fontWeight: 600,
+  cursor: "pointer",
+  fontFamily: "inherit",
+};
 
 export type SeoState = {
   title: string;
@@ -39,6 +64,13 @@ type EditorSeoPanelProps = {
   articleFirstParagraph?: string;
   articleHeadingsLevel2?: string[];
   locale: "de-CH" | "en";
+  // Persistiertes Review + dessen Zeitstempel (aus article.seo_review[_at]).
+  initialReview?: SeoReview | null;
+  initialReviewAt?: string | null;
+  // article.updated_at für die Staleness-Prüfung (updated_at > reviewAt).
+  articleUpdatedAt?: string | null;
+  // "Im Text anzeigen": in den Inhalt-Tab wechseln + targetQuote highlighten.
+  onShowInText?: (quote: string) => void;
 };
 
 const inputStyle: React.CSSProperties = {
@@ -246,6 +278,10 @@ export default function EditorSeoPanel({
   articleFirstParagraph = "",
   articleHeadingsLevel2 = [],
   locale,
+  initialReview = null,
+  initialReviewAt = null,
+  articleUpdatedAt = null,
+  onShowInText,
 }: EditorSeoPanelProps) {
   // Master-Pipeline-State: Vorschläge + Loading + Error.
   // `dismissedKeys` trackt, welche Boxen der User per Verwerfen geschlossen
@@ -273,11 +309,15 @@ export default function EditorSeoPanel({
   const [derivingKeyword, setDerivingKeyword] = useState<string | null>(null);
   const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(new Set());
 
-  // Review-State (read-only, kein Cache). "Analysieren" erneut zu klicken
-  // ersetzt den State komplett, kein Append.
-  const [review, setReview] = useState<SeoReview | null>(null);
+  // Review-State. Seed aus dem persistierten Review (überlebt Reload).
+  // "Analysieren" erneut zu klicken ersetzt den State komplett, kein Append.
+  // `reviewAt` ist der Persistenz-Zeitstempel (seo_review_at) für "Stand:"
+  // und die Staleness-Prüfung. `copiedIndex` steuert das "Kopiert ✓"-Feedback.
+  const [review, setReview] = useState<SeoReview | null>(initialReview);
+  const [reviewAt, setReviewAt] = useState<string | null>(initialReviewAt);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewPending, startReviewTransition] = useTransition();
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   // Einzel-Re-Generate pro Feld. Beide Pfade (Master "SEO generieren" und
   // die 4 Einzel-Buttons) rufen dieselbe Server-Action generateSeoFields —
@@ -502,12 +542,32 @@ export default function EditorSeoPanel({
         return;
       }
       setReview(result.review);
+      setReviewAt(result.reviewedAt);
+      setCopiedIndex(null);
     });
   }
 
   function handleCloseReview() {
+    // Nur die In-Session-Anzeige schliessen; der persistierte Stand bleibt in
+    // der DB und wird beim nächsten Laden wieder gezeigt.
     setReview(null);
+    setReviewAt(null);
     setReviewError(null);
+    setCopiedIndex(null);
+  }
+
+  function handleCopyRecommendation(index: number, text: string) {
+    if (!navigator.clipboard) return;
+    void navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopiedIndex(index);
+        setTimeout(
+          () => setCopiedIndex((cur) => (cur === index ? null : cur)),
+          1500,
+        );
+      })
+      .catch(() => {});
   }
 
   const titleLen = seo.title.length;
@@ -1015,6 +1075,32 @@ export default function EditorSeoPanel({
 
           {review && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 4 }}>
+              {reviewAt && (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "baseline",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "var(--da-muted-soft)",
+                      fontSize: 11,
+                      fontFamily: "var(--da-font-mono)",
+                    }}
+                  >
+                    Stand: {formatReviewDate(reviewAt)}
+                  </span>
+                  {isReviewStale(articleUpdatedAt, reviewAt) && (
+                    <span style={{ color: "var(--da-orange, #ff9f0a)", fontSize: 11 }}>
+                      Artikel wurde seit der Analyse geändert — ggf. erneut analysieren.
+                    </span>
+                  )}
+                </div>
+              )}
               <div
                 style={{
                   background: "rgba(220,214,247,0.08)",
@@ -1095,6 +1181,19 @@ export default function EditorSeoPanel({
                       >
                         {s.finding}
                       </p>
+                      {s.targetQuote.trim() !== "" && (
+                        <p
+                          style={{
+                            color: "var(--da-muted-soft)",
+                            fontSize: 12,
+                            margin: 0,
+                            lineHeight: 1.5,
+                            fontFamily: "var(--da-font-mono)",
+                          }}
+                        >
+                          Betrifft: „{truncateQuote(s.targetQuote)}“
+                        </p>
+                      )}
                       <p
                         style={{
                           color: "var(--da-muted-soft)",
@@ -1105,6 +1204,24 @@ export default function EditorSeoPanel({
                       >
                         {s.recommendation}
                       </p>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 2 }}>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyRecommendation(i, s.recommendation)}
+                          style={reviewActionBtnStyle}
+                        >
+                          {copiedIndex === i ? "Kopiert ✓" : "Vorschlag kopieren"}
+                        </button>
+                        {s.targetQuote.trim() !== "" && onShowInText && (
+                          <button
+                            type="button"
+                            onClick={() => onShowInText(s.targetQuote)}
+                            style={reviewActionBtnStyle}
+                          >
+                            Im Text anzeigen
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

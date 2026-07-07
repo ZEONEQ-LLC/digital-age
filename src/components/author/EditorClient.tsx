@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import AuthorStatusBadge from "@/components/author/AuthorStatusBadge";
 import EditorDetailsTab from "@/components/author/EditorDetailsTab";
 import EditorRevisions from "@/components/author/EditorRevisions";
 import EditorSeoPanel, { type SeoState } from "@/components/author/EditorSeoPanel";
+import { normalizeStoredReview } from "@/lib/ai/seoReview";
 import ArticleBody from "@/components/ArticleBody";
 import BlockReader from "@/components/BlockReader";
 import InlineText from "@/components/InlineText";
@@ -220,6 +221,45 @@ export default function EditorClient({ article, revisions, categories, isEditor,
 
   const bodyEditorRef = useRef<TiptapBodyEditorHandle | null>(null);
   const abstractEditorRef = useRef<TiptapAbstractEditorHandle | null>(null);
+
+  // Persistiertes SEO-Review (aus article.seo_review, jsonb). Tolerant
+  // normalisiert (Alt-Daten ohne targetQuote → ""). Seedet das SEO-Panel,
+  // damit das Analyse-Ergebnis Reload überlebt.
+  const initialReview = useMemo(
+    () => normalizeStoredReview(article.seo_review),
+    [article.seo_review],
+  );
+
+  // "Im Text anzeigen" aus dem SEO-Review: in den Inhalt-Tab wechseln und die
+  // Stelle im Body highlighten. Der Tab-Wechsel ist ein Render-Zyklus — der
+  // Body-Editor ist bis dahin display:none, also Highlight erst nach dem
+  // Render (rAF) ausloesen. `highlightMiss` zeigt einen dezenten Hinweis,
+  // wenn die Stelle nicht (mehr) gefunden wird.
+  const [pendingHighlight, setPendingHighlight] = useState<string | null>(null);
+  const [highlightMiss, setHighlightMiss] = useState(false);
+
+  function handleShowInText(quote: string) {
+    if (!quote.trim()) return;
+    setHighlightMiss(false);
+    setTab("content");
+    setPendingHighlight(quote);
+  }
+
+  useEffect(() => {
+    if (tab !== "content" || pendingHighlight === null) return;
+    const raf = requestAnimationFrame(() => {
+      const found = bodyEditorRef.current?.highlightText(pendingHighlight) ?? false;
+      if (!found) setHighlightMiss(true);
+      setPendingHighlight(null);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [tab, pendingHighlight]);
+
+  useEffect(() => {
+    if (!highlightMiss) return;
+    const t = setTimeout(() => setHighlightMiss(false), 5000);
+    return () => clearTimeout(t);
+  }, [highlightMiss]);
 
   // Liest den aktuellen Abstract-Stand aus dem Tiptap-Editor und
   // serialisiert ihn in den Token-String, der in `articles.excerpt`
@@ -1148,6 +1188,22 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         style={{ display: tab === "content" ? undefined : "none" }}
       >
           <div>
+            {highlightMiss && (
+              <div
+                role="status"
+                style={{
+                  background: "rgba(255, 165, 0, 0.10)",
+                  border: "1px solid var(--da-orange, #ff9f0a)",
+                  color: "var(--da-text)",
+                  padding: "10px 14px",
+                  borderRadius: 6,
+                  fontSize: 13,
+                  marginBottom: 14,
+                }}
+              >
+                Stelle nicht gefunden — Text wurde evtl. geändert.
+              </div>
+            )}
             {guardResult && !guardResult.allowed && (
               <div
                 style={{
@@ -1583,6 +1639,10 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           articleFirstParagraph={firstParagraph}
           articleHeadingsLevel2={headingsLevel2}
           locale={locale}
+          initialReview={initialReview}
+          initialReviewAt={article.seo_review_at ?? null}
+          articleUpdatedAt={article.updated_at ?? null}
+          onShowInText={handleShowInText}
         />
       </div>
 
