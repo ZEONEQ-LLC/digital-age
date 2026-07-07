@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { forwardRef, useImperativeHandle, useState, useTransition } from "react";
 import AuthorCard from "./AuthorCard";
 import MonoCaption from "./MonoCaption";
 import KeywordPillInput from "./KeywordPillInput";
@@ -270,7 +270,15 @@ const CATEGORY_LABEL: Record<SeoReviewCategory, string> = {
   readability: "Lesbarkeit",
 };
 
-export default function EditorSeoPanel({
+// Imperativer Handle: erlaubt dem Co-Pilot (EditorClient), ein frisch
+// generiertes Review direkt in den Panel-State zu spiegeln, ohne dass der
+// Panel selbst analysieren muss (die Analyse laeuft im Co-Pilot-Lauf).
+export type EditorSeoPanelHandle = {
+  applyCopilotReview: (review: SeoReview, reviewedAt: string | null) => void;
+};
+
+const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
+  function EditorSeoPanel({
   seo,
   onChange,
   articleId,
@@ -283,7 +291,7 @@ export default function EditorSeoPanel({
   initialReviewAt = null,
   articleUpdatedAt = null,
   onShowInText,
-}: EditorSeoPanelProps) {
+}: EditorSeoPanelProps, ref) {
   // Master-Pipeline-State: Vorschläge + Loading + Error.
   // `dismissedKeys` trackt, welche Boxen der User per Verwerfen geschlossen
   // hat. Übernehmen schliesst nicht zwingend — der User sieht weiter den
@@ -316,6 +324,23 @@ export default function EditorSeoPanel({
   // und die Staleness-Prüfung. `copiedIndex` steuert das "Kopiert ✓"-Feedback.
   const [review, setReview] = useState<SeoReview | null>(initialReview);
   const [reviewAt, setReviewAt] = useState<string | null>(initialReviewAt);
+  // Kam das aktuelle Review aus einem Co-Pilot-Lauf? Dann erklaert der
+  // Staleness-Hinweis, dass der Body NACH der Analyse (Highlights/ALTs)
+  // geaendert wurde — statt "erneut analysieren" (Fix 4).
+  const [reviewFromCopilot, setReviewFromCopilot] = useState(false);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      applyCopilotReview: (r, at) => {
+        setReview(r);
+        setReviewAt(at);
+        setReviewError(null);
+        setReviewFromCopilot(true);
+      },
+    }),
+    [],
+  );
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewPending, startReviewTransition] = useTransition();
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
@@ -543,6 +568,7 @@ export default function EditorSeoPanel({
         return;
       }
       setReview(result.review);
+      setReviewFromCopilot(false);
       setReviewAt(result.reviewedAt);
       setCopiedIndex(null);
     });
@@ -1112,7 +1138,9 @@ export default function EditorSeoPanel({
                   </span>
                   {isReviewStale(articleUpdatedAt, reviewAt) && (
                     <span style={{ color: "var(--da-orange, #ff9f0a)", fontSize: 11 }}>
-                      Artikel wurde seit der Analyse geändert — ggf. erneut analysieren.
+                      {reviewFromCopilot
+                        ? "Analyse aus Co-Pilot-Lauf — Body wurde danach noch angepasst (Highlights/ALT)."
+                        : "Artikel wurde seit der Analyse geändert — ggf. erneut analysieren."}
                     </span>
                   )}
                 </div>
@@ -1546,4 +1574,6 @@ export default function EditorSeoPanel({
       </AuthorCard>
     </div>
   );
-}
+});
+
+export default EditorSeoPanel;

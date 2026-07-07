@@ -28,6 +28,11 @@ type Props = {
   onCoverChange: (url: string) => void;
   coverMetadata: CoverMetadata;
   onCoverMetadataChange: (next: CoverMetadata) => void;
+  // AI: Hero-Cover-ALT generieren (Fix 5a) — durchgereicht ans Modal.
+  onGenerateCoverAlt?: () => Promise<
+    { ok: true; alt: string } | { ok: false; error: string }
+  >;
+  canGenerateCoverAlt?: boolean;
 
   // Veroeffentlichungsdatum (YYYY-MM-DD, "" = unset)
   publishedAtDate: string;
@@ -63,6 +68,8 @@ export default function EditorDetailsTab({
   onCoverChange,
   coverMetadata,
   onCoverMetadataChange,
+  onGenerateCoverAlt,
+  canGenerateCoverAlt,
   publishedAtDate,
   onPublishedAtChange,
   isEditor,
@@ -254,6 +261,8 @@ export default function EditorDetailsTab({
           onCoverChange={onCoverChange}
           metadata={coverMetadata}
           onMetadataChange={onCoverMetadataChange}
+          onGenerateAlt={onGenerateCoverAlt}
+          canGenerateAlt={canGenerateCoverAlt}
         />
 
         <div className="a-edit-details__row-2">

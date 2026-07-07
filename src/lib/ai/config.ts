@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import { isKnownModel } from "@/lib/ai/models";
+import { resolveTaskModel } from "@/lib/ai/taskModel";
 import type { AiTask, LLMParams } from "@/lib/ai/types";
 
 // Runtime-Set der Tasks, für die das Editor-UI in /autor/admin/ai-config
@@ -19,6 +19,7 @@ const KNOWN_TASKS: ReadonlySet<AiTask> = new Set<AiTask>([
   "news_item_generation",
   "abstract_generate",
   "highlight_suggestions",
+  "image_alt",
 ]);
 
 // Schema der Row (deckt sich mit Database["public"]["Tables"]["ai_config"]
@@ -49,7 +50,9 @@ export async function resolveLLMConfig(params: LLMParams): Promise<LLMParams> {
         "[ai-config] resolve failed, falling back to env:",
         error?.code ?? "no-row",
       );
-      return params;
+      // Auch im DB-Fallback muss der Task-Default greifen (image_alt → Vision),
+      // sonst laeuft der Task auf ANTHROPIC_MODEL, das evtl. keine Bilder kann.
+      return { ...params, model: resolveTaskModel(params.task, undefined, params.model) };
     }
     row = data as unknown as AiConfigRow;
   } catch (err) {
@@ -57,7 +60,7 @@ export async function resolveLLMConfig(params: LLMParams): Promise<LLMParams> {
       "[ai-config] resolve threw, falling back to env:",
       err instanceof Error ? err.message : String(err),
     );
-    return params;
+    return { ...params, model: resolveTaskModel(params.task, undefined, params.model) };
   }
 
   const dbSystem = row.system_prompt ?? "";
@@ -65,23 +68,18 @@ export async function resolveLLMConfig(params: LLMParams): Promise<LLMParams> {
   const effectiveSystem =
     dbSystem + (dbSystem && callerSystem ? "\n\n" : "") + callerSystem;
 
-  // Override-Auswahl: nur akzeptieren, wenn (a) Key in KNOWN_TASKS, (b) Wert
-  // ein nicht-leerer String UND (c) ein bekanntes Modell ist. Ein Override
-  // mit entfernter/unbekannter ID (Altbestand, Tippfehler) faellt defensiv
-  // auf `default_model` zurueck — statt eine ungueltige ID an die API zu
-  // schicken (404). Ist auch `default_model` unbekannt, greift zuletzt der
-  // Env-Fallback im Provider (`ANTHROPIC_MODEL`).
+  // Modell-Auflösung (resolveTaskModel): (a) gueltiger Admin-Override [nur wenn
+  // Key in KNOWN_TASKS + bekanntes Modell], sonst (b) hartkodierter Task-Default
+  // [z.B. image_alt → Vision-Modell], sonst (c) genereller default_model. Ist
+  // auch der unbekannt, greift zuletzt der Env-Fallback im Provider.
   const overrides = row.task_model_overrides ?? {};
   const candidate =
     KNOWN_TASKS.has(params.task as AiTask) ? overrides[params.task] : undefined;
-  const overrideModel =
-    typeof candidate === "string" && candidate.trim() !== ""
-      ? candidate.trim()
-      : undefined;
-  const effectiveModel =
-    overrideModel && isKnownModel(overrideModel)
-      ? overrideModel
-      : row.default_model;
+  const effectiveModel = resolveTaskModel(
+    params.task,
+    candidate,
+    row.default_model,
+  );
 
   return {
     ...params,

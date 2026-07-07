@@ -19,6 +19,11 @@ type Props = {
   onCoverChange: (url: string) => void;
   metadata: CoverMetadata;
   onMetadataChange: (next: CoverMetadata) => void;
+  // AI: Hero-ALT generieren (Fix 5a) — durchgereicht ans CoverMetadataModal.
+  onGenerateAlt?: () => Promise<
+    { ok: true; alt: string } | { ok: false; error: string }
+  >;
+  canGenerateAlt?: boolean;
 };
 
 function extractFilename(url: string): string | null {
@@ -32,6 +37,8 @@ export default function FeaturedImageBox({
   onCoverChange,
   metadata,
   onMetadataChange,
+  onGenerateAlt,
+  canGenerateAlt,
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -156,6 +163,8 @@ export default function FeaturedImageBox({
           setModalOpen(false);
         }}
         onClose={() => setModalOpen(false)}
+        canGenerateAlt={canGenerateAlt}
+        onGenerateAlt={onGenerateAlt}
       />
     </AuthorCard>
   );

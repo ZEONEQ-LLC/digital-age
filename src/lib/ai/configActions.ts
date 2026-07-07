@@ -42,6 +42,7 @@ const KNOWN_TASKS: ReadonlySet<AiTask> = new Set<AiTask>([
   "news_item_generation",
   "abstract_generate",
   "highlight_suggestions",
+  "image_alt",
 ]);
 
 export type SaveAiConfigInput = {

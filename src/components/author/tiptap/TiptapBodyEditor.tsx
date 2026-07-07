@@ -90,6 +90,13 @@ export type TiptapBodyEditorHandle = {
   // Zitat in EINER Transaktion → EIN Undo-Schritt. Returnt die Zahl der
   // tatsaechlich markierten Stellen (nicht gefundene werden uebersprungen).
   applyHighlights: (quotes: string[]) => number;
+  // Alle Inline-Bilder (src + aktueller alt) — fuer den Co-Pilot, um Bilder
+  // ohne ALT zu finden.
+  getImages: () => { url: string; alt: string }[];
+  // Setzt ALT auf Inline-Bilder per src-Match, aber NUR wenn das Bild aktuell
+  // KEINEN ALT hat (nie ueberschreiben). Eine Transaktion. Returnt die Zahl
+  // der gesetzten ALTs.
+  setImageAlts: (alts: Record<string, string>) => number;
 };
 
 type EditorLike = {
@@ -147,6 +154,9 @@ type Props = {
   // AI: Kernaussagen vorschlagen (Modal-Flow im Parent). Der Button reicht nur
   // den Klick nach oben; Server Action + Modal + Anwenden gehoeren dem Parent.
   onRequestHighlights?: () => void;
+  // AI: ALT-Texte fuer Inline-Bilder ohne ALT generieren. Klick nach oben;
+  // Generierung + setImageAlts (kein Save) macht der Parent.
+  onRequestImageAlts?: () => void;
 };
 
 // Sammelt die Storage-N der daSourceRef-Nodes in DOKUMENT-Reihenfolge.
@@ -217,7 +227,7 @@ function findTextRange(
 }
 
 const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
-  function TiptapBodyEditor({ articleId, initialContent, onEditorReady, onRequestSourcePick, onMdCleanup, onRequestHighlights }, ref) {
+  function TiptapBodyEditor({ articleId, initialContent, onEditorReady, onRequestSourcePick, onMdCleanup, onRequestHighlights, onRequestImageAlts }, ref) {
     const toolbarRef = useRef<HTMLDivElement>(null);
 
     // Live-Map `n → Auftritts-Rang` fuer die Inline-Source-Ref-NodeViews.
@@ -372,6 +382,39 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
         chain.run();
         return ranges.length;
       },
+      getImages: () => {
+        if (!editor) return [];
+        const out: { url: string; alt: string }[] = [];
+        editor.state.doc.descendants((node) => {
+          if (node.type.name === "image") {
+            out.push({
+              url: (node.attrs.src as string) ?? "",
+              alt: (node.attrs.alt as string) ?? "",
+            });
+          }
+        });
+        return out;
+      },
+      setImageAlts: (alts) => {
+        if (!editor) return 0;
+        const { state } = editor;
+        let tr = state.tr;
+        let count = 0;
+        // Positionen aendern sich durch ALT-Attribut-Updates nicht → in einer
+        // Transaktion sammeln. NUR setzen, wenn aktuell KEIN ALT gesetzt ist.
+        state.doc.descendants((node, pos) => {
+          if (node.type.name !== "image") return;
+          const src = (node.attrs.src as string) ?? "";
+          const cur = (node.attrs.alt as string) ?? "";
+          const next = alts[src];
+          if (typeof next === "string" && next.trim() !== "" && cur.trim() === "") {
+            tr = tr.setNodeAttribute(pos, "alt", next);
+            count += 1;
+          }
+        });
+        if (count > 0) editor.view.dispatch(tr);
+        return count;
+      },
     }), [editor]);
 
     return (
@@ -514,6 +557,29 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
                     }}
                   >
                     ✨
+                  </span>
+                </Button>
+              )}
+              {onRequestImageAlts && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  tooltip="AI: ALT-Texte für Bilder ohne ALT generieren"
+                  aria-label="AI-Bild-ALT-Texte"
+                  onClick={onRequestImageAlts}
+                >
+                  <span
+                    className="tiptap-button-icon"
+                    style={{
+                      fontSize: 14,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 18,
+                      height: 18,
+                    }}
+                  >
+                    🖼
                   </span>
                 </Button>
               )}
