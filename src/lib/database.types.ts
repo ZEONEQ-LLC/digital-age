@@ -985,6 +985,8 @@ export type Database = {
           new_status: Database["public"]["Enums"]["article_status"]
           notes: string | null
           previous_status: Database["public"]["Enums"]["article_status"] | null
+          revision_type: string
+          snapshot: Json | null
           title_snapshot: string
         }
         Insert: {
@@ -1007,6 +1009,8 @@ export type Database = {
           new_status?: Database["public"]["Enums"]["article_status"]
           notes?: string | null
           previous_status?: Database["public"]["Enums"]["article_status"] | null
+          revision_type?: string
+          snapshot?: Json | null
           title_snapshot?: string
         }
         Relationships: [
@@ -1139,6 +1143,7 @@ export type Database = {
         Args: { p_new_name: string; p_tag_id: string }
         Returns: Json
       }
+      restore_article_revision: { Args: { p_article_id: string; p_revision_id: string }; Returns: boolean }
       save_seo_review: { Args: { p_article_id: string; p_review: Json }; Returns: string }
       suggest_startup_slug: { Args: { p_name: string }; Returns: string }
       update_seo_review_done: { Args: { p_article_id: string; p_review: Json }; Returns: boolean }
