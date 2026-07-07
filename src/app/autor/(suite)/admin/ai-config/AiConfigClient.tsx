@@ -7,12 +7,17 @@ import { KNOWN_MODELS, isKnownModel } from "@/lib/ai/models";
 
 type TaskGroup = { id: string; label: string; tasks: AiTask[] };
 
+type PromptEntry = { id: string; label: string; placeholder: string };
+
 type Props = {
   initialSystemPrompt: string;
   initialDefaultModel: string;
   initialTaskOverrides: Partial<Record<AiTask, string>>;
   taskLabels: Record<AiTask, string>;
   taskGroups: TaskGroup[];
+  // Editierbare Strategie-Prompts: id + Label + Code-Default (Placeholder).
+  promptEntries: PromptEntry[];
+  initialPromptOverrides: Record<string, string>;
   lastUpdatedAt: string | null;
 };
 
@@ -42,6 +47,8 @@ export default function AiConfigClient({
   initialTaskOverrides,
   taskLabels,
   taskGroups,
+  promptEntries,
+  initialPromptOverrides,
   lastUpdatedAt,
 }: Props) {
   const [systemPrompt, setSystemPrompt] = useState(initialSystemPrompt);
@@ -49,6 +56,9 @@ export default function AiConfigClient({
   const [overrides, setOverrides] = useState<Partial<Record<AiTask, string>>>(
     initialTaskOverrides,
   );
+  const [promptOverrides, setPromptOverrides] = useState<
+    Record<string, string>
+  >(initialPromptOverrides);
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -69,6 +79,12 @@ export default function AiConfigClient({
       }
       return next;
     });
+  }
+
+  // Strategie-Prompt-Override setzen. Leerer String bleibt im State (wird beim
+  // Save gedroppt) → Feld leer = Code-Default.
+  function setPromptOverride(id: string, value: string) {
+    setPromptOverrides((prev) => ({ ...prev, [id]: value }));
   }
 
   // Alle Modell-Strings, die aktuell irgendwo gesetzt sind (Default oder
@@ -96,6 +112,7 @@ export default function AiConfigClient({
         systemPrompt,
         defaultModel,
         taskModelOverrides: overrides,
+        taskPromptOverrides: promptOverrides,
       });
       if (!result.ok) {
         setError(result.message);
@@ -234,6 +251,49 @@ export default function AiConfigClient({
           padding: 10px 14px;
           border-radius: 4px;
         }
+        .aic-badge {
+          display: inline-block;
+          margin-left: 8px;
+          color: var(--da-green);
+          background: rgba(50,255,126,0.12);
+          border: 1px solid var(--da-green);
+          font-family: var(--da-font-mono);
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          padding: 1px 6px;
+          border-radius: 3px;
+          vertical-align: middle;
+        }
+        .aic-reset {
+          background: transparent;
+          color: var(--da-muted-soft);
+          border: 1px solid var(--da-border);
+          border-radius: 4px;
+          padding: 4px 10px;
+          font-size: 11px;
+          font-family: inherit;
+          cursor: pointer;
+          flex: 0 0 auto;
+        }
+        .aic-reset:hover:not(:disabled) { color: var(--da-text); }
+        .aic-reset:disabled { opacity: 0.4; cursor: not-allowed; }
+        .aic-prompt-textarea {
+          width: 100%;
+          background: var(--da-dark);
+          color: var(--da-text);
+          border: 1px solid var(--da-border);
+          border-radius: 4px;
+          padding: 10px 12px;
+          font-size: 12px;
+          font-family: var(--da-font-mono);
+          line-height: 1.5;
+          resize: vertical;
+          min-height: 150px;
+          box-sizing: border-box;
+          margin-top: 6px;
+        }
       `}</style>
 
       <form className="aic-form" onSubmit={handleSubmit}>
@@ -350,6 +410,70 @@ export default function AiConfigClient({
             global gesetzte Default-Modell für diese Task. Speicher-
             Format unverändert (JSON in <code>task_model_overrides</code>).
           </p>
+        </div>
+
+        <div className="aic-card">
+          <p
+            className="aic-label"
+            style={{ marginBottom: 6, color: "var(--da-text-strong)" }}
+          >
+            Task-Prompts (Strategie)
+          </p>
+          <p className="aic-hint" style={{ marginTop: 0, marginBottom: 16 }}>
+            Nur Strategie &amp; Ton bearbeiten. Das Ausgabeformat (JSON) wird
+            vom Code erzwungen — Format- oder Sprach-Anweisungen hier können die
+            automatische Auswertung stören und zu „Antwort konnte nicht
+            ausgelesen werden“ führen. Leeres Feld = Code-Standard (als
+            Platzhalter angezeigt).
+          </p>
+          {promptEntries.map((entry) => {
+            const value = promptOverrides[entry.id] ?? "";
+            const customized = value.trim() !== "";
+            return (
+              <div key={entry.id} style={{ marginBottom: 20 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <span className="aic-task-label">
+                    {entry.label}
+                    {customized && <span className="aic-badge">angepasst</span>}
+                  </span>
+                  <div style={{ display: "flex", gap: 8, flex: "0 0 auto" }}>
+                    <button
+                      type="button"
+                      className="aic-reset"
+                      disabled={customized}
+                      onClick={() => setPromptOverride(entry.id, entry.placeholder)}
+                      title="Kopiert den Code-Default ins Feld — danach editierbar (gilt als Override)."
+                    >
+                      Default in Feld übernehmen
+                    </button>
+                    <button
+                      type="button"
+                      className="aic-reset"
+                      disabled={!customized}
+                      onClick={() => setPromptOverride(entry.id, "")}
+                    >
+                      Auf Default zurücksetzen
+                    </button>
+                  </div>
+                </div>
+                <span className="aic-task-key">{entry.id}</span>
+                <textarea
+                  className="aic-prompt-textarea"
+                  value={value}
+                  placeholder={entry.placeholder}
+                  onChange={(e) => setPromptOverride(entry.id, e.target.value)}
+                  aria-label={`Strategie-Prompt für ${entry.label}`}
+                />
+              </div>
+            );
+          })}
         </div>
 
         {error && <div className="aic-error">{error}</div>}

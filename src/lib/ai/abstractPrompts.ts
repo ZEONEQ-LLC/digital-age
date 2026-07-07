@@ -6,7 +6,8 @@
 
 export const MAX_BODY_CHARS = 4000;
 
-// Locale-Branch im System-Prompt analog buildSeoPipelineSystem. Sprache
+// Locale-Branch im System-Prompt analog den SEO-Prompt-Buildern in
+// seoPrompts.ts. Sprache
 // ist harte Vorgabe — die AI soll NICHT raten oder umschalten, das
 // `locale`-State im EditorClient ist die Quelle der Wahrheit.
 //
