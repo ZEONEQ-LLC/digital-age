@@ -1753,7 +1753,11 @@ export default function EditorClient({ article, revisions, categories, isEditor,
 
       {tab === "revisions" && (
         <div style={{ maxWidth: 720 }}>
-          <EditorRevisions revisions={revisions} />
+          <EditorRevisions
+            revisions={revisions}
+            articleId={article.id}
+            everPublished={article.published_at != null}
+          />
         </div>
       )}
     </>
