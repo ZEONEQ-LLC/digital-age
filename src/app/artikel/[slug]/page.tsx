@@ -23,6 +23,7 @@ import { getBaseUrl } from "@/lib/siteUrl";
 import { slugifyTag } from "@/lib/tagSlug";
 import { buildBreadcrumbJsonLd } from "@/lib/jsonLd";
 import { createPublicClient } from "@/lib/supabase/public";
+import { buildSpeechChunks, resolveSpeechLang } from "@/lib/listen/speechText";
 import {
   BLOCK_SCHEMA_VERSION,
   type Block,
@@ -267,8 +268,15 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
   // einem Preview-Deploy die Hash-Vercel-URL im Zwischenspeicher. Server-
   // side via getBaseUrl() (NEXT_PUBLIC_SITE_URL → Production-Domain).
   const url = `${getBaseUrl()}/artikel/${article.slug}`;
-  const ttsText = `${article.title}. ${article.excerpt ?? ""}`.trim();
   const doc = resolveBlockDocument(article);
+  // "Anhoeren" liest den ganzen Artikel: Titel -> Abstract -> Body-Bloecke.
+  // Chunks server-seitig bauen (eine utterance pro Chunk im Client).
+  const speechChunks = buildSpeechChunks({
+    title: article.title,
+    excerpt: article.excerpt,
+    doc,
+  });
+  const speechLang = resolveSpeechLang(article.locale);
   const tocItems = deriveTocItems(doc.blocks);
   const authorHandle = author.handle ?? author.slug;
   const baseUrl = getBaseUrl();
@@ -409,7 +417,7 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-4)", flexWrap: "wrap" }}>
-            <ListenButton text={ttsText} />
+            <ListenButton chunks={speechChunks} lang={speechLang} />
             <ShareButtons title={article.title} url={url} />
           </div>
         </div>
