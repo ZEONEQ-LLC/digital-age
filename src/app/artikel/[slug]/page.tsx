@@ -24,6 +24,9 @@ import { slugifyTag } from "@/lib/tagSlug";
 import { buildBreadcrumbJsonLd } from "@/lib/jsonLd";
 import { createPublicClient } from "@/lib/supabase/public";
 import { buildSpeechChunks, resolveSpeechLang } from "@/lib/listen/speechText";
+import { getPodcastsByArticleSlug } from "@/lib/podcastApi";
+import PodcastPlayer from "@/components/PodcastPlayer";
+import ListenLinks, { type ListenLinksMap } from "@/components/ListenLinks";
 import {
   BLOCK_SCHEMA_VERSION,
   type Block,
@@ -528,6 +531,8 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
         )}
       </ArticleBodyGrid>
 
+      <LinkedPodcasts articleSlug={article.slug} />
+
       <RelatedFromAuthor
         authorId={author.id}
         authorDisplayName={author.display_name}
@@ -573,6 +578,52 @@ async function RelatedFromAuthor({
 
   return (
     <ArticleSection title="Mehr von diesem Autor" href={`/autor/${authorHandle}`} articles={related} />
+  );
+}
+
+// Player-Block fuer self-hosted Podcasts, die auf diesen Beitrag verweisen
+// (related_article_slug). Externe Empfehlungen zeigen ihre Plattform-Links.
+// Rendert nichts, wenn kein Podcast verknuepft ist.
+async function LinkedPodcasts({ articleSlug }: { articleSlug: string }) {
+  const podcasts = await getPodcastsByArticleSlug(articleSlug);
+  if (podcasts.length === 0) return null;
+
+  return (
+    <section style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 var(--sp-8) var(--sp-16)" }}>
+      <h2 style={{ color: "var(--da-text)", fontSize: "var(--fs-h4)", fontWeight: 700, marginBottom: "var(--sp-5)" }}>
+        Podcast zum Beitrag
+      </h2>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
+        {podcasts.map((p) => {
+          const isSelfHosted = p.source_type === "self_hosted" && !!p.audio_url;
+          const externalLinks: ListenLinksMap = {
+            spotify: p.spotify_url ?? undefined,
+            applePodcasts: p.apple_podcasts_url ?? undefined,
+            youtube: p.youtube_url ?? undefined,
+            soundcloud: p.soundcloud_url ?? undefined,
+            audible: p.audible_url ?? undefined,
+          };
+          return (
+            <div
+              key={p.id}
+              style={{ background: "var(--da-card)", border: "1px solid var(--da-border)", borderRadius: "var(--r-lg)", padding: "var(--sp-5)" }}
+            >
+              <Link
+                href={`/podcast/${p.slug}`}
+                style={{ color: "var(--da-text)", fontSize: "var(--fs-body)", fontWeight: 700, textDecoration: "none", display: "inline-block", marginBottom: "var(--sp-3)" }}
+              >
+                {p.title}
+              </Link>
+              {isSelfHosted && p.audio_url ? (
+                <PodcastPlayer src={p.audio_url} title={p.title} initialDuration={p.duration_seconds} compact />
+              ) : (
+                <ListenLinks links={externalLinks} size="sm" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

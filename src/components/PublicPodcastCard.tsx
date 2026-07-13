@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import ListenLinks from "./ListenLinks";
+import PodcastPlayer from "./PodcastPlayer";
 import type { PodcastCardVM } from "@/lib/mappers/podcastMappers";
 
 type Props = {
@@ -15,6 +16,8 @@ export default function PublicPodcastCard({ vm }: Props) {
     soundcloud: vm.soundcloudUrl ?? undefined,
     audible: vm.audibleUrl ?? undefined,
   };
+  const isSelfHosted = vm.sourceType === "self_hosted" && !!vm.audioUrl;
+  const detailHref = `/podcast/${vm.slug}`;
 
   return (
     <>
@@ -68,6 +71,8 @@ export default function PublicPodcastCard({ vm }: Props) {
           font-size: 18px; font-weight: 700; line-height: 1.3;
           margin-bottom: 8px;
         }
+        .pdc__title-link { color: inherit; text-decoration: none; }
+        .pdc__title-link:hover { color: var(--da-green); }
         .pdc__desc {
           color: var(--da-text-strong);
           font-size: 14px; line-height: 1.55;
@@ -120,10 +125,21 @@ export default function PublicPodcastCard({ vm }: Props) {
               {vm.langShort}
             </span>
           </div>
-          <h3 className="pdc__title">{vm.title}</h3>
+          <h3 className="pdc__title">
+            <Link href={detailHref} className="pdc__title-link">{vm.title}</Link>
+          </h3>
           <p className="pdc__desc">{vm.description}</p>
           <div className="pdc__listen">
-            <ListenLinks links={links} size="sm" />
+            {isSelfHosted && vm.audioUrl ? (
+              <PodcastPlayer
+                src={vm.audioUrl}
+                title={vm.title}
+                initialDuration={vm.durationSeconds}
+                compact
+              />
+            ) : (
+              <ListenLinks links={links} size="sm" />
+            )}
           </div>
           <div className="pdc__foot">
             {vm.recommender && (
