@@ -22,6 +22,9 @@ export type PodcastCardVM = {
   category: string;
   spotifyUrl: string | null;
   applePodcastsUrl: string | null;
+  youtubeUrl: string | null;
+  soundcloudUrl: string | null;
+  audibleUrl: string | null;
   recommendedAtIso: string;
   recommendedAtFormatted: string;
   recommender: {
@@ -67,6 +70,9 @@ export function podcastToCardVM(row: PodcastWithRecommender): PodcastCardVM {
     category: row.podcast_category,
     spotifyUrl: row.spotify_url,
     applePodcastsUrl: row.apple_podcasts_url,
+    youtubeUrl: row.youtube_url,
+    soundcloudUrl: row.soundcloud_url,
+    audibleUrl: row.audible_url,
     recommendedAtIso: row.recommended_at,
     recommendedAtFormatted: formatDateDE(row.recommended_at),
     recommender,

@@ -919,6 +919,7 @@ export type Database = {
       podcasts: {
         Row: {
           apple_podcasts_url: string | null
+          audible_url: string | null
           cover_image_url: string | null
           created_at: string
           description: string | null
@@ -930,12 +931,15 @@ export type Database = {
           recommended_by_id: string | null
           recommended_by_note: string | null
           related_article_slug: string | null
+          soundcloud_url: string | null
           spotify_url: string | null
           title: string
           updated_at: string
+          youtube_url: string | null
         }
         Insert: {
           apple_podcasts_url?: string | null
+          audible_url?: string | null
           cover_image_url?: string | null
           created_at?: string
           description?: string | null
@@ -947,12 +951,15 @@ export type Database = {
           recommended_by_id?: string | null
           recommended_by_note?: string | null
           related_article_slug?: string | null
+          soundcloud_url?: string | null
           spotify_url?: string | null
           title: string
           updated_at?: string
+          youtube_url?: string | null
         }
         Update: {
           apple_podcasts_url?: string | null
+          audible_url?: string | null
           cover_image_url?: string | null
           created_at?: string
           description?: string | null
@@ -964,9 +971,11 @@ export type Database = {
           recommended_by_id?: string | null
           recommended_by_note?: string | null
           related_article_slug?: string | null
+          soundcloud_url?: string | null
           spotify_url?: string | null
           title?: string
           updated_at?: string
+          youtube_url?: string | null
         }
         Relationships: [
           {
