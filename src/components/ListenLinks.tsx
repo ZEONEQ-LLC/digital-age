@@ -3,9 +3,9 @@
 export type ListenLinksMap = {
   spotify?: string;
   applePodcasts?: string;
-  youtubeMusic?: string;
-  audible?: string;
+  youtube?: string;
   soundcloud?: string;
+  audible?: string;
 };
 
 type Platform = {
@@ -14,12 +14,13 @@ type Platform = {
   icon: string;
 };
 
+// Reihenfolge: Spotify, Apple, YouTube, SoundCloud, Audible.
 const PLATFORMS: Platform[] = [
   { id: "spotify",       name: "Spotify",         icon: "♫" },
   { id: "applePodcasts", name: "Apple Podcasts",  icon: "◈" },
-  { id: "youtubeMusic",  name: "YouTube Music",   icon: "▶" },
-  { id: "audible",       name: "Audible",         icon: "▤" },
+  { id: "youtube",       name: "YouTube",         icon: "▶" },
   { id: "soundcloud",    name: "SoundCloud",      icon: "❯" },
+  { id: "audible",       name: "Audible",         icon: "▤" },
 ];
 
 type ListenLinksProps = {
@@ -85,6 +86,7 @@ export default function ListenLinks({ links, size = "sm" }: ListenLinksProps) {
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
             className="ll__btn"
+            aria-label={`Auf ${p.name} anhören`}
           >
             <span className="ll__icon" aria-hidden>{p.icon}</span>
             {p.name}

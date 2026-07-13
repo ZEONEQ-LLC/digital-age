@@ -11,6 +11,9 @@ export default function PublicPodcastCard({ vm }: Props) {
   const links = {
     spotify: vm.spotifyUrl ?? undefined,
     applePodcasts: vm.applePodcastsUrl ?? undefined,
+    youtube: vm.youtubeUrl ?? undefined,
+    soundcloud: vm.soundcloudUrl ?? undefined,
+    audible: vm.audibleUrl ?? undefined,
   };
 
   return (

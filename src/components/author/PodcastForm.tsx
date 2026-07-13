@@ -58,6 +58,9 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
   const [category, setCategory] = useState(initial?.podcast_category ?? CATEGORIES[0]);
   const [spotifyUrl, setSpotifyUrl] = useState(initial?.spotify_url ?? "");
   const [appleUrl, setAppleUrl] = useState(initial?.apple_podcasts_url ?? "");
+  const [youtubeUrl, setYoutubeUrl] = useState(initial?.youtube_url ?? "");
+  const [soundcloudUrl, setSoundcloudUrl] = useState(initial?.soundcloud_url ?? "");
+  const [audibleUrl, setAudibleUrl] = useState(initial?.audible_url ?? "");
   const [note, setNote] = useState(initial?.recommended_by_note ?? "");
   const [relatedSlug, setRelatedSlug] = useState(initial?.related_article_slug ?? "");
 
@@ -88,6 +91,9 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
       podcast_category: category,
       spotify_url: spotifyUrl.trim() || null,
       apple_podcasts_url: appleUrl.trim() || null,
+      youtube_url: youtubeUrl.trim() || null,
+      soundcloud_url: soundcloudUrl.trim() || null,
+      audible_url: audibleUrl.trim() || null,
       recommended_by_note: note.trim() || null,
       related_article_slug: relatedSlug.trim() || null,
     };
@@ -208,6 +214,42 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
               value={appleUrl}
               onChange={(e) => setAppleUrl(e.target.value)}
               placeholder="https://podcasts.apple.com/..."
+            />
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+          <div>
+            <label style={labelStyle} htmlFor="pf-youtube">YouTube-URL</label>
+            <input
+              id="pf-youtube"
+              type="url"
+              style={inputStyle}
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              placeholder="https://youtube.com/..."
+            />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="pf-soundcloud">SoundCloud-URL</label>
+            <input
+              id="pf-soundcloud"
+              type="url"
+              style={inputStyle}
+              value={soundcloudUrl}
+              onChange={(e) => setSoundcloudUrl(e.target.value)}
+              placeholder="https://soundcloud.com/..."
+            />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="pf-audible">Audible-URL</label>
+            <input
+              id="pf-audible"
+              type="url"
+              style={inputStyle}
+              value={audibleUrl}
+              onChange={(e) => setAudibleUrl(e.target.value)}
+              placeholder="https://audible.com/..."
             />
           </div>
         </div>

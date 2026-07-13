@@ -31,6 +31,9 @@ export type PodcastInput = {
   podcast_category: string;
   spotify_url?: string | null;
   apple_podcasts_url?: string | null;
+  youtube_url?: string | null;
+  soundcloud_url?: string | null;
+  audible_url?: string | null;
   recommended_by_note?: string | null;
   related_article_slug?: string | null;
 };
@@ -49,6 +52,9 @@ export async function createPodcast(input: PodcastInput): Promise<PodcastRow> {
       podcast_category: input.podcast_category,
       spotify_url: input.spotify_url ?? null,
       apple_podcasts_url: input.apple_podcasts_url ?? null,
+      youtube_url: input.youtube_url ?? null,
+      soundcloud_url: input.soundcloud_url ?? null,
+      audible_url: input.audible_url ?? null,
       recommended_by_note: input.recommended_by_note ?? null,
       related_article_slug: input.related_article_slug ?? null,
       recommended_by_id: me.id,
