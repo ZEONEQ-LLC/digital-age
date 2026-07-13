@@ -49,14 +49,29 @@ export async function getCurrentAuthor(): Promise<AuthorRow | null> {
 
 // PUBLIC: RLS "public can read author profiles" (Initial-Schema) erlaubt
 // Anon-SELECT. Kein User-Filter.
+//
+// Auflösung primär über `handle`, mit Fallback auf `slug`. Grund: Bylines und
+// Profil-Links bauen die URL als `handle ?? slug` (siehe articleMappers +
+// artikel/[slug]/page.tsx). Placeholder-/Gast-Authors ohne gesetzten `handle`
+// (per "Nur speichern" angelegt) werden daher über ihren `slug` verlinkt —
+// ohne diesen Fallback liefe ihre eigene Byline-URL ins 404. Zwei getrennte
+// `.eq()`-Queries statt `.or(...)` mit interpoliertem Param (kein PostgREST-
+// Filter-Injection-Vektor); handle hat Vorrang für deterministische Auflösung.
 export async function getAuthorByHandle(handle: string): Promise<AuthorRow | null> {
   const supabase = createPublicClient();
-  const { data } = await supabase
+  const byHandle = await supabase
     .from("authors")
     .select("*")
     .eq("handle", handle)
     .maybeSingle();
-  return data;
+  if (byHandle.data) return byHandle.data;
+
+  const bySlug = await supabase
+    .from("authors")
+    .select("*")
+    .eq("slug", handle)
+    .maybeSingle();
+  return bySlug.data;
 }
 
 // PUBLIC: status=published, author_id ist Param (nicht aus Session).
