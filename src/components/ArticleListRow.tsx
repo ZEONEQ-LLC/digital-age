@@ -113,6 +113,7 @@ export default function ArticleListRow({ article, dotColor }: ArticleListRowProp
               fill
               sizes="(max-width: 640px) 104px, 156px"
               style={{ objectFit: "cover" }}
+              unoptimized
             />
           </div>
           <div className="alr__body">

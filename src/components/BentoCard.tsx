@@ -78,6 +78,7 @@ export default function BentoCard({ article, size = "sm", accent = "green" }: Be
           fill
           sizes={size === "lg" ? "(max-width: 768px) 100vw, 66vw" : "(max-width: 768px) 100vw, 33vw"}
           className="bento-card__img"
+          unoptimized
         />
         <div className="bento-card__overlay" />
         <div className="bento-card__body">
