@@ -7,6 +7,7 @@ import Footer from "@/components/Footer";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import ShareButtons from "@/components/ShareButtons";
 import InternalArticleCard from "@/components/InternalArticleCard";
+import AiGeneratedBadge from "@/components/AiGeneratedBadge";
 import ListenLinks, { type ListenLinksMap } from "@/components/ListenLinks";
 import {
   getPodcastBySlug,
@@ -194,6 +195,7 @@ export default async function PodcastDetailPage({ params }: PageProps) {
                   {formatDuration(podcast.duration_seconds)}
                 </span>
               ) : null}
+              {podcast.ai_generated && <AiGeneratedBadge size="md" />}
             </div>
           </div>
         </div>

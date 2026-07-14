@@ -918,6 +918,7 @@ export type Database = {
       }
       podcasts: {
         Row: {
+          ai_generated: boolean
           apple_podcasts_url: string | null
           audible_url: string | null
           audio_url: string | null
@@ -943,6 +944,7 @@ export type Database = {
           youtube_url: string | null
         }
         Insert: {
+          ai_generated?: boolean
           apple_podcasts_url?: string | null
           audible_url?: string | null
           audio_url?: string | null
@@ -968,6 +970,7 @@ export type Database = {
           youtube_url?: string | null
         }
         Update: {
+          ai_generated?: boolean
           apple_podcasts_url?: string | null
           audible_url?: string | null
           audio_url?: string | null

@@ -24,6 +24,7 @@ export type PodcastCardVM = {
   sourceType: "external" | "self_hosted";
   audioUrl: string | null;
   durationSeconds: number | null;
+  aiGenerated: boolean;
   spotifyUrl: string | null;
   applePodcastsUrl: string | null;
   youtubeUrl: string | null;
@@ -76,6 +77,7 @@ export function podcastToCardVM(row: PodcastWithRecommender): PodcastCardVM {
     sourceType: (row.source_type as "external" | "self_hosted") ?? "external",
     audioUrl: row.audio_url,
     durationSeconds: row.duration_seconds,
+    aiGenerated: row.ai_generated ?? false,
     spotifyUrl: row.spotify_url,
     applePodcastsUrl: row.apple_podcasts_url,
     youtubeUrl: row.youtube_url,

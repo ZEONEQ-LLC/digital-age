@@ -35,6 +35,7 @@ export type PodcastInput = {
   audio_url?: string | null;
   duration_seconds?: number | null;
   file_size_bytes?: number | null;
+  ai_generated?: boolean;
   spotify_url?: string | null;
   apple_podcasts_url?: string | null;
   youtube_url?: string | null;
@@ -96,6 +97,7 @@ export async function createPodcast(input: PodcastInput): Promise<PodcastRow> {
     audio_url: input.audio_url ?? null,
     duration_seconds: input.duration_seconds ?? null,
     file_size_bytes: input.file_size_bytes ?? null,
+    ai_generated: input.ai_generated ?? false,
     spotify_url: input.spotify_url ?? null,
     apple_podcasts_url: input.apple_podcasts_url ?? null,
     youtube_url: input.youtube_url ?? null,
