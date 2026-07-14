@@ -78,6 +78,34 @@ export async function getPodcastsByArticleSlug(
   return (data as PodcastWithRecommender[] | null) ?? [];
 }
 
+// PUBLIC: Karten-Daten eines verknuepften Artikels (Cover/Titel/Teaser) fuer
+// die "Verwandter Artikel"-Karte auf der Podcast-Detailseite. Nur published.
+export type RelatedArticleCard = {
+  slug: string;
+  title: string;
+  coverUrl: string | null;
+  excerpt: string | null;
+};
+
+export async function getRelatedArticleCard(
+  slug: string,
+): Promise<RelatedArticleCard | null> {
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from("articles")
+    .select("slug, title, cover_image_url, excerpt")
+    .eq("slug", slug)
+    .eq("status", "published")
+    .maybeSingle();
+  if (!data) return null;
+  return {
+    slug: data.slug,
+    title: data.title,
+    coverUrl: data.cover_image_url,
+    excerpt: data.excerpt,
+  };
+}
+
 // PUBLIC: nur Slugs published Podcasts — fuer generateStaticParams.
 export async function getPublishedPodcastSlugs(): Promise<string[]> {
   const supabase = createPublicClient();

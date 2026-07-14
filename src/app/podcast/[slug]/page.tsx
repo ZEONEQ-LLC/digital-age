@@ -5,11 +5,13 @@ import { notFound } from "next/navigation";
 
 import Footer from "@/components/Footer";
 import PodcastPlayer from "@/components/PodcastPlayer";
-import ShareButton from "@/components/ShareButton";
+import ShareButtons from "@/components/ShareButtons";
+import InternalArticleCard from "@/components/InternalArticleCard";
 import ListenLinks, { type ListenLinksMap } from "@/components/ListenLinks";
 import {
   getPodcastBySlug,
   getPublishedPodcastSlugs,
+  getRelatedArticleCard,
 } from "@/lib/podcastApi";
 import { getBaseUrl } from "@/lib/siteUrl";
 import { buildBreadcrumbJsonLd } from "@/lib/jsonLd";
@@ -95,6 +97,9 @@ export default async function PodcastDetailPage({ params }: PageProps) {
   const isSelfHosted = podcast.source_type === "self_hosted" && !!podcast.audio_url;
   const cover = podcast.cover_image_url?.trim() || "";
   const recommender = podcast.recommended_by;
+  const relatedArticle = podcast.related_article_slug
+    ? await getRelatedArticleCard(podcast.related_article_slug)
+    : null;
   const recommenderHandle = recommender?.handle ?? recommender?.slug ?? null;
 
   const externalLinks: ListenLinksMap = {
@@ -208,10 +213,20 @@ export default async function PodcastDetailPage({ params }: PageProps) {
         )}
 
         <div className="pd-actions">
-          <ShareButton url={canonical} title={podcast.title} text={podcast.description ?? undefined} />
+          <ShareButtons title={podcast.title} url={canonical} />
         </div>
 
         {podcast.description && <p className="pd-desc">{podcast.description}</p>}
+
+        {relatedArticle && (
+          <InternalArticleCard
+            slug={relatedArticle.slug}
+            title={relatedArticle.title}
+            coverUrl={relatedArticle.coverUrl}
+            excerpt={relatedArticle.excerpt}
+            margin="8px 0 0"
+          />
+        )}
 
         <div className="pd-foot">
           {recommender && (
@@ -223,12 +238,6 @@ export default async function PodcastDetailPage({ params }: PageProps) {
                 <strong style={{ color: "var(--da-text-strong)" }}>{recommender.display_name}</strong>
               )}
             </span>
-          )}
-          {podcast.related_article_slug && (
-            <>
-              <span style={{ color: "var(--da-faint)" }}>·</span>
-              <Link href={`/artikel/${podcast.related_article_slug}`}>Zum passenden Beitrag →</Link>
-            </>
           )}
         </div>
       </div>
