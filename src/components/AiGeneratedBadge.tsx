@@ -1,40 +1,40 @@
 import Link from "next/link";
 
-// KI-Deklaration im Stil des Artikel-Transparenz-Hinweises (Orange-Akzent),
-// Link auf dieselbe Transparenz-Seite. Zwei Groessen: "sm" fuer Cards,
-// "md" fuer die Detailseite.
+// Dezente KI-Deklaration als Metadatum (sitzt in der Meta-Zeile neben
+// Sprache/Dauer). Gedaempftes Grau mit kleinem Orange-Akzent, normale
+// Schreibweise. Transparenz-Link als dezentes ⓘ-Icon; auf der Detailseite
+// (showLabel) ausgeschrieben.
 type Props = {
-  size?: "sm" | "md";
+  showLabel?: boolean;
 };
 
-export default function AiGeneratedBadge({ size = "sm" }: Props) {
-  const sm = size === "sm";
+export default function AiGeneratedBadge({ showLabel = false }: Props) {
   return (
-    <Link
-      href="/ki-transparenz"
-      aria-label="KI-generiert — mehr zur KI-Transparenz"
+    <span
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: sm ? 5 : 7,
-        padding: sm ? "3px 8px" : "5px 11px",
-        borderRadius: "var(--r-xs)",
-        border: "1px solid var(--da-orange)",
-        background: "rgba(255,140,66,0.06)",
-        color: "var(--da-orange)",
+        gap: 5,
         fontFamily: "var(--da-font-mono)",
-        fontSize: sm ? 10 : 12,
-        fontWeight: 700,
-        letterSpacing: "0.06em",
-        textTransform: "uppercase",
-        textDecoration: "none",
-        lineHeight: 1,
+        fontSize: 12,
+        color: "var(--da-muted)",
         whiteSpace: "nowrap",
       }}
     >
-      <span aria-hidden style={{ fontSize: sm ? 11 : 13 }}>✦</span>
+      <span aria-hidden style={{ color: "var(--da-orange)", opacity: 0.65, fontSize: 11 }}>✦</span>
       KI-generiert
-      <span aria-hidden style={{ opacity: 0.7 }}>· Transparenz →</span>
-    </Link>
+      <Link
+        href="/ki-transparenz"
+        aria-label="Zur KI-Transparenz"
+        title="Zur KI-Transparenz"
+        style={{ color: "var(--da-muted-soft)", textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+      >
+        {showLabel ? (
+          <span style={{ color: "var(--da-orange)", opacity: 0.85 }}>· Transparenz</span>
+        ) : (
+          <span aria-hidden style={{ fontSize: 13 }}>ⓘ</span>
+        )}
+      </Link>
+    </span>
   );
 }

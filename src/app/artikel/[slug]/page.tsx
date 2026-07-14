@@ -25,7 +25,7 @@ import { buildBreadcrumbJsonLd } from "@/lib/jsonLd";
 import { createPublicClient } from "@/lib/supabase/public";
 import { buildSpeechChunks, resolveSpeechLang } from "@/lib/listen/speechText";
 import { getPodcastsByArticleSlug, type PodcastWithRecommender } from "@/lib/podcastApi";
-import PodcastPlayer from "@/components/PodcastPlayer";
+import ArticlePodcastBar from "@/components/ArticlePodcastBar";
 import ListenLinks, { type ListenLinksMap } from "@/components/ListenLinks";
 import {
   ARTICLE_PODCAST_ANCHOR,
@@ -446,8 +446,6 @@ async function ArticleView({ article }: { article: ArticleWithFullRelations }) {
         </div>
       </header>
 
-      <LinkedPodcastsSection podcasts={linkedPodcasts} />
-
       <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 var(--sp-8) var(--sp-12)" }}>
         <figure style={{ margin: 0 }}>
           <div style={{ position: "relative", borderRadius: "10px", overflow: "hidden" }}>
@@ -500,6 +498,8 @@ async function ArticleView({ article }: { article: ArticleWithFullRelations }) {
           )}
         </figure>
       </div>
+
+      <LinkedPodcastsSection podcasts={linkedPodcasts} />
 
       <ArticleBodyGrid hasToc={tocItems.length > 0}>
         <article>
@@ -601,11 +601,12 @@ async function RelatedFromAuthor({
   );
 }
 
-// Player-Block fuer self-hosted Podcasts, die auf diesen Beitrag verweisen
-// (related_article_slug). Externe Empfehlungen zeigen ihre Plattform-Links.
-// Rendert nichts, wenn kein Podcast verknuepft ist. Sitzt direkt unter dem
-// Artikel-Header; der Anchor (ARTICLE_PODCAST_ANCHOR) ist Ziel des ANHOEREN-
-// Buttons + TOC-Eintrags. Der erste self-hosted Player bekommt das Play-Event.
+// Schlanke Podcast-Leiste(n) fuer Podcasts, die auf diesen Beitrag verweisen
+// (related_article_slug). Sitzt direkt UNTER dem Hero-Bild, damit der visuelle
+// Einstieg (Lead -> Bild) intakt bleibt. Self-hosted -> einzeilige Play-Leiste
+// (ArticlePodcastBar), extern -> Titel + Plattform-Links. Der Anchor
+// (ARTICLE_PODCAST_ANCHOR) ist Ziel des ANHOEREN-Buttons + TOC-Eintrags; der
+// erste self-hosted Player bekommt das Play-Event.
 function LinkedPodcastsSection({ podcasts }: { podcasts: PodcastWithRecommender[] }) {
   if (podcasts.length === 0) return null;
   const firstPlayableIdx = podcasts.findIndex(
@@ -613,13 +614,26 @@ function LinkedPodcastsSection({ podcasts }: { podcasts: PodcastWithRecommender[
   );
 
   return (
-    <section id={ARTICLE_PODCAST_ANCHOR} style={{ maxWidth: "860px", margin: "0 auto", padding: "0 var(--sp-8) var(--sp-6)", scrollMarginTop: "var(--nav-h)" }}>
-      <h2 style={{ color: "var(--da-text)", fontSize: "var(--fs-h4)", fontWeight: 700, marginBottom: "var(--sp-4)" }}>
+    <section id={ARTICLE_PODCAST_ANCHOR} style={{ maxWidth: "860px", margin: "0 auto", padding: "0 var(--sp-8) var(--sp-8)", scrollMarginTop: "var(--nav-h)" }}>
+      <p style={{ color: "var(--da-faint)", fontFamily: "var(--da-font-mono)", fontSize: "var(--fs-caption)", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "var(--sp-3)" }}>
         Podcast zum Beitrag
-      </h2>
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
         {podcasts.map((p, idx) => {
           const isSelfHosted = p.source_type === "self_hosted" && !!p.audio_url;
+          if (isSelfHosted && p.audio_url) {
+            return (
+              <ArticlePodcastBar
+                key={p.id}
+                src={p.audio_url}
+                title={p.title}
+                slug={p.slug}
+                durationSeconds={p.duration_seconds}
+                aiGenerated={p.ai_generated}
+                playEventName={idx === firstPlayableIdx ? ARTICLE_PODCAST_PLAY_EVENT : undefined}
+              />
+            );
+          }
           const externalLinks: ListenLinksMap = {
             spotify: p.spotify_url ?? undefined,
             applePodcasts: p.apple_podcasts_url ?? undefined,
@@ -630,25 +644,15 @@ function LinkedPodcastsSection({ podcasts }: { podcasts: PodcastWithRecommender[
           return (
             <div
               key={p.id}
-              style={{ background: "var(--da-card)", border: "1px solid var(--da-border)", borderRadius: "var(--r-lg)", padding: "var(--sp-5)" }}
+              style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", background: "var(--da-card)", border: "1px solid var(--da-border)", borderRadius: "var(--r-md)", padding: "10px 14px" }}
             >
               <Link
                 href={`/podcast/${p.slug}`}
-                style={{ color: "var(--da-text)", fontSize: "var(--fs-body)", fontWeight: 700, textDecoration: "none", display: "inline-block", marginBottom: "var(--sp-3)" }}
+                style={{ color: "var(--da-text)", fontSize: "var(--fs-body-sm)", fontWeight: 600, textDecoration: "none" }}
               >
                 {p.title}
               </Link>
-              {isSelfHosted && p.audio_url ? (
-                <PodcastPlayer
-                  src={p.audio_url}
-                  title={p.title}
-                  initialDuration={p.duration_seconds}
-                  compact
-                  playEventName={idx === firstPlayableIdx ? ARTICLE_PODCAST_PLAY_EVENT : undefined}
-                />
-              ) : (
-                <ListenLinks links={externalLinks} size="sm" />
-              )}
+              <ListenLinks links={externalLinks} size="sm" />
             </div>
           );
         })}

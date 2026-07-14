@@ -126,19 +126,17 @@ export default function PublicPodcastCard({ vm }: Props) {
         <div style={{ minWidth: 0 }}>
           <div className="pdc__head">
             <span className="pdc__cat">{vm.category}</span>
-            <span className="pdc__lang" title={vm.langLabel} aria-label={`Sprache: ${vm.langLabel}`}>
-              {vm.langShort}
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+              {vm.aiGenerated && <AiGeneratedBadge />}
+              <span className="pdc__lang" title={vm.langLabel} aria-label={`Sprache: ${vm.langLabel}`}>
+                {vm.langShort}
+              </span>
             </span>
           </div>
           <h3 className="pdc__title">
             <Link href={detailHref} className="pdc__title-link">{vm.title}</Link>
           </h3>
           <p className="pdc__desc">{vm.description}</p>
-          {vm.aiGenerated && (
-            <div style={{ marginBottom: 12 }}>
-              <AiGeneratedBadge size="sm" />
-            </div>
-          )}
           <div className="pdc__listen">
             {isSelfHosted && vm.audioUrl ? (
               <PodcastPlayer

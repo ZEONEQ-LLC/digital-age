@@ -195,7 +195,7 @@ export default async function PodcastDetailPage({ params }: PageProps) {
                   {formatDuration(podcast.duration_seconds)}
                 </span>
               ) : null}
-              {podcast.ai_generated && <AiGeneratedBadge size="md" />}
+              {podcast.ai_generated && <AiGeneratedBadge showLabel />}
             </div>
           </div>
         </div>
