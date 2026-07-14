@@ -4,6 +4,13 @@ import { useState, useTransition } from "react";
 import AuthorCard from "@/components/author/AuthorCard";
 import { createPodcast, updatePodcast, type PodcastInput } from "@/lib/podcastActions";
 import { PODCAST_LANGUAGES } from "@/lib/mappers/podcastMappers";
+import { uploadPodcastAudio, uploadPodcastCover } from "@/lib/podcast/upload";
+import {
+  formatDuration,
+  formatFileSize,
+  validatePodcastSource,
+  type PodcastSourceType,
+} from "@/lib/podcast/format";
 import type { PodcastWithRecommender } from "@/lib/podcastApi";
 import type { Database } from "@/lib/database.types";
 
@@ -56,6 +63,24 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
     (initial?.language as PodcastInput["language"]) ?? "de",
   );
   const [category, setCategory] = useState(initial?.podcast_category ?? CATEGORIES[0]);
+
+  const [sourceType, setSourceType] = useState<PodcastSourceType>(
+    (initial?.source_type as PodcastSourceType) ?? "external",
+  );
+  const [audioUrl, setAudioUrl] = useState(initial?.audio_url ?? "");
+  const [durationSeconds, setDurationSeconds] = useState<number | null>(
+    initial?.duration_seconds ?? null,
+  );
+  const [fileSizeBytes, setFileSizeBytes] = useState<number | null>(
+    initial?.file_size_bytes ?? null,
+  );
+  const [audioBusy, setAudioBusy] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+
+  const [coverMode, setCoverMode] = useState<"url" | "upload">("url");
+  const [coverBusy, setCoverBusy] = useState(false);
+  const [coverError, setCoverError] = useState<string | null>(null);
+
   const [spotifyUrl, setSpotifyUrl] = useState(initial?.spotify_url ?? "");
   const [appleUrl, setAppleUrl] = useState(initial?.apple_podcasts_url ?? "");
   const [youtubeUrl, setYoutubeUrl] = useState(initial?.youtube_url ?? "");
@@ -72,7 +97,44 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
     if (title.length > 120) return "Titel zu lang (max 120).";
     if (description && description.length > 1500) return "Beschreibung zu lang (max 1500).";
     if (note && note.length > 280) return "Empfehlungs-Note zu lang (max 280).";
+    const sourceError = validatePodcastSource({
+      title,
+      sourceType,
+      audioUrl: audioUrl || null,
+      externalUrls: [spotifyUrl, appleUrl, youtubeUrl, soundcloudUrl, audibleUrl],
+    });
+    if (sourceError) return sourceError;
     return null;
+  }
+
+  async function handleAudioSelect(file: File | undefined) {
+    if (!file) return;
+    setAudioError(null);
+    setAudioBusy(true);
+    try {
+      const { url, sizeBytes, durationSeconds: dur } = await uploadPodcastAudio(file);
+      setAudioUrl(url);
+      setFileSizeBytes(sizeBytes);
+      setDurationSeconds(dur > 0 ? dur : null);
+    } catch (e) {
+      setAudioError(e instanceof Error ? e.message : "Audio-Upload fehlgeschlagen.");
+    } finally {
+      setAudioBusy(false);
+    }
+  }
+
+  async function handleCoverSelect(file: File | undefined) {
+    if (!file) return;
+    setCoverError(null);
+    setCoverBusy(true);
+    try {
+      const { url } = await uploadPodcastCover(file);
+      setCover(url);
+    } catch (e) {
+      setCoverError(e instanceof Error ? e.message : "Cover-Upload fehlgeschlagen.");
+    } finally {
+      setCoverBusy(false);
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -83,17 +145,23 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
       return;
     }
     setError(null);
+    const isSelf = sourceType === "self_hosted";
     const input: PodcastInput = {
       title: title.trim(),
       description: description.trim() || null,
       cover_image_url: cover.trim() || null,
       language,
       podcast_category: category,
-      spotify_url: spotifyUrl.trim() || null,
-      apple_podcasts_url: appleUrl.trim() || null,
-      youtube_url: youtubeUrl.trim() || null,
-      soundcloud_url: soundcloudUrl.trim() || null,
-      audible_url: audibleUrl.trim() || null,
+      source_type: sourceType,
+      audio_url: isSelf ? audioUrl.trim() || null : null,
+      duration_seconds: isSelf ? durationSeconds : null,
+      file_size_bytes: isSelf ? fileSizeBytes : null,
+      // Plattform-Links nur fuer externe Podcasts.
+      spotify_url: isSelf ? null : spotifyUrl.trim() || null,
+      apple_podcasts_url: isSelf ? null : appleUrl.trim() || null,
+      youtube_url: isSelf ? null : youtubeUrl.trim() || null,
+      soundcloud_url: isSelf ? null : soundcloudUrl.trim() || null,
+      audible_url: isSelf ? null : audibleUrl.trim() || null,
       recommended_by_note: note.trim() || null,
       related_article_slug: relatedSlug.trim() || null,
     };
@@ -128,6 +196,60 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
         )}
 
         <div>
+          <span style={labelStyle}>Quellentyp</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            {(["external", "self_hosted"] as const).map((st) => (
+              <button
+                key={st}
+                type="button"
+                onClick={() => setSourceType(st)}
+                aria-pressed={sourceType === st}
+                style={{
+                  flex: 1,
+                  padding: "10px 12px",
+                  borderRadius: 4,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  background: sourceType === st ? "var(--da-green)" : "transparent",
+                  color: sourceType === st ? "var(--da-dark)" : "var(--da-muted-soft)",
+                  border: `1px solid ${sourceType === st ? "var(--da-green)" : "var(--da-border)"}`,
+                }}
+              >
+                {st === "external" ? "Externer Podcast" : "Self-hosted (Audio-Upload)"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {sourceType === "self_hosted" && (
+          <div>
+            <label style={labelStyle} htmlFor="pf-audio">Audio-File (MP3, max 200 MB)</label>
+            <input
+              id="pf-audio"
+              type="file"
+              accept="audio/mpeg,audio/mp4,audio/aac,audio/wav"
+              disabled={audioBusy}
+              onChange={(e) => handleAudioSelect(e.target.files?.[0])}
+              style={{ ...inputStyle, padding: "7px 12px" }}
+            />
+            {audioBusy && (
+              <p style={{ color: "var(--da-muted)", fontSize: 12, marginTop: 6 }}>Lädt hoch…</p>
+            )}
+            {audioError && (
+              <p style={{ color: "var(--da-red, #ff5c5c)", fontSize: 12, marginTop: 6 }}>{audioError}</p>
+            )}
+            {audioUrl && !audioBusy && (
+              <p style={{ color: "var(--da-green)", fontSize: 12, marginTop: 6, fontFamily: "var(--da-font-mono)" }}>
+                ✓ Audio gesetzt{durationSeconds ? ` · ${formatDuration(durationSeconds)}` : ""}
+                {fileSizeBytes ? ` · ${formatFileSize(fileSizeBytes)}` : ""}
+              </p>
+            )}
+          </div>
+        )}
+
+        <div>
           <label style={labelStyle} htmlFor="pf-title">Titel</label>
           <input
             id="pf-title"
@@ -153,15 +275,64 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
         </div>
 
         <div>
-          <label style={labelStyle} htmlFor="pf-cover">Cover-URL</label>
-          <input
-            id="pf-cover"
-            type="url"
-            style={inputStyle}
-            value={cover}
-            onChange={(e) => setCover(e.target.value)}
-            placeholder="https://..."
-          />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <span style={{ ...labelStyle, marginBottom: 0 }}>Cover</span>
+            <div style={{ display: "flex", gap: 6 }}>
+              {(["url", "upload"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setCoverMode(m)}
+                  aria-pressed={coverMode === m}
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 3,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    fontFamily: "var(--da-font-mono)",
+                    cursor: "pointer",
+                    background: coverMode === m ? "var(--da-green)" : "transparent",
+                    color: coverMode === m ? "var(--da-dark)" : "var(--da-muted-soft)",
+                    border: `1px solid ${coverMode === m ? "var(--da-green)" : "var(--da-border)"}`,
+                  }}
+                >
+                  {m === "url" ? "Externe URL" : "Upload"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {coverMode === "url" ? (
+            <input
+              id="pf-cover"
+              type="url"
+              style={inputStyle}
+              value={cover}
+              onChange={(e) => setCover(e.target.value)}
+              placeholder="https://... (z.B. Apple-Podcast-Cover)"
+            />
+          ) : (
+            <input
+              id="pf-cover-file"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              disabled={coverBusy}
+              onChange={(e) => handleCoverSelect(e.target.files?.[0])}
+              style={{ ...inputStyle, padding: "7px 12px" }}
+            />
+          )}
+          {coverBusy && (
+            <p style={{ color: "var(--da-muted)", fontSize: 12, marginTop: 6 }}>Verarbeite & lade hoch…</p>
+          )}
+          {coverError && (
+            <p style={{ color: "var(--da-red, #ff5c5c)", fontSize: 12, marginTop: 6 }}>{coverError}</p>
+          )}
+          {cover && !coverBusy && (
+            <p style={{ color: "var(--da-green)", fontSize: 12, marginTop: 6, fontFamily: "var(--da-font-mono)", wordBreak: "break-all" }}>
+              ✓ {cover}
+            </p>
+          )}
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
@@ -193,6 +364,8 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
           </div>
         </div>
 
+        {sourceType === "external" && (
+        <>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <div>
             <label style={labelStyle} htmlFor="pf-spotify">Spotify-URL</label>
@@ -253,6 +426,8 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
             />
           </div>
         </div>
+        </>
+        )}
 
         <div>
           <label style={labelStyle} htmlFor="pf-note">Empfehlungs-Note (optional, max 280)</label>

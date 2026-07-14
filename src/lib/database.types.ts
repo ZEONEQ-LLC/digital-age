@@ -920,9 +920,12 @@ export type Database = {
         Row: {
           apple_podcasts_url: string | null
           audible_url: string | null
+          audio_url: string | null
           cover_image_url: string | null
           created_at: string
           description: string | null
+          duration_seconds: number | null
+          file_size_bytes: number | null
           id: string
           is_published: boolean
           language: string
@@ -931,7 +934,9 @@ export type Database = {
           recommended_by_id: string | null
           recommended_by_note: string | null
           related_article_slug: string | null
+          slug: string
           soundcloud_url: string | null
+          source_type: string
           spotify_url: string | null
           title: string
           updated_at: string
@@ -940,9 +945,12 @@ export type Database = {
         Insert: {
           apple_podcasts_url?: string | null
           audible_url?: string | null
+          audio_url?: string | null
           cover_image_url?: string | null
           created_at?: string
           description?: string | null
+          duration_seconds?: number | null
+          file_size_bytes?: number | null
           id?: string
           is_published?: boolean
           language: string
@@ -951,7 +959,9 @@ export type Database = {
           recommended_by_id?: string | null
           recommended_by_note?: string | null
           related_article_slug?: string | null
+          slug: string
           soundcloud_url?: string | null
+          source_type?: string
           spotify_url?: string | null
           title: string
           updated_at?: string
@@ -960,9 +970,12 @@ export type Database = {
         Update: {
           apple_podcasts_url?: string | null
           audible_url?: string | null
+          audio_url?: string | null
           cover_image_url?: string | null
           created_at?: string
           description?: string | null
+          duration_seconds?: number | null
+          file_size_bytes?: number | null
           id?: string
           is_published?: boolean
           language?: string
@@ -971,7 +984,9 @@ export type Database = {
           recommended_by_id?: string | null
           recommended_by_note?: string | null
           related_article_slug?: string | null
+          slug?: string
           soundcloud_url?: string | null
+          source_type?: string
           spotify_url?: string | null
           title?: string
           updated_at?: string

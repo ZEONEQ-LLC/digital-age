@@ -13,6 +13,7 @@ export const PODCAST_LANGUAGES: readonly {
 
 export type PodcastCardVM = {
   id: string;
+  slug: string;
   title: string;
   description: string;
   cover: string;
@@ -20,6 +21,9 @@ export type PodcastCardVM = {
   langShort: string;
   langLabel: string;
   category: string;
+  sourceType: "external" | "self_hosted";
+  audioUrl: string | null;
+  durationSeconds: number | null;
   spotifyUrl: string | null;
   applePodcastsUrl: string | null;
   youtubeUrl: string | null;
@@ -61,6 +65,7 @@ export function podcastToCardVM(row: PodcastWithRecommender): PodcastCardVM {
 
   return {
     id: row.id,
+    slug: row.slug,
     title: row.title,
     description: row.description ?? "",
     cover: row.cover_image_url ?? "",
@@ -68,6 +73,9 @@ export function podcastToCardVM(row: PodcastWithRecommender): PodcastCardVM {
     langShort: meta.short,
     langLabel: meta.label,
     category: row.podcast_category,
+    sourceType: (row.source_type as "external" | "self_hosted") ?? "external",
+    audioUrl: row.audio_url,
+    durationSeconds: row.duration_seconds,
     spotifyUrl: row.spotify_url,
     applePodcastsUrl: row.apple_podcasts_url,
     youtubeUrl: row.youtube_url,
