@@ -84,6 +84,8 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
   const [coverBusy, setCoverBusy] = useState(false);
   const [coverError, setCoverError] = useState<string | null>(null);
 
+  const [aiGenerated, setAiGenerated] = useState(initial?.ai_generated ?? false);
+
   const [spotifyUrl, setSpotifyUrl] = useState(initial?.spotify_url ?? "");
   const [appleUrl, setAppleUrl] = useState(initial?.apple_podcasts_url ?? "");
   const [youtubeUrl, setYoutubeUrl] = useState(initial?.youtube_url ?? "");
@@ -171,6 +173,7 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
       audio_url: isSelf ? audioUrl.trim() || null : null,
       duration_seconds: isSelf ? durationSeconds : null,
       file_size_bytes: isSelf ? fileSizeBytes : null,
+      ai_generated: aiGenerated,
       // Plattform-Links nur fuer externe Podcasts.
       spotify_url: isSelf ? null : spotifyUrl.trim() || null,
       apple_podcasts_url: isSelf ? null : appleUrl.trim() || null,
@@ -454,6 +457,23 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
             placeholder="Warum empfiehlst du das?"
             maxLength={280}
           />
+        </div>
+
+        <div>
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={aiGenerated}
+              onChange={(e) => setAiGenerated(e.target.checked)}
+              style={{ marginTop: 2, accentColor: "var(--da-green)" }}
+            />
+            <span style={{ fontSize: 13, color: "var(--da-text)", lineHeight: 1.5 }}>
+              KI-generiert (z.B. NotebookLM)
+              <span style={{ display: "block", color: "var(--da-muted)", fontSize: 12 }}>
+                Zeigt einen Transparenz-Hinweis auf Karte und Detailseite.
+              </span>
+            </span>
+          </label>
         </div>
 
         <div>

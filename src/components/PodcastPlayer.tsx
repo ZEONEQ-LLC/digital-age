@@ -14,6 +14,9 @@ type Props = {
   title: string;
   initialDuration?: number | null;
   compact?: boolean;
+  // Optionaler Window-Event-Name: feuert das Event -> Player startet. Genutzt
+  // vom Artikel-ANHOEREN-Button, um den verknuepften Podcast abzuspielen.
+  playEventName?: string;
 };
 
 const SPEEDS = [1, 1.25, 1.5] as const;
@@ -23,6 +26,7 @@ export default function PodcastPlayer({
   title,
   initialDuration,
   compact = false,
+  playEventName,
 }: Props) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -56,6 +60,16 @@ export default function PodcastPlayer({
       a.removeEventListener("pause", onPause);
     };
   }, []);
+
+  // Externer Play-Trigger (Artikel-ANHOEREN-Button) via Window-Event.
+  useEffect(() => {
+    if (!playEventName) return;
+    const onExternalPlay = () => {
+      void audioRef.current?.play();
+    };
+    window.addEventListener(playEventName, onExternalPlay);
+    return () => window.removeEventListener(playEventName, onExternalPlay);
+  }, [playEventName]);
 
   function toggle() {
     const a = audioRef.current;

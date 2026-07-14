@@ -24,9 +24,13 @@ import { slugifyTag } from "@/lib/tagSlug";
 import { buildBreadcrumbJsonLd } from "@/lib/jsonLd";
 import { createPublicClient } from "@/lib/supabase/public";
 import { buildSpeechChunks, resolveSpeechLang } from "@/lib/listen/speechText";
-import { getPodcastsByArticleSlug } from "@/lib/podcastApi";
+import { getPodcastsByArticleSlug, type PodcastWithRecommender } from "@/lib/podcastApi";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import ListenLinks, { type ListenLinksMap } from "@/components/ListenLinks";
+import {
+  ARTICLE_PODCAST_ANCHOR,
+  ARTICLE_PODCAST_PLAY_EVENT,
+} from "@/lib/podcast/articleAudio";
 import {
   BLOCK_SCHEMA_VERSION,
   type Block,
@@ -262,7 +266,7 @@ export default async function ArticlePage({ params }: PageProps) {
   return <ArticleView article={article} />;
 }
 
-function ArticleView({ article }: { article: ArticleWithFullRelations }) {
+async function ArticleView({ article }: { article: ArticleWithFullRelations }) {
   const author = article.author!;
   const isExternal = author.role === "external";
   const subcategory = article.subcategory ?? article.category?.name_de ?? "";
@@ -280,8 +284,19 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
     doc,
   });
   const speechLang = resolveSpeechLang(article.locale);
-  const tocItems = deriveTocItems(doc.blocks);
   const authorHandle = author.handle ?? author.slug;
+
+  // Verknuepfte Podcasts (fuers "Podcast zum Beitrag" direkt unter dem Header).
+  // Existiert ein self-hosted Podcast, spielt der ANHOEREN-Button diesen ab
+  // (statt TTS) und die TOC bekommt einen "Play Podcast"-Eintrag.
+  const linkedPodcasts = await getPodcastsByArticleSlug(article.slug);
+  const hasPlayablePodcast = linkedPodcasts.some(
+    (p) => p.source_type === "self_hosted" && !!p.audio_url,
+  );
+  const baseToc = deriveTocItems(doc.blocks);
+  const tocItems = hasPlayablePodcast
+    ? [{ id: ARTICLE_PODCAST_ANCHOR, label: "Play Podcast" }, ...baseToc]
+    : baseToc;
   const baseUrl = getBaseUrl();
   const jsonLd = buildArticleJsonLd(article, baseUrl);
   // Breadcrumb-Schema folgt der SEO-Hierarchie (Hauptkategorie, nicht die
@@ -420,11 +435,18 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-4)", flexWrap: "wrap" }}>
-            <ListenButton chunks={speechChunks} lang={speechLang} />
+            <ListenButton
+              chunks={speechChunks}
+              lang={speechLang}
+              podcastTargetId={hasPlayablePodcast ? ARTICLE_PODCAST_ANCHOR : undefined}
+              podcastPlayEvent={hasPlayablePodcast ? ARTICLE_PODCAST_PLAY_EVENT : undefined}
+            />
             <ShareButtons title={article.title} url={url} />
           </div>
         </div>
       </header>
+
+      <LinkedPodcastsSection podcasts={linkedPodcasts} />
 
       <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 var(--sp-8) var(--sp-12)" }}>
         <figure style={{ margin: 0 }}>
@@ -531,8 +553,6 @@ function ArticleView({ article }: { article: ArticleWithFullRelations }) {
         )}
       </ArticleBodyGrid>
 
-      <LinkedPodcasts articleSlug={article.slug} />
-
       <RelatedFromAuthor
         authorId={author.id}
         authorDisplayName={author.display_name}
@@ -583,18 +603,22 @@ async function RelatedFromAuthor({
 
 // Player-Block fuer self-hosted Podcasts, die auf diesen Beitrag verweisen
 // (related_article_slug). Externe Empfehlungen zeigen ihre Plattform-Links.
-// Rendert nichts, wenn kein Podcast verknuepft ist.
-async function LinkedPodcasts({ articleSlug }: { articleSlug: string }) {
-  const podcasts = await getPodcastsByArticleSlug(articleSlug);
+// Rendert nichts, wenn kein Podcast verknuepft ist. Sitzt direkt unter dem
+// Artikel-Header; der Anchor (ARTICLE_PODCAST_ANCHOR) ist Ziel des ANHOEREN-
+// Buttons + TOC-Eintrags. Der erste self-hosted Player bekommt das Play-Event.
+function LinkedPodcastsSection({ podcasts }: { podcasts: PodcastWithRecommender[] }) {
   if (podcasts.length === 0) return null;
+  const firstPlayableIdx = podcasts.findIndex(
+    (p) => p.source_type === "self_hosted" && !!p.audio_url,
+  );
 
   return (
-    <section style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 var(--sp-8) var(--sp-16)" }}>
-      <h2 style={{ color: "var(--da-text)", fontSize: "var(--fs-h4)", fontWeight: 700, marginBottom: "var(--sp-5)" }}>
+    <section id={ARTICLE_PODCAST_ANCHOR} style={{ maxWidth: "860px", margin: "0 auto", padding: "0 var(--sp-8) var(--sp-6)", scrollMarginTop: "var(--nav-h)" }}>
+      <h2 style={{ color: "var(--da-text)", fontSize: "var(--fs-h4)", fontWeight: 700, marginBottom: "var(--sp-4)" }}>
         Podcast zum Beitrag
       </h2>
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
-        {podcasts.map((p) => {
+        {podcasts.map((p, idx) => {
           const isSelfHosted = p.source_type === "self_hosted" && !!p.audio_url;
           const externalLinks: ListenLinksMap = {
             spotify: p.spotify_url ?? undefined,
@@ -615,7 +639,13 @@ async function LinkedPodcasts({ articleSlug }: { articleSlug: string }) {
                 {p.title}
               </Link>
               {isSelfHosted && p.audio_url ? (
-                <PodcastPlayer src={p.audio_url} title={p.title} initialDuration={p.duration_seconds} compact />
+                <PodcastPlayer
+                  src={p.audio_url}
+                  title={p.title}
+                  initialDuration={p.duration_seconds}
+                  compact
+                  playEventName={idx === firstPlayableIdx ? ARTICLE_PODCAST_PLAY_EVENT : undefined}
+                />
               ) : (
                 <ListenLinks links={externalLinks} size="sm" />
               )}

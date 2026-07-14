@@ -2,6 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import ListenLinks from "./ListenLinks";
 import PodcastPlayer from "./PodcastPlayer";
+import ShareButtons from "./ShareButtons";
+import AiGeneratedBadge from "./AiGeneratedBadge";
+import { getBaseUrl } from "@/lib/siteUrl";
 import type { PodcastCardVM } from "@/lib/mappers/podcastMappers";
 
 type Props = {
@@ -18,6 +21,8 @@ export default function PublicPodcastCard({ vm }: Props) {
   };
   const isSelfHosted = vm.sourceType === "self_hosted" && !!vm.audioUrl;
   const detailHref = `/podcast/${vm.slug}`;
+  // Geteilte URL = kanonische Detailseite (absolut fuer ShareButtons).
+  const shareUrl = `${getBaseUrl()}/podcast/${vm.slug}`;
 
   return (
     <>
@@ -129,6 +134,11 @@ export default function PublicPodcastCard({ vm }: Props) {
             <Link href={detailHref} className="pdc__title-link">{vm.title}</Link>
           </h3>
           <p className="pdc__desc">{vm.description}</p>
+          {vm.aiGenerated && (
+            <div style={{ marginBottom: 12 }}>
+              <AiGeneratedBadge size="sm" />
+            </div>
+          )}
           <div className="pdc__listen">
             {isSelfHosted && vm.audioUrl ? (
               <PodcastPlayer
@@ -140,6 +150,9 @@ export default function PublicPodcastCard({ vm }: Props) {
             ) : (
               <ListenLinks links={links} size="sm" />
             )}
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <ShareButtons title={vm.title} url={shareUrl} />
           </div>
           <div className="pdc__foot">
             {vm.recommender && (

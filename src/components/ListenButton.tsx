@@ -28,9 +28,17 @@ type PlayState = "idle" | "playing" | "paused";
 export default function ListenButton({
   chunks,
   lang,
+  podcastTargetId,
+  podcastPlayEvent,
 }: {
   chunks: string[];
   lang: string;
+  // Podcast-Modus: wenn gesetzt, startet der Button NICHT die TTS-Vorlesung,
+  // sondern scrollt zur Podcast-Box (podcastTargetId) und feuert das
+  // Play-Event (podcastPlayEvent). Fuer Artikel mit verknuepftem self-hosted
+  // Podcast — die menschliche Audio-Version ist der bessere "Anhoeren"-Weg.
+  podcastTargetId?: string;
+  podcastPlayEvent?: string;
 }) {
   const supported = useSpeechSupported();
   const [state, setState] = useState<PlayState>("idle");
@@ -101,6 +109,33 @@ export default function ListenButton({
       window.speechSynthesis.resume();
       setState("playing");
     }
+  }
+
+  // Podcast-Modus: identischer Look, aber scrollt zur Box + startet den
+  // verknuepften Podcast statt der TTS-Vorlesung.
+  if (podcastTargetId) {
+    const handlePodcast = () => {
+      document
+        .getElementById(podcastTargetId)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (podcastPlayEvent) {
+        window.dispatchEvent(new CustomEvent(podcastPlayEvent));
+      }
+    };
+    return (
+      <>
+        <ListenStyles />
+        <button
+          type="button"
+          onClick={handlePodcast}
+          className="listen-btn"
+          aria-label="Podcast zum Beitrag anhören"
+        >
+          <PlayIcon />
+          Anhören
+        </button>
+      </>
+    );
   }
 
   if (!supported) {
