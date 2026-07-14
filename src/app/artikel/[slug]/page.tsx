@@ -614,11 +614,13 @@ function LinkedPodcastsSection({ podcasts }: { podcasts: PodcastWithRecommender[
   );
 
   return (
-    <section id={ARTICLE_PODCAST_ANCHOR} style={{ maxWidth: "860px", margin: "0 auto", padding: "0 var(--sp-8) var(--sp-8)", scrollMarginTop: "var(--nav-h)" }}>
+    <section id={ARTICLE_PODCAST_ANCHOR} style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 var(--sp-8) var(--sp-8)", scrollMarginTop: "var(--nav-h)" }}>
       <p style={{ color: "var(--da-faint)", fontFamily: "var(--da-font-mono)", fontSize: "var(--fs-caption)", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "var(--sp-3)" }}>
         Podcast zum Beitrag
       </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+      {/* maxWidth = natuerliche Lesebreite, links­buendig an der 1100er-
+          Inhaltskante (deckungsgleich mit Hero-Bild + Fliesstext). */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)", maxWidth: "720px" }}>
         {podcasts.map((p, idx) => {
           const isSelfHosted = p.source_type === "self_hosted" && !!p.audio_url;
           if (isSelfHosted && p.audio_url) {
