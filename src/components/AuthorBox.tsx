@@ -26,7 +26,7 @@ export default function AuthorBox({ name, slug, avatar, bio, role, external = fa
       }}
     >
       <div style={{ position: "relative", width: 72, height: 72, flexShrink: 0, borderRadius: "50%", overflow: "hidden" }}>
-        <Image src={avatar} alt={name} fill sizes="72px" style={{ objectFit: "cover" }} />
+        <Image src={avatar} alt={name} fill sizes="72px" style={{ objectFit: "cover" }} unoptimized />
       </div>
       <div>
         <p
