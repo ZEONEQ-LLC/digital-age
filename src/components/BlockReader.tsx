@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import InternalArticleCard from "./InternalArticleCard";
 import type { Block, BlockDocument, Source } from "@/types/blocks";
 import { externalLinkRe } from "@/lib/markdownLinkUrl";
 import {
@@ -352,40 +353,12 @@ function renderBlock(
       );
     case "internalArticleCard":
       return (
-        <Link
-          href={`/artikel/${b.articleSlug}`}
-          style={{
-            display: "flex",
-            gap: 16,
-            alignItems: "center",
-            background: "var(--da-card)",
-            border: "1px solid var(--da-border)",
-            borderRadius: 8,
-            padding: 16,
-            margin: "28px 0",
-            textDecoration: "none",
-            color: "var(--da-text)",
-          }}
-        >
-          {b.cachedCoverUrl && (
-            <div style={{ position: "relative", flex: "0 0 120px", width: 120, height: 80, borderRadius: 4, overflow: "hidden" }}>
-              <Image src={b.cachedCoverUrl} alt="" fill sizes="120px" style={{ objectFit: "cover" }} unoptimized />
-            </div>
-          )}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ color: "var(--da-green)", fontSize: 10, fontFamily: "var(--da-font-mono)", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 4 }}>
-              Verwandter Artikel
-            </div>
-            <div style={{ fontSize: 16, fontWeight: 600, fontFamily: "var(--da-font-display)", marginBottom: 4 }}>
-              {b.cachedTitle}
-            </div>
-            {b.cachedExcerpt && (
-              <div style={{ color: "var(--da-muted)", fontSize: 13, lineHeight: 1.5 }}>
-                {b.cachedExcerpt}
-              </div>
-            )}
-          </div>
-        </Link>
+        <InternalArticleCard
+          slug={b.articleSlug}
+          title={b.cachedTitle}
+          coverUrl={b.cachedCoverUrl}
+          excerpt={b.cachedExcerpt}
+        />
       );
     case "divider":
       if (b.variant === "short") {
