@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Image from "next/image";
 import AuthorCard from "@/components/author/AuthorCard";
+import InternalArticleAutocomplete from "@/components/editor/InternalArticleAutocomplete";
+import type { ArticleSearchResult } from "@/lib/articleSearchActions";
 import { createPodcast, updatePodcast, type PodcastInput } from "@/lib/podcastActions";
 import { PODCAST_LANGUAGES } from "@/lib/mappers/podcastMappers";
 import { uploadPodcastAudio, uploadPodcastCover } from "@/lib/podcast/upload";
@@ -88,6 +91,18 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
   const [audibleUrl, setAudibleUrl] = useState(initial?.audible_url ?? "");
   const [note, setNote] = useState(initial?.recommended_by_note ?? "");
   const [relatedSlug, setRelatedSlug] = useState(initial?.related_article_slug ?? "");
+  // Anzeige-Infos des gewaehlten Artikels (Chip). Beim Bearbeiten ist nur der
+  // Slug bekannt -> als Label verwenden, bis der Editor neu auswaehlt.
+  const [relatedArticle, setRelatedArticle] = useState<{
+    slug: string;
+    title: string;
+    cover: string | null;
+  } | null>(
+    initial?.related_article_slug
+      ? { slug: initial.related_article_slug, title: initial.related_article_slug, cover: null }
+      : null,
+  );
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -225,11 +240,11 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
 
         {sourceType === "self_hosted" && (
           <div>
-            <label style={labelStyle} htmlFor="pf-audio">Audio-File (MP3, max 200 MB)</label>
+            <label style={labelStyle} htmlFor="pf-audio">Audio-File (MP3/M4A, max 200 MB)</label>
             <input
               id="pf-audio"
               type="file"
-              accept="audio/mpeg,audio/mp4,audio/aac,audio/wav"
+              accept="audio/mpeg,audio/mp4,audio/aac,audio/x-m4a,audio/wav,.m4a"
               disabled={audioBusy}
               onChange={(e) => handleAudioSelect(e.target.files?.[0])}
               style={{ ...inputStyle, padding: "7px 12px" }}
@@ -442,14 +457,69 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
         </div>
 
         <div>
-          <label style={labelStyle} htmlFor="pf-related">Bezug zu Artikel-Slug (optional)</label>
-          <input
-            id="pf-related"
-            style={inputStyle}
-            value={relatedSlug}
-            onChange={(e) => setRelatedSlug(e.target.value)}
-            placeholder="z.B. gastbeitrag-edge-ai-mittelstand"
-          />
+          <span style={labelStyle}>Verwandter Artikel (optional)</span>
+          {relatedArticle ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "8px 10px",
+                background: "var(--da-dark)",
+                border: "1px solid var(--da-border)",
+                borderRadius: 4,
+              }}
+            >
+              <div style={{ position: "relative", width: 48, height: 32, flexShrink: 0, borderRadius: 3, overflow: "hidden", background: "var(--da-darker)" }}>
+                {relatedArticle.cover && (
+                  <Image src={relatedArticle.cover} alt="" fill sizes="48px" unoptimized style={{ objectFit: "cover" }} />
+                )}
+              </div>
+              <div style={{ flex: 1, minWidth: 0, fontSize: 13, color: "var(--da-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {relatedArticle.title}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setRelatedArticle(null);
+                  setRelatedSlug("");
+                }}
+                aria-label="Verwandten Artikel entfernen"
+                style={{
+                  flexShrink: 0,
+                  background: "transparent",
+                  border: "1px solid var(--da-border)",
+                  color: "var(--da-muted-soft)",
+                  borderRadius: 4,
+                  padding: "4px 8px",
+                  fontSize: 12,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Entfernen
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              style={{
+                width: "100%",
+                background: "transparent",
+                border: "1px dashed var(--da-border)",
+                color: "var(--da-muted-soft)",
+                borderRadius: 4,
+                padding: "10px 12px",
+                fontSize: 13,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                textAlign: "left",
+              }}
+            >
+              + Verwandten Artikel auswählen
+            </button>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", paddingTop: 4 }}>
@@ -490,6 +560,15 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
           </button>
         </div>
       </form>
+
+      <InternalArticleAutocomplete
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onPick={(r: ArticleSearchResult) => {
+          setRelatedSlug(r.slug);
+          setRelatedArticle({ slug: r.slug, title: r.title, cover: r.cover_image_url });
+        }}
+      />
     </AuthorCard>
   );
 }
