@@ -30,7 +30,10 @@ export default function ArticleCard({ category, title, author, date, image, href
         onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--da-border)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; }}
       >
         <div style={{ position: "relative", width: "100%", paddingTop: featured ? "56%" : "52%", overflow: "hidden" }}>
-          <Image src={image} alt={title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" style={{ objectFit: "cover" }} />
+          {/* unoptimized: Cover sind bereits vorkomprimiertes WebP im Supabase-
+              Storage. Den Vercel Image Optimizer umgehen -> kein Optimizer-
+              Ausfall/Quota-Limit als Fehlerquelle (Listen-Thumbnails). */}
+          <Image src={image} alt={title} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" style={{ objectFit: "cover" }} unoptimized />
           <span style={{ position: "absolute", top: "12px", left: "12px", backgroundColor: "var(--da-green)", color: "var(--da-dark)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "4px 10px", borderRadius: "4px", zIndex: 1 }}>
             {category}
           </span>

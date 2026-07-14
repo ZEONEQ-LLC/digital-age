@@ -343,7 +343,7 @@ export default function TopicListing({
         <div className="tl-header__bg" aria-hidden>
           {articles.slice(0, 5).map((a, i) => (
             <div key={i} className="tl-header__bg-cell">
-              <Image src={a.image} alt="" fill sizes="20vw" style={{ objectFit: "cover" }} />
+              <Image src={a.image} alt="" fill sizes="20vw" style={{ objectFit: "cover" }} unoptimized />
             </div>
           ))}
         </div>
