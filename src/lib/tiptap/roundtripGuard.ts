@@ -308,15 +308,29 @@ function blockToPlain(block: AnyBlock): string {
   // orderedList, listItem): rekursiv abflachen. Damit landet pro Block
   // ein einziger Plain-String — ausreichend zum Vergleich von Editor-
   // Output vs Roundtrip-Output.
+  //
+  // Join-Separator haengt vom Kind-Typ ab (Kinder eines Knotens sind im
+  // aktuellen Schema homogen: paragraph/heading -> Inline-Runs,
+  // Container -> Block-Kinder):
+  //   - Inline-Runs (text/hardBreak/daSourceRef) mit "" verketten, sonst
+  //     wuerden gemischte Marks ("Text **fett** Rest" = 3 Inline-Nodes)
+  //     zerrissen.
+  //   - Block-Kinder (Paragraphen in listItem/blockquote) mit "\n", damit
+  //     die Ein-Paragraph-mit-hardBreak-Form (Editor) und die Mehrere-
+  //     Paragraphen-Form (blocksToTiptap-Rebuild) dieselbe Plain-Text-
+  //     Projektion ergeben. Editor-Seite liefert dort ohnehin "\n"
+  //     (hardBreak -> "\n" via inlineToPlain).
   const parts: string[] = [];
+  let hasBlockChildren = false;
   for (const child of block.content ?? []) {
     if (typeof (child as AnyInline).text !== "undefined" || ["hardBreak", "daSourceRef"].includes((child as AnyInline).type) || !("content" in child)) {
       parts.push(inlineToPlain(child as AnyInline));
     } else {
+      hasBlockChildren = true;
       parts.push(blockToPlain(child as AnyBlock));
     }
   }
-  return parts.join("");
+  return parts.join(hasBlockChildren ? "\n" : "");
 }
 
 // Inline-Container: Block-Typen, deren content[] direkt Inline-Nodes
