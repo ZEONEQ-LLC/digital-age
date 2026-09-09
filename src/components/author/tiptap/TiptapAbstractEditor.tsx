@@ -41,6 +41,9 @@ type Props = {
   onGenerateAbstract?: () => void;
   aiBusy?: boolean;
   aiDisabledReason?: string | null;
+  // Dirty-Tracking: feuert bei jeder doc-aendernden Transaktion (inkl.
+  // setContent mit emitUpdate beim AI-Abstract). Feuert nicht beim Mount.
+  onContentChange?: () => void;
 };
 
 // Inline-only Tiptap-Editor für den Lead-Absatz (`articles.excerpt`).
@@ -53,7 +56,7 @@ type Props = {
 // parse beim setContent-Mount.
 const TiptapAbstractEditor = forwardRef<TiptapAbstractEditorHandle, Props>(
   function TiptapAbstractEditor(
-    { initialContent, onGenerateAbstract, aiBusy, aiDisabledReason },
+    { initialContent, onGenerateAbstract, aiBusy, aiDisabledReason, onContentChange },
     ref,
   ) {
     const editor = useEditor({
@@ -87,6 +90,9 @@ const TiptapAbstractEditor = forwardRef<TiptapAbstractEditorHandle, Props>(
         FontSizeMark,
       ],
       content: initialContent,
+      onUpdate() {
+        onContentChange?.();
+      },
     });
 
     useImperativeHandle(
