@@ -551,6 +551,44 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  // Unsaved-Changes-Flag. Start clean (kein Fehlalarm beim Oeffnen, H7).
+  // Wird von jeder Nutzer-Aenderung in allen vier Zonen auf true gesetzt
+  // (controlled Felder via markDirty in den Handlern, uncontrolled Body-
+  // /Abstract-Editor via onContentChange). Nur ein ERFOLGREICH
+  // durchgelaufener Save setzt zurueck — ein vom Roundtrip-Guard
+  // blockierter Save kehrt vorher aus prepareSave zurueck und laesst den
+  // Flag stehen (H1).
+  const [dirty, setDirty] = useState(false);
+  const markDirty = useCallback(() => setDirty(true), []);
+
+  // Nur fuer den onNavigate-Pfad (In-App-Links). Der beforeunload-Dialog
+  // zeigt generischen Browser-Text (H2) — dieser Text erscheint dort nicht.
+  const confirmLeaveIfDirty = useCallback(
+    (e: { preventDefault: () => void }) => {
+      if (
+        dirty &&
+        !window.confirm(
+          "Ungespeicherte Änderungen gehen verloren. Möchtest du die Seite trotzdem verlassen?",
+        )
+      ) {
+        e.preventDefault();
+      }
+    },
+    [dirty],
+  );
+
+  // beforeunload nur registrieren, solange ungespeicherte Aenderungen
+  // bestehen (bfcache-freundlich, H2: Browser zeigt generischen Text).
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
   // Plain-Text-Aggregation des Body-Inhalts: Block-Tree (Visual) ODER
   // Markdown-Fallback (Legacy). Inline-Marker werden mit-genommen — für
   // AI-Kontext akzeptabel, der LLM ignoriert sie ohnehin. Dient zwei
@@ -787,6 +825,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         const updated = await saveArticle(article.id, buildPatchUnchecked(finalDoc, finalExcerpt));
         setStatus(updated.status);
         setSavedAt("Gespeichert");
+        setDirty(false);
         setPendingCopilotReport(null);
         setDoc(finalDoc);
         setExcerpt(finalExcerpt);
@@ -804,6 +843,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     startTransition(async () => {
       try {
         await saveArticle(article.id, buildPatchUnchecked(finalDoc, finalExcerpt));
+        setDirty(false);
         setPendingCopilotReport(null);
         const next = await submitForReview(article.id);
         setStatus(next.status);
@@ -851,6 +891,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         const next = await publishArticle(article.id);
         setStatus(next.status);
         setSavedAt("Publiziert");
+        setDirty(false);
         setDoc(finalDoc);
         setExcerpt(finalExcerpt);
         router.refresh();
@@ -1101,6 +1142,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         const updated = await saveArticle(article.id, patch);
         setStatus(updated.status);
         setSavedAt("Gespeichert (Co-Pilot)");
+        setDirty(false);
         setPendingCopilotReport(null); // erfolgreich persistiert
         setDoc(finalDoc);
         setExcerpt(finalExcerpt);
@@ -1400,7 +1442,11 @@ export default function EditorClient({ article, revisions, categories, isEditor,
 
       <div className="a-edit-toolbar">
         <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          <Link href="/autor/artikel" className="a-edit-toolbar__btn a-edit-toolbar__btn--ghost">
+          <Link
+            href="/autor/artikel"
+            className="a-edit-toolbar__btn a-edit-toolbar__btn--ghost"
+            onClick={confirmLeaveIfDirty}
+          >
             ← Zurück
           </Link>
           <AuthorStatusBadge status={status} />
@@ -1722,7 +1768,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
               <select
                 className="a-edit-locale-strip__select"
                 value={locale}
-                onChange={(e) => setLocale(e.target.value as "de-CH" | "en")}
+                onChange={(e) => { markDirty(); setLocale(e.target.value as "de-CH" | "en"); }}
                 aria-label="Sprache des Artikels"
               >
                 <option value="de-CH">de-CH</option>
@@ -1738,7 +1784,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
               <input
                 className="a-edit-title-input"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => { markDirty(); setTitle(e.target.value); }}
                 placeholder="Artikel-Titel"
               />
             </div>
@@ -1753,6 +1799,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
               </span>
               <TiptapAbstractEditor
                 ref={abstractEditorRef}
+                onContentChange={markDirty}
                 initialContent={initialAbstractTiptap}
                 onGenerateAbstract={handleGenerateAbstract}
                 aiBusy={aiAbstractBusy}
@@ -1804,6 +1851,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
               </span>
               <TiptapBodyEditor
                 ref={bodyEditorRef}
+                onContentChange={markDirty}
                 articleId={article.id}
                 initialContent={initialBodyTiptap}
                 onRequestSourcePick={requestSourcePick}
@@ -1833,25 +1881,25 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         <EditorDetailsTab
           articleId={article.id}
           coverImageUrl={cover}
-          onCoverChange={setCover}
+          onCoverChange={(v) => { markDirty(); setCover(v); }}
           coverMetadata={coverMetadata}
-          onCoverMetadataChange={setCoverMetadata}
+          onCoverMetadataChange={(v) => { markDirty(); setCoverMetadata(v); }}
           onGenerateCoverAlt={generateCoverAlt}
           canGenerateCoverAlt={cover.trim().length > 0}
           publishedAtDate={publishedAtDate}
-          onPublishedAtChange={setPublishedAtDate}
+          onPublishedAtChange={(v) => { markDirty(); setPublishedAtDate(v); }}
           isEditor={isEditor}
           allAuthors={allAuthors}
           currentAuthorId={article.author_id}
           initialIsFeatured={article.is_featured ?? false}
           initialIsHero={article.is_hero ?? false}
           categoryId={categoryId}
-          onCategoryChange={setCategoryId}
+          onCategoryChange={(v) => { markDirty(); setCategoryId(v); }}
           categories={categories}
           subcategory={subcategory}
-          onSubcategoryChange={setSubcategory}
+          onSubcategoryChange={(v) => { markDirty(); setSubcategory(v); }}
           tagList={tagList}
-          onTagListChange={setTagList}
+          onTagListChange={(v) => { markDirty(); setTagList(v); }}
           articleIsFeatured={article.is_featured ?? false}
           articleIsHero={article.is_hero ?? false}
           articleCategoryId={article.category_id}
@@ -2118,7 +2166,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         <EditorSeoPanel
           ref={seoPanelRef}
           seo={seo}
-          onChange={setSeo}
+          onChange={(next) => { markDirty(); setSeo(next); }}
           articleId={article.id}
           articleTitle={title}
           articleBodyText={bodyText}

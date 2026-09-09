@@ -157,6 +157,11 @@ type Props = {
   // AI: ALT-Texte fuer Inline-Bilder ohne ALT generieren. Klick nach oben;
   // Generierung + setImageAlts (kein Save) macht der Parent.
   onRequestImageAlts?: () => void;
+  // Dirty-Tracking: feuert bei jeder doc-aendernden Transaktion (Tiptap
+  // onUpdate). Feuert NICHT beim Mount/Initial-Content. Der Parent nutzt
+  // das, um den uncontrolled Body-Editor in den Unsaved-Changes-Flag
+  // einzubeziehen.
+  onContentChange?: () => void;
 };
 
 // Sammelt die Storage-N der daSourceRef-Nodes in DOKUMENT-Reihenfolge.
@@ -227,7 +232,7 @@ function findTextRange(
 }
 
 const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
-  function TiptapBodyEditor({ articleId, initialContent, onEditorReady, onRequestSourcePick, onMdCleanup, onRequestHighlights, onRequestImageAlts }, ref) {
+  function TiptapBodyEditor({ articleId, initialContent, onEditorReady, onRequestSourcePick, onMdCleanup, onRequestHighlights, onRequestImageAlts, onContentChange }, ref) {
     const toolbarRef = useRef<HTMLDivElement>(null);
 
     // Live-Map `n → Auftritts-Rang` fuer die Inline-Source-Ref-NodeViews.
@@ -320,6 +325,9 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
       onUpdate({ editor: ed }) {
         // Doc-Aenderung → Ref-Reihenfolge ggf. neu. Read-only Scan.
         recomputeRefMap(ed);
+        // Dirty-Signal nach oben (uncontrolled Editor → Parent sieht sonst
+        // keine Body-Aenderung). Feuert nicht beim Mount.
+        onContentChange?.();
       },
     });
 
