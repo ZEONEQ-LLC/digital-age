@@ -94,13 +94,20 @@ export default function WerbungOverviewClient({ initialCampaigns, advertisers }:
             House-Kampagne (kein Kunde, kein Preis)
           </label>
           {!isHouse && (
-            <>
-              <select value={advertiserId} onChange={(e) => setAdvertiserId(e.target.value)} style={inp}>
-                <option value="">— Kunde wählen —</option>
-                {advertisers.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
-              <input placeholder="Preis CHF (optional)" value={priceChf} onChange={(e) => setPriceChf(e.target.value)} inputMode="decimal" style={inp} />
-            </>
+            advertisers.length === 0 ? (
+              <p style={{ color: "var(--da-muted)", fontSize: 13, margin: 0 }}>
+                Noch keine Kunden angelegt.{" "}
+                <Link href="/autor/admin/werbung/kunden" style={{ color: "var(--da-green)" }}>Kunde anlegen →</Link>
+              </p>
+            ) : (
+              <>
+                <select value={advertiserId} onChange={(e) => setAdvertiserId(e.target.value)} style={inp}>
+                  <option value="">— Kunde wählen —</option>
+                  {advertisers.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+                <input placeholder="Preis CHF (optional)" value={priceChf} onChange={(e) => setPriceChf(e.target.value)} inputMode="decimal" style={inp} />
+              </>
+            )
           )}
           <input placeholder="Gewicht 1–10" value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="numeric" style={inp} />
           {error && <p style={errStyle}>{error}</p>}

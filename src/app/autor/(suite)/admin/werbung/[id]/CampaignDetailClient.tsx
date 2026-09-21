@@ -114,16 +114,23 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
           House-Kampagne
         </label>
         {!isHouse && (
-          <>
-            <div>
-              <span style={label}>Kunde</span>
-              <select style={inp} value={advertiserId} onChange={(e) => setAdvertiserId(e.target.value)}>
-                <option value="">— Kunde wählen —</option>
-                {advertisers.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
-            </div>
-            <input style={inp} placeholder="Preis CHF" inputMode="decimal" value={priceChf} onChange={(e) => setPriceChf(e.target.value)} />
-          </>
+          advertisers.length === 0 ? (
+            <p style={{ color: "var(--da-muted)", fontSize: 13, margin: 0 }}>
+              Noch keine Kunden angelegt.{" "}
+              <Link href="/autor/admin/werbung/kunden" style={{ color: "var(--da-green)" }}>Kunde anlegen →</Link>
+            </p>
+          ) : (
+            <>
+              <div>
+                <span style={label}>Kunde</span>
+                <select style={inp} value={advertiserId} onChange={(e) => setAdvertiserId(e.target.value)}>
+                  <option value="">— Kunde wählen —</option>
+                  {advertisers.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </div>
+              <input style={inp} placeholder="Preis CHF" inputMode="decimal" value={priceChf} onChange={(e) => setPriceChf(e.target.value)} />
+            </>
+          )
         )}
         <input style={inp} placeholder="Gewicht 1–10" inputMode="numeric" value={weight} onChange={(e) => setWeight(e.target.value)} />
         <textarea style={{ ...inp, minHeight: 60 }} placeholder="Notizen" value={notes} onChange={(e) => setNotes(e.target.value)} />

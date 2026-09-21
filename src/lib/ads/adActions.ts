@@ -2,16 +2,49 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import type {
-  ActionResult,
-  ActionResultId,
-  AdvertiserInput,
-  BookingInput,
-  CampaignInput,
-  CampaignStatus,
-  ContactInput,
-  CreativeInput,
+import type { Database } from "@/lib/database.types";
+import {
+  normalizeUid,
+  type ActionResult,
+  type ActionResultId,
+  type AdvertiserInput,
+  type BookingInput,
+  type CampaignInput,
+  type CampaignStatus,
+  type ContactInput,
+  type CreativeInput,
 } from "@/lib/ads/types";
+
+// Baut das DB-Payload aus dem AdvertiserInput (UID normalisiert, Adressfelder).
+// Gibt bei ungueltiger UID einen Fehlerstring zurueck.
+type AdvertiserInsert = Database["public"]["Tables"]["ad_advertisers"]["Insert"];
+
+function buildAdvertiserPayload(input: AdvertiserInput): { error: string } | { data: AdvertiserInsert } {
+  const rawUid = input.uid?.trim();
+  const uid = normalizeUid(rawUid);
+  if (rawUid && !uid) {
+    return { error: "UID ungültig — Format CHE123456789 (HR-/MWST-Suffix wird nicht gespeichert)." };
+  }
+  const data: AdvertiserInsert = {
+      name: input.name.trim(),
+      uid,
+      address_addition: input.address_addition || null,
+      street: input.street || null,
+      house_number: input.house_number || null,
+      post_office_box: input.post_office_box || null,
+      postal_code: input.postal_code || null,
+      city: input.city || null,
+      country: (input.country || "CH").toUpperCase().slice(0, 2),
+      language: input.language || null,
+      billing_email: input.billing_email || null,
+      payment_terms_days: input.payment_terms_days ?? 30,
+      billing_via_agency_id: input.billing_via_agency_id || null,
+      is_agency: input.is_agency ?? false,
+      commission_pct: input.commission_pct ?? null,
+      notes: input.notes || null,
+  };
+  return { data };
+}
 
 async function requireEditor() {
   const supabase = await createClient();
@@ -55,17 +88,11 @@ export async function createAdvertiser(input: AdvertiserInput): Promise<ActionRe
   try {
     const { supabase } = await requireEditor();
     if (!input.name.trim()) return { ok: false, error: "Name ist erforderlich." };
+    const built = buildAdvertiserPayload(input);
+    if ("error" in built) return { ok: false, error: built.error };
     const { data, error } = await supabase
       .from("ad_advertisers")
-      .insert({
-        name: input.name.trim(),
-        uid: input.uid || null,
-        billing_address: input.billing_address || null,
-        billing_email: input.billing_email || null,
-        is_agency: input.is_agency ?? false,
-        commission_pct: input.commission_pct ?? null,
-        notes: input.notes || null,
-      })
+      .insert(built.data)
       .select("id")
       .single();
     if (error) return { ok: false, error: mapDbError(error) };
@@ -77,17 +104,15 @@ export async function createAdvertiser(input: AdvertiserInput): Promise<ActionRe
 export async function updateAdvertiser(id: string, input: AdvertiserInput): Promise<ActionResult> {
   try {
     const { supabase } = await requireEditor();
+    if (!input.name.trim()) return { ok: false, error: "Name ist erforderlich." };
+    if (input.billing_via_agency_id === id) {
+      return { ok: false, error: "Kunde kann nicht über sich selbst abgerechnet werden." };
+    }
+    const built = buildAdvertiserPayload(input);
+    if ("error" in built) return { ok: false, error: built.error };
     const { error } = await supabase
       .from("ad_advertisers")
-      .update({
-        name: input.name.trim(),
-        uid: input.uid || null,
-        billing_address: input.billing_address || null,
-        billing_email: input.billing_email || null,
-        is_agency: input.is_agency ?? false,
-        commission_pct: input.commission_pct ?? null,
-        notes: input.notes || null,
-      })
+      .update(built.data)
       .eq("id", id);
     if (error) return { ok: false, error: mapDbError(error) };
     revalidateAll();

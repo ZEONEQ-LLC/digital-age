@@ -17,6 +17,7 @@ type Props = {
 
 type ModuleData = {
   kind: string;
+  isHouse: boolean;
   headline: string | null;
   body: string | null;
   ctaLabel: string | null;
@@ -99,7 +100,9 @@ export default function ModuleSlot({
           target="_blank"
           rel="sponsored nofollow noopener"
         >
-          <span className="mod-kicker da-overline">Empfehlung</span>
+          {/* Bezahlte (Kunden-)Platzierung sichtbar als "Anzeige" kennzeichnen;
+              House-Eigenwerbung braucht keine Kennzeichnung. */}
+          {!state.data.isHouse && <span className="mod-kicker da-overline">Anzeige</span>}
           <span className="mod-title">{state.data.headline}</span>
           {state.data.body && <span className="mod-body">{state.data.body}</span>}
           {state.data.ctaLabel && <span className="mod-cta">{state.data.ctaLabel} →</span>}

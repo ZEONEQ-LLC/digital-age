@@ -69,13 +69,39 @@ export type ActionResultId = { ok: true; id: string } | { ok: false; error: stri
 
 export type AdvertiserInput = {
   name: string;
-  uid?: string | null;
-  billing_address?: string | null;
+  uid?: string | null;              // roh; wird serverseitig zu CHE######### normalisiert
+  address_addition?: string | null;
+  street?: string | null;
+  house_number?: string | null;
+  post_office_box?: string | null;
+  postal_code?: string | null;
+  city?: string | null;
+  country?: string | null;          // ISO-2, default CH
+  language?: string | null;
   billing_email?: string | null;
+  payment_terms_days?: number | null;
+  billing_via_agency_id?: string | null;
   is_agency?: boolean;
   commission_pct?: number | null;
   notes?: string | null;
 };
+
+// Korrespondenzsprachen fuer Kunden (client-nutzbar im Formular).
+export const ADVERTISER_LANGUAGES: { code: string; label: string }[] = [
+  { code: "de", label: "Deutsch" },
+  { code: "fr", label: "Französisch" },
+  { code: "it", label: "Italienisch" },
+  { code: "en", label: "Englisch" },
+];
+
+// UID auf CHE######### normalisieren: Grossschreiben, alles Nicht-Alphanumerische
+// raus, HR-/MWST-Suffix verwerfen. Ungueltig -> null. Leer -> null.
+export function normalizeUid(raw?: string | null): string | null {
+  if (!raw) return null;
+  const cleaned = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const m = cleaned.match(/^CHE(\d{9})/);
+  return m ? `CHE${m[1]}` : null;
+}
 
 export type ContactInput = {
   advertiser_id: string;
@@ -114,9 +140,9 @@ export type CreativeInput = {
 };
 
 // tstzrange-Textformat -> lesbares Label. Offene Obergrenze => "unbegrenzt".
-export function formatPeriod(period: string): string {
+export function formatPeriod(period: unknown): string {
   const parsed = parsePeriod(period);
-  if (!parsed) return period;
+  if (!parsed) return typeof period === "string" ? period : "";
   const fmt = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" }) : null;
   const from = fmt(parsed.lower);
@@ -129,7 +155,9 @@ export function formatPeriod(period: string): string {
 
 // Parst ein tstzrange-Textliteral wie ["2026-09-21 12:00:00+00",) in
 // ISO-Grenzen. Leere Grenze -> null (offen).
-export function parsePeriod(period: string): { lower: string | null; upper: string | null } | null {
+export function parsePeriod(period: unknown): { lower: string | null; upper: string | null } | null {
+  // tstzrange kommt aus supabase-js als String, ist aber als `unknown` getypt.
+  if (typeof period !== "string") return null;
   const m = period.match(/^[[(]([^,]*),([^\])]*)[\])]$/);
   if (!m) return null;
   const clean = (s: string): string | null => {

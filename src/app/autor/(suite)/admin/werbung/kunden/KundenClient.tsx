@@ -9,7 +9,7 @@ import {
   deleteContact,
   updateAdvertiser,
 } from "@/lib/ads/adActions";
-import type { AdvertiserInput, AdvertiserWithContacts } from "@/lib/ads/types";
+import { ADVERTISER_LANGUAGES, type AdvertiserInput, type AdvertiserWithContacts } from "@/lib/ads/types";
 
 type Props = { initialAdvertisers: AdvertiserWithContacts[] };
 
@@ -18,8 +18,74 @@ const inp: React.CSSProperties = { padding: "8px 10px", background: "var(--da-da
 const btn: React.CSSProperties = { padding: "7px 12px", background: "var(--da-green)", color: "var(--da-dark)", border: 0, borderRadius: 6, fontWeight: 700, cursor: "pointer" };
 const btnGhost: React.CSSProperties = { padding: "7px 12px", background: "transparent", color: "var(--da-muted)", border: "1px solid var(--da-border)", borderRadius: 6, cursor: "pointer" };
 const errStyle: React.CSSProperties = { color: "#ff6b6b", fontSize: 13, margin: 0 };
+const row: React.CSSProperties = { display: "flex", gap: 8, flexWrap: "wrap" };
 
-const emptyAdvertiser: AdvertiserInput = { name: "", uid: "", billing_address: "", billing_email: "", is_agency: false, commission_pct: null, notes: "" };
+const emptyAdvertiser: AdvertiserInput = {
+  name: "", uid: "", address_addition: "", street: "", house_number: "", post_office_box: "",
+  postal_code: "", city: "", country: "CH", language: "de", billing_email: "",
+  payment_terms_days: 30, billing_via_agency_id: "", is_agency: false, commission_pct: null, notes: "",
+};
+
+function AdvertiserForm({
+  draft, setDraft, others,
+}: {
+  draft: AdvertiserInput;
+  setDraft: (d: AdvertiserInput) => void;
+  others: { id: string; name: string }[];
+}) {
+  const set = (patch: Partial<AdvertiserInput>) => setDraft({ ...draft, ...patch });
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <input style={inp} placeholder="Name / Firma * (max. 70)" maxLength={70} value={draft.name} onChange={(e) => set({ name: e.target.value })} />
+      <input style={inp} placeholder="UID (CHE123456789 — Punkte/MWST-Suffix egal)" value={draft.uid ?? ""} onChange={(e) => set({ uid: e.target.value })} />
+
+      <div style={{ color: "var(--da-muted)", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em", marginTop: 4 }}>Rechnungsadresse</div>
+      <input style={inp} placeholder="Adresszusatz" value={draft.address_addition ?? ""} onChange={(e) => set({ address_addition: e.target.value })} />
+      <div style={row}>
+        <input style={{ ...inp, flex: 3, minWidth: 160 }} placeholder="Strasse (max. 70)" maxLength={70} value={draft.street ?? ""} onChange={(e) => set({ street: e.target.value })} />
+        <input style={{ ...inp, flex: 1, minWidth: 90 }} placeholder="Nr. (max. 16)" maxLength={16} value={draft.house_number ?? ""} onChange={(e) => set({ house_number: e.target.value })} />
+      </div>
+      <input style={inp} placeholder="Postfach (statt Strasse)" value={draft.post_office_box ?? ""} onChange={(e) => set({ post_office_box: e.target.value })} />
+      <div style={row}>
+        <input style={{ ...inp, flex: 1, minWidth: 90 }} placeholder="PLZ (max. 16)" maxLength={16} value={draft.postal_code ?? ""} onChange={(e) => set({ postal_code: e.target.value })} />
+        <input style={{ ...inp, flex: 3, minWidth: 160 }} placeholder="Ort (max. 35)" maxLength={35} value={draft.city ?? ""} onChange={(e) => set({ city: e.target.value })} />
+        <input style={{ ...inp, flex: 1, minWidth: 70, textTransform: "uppercase" }} placeholder="Land" maxLength={2} value={draft.country ?? "CH"} onChange={(e) => set({ country: e.target.value })} />
+      </div>
+
+      <div style={row}>
+        <label style={{ flex: 1, minWidth: 140, color: "var(--da-muted)", fontSize: 13 }}>
+          Sprache
+          <select style={inp} value={draft.language ?? "de"} onChange={(e) => set({ language: e.target.value })}>
+            {ADVERTISER_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+          </select>
+        </label>
+        <label style={{ flex: 1, minWidth: 140, color: "var(--da-muted)", fontSize: 13 }}>
+          Zahlungsziel (Tage)
+          <input style={inp} inputMode="numeric" value={String(draft.payment_terms_days ?? 30)} onChange={(e) => set({ payment_terms_days: e.target.value ? Number(e.target.value) : 30 })} />
+        </label>
+      </div>
+      <input style={inp} placeholder="Rechnungs-E-Mail" value={draft.billing_email ?? ""} onChange={(e) => set({ billing_email: e.target.value })} />
+
+      <label style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--da-text)", fontSize: 14 }}>
+        <input type="checkbox" checked={draft.is_agency ?? false} onChange={(e) => set({ is_agency: e.target.checked })} />
+        Agentur
+      </label>
+      {draft.is_agency && (
+        <input style={inp} placeholder="Kommission %" inputMode="decimal" value={draft.commission_pct ?? ""} onChange={(e) => set({ commission_pct: e.target.value ? Number(e.target.value) : null })} />
+      )}
+
+      <label style={{ color: "var(--da-muted)", fontSize: 13 }}>
+        Rechnung über Agentur
+        <select style={inp} value={draft.billing_via_agency_id ?? ""} onChange={(e) => set({ billing_via_agency_id: e.target.value })}>
+          <option value="">— direkt —</option>
+          {others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+        </select>
+      </label>
+
+      <textarea style={{ ...inp, minHeight: 60 }} placeholder="Notizen" value={draft.notes ?? ""} onChange={(e) => set({ notes: e.target.value })} />
+    </div>
+  );
+}
 
 export default function KundenClient({ initialAdvertisers }: Props) {
   const router = useRouter();
@@ -29,12 +95,13 @@ export default function KundenClient({ initialAdvertisers }: Props) {
   const [draft, setDraft] = useState<AdvertiserInput>(emptyAdvertiser);
   const [editId, setEditId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<AdvertiserInput>(emptyAdvertiser);
-  // Kontakt-Draft pro Kunde
   const [contactFor, setContactFor] = useState<string | null>(null);
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [contactRole, setContactRole] = useState("");
+
+  const allOthers = initialAdvertisers.map((a) => ({ id: a.id, name: a.name }));
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>) {
     setError(null);
@@ -57,19 +124,8 @@ export default function KundenClient({ initialAdvertisers }: Props) {
 
       {showNew && (
         <div style={{ ...card, display: "flex", flexDirection: "column", gap: 10 }}>
-          <input style={inp} placeholder="Name / Firma *" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
-          <input style={inp} placeholder="UID (z. B. CHE-...)" value={draft.uid ?? ""} onChange={(e) => setDraft({ ...draft, uid: e.target.value })} />
-          <input style={inp} placeholder="Rechnungs-E-Mail" value={draft.billing_email ?? ""} onChange={(e) => setDraft({ ...draft, billing_email: e.target.value })} />
-          <input style={inp} placeholder="Rechnungsadresse" value={draft.billing_address ?? ""} onChange={(e) => setDraft({ ...draft, billing_address: e.target.value })} />
-          <label style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--da-text)", fontSize: 14 }}>
-            <input type="checkbox" checked={draft.is_agency ?? false} onChange={(e) => setDraft({ ...draft, is_agency: e.target.checked })} />
-            Agentur
-          </label>
-          {draft.is_agency && (
-            <input style={inp} placeholder="Kommission %" inputMode="decimal" value={draft.commission_pct ?? ""} onChange={(e) => setDraft({ ...draft, commission_pct: e.target.value ? Number(e.target.value) : null })} />
-          )}
-          <textarea style={{ ...inp, minHeight: 60 }} placeholder="Notizen" value={draft.notes ?? ""} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />
-          <button type="button" style={btn} disabled={pending} onClick={() => run(async () => {
+          <AdvertiserForm draft={draft} setDraft={setDraft} others={allOthers} />
+          <button type="button" style={{ ...btn, alignSelf: "flex-start" }} disabled={pending} onClick={() => run(async () => {
             const res = await createAdvertiser(draft);
             if (res.ok) { setShowNew(false); setDraft(emptyAdvertiser); }
             return res;
@@ -83,10 +139,7 @@ export default function KundenClient({ initialAdvertisers }: Props) {
         <div key={a.id} style={{ ...card, display: "flex", flexDirection: "column", gap: 10 }}>
           {editId === a.id ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <input style={inp} value={editDraft.name} onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })} />
-              <input style={inp} placeholder="UID" value={editDraft.uid ?? ""} onChange={(e) => setEditDraft({ ...editDraft, uid: e.target.value })} />
-              <input style={inp} placeholder="Rechnungs-E-Mail" value={editDraft.billing_email ?? ""} onChange={(e) => setEditDraft({ ...editDraft, billing_email: e.target.value })} />
-              <input style={inp} placeholder="Rechnungsadresse" value={editDraft.billing_address ?? ""} onChange={(e) => setEditDraft({ ...editDraft, billing_address: e.target.value })} />
+              <AdvertiserForm draft={editDraft} setDraft={setEditDraft} others={allOthers.filter((o) => o.id !== a.id)} />
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" style={btn} disabled={pending} onClick={() => run(async () => {
                   const res = await updateAdvertiser(a.id, editDraft);
@@ -103,11 +156,20 @@ export default function KundenClient({ initialAdvertisers }: Props) {
                   {a.name} {a.is_agency && <span style={{ color: "var(--da-muted)", fontSize: 12 }}>· Agentur</span>}
                 </div>
                 <div style={{ color: "var(--da-muted)", fontSize: 13 }}>
-                  {[a.uid, a.billing_email].filter(Boolean).join(" · ") || "—"}
+                  {[a.uid, [a.postal_code, a.city].filter(Boolean).join(" "), a.billing_email].filter(Boolean).join(" · ") || "—"}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button type="button" style={btnGhost} onClick={() => { setEditId(a.id); setEditDraft({ name: a.name, uid: a.uid, billing_address: a.billing_address, billing_email: a.billing_email, is_agency: a.is_agency, commission_pct: a.commission_pct, notes: a.notes }); }}>Bearbeiten</button>
+                <button type="button" style={btnGhost} onClick={() => {
+                  setEditId(a.id);
+                  setEditDraft({
+                    name: a.name, uid: a.uid, address_addition: a.address_addition, street: a.street,
+                    house_number: a.house_number, post_office_box: a.post_office_box, postal_code: a.postal_code,
+                    city: a.city, country: a.country, language: a.language, billing_email: a.billing_email,
+                    payment_terms_days: a.payment_terms_days, billing_via_agency_id: a.billing_via_agency_id,
+                    is_agency: a.is_agency, commission_pct: a.commission_pct, notes: a.notes,
+                  });
+                }}>Bearbeiten</button>
                 <button type="button" style={btnGhost} disabled={pending} onClick={() => { if (confirm(`Kunde „${a.name}" löschen? Verknüpfte Kampagnen blockieren das Löschen.`)) run(() => deleteAdvertiser(a.id)); }}>Löschen</button>
               </div>
             </div>
@@ -126,7 +188,7 @@ export default function KundenClient({ initialAdvertisers }: Props) {
             {contactFor === a.id ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
                 <input style={inp} placeholder="Name *" value={contactName} onChange={(e) => setContactName(e.target.value)} />
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <div style={row}>
                   <input style={{ ...inp, flex: 1, minWidth: 120 }} placeholder="Rolle" value={contactRole} onChange={(e) => setContactRole(e.target.value)} />
                   <input style={{ ...inp, flex: 1, minWidth: 120 }} placeholder="E-Mail" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
                   <input style={{ ...inp, flex: 1, minWidth: 120 }} placeholder="Telefon" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />

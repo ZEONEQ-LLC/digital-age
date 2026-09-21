@@ -121,6 +121,7 @@ export async function GET(
   return NextResponse.json(
     {
       kind: picked.creative.kind,
+      isHouse: picked.isHouse,
       headline: picked.creative.headline,
       body: picked.creative.body,
       ctaLabel: picked.creative.cta_label,

@@ -19,14 +19,30 @@ create extension if not exists btree_gist;
 create table public.ad_advertisers (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  uid text,
-  billing_address text,
+  uid text,                                    -- normalisiert CHE######### (ohne HR-/MWST-Suffix)
+  -- Strukturierte Rechnungsadresse (QR-Rechnung IG 2.3 Feldlaengen)
+  address_addition text,
+  street text,
+  house_number text,
+  post_office_box text,
+  postal_code text,
+  city text,
+  country char(2) not null default 'CH',
+  language text,
   billing_email text,
+  payment_terms_days integer not null default 30,
+  billing_via_agency_id uuid references public.ad_advertisers(id) on delete set null,
   is_agency boolean not null default false,
   commission_pct numeric(5,2),
   notes text,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint ad_advertisers_name_len check (char_length(name) <= 70),
+  constraint ad_advertisers_street_len check (street is null or char_length(street) <= 70),
+  constraint ad_advertisers_house_number_len check (house_number is null or char_length(house_number) <= 16),
+  constraint ad_advertisers_postal_code_len check (postal_code is null or char_length(postal_code) <= 16),
+  constraint ad_advertisers_city_len check (city is null or char_length(city) <= 35),
+  constraint ad_advertisers_uid_format check (uid is null or uid ~ '^CHE[0-9]{9}$')
 );
 
 create trigger trg_ad_advertisers_updated_at before update on public.ad_advertisers

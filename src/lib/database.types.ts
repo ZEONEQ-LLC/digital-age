@@ -12,54 +12,113 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
-      // ── WERBUNG PR 1 (manuell; wird von `supabase gen types` nach db push identisch ueberschrieben) ──
       ad_advertisers: {
         Row: {
-          billing_address: string | null
+          address_addition: string | null
           billing_email: string | null
+          billing_via_agency_id: string | null
+          city: string | null
           commission_pct: number | null
+          country: string
           created_at: string
+          house_number: string | null
           id: string
           is_agency: boolean
+          language: string | null
           name: string
           notes: string | null
+          payment_terms_days: number
+          post_office_box: string | null
+          postal_code: string | null
+          street: string | null
           uid: string | null
           updated_at: string
         }
         Insert: {
-          billing_address?: string | null
+          address_addition?: string | null
           billing_email?: string | null
+          billing_via_agency_id?: string | null
+          city?: string | null
           commission_pct?: number | null
+          country?: string
           created_at?: string
+          house_number?: string | null
           id?: string
           is_agency?: boolean
+          language?: string | null
           name: string
           notes?: string | null
+          payment_terms_days?: number
+          post_office_box?: string | null
+          postal_code?: string | null
+          street?: string | null
           uid?: string | null
           updated_at?: string
         }
         Update: {
-          billing_address?: string | null
+          address_addition?: string | null
           billing_email?: string | null
+          billing_via_agency_id?: string | null
+          city?: string | null
           commission_pct?: number | null
+          country?: string
           created_at?: string
+          house_number?: string | null
           id?: string
           is_agency?: boolean
+          language?: string | null
           name?: string
           notes?: string | null
+          payment_terms_days?: number
+          post_office_box?: string | null
+          postal_code?: string | null
+          street?: string | null
           uid?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ad_advertisers_billing_via_agency_id_fkey"
+            columns: ["billing_via_agency_id"]
+            isOneToOne: false
+            referencedRelation: "ad_advertisers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ad_bookings: {
         Row: {
           campaign_id: string
           created_at: string
           id: string
-          period: string
+          period: unknown
           placement_id: string
           scope: string
           scope_ref: string | null
@@ -68,7 +127,7 @@ export type Database = {
           campaign_id: string
           created_at?: string
           id?: string
-          period: string
+          period: unknown
           placement_id: string
           scope: string
           scope_ref?: string | null
@@ -77,7 +136,7 @@ export type Database = {
           campaign_id?: string
           created_at?: string
           id?: string
-          period?: string
+          period?: unknown
           placement_id?: string
           scope?: string
           scope_ref?: string | null
@@ -96,7 +155,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ad_placements"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       ad_campaigns: {
@@ -143,7 +202,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ad_advertisers"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       ad_contacts: {
@@ -181,7 +240,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ad_advertisers"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       ad_creatives: {
@@ -240,7 +299,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ad_campaigns"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       ad_placements: {
@@ -291,7 +350,6 @@ export type Database = {
         }
         Relationships: []
       }
-      // ── /WERBUNG PR 1 ──
       ai_config: {
         Row: {
           default_model: string
@@ -649,11 +707,11 @@ export type Database = {
           body_blocks: Json | null
           body_md: string | null
           category_id: string
+          copilot_last_run: Json | null
           cover_image_alt: string | null
           cover_image_caption: string | null
           cover_image_source: string | null
           cover_image_url: string | null
-          copilot_last_run: Json | null
           created_at: string
           excerpt: string | null
           id: string
@@ -682,11 +740,11 @@ export type Database = {
           body_blocks?: Json | null
           body_md?: string | null
           category_id: string
+          copilot_last_run?: Json | null
           cover_image_alt?: string | null
           cover_image_caption?: string | null
           cover_image_source?: string | null
           cover_image_url?: string | null
-          copilot_last_run?: Json | null
           created_at?: string
           excerpt?: string | null
           id?: string
@@ -715,11 +773,11 @@ export type Database = {
           body_blocks?: Json | null
           body_md?: string | null
           category_id?: string
+          copilot_last_run?: Json | null
           cover_image_alt?: string | null
           cover_image_caption?: string | null
           cover_image_source?: string | null
           cover_image_url?: string | null
-          copilot_last_run?: Json | null
           created_at?: string
           excerpt?: string | null
           id?: string
@@ -1306,6 +1364,8 @@ export type Database = {
           new_status: Database["public"]["Enums"]["article_status"]
           notes?: string | null
           previous_status?: Database["public"]["Enums"]["article_status"] | null
+          revision_type?: string
+          snapshot?: Json | null
           title_snapshot: string
         }
         Update: {
@@ -1411,6 +1471,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      article_editorial_snapshot: {
+        Args: { a: Database["public"]["Tables"]["articles"]["Row"] }
+        Returns: Json
+      }
       can_modify_article_image: {
         Args: { article_id_text: string }
         Returns: boolean
@@ -1443,6 +1507,7 @@ export type Database = {
       }
       increment_prompt_uses: { Args: { p_id: string }; Returns: undefined }
       is_editor: { Args: never; Returns: boolean }
+      is_internal_author: { Args: never; Returns: boolean }
       merge_tags: {
         Args: { p_from_id: string; p_to_id: string }
         Returns: Json
@@ -1451,10 +1516,19 @@ export type Database = {
         Args: { p_new_name: string; p_tag_id: string }
         Returns: Json
       }
-      restore_article_revision: { Args: { p_article_id: string; p_revision_id: string }; Returns: boolean }
-      save_seo_review: { Args: { p_article_id: string; p_review: Json }; Returns: string }
+      restore_article_revision: {
+        Args: { p_article_id: string; p_revision_id: string }
+        Returns: boolean
+      }
+      save_seo_review: {
+        Args: { p_article_id: string; p_review: Json }
+        Returns: string
+      }
       suggest_startup_slug: { Args: { p_name: string }; Returns: string }
-      update_seo_review_done: { Args: { p_article_id: string; p_review: Json }; Returns: boolean }
+      update_seo_review_done: {
+        Args: { p_article_id: string; p_review: Json }
+        Returns: boolean
+      }
     }
     Enums: {
       article_status: "draft" | "in_review" | "published" | "archived"
@@ -1501,12 +1575,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1530,11 +1604,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1555,11 +1629,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1580,11 +1654,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1597,11 +1671,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1611,6 +1685,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       article_status: ["draft", "in_review", "published", "archived"],
