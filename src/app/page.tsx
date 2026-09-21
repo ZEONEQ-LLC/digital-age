@@ -1,6 +1,7 @@
 
 import HeroBold from "@/components/HeroBold";
 import SpotlightSection from "@/components/SpotlightSection";
+import ModuleSlot from "@/components/module/ModuleSlot";
 import SwissAIStrip from "@/components/SwissAIStrip";
 import ArticleSection from "@/components/ArticleSection";
 import CTAInverted from "@/components/CTAInverted";
@@ -118,6 +119,9 @@ export default async function Home() {
 
       <HeroBold />
       <SpotlightSection articles={spotlight} />
+      <div style={{ maxWidth: "var(--max-content)", margin: "0 auto", padding: "0 var(--sp-8)" }}>
+        <ModuleSlot code="home_billboard" scope="home" desktopHeight={250} mobileHeight={100} />
+      </div>
       <ArticleSection title="KI & Business" href="/ki-im-business" articles={kiBusiness.map(articleToCard)} />
       <SwissAIStrip items={swissAI} />
       <ArticleSection title="Future Tech" href="/future-tech" articles={futureTech.map(articleToCard)} />

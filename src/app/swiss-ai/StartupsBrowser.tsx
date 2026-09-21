@@ -5,6 +5,7 @@ import Link from "next/link";
 import CompanyCard from "@/components/CompanyCard";
 import CompanyRow from "@/components/CompanyRow";
 import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
+import ModuleSlot from "@/components/module/ModuleSlot";
 import { SWISS_STATUSES, EMPLOYEE_RANGES, type StartupCardVM } from "@/lib/mappers/startupMappers";
 import type { SwissStatusCode, EmployeeRangeCode } from "@/lib/startupApi";
 
@@ -303,6 +304,13 @@ export default function StartupsBrowser({ all, featured, industries, cities }: P
               <p className="sa-cta-eintragen__hint">Kosten- und bedingungslos eintragen lassen.</p>
               <span className="sa-cta-eintragen__btn">Einreichen →</span>
             </Link>
+            <ModuleSlot
+              code="swiss_ai_sidebar"
+              scope="ressort"
+              ressortSlug="swiss-ai"
+              desktopHeight={250}
+              mobileHeight={250}
+            />
           </aside>
 
           <div>

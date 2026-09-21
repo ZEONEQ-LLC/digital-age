@@ -14,6 +14,284 @@ export type Database = {
   }
   public: {
     Tables: {
+      // ── WERBUNG PR 1 (manuell; wird von `supabase gen types` nach db push identisch ueberschrieben) ──
+      ad_advertisers: {
+        Row: {
+          billing_address: string | null
+          billing_email: string | null
+          commission_pct: number | null
+          created_at: string
+          id: string
+          is_agency: boolean
+          name: string
+          notes: string | null
+          uid: string | null
+          updated_at: string
+        }
+        Insert: {
+          billing_address?: string | null
+          billing_email?: string | null
+          commission_pct?: number | null
+          created_at?: string
+          id?: string
+          is_agency?: boolean
+          name: string
+          notes?: string | null
+          uid?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billing_address?: string | null
+          billing_email?: string | null
+          commission_pct?: number | null
+          created_at?: string
+          id?: string
+          is_agency?: boolean
+          name?: string
+          notes?: string | null
+          uid?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ad_bookings: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          period: string
+          placement_id: string
+          scope: string
+          scope_ref: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          period: string
+          placement_id: string
+          scope: string
+          scope_ref?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          period?: string
+          placement_id?: string
+          scope?: string
+          scope_ref?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_bookings_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_bookings_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "ad_placements"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      ad_campaigns: {
+        Row: {
+          advertiser_id: string | null
+          created_at: string
+          id: string
+          is_house: boolean
+          name: string
+          notes: string | null
+          price_chf: number | null
+          status: string
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          advertiser_id?: string | null
+          created_at?: string
+          id?: string
+          is_house?: boolean
+          name: string
+          notes?: string | null
+          price_chf?: number | null
+          status?: string
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          advertiser_id?: string | null
+          created_at?: string
+          id?: string
+          is_house?: boolean
+          name?: string
+          notes?: string | null
+          price_chf?: number | null
+          status?: string
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_campaigns_advertiser_id_fkey"
+            columns: ["advertiser_id"]
+            isOneToOne: false
+            referencedRelation: "ad_advertisers"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      ad_contacts: {
+        Row: {
+          advertiser_id: string
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          role: string | null
+        }
+        Insert: {
+          advertiser_id: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          role?: string | null
+        }
+        Update: {
+          advertiser_id?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_contacts_advertiser_id_fkey"
+            columns: ["advertiser_id"]
+            isOneToOne: false
+            referencedRelation: "ad_advertisers"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      ad_creatives: {
+        Row: {
+          alt_text: string | null
+          body: string | null
+          campaign_id: string
+          created_at: string
+          cta_label: string | null
+          headline: string | null
+          height: number | null
+          id: string
+          image_path: string | null
+          is_active: boolean
+          kind: string
+          target_url: string
+          variant: string
+          width: number | null
+        }
+        Insert: {
+          alt_text?: string | null
+          body?: string | null
+          campaign_id: string
+          created_at?: string
+          cta_label?: string | null
+          headline?: string | null
+          height?: number | null
+          id?: string
+          image_path?: string | null
+          is_active?: boolean
+          kind: string
+          target_url: string
+          variant?: string
+          width?: number | null
+        }
+        Update: {
+          alt_text?: string | null
+          body?: string | null
+          campaign_id?: string
+          created_at?: string
+          cta_label?: string | null
+          headline?: string | null
+          height?: number | null
+          id?: string
+          image_path?: string | null
+          is_active?: boolean
+          kind?: string
+          target_url?: string
+          variant?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_creatives_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      ad_placements: {
+        Row: {
+          code: string
+          created_at: string
+          desktop_height: number
+          desktop_size: string | null
+          id: string
+          insert_after_block: number | null
+          is_sellable: boolean
+          label: string
+          max_concurrent: number
+          min_viewport: number | null
+          mobile_height: number
+          mobile_size: string | null
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          desktop_height: number
+          desktop_size?: string | null
+          id?: string
+          insert_after_block?: number | null
+          is_sellable?: boolean
+          label: string
+          max_concurrent?: number
+          min_viewport?: number | null
+          mobile_height: number
+          mobile_size?: string | null
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          desktop_height?: number
+          desktop_size?: string | null
+          id?: string
+          insert_after_block?: number | null
+          is_sellable?: boolean
+          label?: string
+          max_concurrent?: number
+          min_viewport?: number | null
+          mobile_height?: number
+          mobile_size?: string | null
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      // ── /WERBUNG PR 1 ──
       ai_config: {
         Row: {
           default_model: string

@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import InternalArticleCard from "./InternalArticleCard";
+import ModuleSlot from "./module/ModuleSlot";
 import type { Block, BlockDocument, Source } from "@/types/blocks";
 import { externalLinkRe } from "@/lib/markdownLinkUrl";
 import {
@@ -12,7 +13,14 @@ import {
 type BlockReaderProps = {
   doc?: BlockDocument;
   blocks?: Block[];
+  articleSlug?: string;
 };
+
+// Platzierung article_inline: rein render-seitig NACH diesem Block-Index
+// eingefuegt (== ad_placements.insert_after_block im Seed). Kein neuer
+// Block-Typ, keine Aenderung am Block-Format/Roundtrip.
+const INLINE_MODULE_AFTER_BLOCK = 3;
+const INLINE_MODULE_MIN_BLOCKS = 6;
 
 // Inline-Marker-Renderer. Markdown-Subset + Custom-Marker werden zu React-
 // Nodes umgesetzt. Kein dangerouslySetInnerHTML — alle Werte gehen durch
@@ -420,18 +428,29 @@ function renderSourceList(sources: Source[], order: number[]): ReactNode {
   );
 }
 
-export default function BlockReader({ doc, blocks }: BlockReaderProps) {
+export default function BlockReader({ doc, blocks, articleSlug }: BlockReaderProps) {
   // Backward-compat: alte Aufrufe mit blocks={...} unterstützen.
   const effectiveBlocks: Block[] = doc?.blocks ?? blocks ?? [];
   const sources: Source[] = doc?.sources ?? [];
   const { mapping, order } = buildSourceOrder(effectiveBlocks);
   const patterns = buildPatterns();
+  const showInlineModule =
+    !!articleSlug && effectiveBlocks.length >= INLINE_MODULE_MIN_BLOCKS;
 
   return (
     <>
-      {effectiveBlocks.map((b) => (
+      {effectiveBlocks.map((b, i) => (
         <span key={b.id} style={{ display: "contents" }}>
           {renderBlock(b, mapping, patterns)}
+          {showInlineModule && i === INLINE_MODULE_AFTER_BLOCK && (
+            <ModuleSlot
+              code="article_inline"
+              scope="article"
+              articleSlug={articleSlug}
+              desktopHeight={90}
+              mobileHeight={250}
+            />
+          )}
         </span>
       ))}
       {renderSourceList(sources, order)}

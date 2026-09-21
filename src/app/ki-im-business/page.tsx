@@ -105,6 +105,7 @@ export default async function KIBusinessPage() {
           authors={authors}
           topTags={topTags}
           accentColor="green"
+          ressortSlug="ki-business"
         />
       </Suspense>
       <div style={{ height: "var(--sp-20)" }} />

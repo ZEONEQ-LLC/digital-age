@@ -7,6 +7,7 @@ import NewsTickerGate from "@/components/NewsTickerGate";
 import ConsentInit from "@/components/ConsentInit";
 import ConsentManagerGate from "@/components/ConsentManagerGate";
 import AnalyticsGate from "@/components/AnalyticsGate";
+import RailModules from "@/components/module/RailModules";
 import { getBaseUrl } from "@/lib/siteUrl";
 
 // Self-hosted Google Fonts via next/font/google. Wird zur Build-Time von
@@ -93,6 +94,7 @@ export default function RootLayout({
           <NewsTicker />
         </NewsTickerGate>
         {children}
+        <RailModules />
         <ConsentManagerGate />
         <AnalyticsGate />
       </body>
