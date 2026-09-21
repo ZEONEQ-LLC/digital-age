@@ -38,6 +38,8 @@ const btnGhost: React.CSSProperties = { padding: "7px 12px", background: "transp
 const label: React.CSSProperties = { color: "var(--da-muted)", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" };
 const sectionTitle: React.CSSProperties = { color: "var(--da-text)", fontFamily: "var(--da-font-display)", fontSize: 18, fontWeight: 700 };
 const errStyle: React.CSSProperties = { color: "#ff6b6b", fontSize: 13, margin: 0 };
+const lblCol: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 4, color: "var(--da-muted)", fontSize: 12 };
+const help: React.CSSProperties = { color: "var(--da-faint)", fontSize: 11, lineHeight: 1.4 };
 
 export default function CampaignDetailClient({ detail, advertisers, placements }: Props) {
   const router = useRouter();
@@ -108,7 +110,10 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
       {/* Stammdaten */}
       <div style={card}>
         <div style={sectionTitle}>Stammdaten</div>
-        <input style={inp} value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
+        <label style={lblCol}>
+          <span>Kampagnen-Name</span>
+          <input style={inp} value={name} onChange={(e) => setName(e.target.value)} placeholder="Name der Kampagne" />
+        </label>
         <label style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--da-text)", fontSize: 14 }}>
           <input type="checkbox" checked={isHouse} onChange={(e) => setIsHouse(e.target.checked)} />
           House-Kampagne
@@ -128,12 +133,22 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
                   {advertisers.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </div>
-              <input style={inp} placeholder="Preis CHF" inputMode="decimal" value={priceChf} onChange={(e) => setPriceChf(e.target.value)} />
+              <label style={lblCol}>
+                <span>Preis CHF</span>
+                <input style={inp} placeholder="z. B. 1500" inputMode="decimal" value={priceChf} onChange={(e) => setPriceChf(e.target.value)} />
+              </label>
             </>
           )
         )}
-        <input style={inp} placeholder="Gewicht 1–10" inputMode="numeric" value={weight} onChange={(e) => setWeight(e.target.value)} />
-        <textarea style={{ ...inp, minHeight: 60 }} placeholder="Notizen" value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <label style={lblCol}>
+          <span>Gewicht (1-10)</span>
+          <input style={inp} placeholder="1" inputMode="numeric" value={weight} onChange={(e) => setWeight(e.target.value)} />
+          <span style={help}>Steuert die Rotation bei mehreren gleichzeitigen Kampagnen auf derselben Fläche. Höher = häufiger.</span>
+        </label>
+        <label style={lblCol}>
+          <span>Notizen</span>
+          <textarea style={{ ...inp, minHeight: 60 }} placeholder="Interne Notizen" value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </label>
         <button type="button" style={{ ...btn, alignSelf: "flex-start" }} disabled={pending} onClick={() => run(() => updateCampaign(c.id, {
           name, is_house: isHouse, advertiser_id: isHouse ? null : advertiserId || null,
           price_chf: isHouse || !priceChf ? null : Number(priceChf), weight: Number(weight) || 1, notes,
@@ -157,20 +172,32 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
 
         <div style={{ borderTop: "1px solid var(--da-border)", paddingTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
           <span style={label}>Neue Buchung</span>
-          <select style={inp} value={bPlacement} onChange={(e) => setBPlacement(e.target.value)}>
-            {placements.map((p) => <option key={p.id} value={p.id}>{p.label}{p.is_sellable ? "" : " (nicht verkäuflich)"}</option>)}
-          </select>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <select style={{ ...inp, flex: 1, minWidth: 140 }} value={bScope} onChange={(e) => setBScope(e.target.value as ScopeKind)}>
-              {SCOPE_KINDS.map((s) => <option key={s.code} value={s.code}>{s.label}</option>)}
+          <label style={lblCol}>
+            <span>Platzierung</span>
+            <select style={inp} value={bPlacement} onChange={(e) => setBPlacement(e.target.value)}>
+              {placements.map((p) => <option key={p.id} value={p.id}>{p.label}{p.is_sellable ? "" : " (nicht verkäuflich)"}</option>)}
             </select>
-            {bScope === "ressort" && (
-              <select style={{ ...inp, flex: 1, minWidth: 140 }} value={bRessort} onChange={(e) => setBRessort(e.target.value)}>
-                {RESSORT_SLUGS.map((r) => <option key={r.slug} value={r.slug}>{r.label}</option>)}
+          </label>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <label style={{ ...lblCol, flex: 1, minWidth: 140 }}>
+              <span>Geltungsbereich</span>
+              <select style={inp} value={bScope} onChange={(e) => setBScope(e.target.value as ScopeKind)}>
+                {SCOPE_KINDS.map((s) => <option key={s.code} value={s.code}>{s.label}</option>)}
               </select>
+            </label>
+            {bScope === "ressort" && (
+              <label style={{ ...lblCol, flex: 1, minWidth: 140 }}>
+                <span>Ressort</span>
+                <select style={inp} value={bRessort} onChange={(e) => setBRessort(e.target.value)}>
+                  {RESSORT_SLUGS.map((r) => <option key={r.slug} value={r.slug}>{r.label}</option>)}
+                </select>
+              </label>
             )}
             {bScope === "article" && (
-              <input style={{ ...inp, flex: 1, minWidth: 140 }} placeholder="Artikel-Slug" value={bArticle} onChange={(e) => setBArticle(e.target.value)} />
+              <label style={{ ...lblCol, flex: 1, minWidth: 140 }}>
+                <span>Artikel-Slug</span>
+                <input style={inp} placeholder="z. B. mein-artikel" value={bArticle} onChange={(e) => setBArticle(e.target.value)} />
+              </label>
             )}
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -219,9 +246,10 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
             <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
               <label style={{ color: "var(--da-text)", fontSize: 14, display: "flex", gap: 6, alignItems: "center" }}>
                 Typ
-                <select style={{ ...inp, width: "auto" }} value="internal" disabled>
+                {/* Bild-Option sichtbar, aber deaktiviert — Upload folgt in PR 2. */}
+                <select style={{ ...inp, width: "auto" }} value="internal" onChange={() => {}}>
                   <option value="internal">Typografisch</option>
-                  <option value="image">Bild — folgt in PR 2</option>
+                  <option value="image" disabled>Bild (folgt in PR 2)</option>
                 </select>
               </label>
               <label style={{ color: "var(--da-text)", fontSize: 14, display: "flex", gap: 6, alignItems: "center" }}>
@@ -235,10 +263,23 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
                 <input type="checkbox" checked={crActive} onChange={(e) => setCrActive(e.target.checked)} /> aktiv
               </label>
             </div>
-            <input style={inp} placeholder="Headline *" value={crHeadline} onChange={(e) => setCrHeadline(e.target.value)} />
-            <textarea style={{ ...inp, minHeight: 50 }} placeholder="Body" value={crBody} onChange={(e) => setCrBody(e.target.value)} />
-            <input style={inp} placeholder="CTA-Label" value={crCta} onChange={(e) => setCrCta(e.target.value)} />
-            <input style={inp} placeholder="Ziel-URL *" value={crUrl} onChange={(e) => setCrUrl(e.target.value)} />
+            <span style={help}>Aktivierung auf Live verlangt je ein aktives Kreativ für Desktop und Mobile.</span>
+            <label style={lblCol}>
+              <span>Headline *</span>
+              <input style={inp} placeholder="Kurze, prägnante Zeile" value={crHeadline} onChange={(e) => setCrHeadline(e.target.value)} />
+            </label>
+            <label style={lblCol}>
+              <span>Body</span>
+              <textarea style={{ ...inp, minHeight: 50 }} placeholder="Optionaler Beschreibungstext" value={crBody} onChange={(e) => setCrBody(e.target.value)} />
+            </label>
+            <label style={lblCol}>
+              <span>CTA-Label</span>
+              <input style={inp} placeholder="z. B. Jetzt entdecken" value={crCta} onChange={(e) => setCrCta(e.target.value)} />
+            </label>
+            <label style={lblCol}>
+              <span>Ziel-URL *</span>
+              <input style={inp} placeholder="/newsletter oder https://…" value={crUrl} onChange={(e) => setCrUrl(e.target.value)} />
+            </label>
             <div style={{ display: "flex", gap: 8 }}>
               <button type="button" style={btn} disabled={pending} onClick={() => run(() => {
                 const payload = { variant: crVariant, headline: crHeadline, body: crBody, cta_label: crCta, target_url: crUrl, is_active: crActive };

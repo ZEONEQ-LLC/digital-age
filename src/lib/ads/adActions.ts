@@ -35,7 +35,7 @@ function buildAdvertiserPayload(input: AdvertiserInput): { error: string } | { d
       postal_code: input.postal_code || null,
       city: input.city || null,
       country: (input.country || "CH").toUpperCase().slice(0, 2),
-      language: input.language || null,
+      language: input.language || "de",
       billing_email: input.billing_email || null,
       payment_terms_days: input.payment_terms_days ?? 30,
       billing_via_agency_id: input.billing_via_agency_id || null,
@@ -65,7 +65,18 @@ function mapDbError(error: { code?: string; message?: string } | null): string {
   if (msg.includes("Ueberbuchung")) {
     return "Überbuchung: In diesem Zeitraum ist die Platzierung bereits ausgebucht. Bitte Zeitraum oder Platzierung anpassen.";
   }
+  // Trigger-RAISE-Meldungen sind bereits deutsch + user-tauglich → durchreichen.
+  if (msg.startsWith("Kampagne kann nicht aktiviert") || msg.startsWith("Rechnung ueber Agentur")) {
+    return msg.replace("ueber", "über").replace("vollstaendige", "vollständige").replace("fuer", "für");
+  }
   if (error?.code === "23505") return "Eintrag bereits vorhanden.";
+  // Benannte Table-CHECKs auf ad_advertisers → spezifische Meldung.
+  if (msg.includes("ad_advertisers_address_complete")) {
+    return "Rechnungsadresse unvollständig: entweder Strasse + Nr. + PLZ + Ort oder Postfach + PLZ + Ort ausfüllen (oder Adresse ganz leer lassen).";
+  }
+  if (msg.includes("ad_advertisers_language_chk")) return "Sprache muss de, fr, it oder en sein.";
+  if (msg.includes("ad_advertisers_uid_format")) return "UID ungültig — Format CHE123456789.";
+  if (msg.includes("_len")) return "Ein Feld überschreitet die zulässige Länge (QR-Rechnung).";
   if (error?.code === "23514") {
     return "Ungültige Kombination — bitte Eingaben prüfen (House-Kampagne ohne Kunde/Preis, Scope-Referenz nur bei Ressort/Artikel).";
   }

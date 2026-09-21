@@ -85,10 +85,10 @@ export default function WerbungOverviewClient({ initialCampaigns, advertisers }:
 
       {showNew && (
         <div style={{ ...card, display: "flex", flexDirection: "column", gap: 10 }}>
-          <input
-            placeholder="Kampagnen-Name" value={name} onChange={(e) => setName(e.target.value)}
-            style={inp}
-          />
+          <label style={lblCol}>
+            <span>Kampagnen-Name</span>
+            <input placeholder="z. B. Frühlingskampagne Kunde X" value={name} onChange={(e) => setName(e.target.value)} style={inp} />
+          </label>
           <label style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--da-text)", fontSize: 14 }}>
             <input type="checkbox" checked={isHouse} onChange={(e) => setIsHouse(e.target.checked)} />
             House-Kampagne (kein Kunde, kein Preis)
@@ -101,15 +101,25 @@ export default function WerbungOverviewClient({ initialCampaigns, advertisers }:
               </p>
             ) : (
               <>
-                <select value={advertiserId} onChange={(e) => setAdvertiserId(e.target.value)} style={inp}>
-                  <option value="">— Kunde wählen —</option>
-                  {advertisers.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-                <input placeholder="Preis CHF (optional)" value={priceChf} onChange={(e) => setPriceChf(e.target.value)} inputMode="decimal" style={inp} />
+                <label style={lblCol}>
+                  <span>Kunde</span>
+                  <select value={advertiserId} onChange={(e) => setAdvertiserId(e.target.value)} style={inp}>
+                    <option value="">— Kunde wählen —</option>
+                    {advertisers.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </label>
+                <label style={lblCol}>
+                  <span>Preis CHF (optional)</span>
+                  <input placeholder="z. B. 1500" value={priceChf} onChange={(e) => setPriceChf(e.target.value)} inputMode="decimal" style={inp} />
+                </label>
               </>
             )
           )}
-          <input placeholder="Gewicht 1–10" value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="numeric" style={inp} />
+          <label style={lblCol}>
+            <span>Gewicht (1-10)</span>
+            <input placeholder="1" value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="numeric" style={inp} />
+            <span style={help}>Steuert die Rotation bei mehreren gleichzeitigen Kampagnen auf derselben Fläche. Höher = häufiger.</span>
+          </label>
           {error && <p style={errStyle}>{error}</p>}
           <button type="button" onClick={submitNew} disabled={pending} style={btnPrimary}>
             {pending ? "Speichert…" : "Kampagne anlegen"}
@@ -160,3 +170,5 @@ const btnPrimary: React.CSSProperties = { padding: "8px 14px", background: "var(
 const th: React.CSSProperties = { padding: "12px 14px", fontWeight: 600, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" };
 const td: React.CSSProperties = { padding: "12px 14px" };
 const errStyle: React.CSSProperties = { color: "#ff6b6b", fontSize: 13, margin: 0 };
+const lblCol: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 4, color: "var(--da-muted)", fontSize: 12 };
+const help: React.CSSProperties = { color: "var(--da-faint)", fontSize: 11, lineHeight: 1.4 };

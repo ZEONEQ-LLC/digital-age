@@ -51,7 +51,7 @@ export type Database = {
           house_number: string | null
           id: string
           is_agency: boolean
-          language: string | null
+          language: string
           name: string
           notes: string | null
           payment_terms_days: number
@@ -72,7 +72,7 @@ export type Database = {
           house_number?: string | null
           id?: string
           is_agency?: boolean
-          language?: string | null
+          language?: string
           name: string
           notes?: string | null
           payment_terms_days?: number
@@ -93,7 +93,7 @@ export type Database = {
           house_number?: string | null
           id?: string
           is_agency?: boolean
-          language?: string | null
+          language?: string
           name?: string
           notes?: string | null
           payment_terms_days?: number
