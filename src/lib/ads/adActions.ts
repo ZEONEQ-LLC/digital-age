@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/database.types";
 import {
+  RESSORT_SLUGS,
   normalizeUid,
   type ActionResult,
   type ActionResultId,
@@ -14,34 +15,57 @@ import {
   type ContactInput,
   type CreativeInput,
 } from "@/lib/ads/types";
+import { PLACEMENTS, isPlacementCode } from "@/lib/ads/placements";
 
-// Baut das DB-Payload aus dem AdvertiserInput (UID normalisiert, Adressfelder).
-// Gibt bei ungueltiger UID einen Fehlerstring zurueck.
 type AdvertiserInsert = Database["public"]["Tables"]["ad_advertisers"]["Insert"];
 
+// ── Validierung (serverseitig; das Formular ist nur Komfort) ──────────────
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidWeight(w: unknown): w is number {
+  return typeof w === "number" && Number.isInteger(w) && w >= 1 && w <= 10;
+}
+
+// null/undefined = kein Preis; NaN oder negativ = Fehler.
+function parsePrice(p: number | null | undefined): { ok: true; value: number | null } | { ok: false } {
+  if (p === null || p === undefined) return { ok: true, value: null };
+  if (typeof p !== "number" || Number.isNaN(p) || p < 0) return { ok: false };
+  return { ok: true, value: p };
+}
+
+function isValidTargetUrl(u: string): boolean {
+  return u.startsWith("/") || u.startsWith("http://") || u.startsWith("https://");
+}
+
+// Baut das DB-Payload aus dem AdvertiserInput (UID normalisiert, Adressfelder).
+// Gibt bei ungueltiger Eingabe einen Fehlerstring zurueck.
 function buildAdvertiserPayload(input: AdvertiserInput): { error: string } | { data: AdvertiserInsert } {
   const rawUid = input.uid?.trim();
   const uid = normalizeUid(rawUid);
   if (rawUid && !uid) {
     return { error: "UID ungültig — Format CHE123456789 (HR-/MWST-Suffix wird nicht gespeichert)." };
   }
+  const terms = input.payment_terms_days ?? 30;
+  if (!Number.isInteger(terms) || terms < 0) {
+    return { error: "Zahlungsziel ungültig — ganze Zahl ≥ 0 (Tage)." };
+  }
   const data: AdvertiserInsert = {
-      name: input.name.trim(),
-      uid,
-      address_addition: input.address_addition || null,
-      street: input.street || null,
-      house_number: input.house_number || null,
-      post_office_box: input.post_office_box || null,
-      postal_code: input.postal_code || null,
-      city: input.city || null,
-      country: (input.country || "CH").toUpperCase().slice(0, 2),
-      language: input.language || "de",
-      billing_email: input.billing_email || null,
-      payment_terms_days: input.payment_terms_days ?? 30,
-      billing_via_agency_id: input.billing_via_agency_id || null,
-      is_agency: input.is_agency ?? false,
-      commission_pct: input.commission_pct ?? null,
-      notes: input.notes || null,
+    name: input.name.trim(),
+    uid,
+    address_addition: input.address_addition || null,
+    street: input.street || null,
+    house_number: input.house_number || null,
+    post_office_box: input.post_office_box || null,
+    postal_code: input.postal_code || null,
+    city: input.city || null,
+    country: (input.country || "CH").toUpperCase().slice(0, 2),
+    language: input.language || "de",
+    billing_email: input.billing_email || null,
+    payment_terms_days: terms,
+    billing_via_agency_id: input.billing_via_agency_id || null,
+    is_agency: input.is_agency ?? false,
+    commission_pct: input.commission_pct ?? null,
+    notes: input.notes || null,
   };
   return { data };
 }
@@ -60,14 +84,25 @@ async function requireEditor() {
   return { supabase, editorId: me.id };
 }
 
+// Trigger-RAISE-Meldungen sind bereits deutsch + user-tauglich → durchreichen.
+const PASSTHROUGH_PREFIXES = [
+  "Kampagne kann nicht aktiviert",
+  "Rechnung ueber Agentur",
+  "Kampagnenart",
+  "Diese Platzierung ist nur",
+];
+
 function mapDbError(error: { code?: string; message?: string } | null): string {
   const msg = error?.message ?? "Unbekannter Fehler.";
   if (msg.includes("Ueberbuchung")) {
     return "Überbuchung: In diesem Zeitraum ist die Platzierung bereits ausgebucht. Bitte Zeitraum oder Platzierung anpassen.";
   }
-  // Trigger-RAISE-Meldungen sind bereits deutsch + user-tauglich → durchreichen.
-  if (msg.startsWith("Kampagne kann nicht aktiviert") || msg.startsWith("Rechnung ueber Agentur")) {
-    return msg.replace("ueber", "über").replace("vollstaendige", "vollständige").replace("fuer", "für");
+  if (PASSTHROUGH_PREFIXES.some((p) => msg.startsWith(p))) {
+    return msg
+      .replace(/ueber/g, "über")
+      .replace(/vollstaendige/g, "vollständige")
+      .replace(/fuer/g, "für")
+      .replace(/geaendert/g, "geändert");
   }
   if (error?.code === "23505") return "Eintrag bereits vorhanden.";
   // Benannte Table-CHECKs auf ad_advertisers → spezifische Meldung.
@@ -177,13 +212,16 @@ export async function createCampaign(input: CampaignInput): Promise<ActionResult
     if (!input.is_house && !input.advertiser_id) {
       return { ok: false, error: "Kunden-Kampagne braucht einen Kunden." };
     }
+    if (!isValidWeight(input.weight)) return { ok: false, error: "Gewicht muss eine ganze Zahl von 1 bis 10 sein." };
+    const price = parsePrice(input.price_chf);
+    if (!price.ok) return { ok: false, error: "Preis ungültig." };
     const { data, error } = await supabase
       .from("ad_campaigns")
       .insert({
         name: input.name.trim(),
         is_house: input.is_house,
         advertiser_id: input.is_house ? null : input.advertiser_id ?? null,
-        price_chf: input.is_house ? null : input.price_chf ?? null,
+        price_chf: input.is_house ? null : price.value,
         weight: input.weight,
         notes: input.notes || null,
         status: "draft",
@@ -196,19 +234,32 @@ export async function createCampaign(input: CampaignInput): Promise<ActionResult
   } catch (e) { return fail(e); }
 }
 
+// is_house ist nach dem Anlegen unveraenderlich (E2): wird hier nicht mehr
+// geschrieben; Kunde/Preis richten sich nach dem gespeicherten Wert. Der
+// DB-Trigger enforce_ad_campaign_house_immutable ist das Netz.
 export async function updateCampaign(id: string, input: CampaignInput): Promise<ActionResult> {
   try {
     const { supabase } = await requireEditor();
-    if (!input.is_house && !input.advertiser_id) {
+    if (!input.name.trim()) return { ok: false, error: "Name ist erforderlich." };
+    if (!isValidWeight(input.weight)) return { ok: false, error: "Gewicht muss eine ganze Zahl von 1 bis 10 sein." };
+    const price = parsePrice(input.price_chf);
+    if (!price.ok) return { ok: false, error: "Preis ungültig." };
+    const { data: current } = await supabase
+      .from("ad_campaigns")
+      .select("is_house")
+      .eq("id", id)
+      .maybeSingle();
+    if (!current) return { ok: false, error: "Kampagne nicht gefunden." };
+    const isHouse = current.is_house;
+    if (!isHouse && !input.advertiser_id) {
       return { ok: false, error: "Kunden-Kampagne braucht einen Kunden." };
     }
     const { error } = await supabase
       .from("ad_campaigns")
       .update({
         name: input.name.trim(),
-        is_house: input.is_house,
-        advertiser_id: input.is_house ? null : input.advertiser_id ?? null,
-        price_chf: input.is_house ? null : input.price_chf ?? null,
+        advertiser_id: isHouse ? null : input.advertiser_id ?? null,
+        price_chf: isHouse ? null : price.value,
         weight: input.weight,
         notes: input.notes || null,
       })
@@ -243,25 +294,70 @@ export async function deleteCampaign(id: string): Promise<ActionResult> {
 export async function createBooking(input: BookingInput): Promise<ActionResult> {
   try {
     const { supabase } = await requireEditor();
-    if (input.scope !== "global" && !input.scope_ref?.trim()) {
+
+    // Zeitraum (E1): rohe YYYY-MM-DD-Strings; Postgres rechnet Europe/Zurich
+    // inkl. Sommer-/Winterzeit. Obergrenze exklusiv 24:00 des Enddatums.
+    const from = (input.from ?? "").trim();
+    const to = (input.to ?? "").trim();
+    if (!from) return { ok: false, error: "Startdatum ist erforderlich." };
+    if (!DATE_RE.test(from)) return { ok: false, error: "Startdatum ungültig (YYYY-MM-DD)." };
+    if (to && !DATE_RE.test(to)) return { ok: false, error: "Enddatum ungültig (YYYY-MM-DD)." };
+    if (to && to < from) return { ok: false, error: "Enddatum liegt vor dem Startdatum." };
+    const period = to
+      ? `[${from} 00:00 Europe/Zurich,${to} 24:00 Europe/Zurich)`
+      : `[${from} 00:00 Europe/Zurich,)`;
+
+    // Platzierung + Kampagne laden (E5/E6: erlaubte Scopes, Verkaeuflichkeit).
+    const { data: placement } = await supabase
+      .from("ad_placements")
+      .select("code, label, is_sellable")
+      .eq("id", input.placement_id)
+      .maybeSingle();
+    if (!placement) return { ok: false, error: "Platzierung nicht gefunden." };
+    const { data: campaign } = await supabase
+      .from("ad_campaigns")
+      .select("is_house")
+      .eq("id", input.campaign_id)
+      .maybeSingle();
+    if (!campaign) return { ok: false, error: "Kampagne nicht gefunden." };
+
+    if (!placement.is_sellable && !campaign.is_house) {
+      return { ok: false, error: "Diese Platzierung ist nur für House-Kampagnen buchbar." };
+    }
+    if (!isPlacementCode(placement.code)) {
+      return { ok: false, error: `Platzierung „${placement.code}" ist im Code nicht konfiguriert.` };
+    }
+    const geo = PLACEMENTS[placement.code];
+    if (!geo.allowedScopes.includes(input.scope)) {
+      return { ok: false, error: `Geltungsbereich ${input.scope} wird auf ${placement.label} nie ausgeliefert.` };
+    }
+
+    const scopeRef = input.scope === "global" ? null : (input.scope_ref ?? "").trim();
+    if (input.scope !== "global" && !scopeRef) {
       return { ok: false, error: "Scope-Referenz (Ressort/Artikel) ist erforderlich." };
     }
+    if (input.scope === "ressort") {
+      if (!RESSORT_SLUGS.some((r) => r.slug === scopeRef)) {
+        return { ok: false, error: `Unbekanntes Ressort „${scopeRef}".` };
+      }
+      if (geo.allowedRessorts && !geo.allowedRessorts.includes(scopeRef!)) {
+        return { ok: false, error: `Ressort „${scopeRef}" wird auf ${placement.label} nie ausgeliefert.` };
+      }
+    }
     if (input.scope === "article") {
-      const slug = input.scope_ref!.trim();
       const { data: art } = await supabase
         .from("articles")
         .select("id")
-        .eq("slug", slug)
+        .eq("slug", scopeRef!)
         .maybeSingle();
-      if (!art) return { ok: false, error: `Artikel-Slug „${slug}" nicht gefunden.` };
+      if (!art) return { ok: false, error: `Artikel-Slug „${scopeRef}" nicht gefunden.` };
     }
-    if (!input.from) return { ok: false, error: "Startdatum ist erforderlich." };
-    const period = `[${input.from},${input.to ?? ""})`;
+
     const { error } = await supabase.from("ad_bookings").insert({
       campaign_id: input.campaign_id,
       placement_id: input.placement_id,
       scope: input.scope,
-      scope_ref: input.scope === "global" ? null : input.scope_ref!.trim(),
+      scope_ref: scopeRef,
       period,
     });
     if (error) return { ok: false, error: mapDbError(error) };
@@ -284,8 +380,10 @@ export async function deleteBooking(id: string, campaignId: string): Promise<Act
 export async function createCreative(input: CreativeInput): Promise<ActionResult> {
   try {
     const { supabase } = await requireEditor();
+    const url = input.target_url.trim();
     if (!input.headline.trim()) return { ok: false, error: "Headline ist erforderlich." };
-    if (!input.target_url.trim()) return { ok: false, error: "Ziel-URL ist erforderlich." };
+    if (!url) return { ok: false, error: "Ziel-URL ist erforderlich." };
+    if (!isValidTargetUrl(url)) return { ok: false, error: "Ziel-URL muss mit /, http:// oder https:// beginnen." };
     const { error } = await supabase.from("ad_creatives").insert({
       campaign_id: input.campaign_id,
       kind: "internal",
@@ -293,7 +391,7 @@ export async function createCreative(input: CreativeInput): Promise<ActionResult
       headline: input.headline.trim(),
       body: input.body || null,
       cta_label: input.cta_label || null,
-      target_url: input.target_url.trim(),
+      target_url: url,
       is_active: input.is_active ?? true,
     });
     if (error) return { ok: false, error: mapDbError(error) };
@@ -309,6 +407,10 @@ export async function updateCreative(
 ): Promise<ActionResult> {
   try {
     const { supabase } = await requireEditor();
+    const url = input.target_url.trim();
+    if (!input.headline.trim()) return { ok: false, error: "Headline ist erforderlich." };
+    if (!url) return { ok: false, error: "Ziel-URL ist erforderlich." };
+    if (!isValidTargetUrl(url)) return { ok: false, error: "Ziel-URL muss mit /, http:// oder https:// beginnen." };
     const { error } = await supabase
       .from("ad_creatives")
       .update({
@@ -316,7 +418,7 @@ export async function updateCreative(
         headline: input.headline.trim(),
         body: input.body || null,
         cta_label: input.cta_label || null,
-        target_url: input.target_url.trim(),
+        target_url: url,
         is_active: input.is_active ?? true,
       })
       .eq("id", id);

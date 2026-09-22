@@ -139,30 +139,49 @@ export type CreativeInput = {
   is_active?: boolean;
 };
 
-// tstzrange-Textformat -> lesbares Label. Offene Obergrenze => "unbegrenzt".
+// Normalisiert eine tstzrange-Grenze aus PostgREST (z.B. "2026-09-21 18:48:38.118774+00")
+// nach ISO-8601, damit new Date() ueberall (auch Safari) parst: Leerzeichen -> T,
+// Sekundenbruchteile auf 3 Stellen, Offset "+00"/"+01" -> "+00:00"/"+01:00".
+function normalizeBound(raw: string): string | null {
+  const t = raw.trim().replace(/^"|"$/g, "");
+  if (t.length === 0) return null;
+  return t
+    .replace(" ", "T")
+    .replace(/(\.\d{3})\d+/, "$1")
+    .replace(/([+-]\d{2})$/, "$1:00");
+}
+
+// Parst ein tstzrange-Textliteral wie ["2026-09-30 22:00:00+00","2026-10-31 23:00:00+00")
+// in ISO-Grenzen. Leere Grenze -> null (offen). Nicht-String -> null.
+export function parsePeriod(period: unknown): { lower: string | null; upper: string | null } | null {
+  if (typeof period !== "string") return null;
+  const m = period.match(/^[[(]([^,]*),([^\])]*)[\])]$/);
+  if (!m) return null;
+  return { lower: normalizeBound(m[1]), upper: normalizeBound(m[2]) };
+}
+
+const ZURICH_DATE: Intl.DateTimeFormatOptions = {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: "Europe/Zurich",
+};
+
+// tstzrange -> lesbares Label in Zuercher Kalendertagen (E1). Obere Grenze ist
+// exklusiv (24:00) und wird inklusiv angezeigt: (upper - 1 ms) formatieren.
+// timeZone fest -> SSR-Ausgabe == Client-Ausgabe, kein Hydration-Mismatch.
 export function formatPeriod(period: unknown): string {
   const parsed = parsePeriod(period);
   if (!parsed) return typeof period === "string" ? period : "";
-  const fmt = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" }) : null;
-  const from = fmt(parsed.lower);
-  const to = fmt(parsed.upper);
+  const fmt = (iso: string | null, minusMs: number): string | null => {
+    if (!iso) return null;
+    const d = new Date(new Date(iso).getTime() - minusMs);
+    return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString("de-CH", ZURICH_DATE);
+  };
+  const from = fmt(parsed.lower, 0);
+  const to = fmt(parsed.upper, 1);
   if (from && to) return `${from} – ${to}`;
   if (from && !to) return `ab ${from}`;
   if (!from && to) return `bis ${to}`;
   return "unbegrenzt";
-}
-
-// Parst ein tstzrange-Textliteral wie ["2026-09-21 12:00:00+00",) in
-// ISO-Grenzen. Leere Grenze -> null (offen).
-export function parsePeriod(period: unknown): { lower: string | null; upper: string | null } | null {
-  // tstzrange kommt aus supabase-js als String, ist aber als `unknown` getypt.
-  if (typeof period !== "string") return null;
-  const m = period.match(/^[[(]([^,]*),([^\])]*)[\])]$/);
-  if (!m) return null;
-  const clean = (s: string): string | null => {
-    const t = s.trim().replace(/^"|"$/g, "");
-    return t.length > 0 ? t : null;
-  };
-  return { lower: clean(m[1]), upper: clean(m[2]) };
 }
