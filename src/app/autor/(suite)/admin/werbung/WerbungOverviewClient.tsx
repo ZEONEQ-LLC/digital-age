@@ -52,7 +52,7 @@ export default function WerbungOverviewClient({ initialCampaigns, advertisers }:
       <select id="nc-weight" style={inputStyle} value={weight} onChange={(e) => setWeight(e.target.value)}>
         {WEIGHTS.map((w) => <option key={w} value={w}>{w}</option>)}
       </select>
-      <p style={help}>Nur relevant, wenn mehrere Kampagnen dieselbe Fläche belegen.</p>
+      <p style={help}>Anteil an der Rotation im Verhältnis zu den anderen Live-Kampagnen auf derselben Fläche. Beispiel: diese Kampagne 3, eine andere 1 → diese erscheint bei 3 von 4 Aufrufen. Allein auf der Fläche: immer, unabhängig vom Wert. House-Kampagnen laufen nur, wenn keine Kundenkampagne live ist.</p>
     </div>
   );
 

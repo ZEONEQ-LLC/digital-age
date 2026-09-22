@@ -2,11 +2,12 @@
 
 import { useEffect, useId, useState } from "react";
 import { PLACEMENTS, type PlacementCode } from "@/lib/ads/placements";
+import ModuleCard from "./ModuleCard";
 
 // Neutrale Benennung nach aussen (kein ad/banner/... in Klassen/Attributen/
 // Pfad). Reserviert die KOMPAKTE Hoehe fuer typografische Kreative aus der
 // Geometrie-Konstante (CLS-Schutz, D1), gibt sie bei leerer Antwort wieder
-// frei. Spezifitaet haengt nur an r/a.
+// frei. Spezifitaet haengt nur an r/a. Karten-Markup: ModuleCard (F4).
 type Props = {
   code: PlacementCode;
   ressortSlug?: string;
@@ -20,6 +21,8 @@ type ModuleData = {
   body: string | null;
   ctaLabel: string | null;
   href: string;
+  theme?: string;
+  bg?: string;
 };
 
 type State = { phase: "loading" } | { phase: "empty" } | { phase: "ready"; data: ModuleData };
@@ -59,7 +62,6 @@ export default function ModuleSlot({ code, ressortSlug, articleSlug }: Props) {
   if (state.phase === "empty") return null;
 
   const cls = `mod-${id}`;
-  const wide = layout === "wide";
 
   // E3: House = interner Link (kein rel, kein target). Kunde = bezahlt:
   // rel="sponsored nofollow noopener" + neuer Tab.
@@ -73,46 +75,19 @@ export default function ModuleSlot({ code, ressortSlug, articleSlug }: Props) {
       <style>{`
         .${cls} { min-height: ${internalHeight.desktop}px; display: flex; }
         @media (max-width: 767px) { .${cls} { min-height: ${internalHeight.mobile}px; } }
-        .${cls} .mod-inner {
-          flex: 1; display: flex; flex-direction: column; justify-content: flex-start;
-          gap: var(--sp-3); padding: var(--sp-6); border-radius: var(--r-md);
-          background: var(--da-card); border: 1px solid var(--da-border);
-          text-decoration: none; transition: border-color var(--t-fast);
-        }
-        .${cls} .mod-inner:hover { border-color: var(--da-green); }
-        .${cls} .mod-text { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
-        .${cls} .mod-kicker { color: var(--da-muted); }
-        .${cls} .mod-title {
-          color: var(--da-text); font-family: var(--da-font-display);
-          font-size: var(--fs-h4); font-weight: 700; line-height: 1.25;
-        }
-        .${cls} .mod-body { color: var(--da-muted); font-size: var(--fs-body); line-height: 1.5; }
-        .${cls} .mod-cta {
-          color: var(--da-green); font-family: var(--da-font-mono); font-size: var(--fs-body-sm);
-          font-weight: 600; letter-spacing: 0.05em; white-space: nowrap; align-self: flex-start;
-        }
-        ${wide ? `
-        @media (min-width: 768px) {
-          .${cls} .mod-inner { flex-direction: row; align-items: center; justify-content: space-between; gap: var(--sp-6); }
-          .${cls} .mod-cta {
-            align-self: center; flex-shrink: 0;
-            padding: 10px 16px; border: 1px solid var(--da-border); border-radius: var(--r-md);
-            transition: border-color var(--t-fast), background var(--t-fast);
-          }
-          .${cls} .mod-inner:hover .mod-cta { border-color: var(--da-green); }
-        }` : ""}
       `}</style>
       {state.phase === "ready" && state.data.kind === "internal" && (
-        <a className="mod-inner" href={state.data.href} {...linkAttrs}>
-          <span className="mod-text">
-            {/* Bezahlte (Kunden-)Platzierung sichtbar als "Anzeige" kennzeichnen;
-                House-Eigenwerbung braucht keine Kennzeichnung. */}
-            {!state.data.isHouse && <span className="mod-kicker da-overline">Anzeige</span>}
-            <span className="mod-title">{state.data.headline}</span>
-            {state.data.body && <span className="mod-body">{state.data.body}</span>}
-          </span>
-          {state.data.ctaLabel && <span className="mod-cta">{state.data.ctaLabel} →</span>}
-        </a>
+        <ModuleCard
+          layout={layout}
+          isHouse={state.data.isHouse}
+          headline={state.data.headline}
+          body={state.data.body}
+          ctaLabel={state.data.ctaLabel}
+          href={state.data.href}
+          theme={state.data.theme ?? "card"}
+          bg={state.data.bg}
+          linkAttrs={linkAttrs}
+        />
       )}
     </div>
   );

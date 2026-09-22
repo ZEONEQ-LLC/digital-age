@@ -8,10 +8,12 @@ import {
   setCampaignStatus, updateCampaign, updateCreative,
 } from "@/lib/ads/adActions";
 import {
-  CAMPAIGN_STATUSES, RESSORT_SLUGS, SCOPE_KINDS, formatPeriod, statusLabel,
-  type CampaignDetail, type CampaignStatus, type PlacementRow, type ScopeKind,
+  CAMPAIGN_STATUSES, CREATIVE_THEMES, RESSORT_SLUGS, SCOPE_KINDS, formatPeriod, statusLabel,
+  type BookingShare, type CampaignDetail, type CampaignStatus, type PlacementRow, type ScopeKind,
 } from "@/lib/ads/types";
 import { PLACEMENTS, isPlacementCode } from "@/lib/ads/placements";
+import { isHex, resolveTheme } from "@/lib/ads/creativeTheme";
+import ModuleCard from "@/components/module/ModuleCard";
 import {
   card, errStyle, help, inputStyle, labelStyle, btnPrimary, btnGhost, btnSmall, sectionTitle, th, td, WEIGHTS,
 } from "../formStyles";
@@ -24,6 +26,15 @@ type Props = {
 
 const scopeLabel = (code: string) => SCOPE_KINDS.find((s) => s.code === code)?.label ?? code;
 const ressortLabel = (slug: string) => RESSORT_SLUGS.find((r) => r.slug === slug)?.label ?? slug;
+const themeLabel = (code: string) => CREATIVE_THEMES.find((t) => t.code === code)?.label ?? code;
+
+const WEIGHT_HELP = "Anteil an der Rotation im Verhältnis zu den anderen Live-Kampagnen auf derselben Fläche. Beispiel: diese Kampagne 3, eine andere 1 → diese erscheint bei 3 von 4 Aufrufen. Allein auf der Fläche: immer, unabhängig vom Wert. House-Kampagnen laufen nur, wenn keine Kundenkampagne live ist.";
+
+function shareText(s: BookingShare): { text: string; orange: boolean } {
+  if (s.reason) return { text: `0 % · ${s.reason}`, orange: true };
+  if (s.sharePct === 100 && s.othersCount === 0) return { text: "100 % · allein", orange: false };
+  return { text: `${s.sharePct} % · neben ${s.othersCount}`, orange: false };
+}
 
 export default function CampaignDetailClient({ detail, advertisers, placements }: Props) {
   const router = useRouter();
@@ -55,6 +66,18 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
     ? RESSORT_SLUGS.filter((r) => geo.allowedRessorts!.includes(r.slug))
     : RESSORT_SLUGS;
 
+  // "(gebucht: …)"-Suffix pro Platzierung: welche Scopes diese Kampagne dort schon belegt.
+  const bookedByPlacement = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const b of detail.bookings) {
+      const label = b.scope === "global" ? "global" : b.scope === "ressort" ? `Ressort ${ressortLabel(b.scope_ref ?? "")}` : `Artikel ${b.scope_ref ?? ""}`;
+      const list = m.get(b.placement_id) ?? [];
+      if (!list.includes(label)) list.push(label);
+      m.set(b.placement_id, list);
+    }
+    return m;
+  }, [detail.bookings]);
+
   function choosePlacement(id: string) {
     setBPlacement(id);
     const p = bookable.find((x) => x.id === id);
@@ -74,6 +97,9 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
   const [crCta, setCrCta] = useState("");
   const [crUrl, setCrUrl] = useState("");
   const [crActive, setCrActive] = useState(true);
+  const [crTheme, setCrTheme] = useState("card");
+  const [crBg, setCrBg] = useState("#1c1c1e");
+  const bgInvalid = crTheme === "custom" && !isHex(crBg);
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, after?: () => void) {
     setError(null);
@@ -86,10 +112,12 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
   }
 
   function resetCreative() {
-    setCrId(null); setCrVariant("desktop"); setCrHeadline(""); setCrBody(""); setCrCta(""); setCrUrl(""); setCrActive(true); setShowCreative(false);
+    setCrId(null); setCrVariant("desktop"); setCrHeadline(""); setCrBody(""); setCrCta(""); setCrUrl("");
+    setCrActive(true); setCrTheme("card"); setCrBg("#1c1c1e"); setShowCreative(false);
   }
 
   const hasRef = bScope !== "global";
+  const shareTitle = `Anteil = Gewicht ${c.weight} / (${c.weight} + Summe der Gewichte der anderen Live-Kampagnen auf derselben Fläche und Ebene, überlappender Zeitraum). Nicht-House schlägt House.`;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -99,13 +127,16 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
         .cd-booking { display: grid; gap: 16px; align-items: end; }
         .cd-booking--ref   { grid-template-columns: 1.4fr 1fr 1fr auto auto auto; }
         .cd-booking--noref { grid-template-columns: 1.4fr 1fr auto auto auto; }
+        .cd-preview { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
         @media (max-width: 1023px) {
           .cd-booking--ref, .cd-booking--noref { grid-template-columns: 1fr 1fr 1fr; }
+          .cd-preview { grid-template-columns: 1fr; }
         }
         @media (max-width: 767px) {
           .cd-row2, .cd-row3, .cd-booking--ref, .cd-booking--noref { grid-template-columns: 1fr; }
         }
         .cd-table { width: 100%; border-collapse: collapse; }
+        .cd-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--da-border); vertical-align: -2px; margin-right: 6px; }
       `}</style>
 
       <Link href="/autor/admin/werbung" style={{ color: "var(--da-muted)", fontSize: 13, textDecoration: "none" }}>← Alle Kampagnen</Link>
@@ -141,7 +172,7 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
               <select id="cd-weight" style={inputStyle} value={weight} onChange={(e) => setWeight(e.target.value)}>
                 {WEIGHTS.map((w) => <option key={w} value={w}>{w}</option>)}
               </select>
-              <p style={help}>Nur relevant, wenn mehrere Kampagnen dieselbe Fläche belegen.</p>
+              <p style={help}>{WEIGHT_HELP}</p>
             </div>
             <div />
           </div>
@@ -168,7 +199,7 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
               <select id="cd-weight" style={inputStyle} value={weight} onChange={(e) => setWeight(e.target.value)}>
                 {WEIGHTS.map((w) => <option key={w} value={w}>{w}</option>)}
               </select>
-              <p style={help}>Nur relevant, wenn mehrere Kampagnen dieselbe Fläche belegen.</p>
+              <p style={help}>{WEIGHT_HELP}</p>
             </div>
           </div>
         )}
@@ -198,21 +229,26 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
                   <th style={th}>Geltungsbereich</th>
                   <th style={th}>Referenz</th>
                   <th style={th}>Zeitraum</th>
+                  <th style={th}>Anteil (wenn live)</th>
                   <th style={th} />
                 </tr>
               </thead>
               <tbody>
-                {detail.bookings.map((b) => (
-                  <tr key={b.id}>
-                    <td style={{ ...td, color: "var(--da-text)", fontWeight: 600 }}>{b.placementLabel}</td>
-                    <td style={td}>{scopeLabel(b.scope)}</td>
-                    <td style={td}>{b.scope === "global" ? "—" : b.scope === "ressort" ? ressortLabel(b.scope_ref ?? "") : b.scope_ref}</td>
-                    <td style={{ ...td, color: "var(--da-muted)" }}>{formatPeriod(b.period)}</td>
-                    <td style={{ ...td, textAlign: "right" }}>
-                      <button type="button" style={btnSmall} disabled={pending} onClick={() => run(() => deleteBooking(b.id, c.id))}>Löschen</button>
-                    </td>
-                  </tr>
-                ))}
+                {detail.bookings.map((b) => {
+                  const s = shareText(b.share);
+                  return (
+                    <tr key={b.id}>
+                      <td style={{ ...td, color: "var(--da-text)", fontWeight: 600 }}>{b.placementLabel}</td>
+                      <td style={td}>{scopeLabel(b.scope)}</td>
+                      <td style={td}>{b.scope === "global" ? "—" : b.scope === "ressort" ? ressortLabel(b.scope_ref ?? "") : b.scope_ref}</td>
+                      <td style={{ ...td, color: "var(--da-muted)" }}>{formatPeriod(b.period)}</td>
+                      <td style={{ ...td, color: s.orange ? "var(--da-orange)" : "var(--da-text-strong)", whiteSpace: "nowrap" }} title={shareTitle}>{s.text}</td>
+                      <td style={{ ...td, textAlign: "right" }}>
+                        <button type="button" style={btnSmall} disabled={pending} onClick={() => run(() => deleteBooking(b.id, c.id))}>Löschen</button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -228,7 +264,10 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
                 <div>
                   <label style={labelStyle} htmlFor="bk-placement">Platzierung</label>
                   <select id="bk-placement" style={inputStyle} value={bPlacement} onChange={(e) => choosePlacement(e.target.value)}>
-                    {bookable.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                    {bookable.map((p) => {
+                      const booked = bookedByPlacement.get(p.id);
+                      return <option key={p.id} value={p.id}>{p.label}{booked ? ` (gebucht: ${booked.join(", ")})` : ""}</option>;
+                    })}
                   </select>
                 </div>
                 <div>
@@ -288,30 +327,39 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
                 <tr>
                   <th style={th}>Variante</th>
                   <th style={th}>Headline</th>
+                  <th style={th}>Gestaltung</th>
                   <th style={th}>Ziel-URL</th>
                   <th style={th}>Aktiv</th>
                   <th style={th} />
                 </tr>
               </thead>
               <tbody>
-                {detail.creatives.map((cr) => (
-                  <tr key={cr.id}>
-                    <td style={{ ...td, fontFamily: "var(--da-font-mono)", fontSize: 12, color: "var(--da-muted)" }}>{cr.variant}{cr.kind === "image" ? " · Bild" : ""}</td>
-                    <td style={{ ...td, color: "var(--da-text)", fontWeight: 600 }}>{cr.headline}</td>
-                    <td style={{ ...td, color: "var(--da-muted)", fontFamily: "var(--da-font-mono)", fontSize: 12, wordBreak: "break-all" }}>{cr.target_url}</td>
-                    <td style={td}>{cr.is_active ? "ja" : "nein"}</td>
-                    <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
-                      {cr.kind === "internal" && (
-                        <button type="button" style={{ ...btnSmall, marginRight: 6 }} onClick={() => {
-                          setCrId(cr.id); setCrVariant(cr.variant === "mobile" ? "mobile" : "desktop");
-                          setCrHeadline(cr.headline ?? ""); setCrBody(cr.body ?? ""); setCrCta(cr.cta_label ?? "");
-                          setCrUrl(cr.target_url); setCrActive(cr.is_active); setShowCreative(true);
-                        }}>Bearbeiten</button>
-                      )}
-                      <button type="button" style={btnSmall} disabled={pending} onClick={() => run(() => deleteCreative(cr.id, c.id))}>Löschen</button>
-                    </td>
-                  </tr>
-                ))}
+                {detail.creatives.map((cr) => {
+                  const t = resolveTheme(cr.theme, cr.bg_color);
+                  return (
+                    <tr key={cr.id}>
+                      <td style={{ ...td, fontFamily: "var(--da-font-mono)", fontSize: 12, color: "var(--da-muted)" }}>{cr.variant}{cr.kind === "image" ? " · Bild" : ""}</td>
+                      <td style={{ ...td, color: "var(--da-text)", fontWeight: 600 }}>{cr.headline}</td>
+                      <td style={{ ...td, whiteSpace: "nowrap" }}>
+                        <span className="cd-swatch" style={{ background: t.background }} aria-hidden="true" />
+                        {themeLabel(cr.theme)}{cr.theme === "custom" && cr.bg_color ? ` ${cr.bg_color}` : ""}
+                      </td>
+                      <td style={{ ...td, color: "var(--da-muted)", fontFamily: "var(--da-font-mono)", fontSize: 12, wordBreak: "break-all" }}>{cr.target_url}</td>
+                      <td style={td}>{cr.is_active ? "ja" : "nein"}</td>
+                      <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
+                        {cr.kind === "internal" && (
+                          <button type="button" style={{ ...btnSmall, marginRight: 6 }} onClick={() => {
+                            setCrId(cr.id); setCrVariant(cr.variant === "mobile" ? "mobile" : "desktop");
+                            setCrHeadline(cr.headline ?? ""); setCrBody(cr.body ?? ""); setCrCta(cr.cta_label ?? "");
+                            setCrUrl(cr.target_url); setCrActive(cr.is_active);
+                            setCrTheme(cr.theme); setCrBg(cr.bg_color ?? "#1c1c1e"); setShowCreative(true);
+                          }}>Bearbeiten</button>
+                        )}
+                        <button type="button" style={btnSmall} disabled={pending} onClick={() => run(() => deleteCreative(cr.id, c.id))}>Löschen</button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -343,6 +391,24 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
                 </label>
               </div>
             </div>
+            <div className="cd-row2">
+              <div>
+                <label style={labelStyle} htmlFor="cr-theme">Gestaltung</label>
+                <select id="cr-theme" style={inputStyle} value={crTheme} onChange={(e) => setCrTheme(e.target.value)}>
+                  {CREATIVE_THEMES.map((t) => <option key={t.code} value={t.code}>{t.label}</option>)}
+                </select>
+              </div>
+              {crTheme === "custom" ? (
+                <div>
+                  <label style={labelStyle} htmlFor="cr-bg">Hintergrundfarbe</label>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input type="color" aria-label="Hintergrundfarbe wählen" value={isHex(crBg) ? crBg : "#1c1c1e"} onChange={(e) => setCrBg(e.target.value.toLowerCase())} style={{ width: 44, height: 38, padding: 2, border: "1px solid var(--da-border)", borderRadius: 4, background: "var(--da-dark)" }} />
+                    <input id="cr-bg" style={{ ...inputStyle, fontFamily: "var(--da-font-mono)" }} placeholder="#1a237e" value={crBg} onChange={(e) => setCrBg(e.target.value.trim().toLowerCase())} />
+                  </div>
+                  {bgInvalid && <p style={{ ...errStyle, marginTop: 6 }}>Ungültiger HEX-Wert — Format #rrggbb.</p>}
+                </div>
+              ) : <div />}
+            </div>
             <div>
               <label style={labelStyle} htmlFor="cr-headline">Headline *</label>
               <input id="cr-headline" style={inputStyle} placeholder="Kurze, prägnante Zeile" value={crHeadline} onChange={(e) => setCrHeadline(e.target.value)} />
@@ -361,11 +427,28 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
                 <input id="cr-url" style={inputStyle} placeholder="/newsletter oder https://…" value={crUrl} onChange={(e) => setCrUrl(e.target.value)} />
               </div>
             </div>
+
+            {/* Live-Vorschau: dasselbe Markup wie die Auslieferung (ModuleCard), nicht klickbar. */}
+            <div>
+              <span style={labelStyle}>Vorschau</span>
+              <div className="cd-preview">
+                <div style={{ display: "flex", minHeight: 132 }}>
+                  <ModuleCard layout="wide" isHouse={isHouse} headline={crHeadline || "Headline"} body={crBody || null} ctaLabel={crCta || null} href="#" theme={crTheme} bg={crBg} preview />
+                </div>
+                <div style={{ display: "flex", minHeight: 168 }}>
+                  <ModuleCard layout="stacked" isHouse={isHouse} headline={crHeadline || "Headline"} body={crBody || null} ctaLabel={crCta || null} href="#" theme={crTheme} bg={crBg} preview />
+                </div>
+              </div>
+            </div>
+
             <p style={help}>Aktivierung auf Live verlangt ein aktives Desktop-Kreativ; Mobile zusätzlich, sobald eine gebuchte Platzierung mobil ausliefert.</p>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button type="button" style={btnGhost} onClick={resetCreative}>Abbrechen</button>
-              <button type="button" style={btnPrimary} disabled={pending} onClick={() => run(() => {
-                const payload = { variant: crVariant, headline: crHeadline, body: crBody, cta_label: crCta, target_url: crUrl, is_active: crActive };
+              <button type="button" style={btnPrimary} disabled={pending || bgInvalid} onClick={() => run(() => {
+                const payload = {
+                  variant: crVariant, headline: crHeadline, body: crBody, cta_label: crCta, target_url: crUrl, is_active: crActive,
+                  theme: crTheme, bg_color: crTheme === "custom" ? crBg : null,
+                };
                 return crId ? updateCreative(crId, c.id, payload) : createCreative({ campaign_id: c.id, ...payload });
               }, resetCreative)}>{crId ? "Speichern" : "Hinzufügen"}</button>
             </div>
