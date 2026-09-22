@@ -170,8 +170,6 @@ export default function TopicListing({
         .tl-grid--closed { grid-template-columns: 1fr; }
 
         .tl-aside {
-          position: sticky;
-          top: calc(var(--nav-h) + var(--sp-5));
           display: flex; flex-direction: column;
           gap: 28px;
         }

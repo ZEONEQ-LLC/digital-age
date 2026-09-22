@@ -119,7 +119,13 @@ export default async function Home() {
 
       <HeroBold />
       <SpotlightSection articles={spotlight} />
-      <div style={{ maxWidth: "var(--max-content)", margin: "0 auto", padding: "0 var(--sp-8)" }}>
+      {/* Billboard: oben derselbe Abstand wie zwischen den Sektionen (64px, mobil 40px);
+          unten nichts — die naechste Sektion bringt ihren eigenen Abstand mit. */}
+      <style>{`
+        .home-module-wrap { max-width: var(--max-content); margin: 0 auto; padding: 64px var(--sp-8) 0; }
+        @media (max-width: 768px) { .home-module-wrap { padding: 40px var(--sp-4) 0; } }
+      `}</style>
+      <div className="home-module-wrap">
         <ModuleSlot code="home_billboard" />
       </div>
       <ArticleSection title="KI & Business" href="/ki-im-business" articles={kiBusiness.map(articleToCard)} />

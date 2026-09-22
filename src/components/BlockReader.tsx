@@ -445,8 +445,11 @@ export default function BlockReader({ doc, blocks, articleSlug, ressortSlug }: B
       {effectiveBlocks.map((b, i) => (
         <span key={b.id} style={{ display: "contents" }}>
           {renderBlock(b, mapping, patterns)}
+          {/* Reines Markup um den Slot (kein Block-Typ): Luft oben/unten wie zwischen Absaetzen. */}
           {showInlineModule && i === (inlineAfter as number) - 1 && (
-            <ModuleSlot code="article_inline" ressortSlug={ressortSlug} articleSlug={articleSlug} />
+            <div style={{ margin: "var(--sp-8) 0" }}>
+              <ModuleSlot code="article_inline" ressortSlug={ressortSlug} articleSlug={articleSlug} />
+            </div>
           )}
         </span>
       ))}

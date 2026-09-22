@@ -4,8 +4,9 @@ import { useEffect, useId, useState } from "react";
 import { PLACEMENTS, type PlacementCode } from "@/lib/ads/placements";
 
 // Neutrale Benennung nach aussen (kein ad/banner/... in Klassen/Attributen/
-// Pfad). Reserviert die Hoehe SOFORT aus der Geometrie-Konstante (CLS-Schutz),
-// gibt sie bei leerer Antwort wieder frei. Spezifitaet haengt nur an r/a.
+// Pfad). Reserviert die KOMPAKTE Hoehe fuer typografische Kreative aus der
+// Geometrie-Konstante (CLS-Schutz, D1), gibt sie bei leerer Antwort wieder
+// frei. Spezifitaet haengt nur an r/a.
 type Props = {
   code: PlacementCode;
   ressortSlug?: string;
@@ -24,7 +25,7 @@ type ModuleData = {
 type State = { phase: "loading" } | { phase: "empty" } | { phase: "ready"; data: ModuleData };
 
 export default function ModuleSlot({ code, ressortSlug, articleSlug }: Props) {
-  const { desktopHeight, mobileHeight, minViewport } = PLACEMENTS[code];
+  const { internalHeight, minViewport, layout } = PLACEMENTS[code];
   const id = useId().replace(/[:]/g, "");
   const [state, setState] = useState<State>({ phase: "loading" });
 
@@ -58,6 +59,7 @@ export default function ModuleSlot({ code, ressortSlug, articleSlug }: Props) {
   if (state.phase === "empty") return null;
 
   const cls = `mod-${id}`;
+  const wide = layout === "wide";
 
   // E3: House = interner Link (kein rel, kein target). Kunde = bezahlt:
   // rel="sponsored nofollow noopener" + neuer Tab.
@@ -69,34 +71,46 @@ export default function ModuleSlot({ code, ressortSlug, articleSlug }: Props) {
   return (
     <div className={cls}>
       <style>{`
-        .${cls} { min-height: ${desktopHeight}px; display: flex; }
-        @media (max-width: 767px) { .${cls} { min-height: ${mobileHeight}px; } }
+        .${cls} { min-height: ${internalHeight.desktop}px; display: flex; }
+        @media (max-width: 767px) { .${cls} { min-height: ${internalHeight.mobile}px; } }
         .${cls} .mod-inner {
-          flex: 1; display: flex; flex-direction: column; justify-content: center;
-          gap: 8px; padding: 20px; border-radius: var(--r-md, 8px);
+          flex: 1; display: flex; flex-direction: column; justify-content: flex-start;
+          gap: var(--sp-3); padding: var(--sp-6); border-radius: var(--r-md);
           background: var(--da-card); border: 1px solid var(--da-border);
-          text-decoration: none; transition: border-color var(--t-fast, 150ms);
+          text-decoration: none; transition: border-color var(--t-fast);
         }
         .${cls} .mod-inner:hover { border-color: var(--da-green); }
+        .${cls} .mod-text { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
         .${cls} .mod-kicker { color: var(--da-muted); }
         .${cls} .mod-title {
-          color: var(--da-text); font-family: var(--da-font-display, inherit);
-          font-size: 18px; font-weight: 700; line-height: 1.25;
+          color: var(--da-text); font-family: var(--da-font-display);
+          font-size: var(--fs-h4); font-weight: 700; line-height: 1.25;
         }
-        .${cls} .mod-body { color: var(--da-muted); font-size: 14px; line-height: 1.5; }
+        .${cls} .mod-body { color: var(--da-muted); font-size: var(--fs-body); line-height: 1.5; }
         .${cls} .mod-cta {
-          margin-top: 4px; align-self: flex-start; color: var(--da-green);
-          font-family: var(--da-font-mono, monospace); font-size: 12px; font-weight: 700;
-          letter-spacing: 0.04em;
+          color: var(--da-green); font-family: var(--da-font-mono); font-size: var(--fs-body-sm);
+          font-weight: 600; letter-spacing: 0.05em; white-space: nowrap; align-self: flex-start;
         }
+        ${wide ? `
+        @media (min-width: 768px) {
+          .${cls} .mod-inner { flex-direction: row; align-items: center; justify-content: space-between; gap: var(--sp-6); }
+          .${cls} .mod-cta {
+            align-self: center; flex-shrink: 0;
+            padding: 10px 16px; border: 1px solid var(--da-border); border-radius: var(--r-md);
+            transition: border-color var(--t-fast), background var(--t-fast);
+          }
+          .${cls} .mod-inner:hover .mod-cta { border-color: var(--da-green); }
+        }` : ""}
       `}</style>
       {state.phase === "ready" && state.data.kind === "internal" && (
         <a className="mod-inner" href={state.data.href} {...linkAttrs}>
-          {/* Bezahlte (Kunden-)Platzierung sichtbar als "Anzeige" kennzeichnen;
-              House-Eigenwerbung braucht keine Kennzeichnung. */}
-          {!state.data.isHouse && <span className="mod-kicker da-overline">Anzeige</span>}
-          <span className="mod-title">{state.data.headline}</span>
-          {state.data.body && <span className="mod-body">{state.data.body}</span>}
+          <span className="mod-text">
+            {/* Bezahlte (Kunden-)Platzierung sichtbar als "Anzeige" kennzeichnen;
+                House-Eigenwerbung braucht keine Kennzeichnung. */}
+            {!state.data.isHouse && <span className="mod-kicker da-overline">Anzeige</span>}
+            <span className="mod-title">{state.data.headline}</span>
+            {state.data.body && <span className="mod-body">{state.data.body}</span>}
+          </span>
           {state.data.ctaLabel && <span className="mod-cta">{state.data.ctaLabel} →</span>}
         </a>
       )}

@@ -16,6 +16,8 @@ function openCookieSettings() {
 
 export default function Footer() {
   const pathname = usePathname() ?? "";
+  // D3: auf Artikelseiten keinen Newsletter-Block im Footer (CTA am Artikelende bleibt).
+  const onArticle = pathname.startsWith("/artikel/");
   const showCookieSettings = !(
     pathname.startsWith("/autor/") && pathname !== "/autor"
   );
@@ -30,6 +32,7 @@ export default function Footer() {
       `}</style>
       <footer style={{ backgroundColor: "var(--da-footer)", borderTop: "1px solid var(--da-card)", marginTop: "0" }}>
         <div className="footer-wrapper" style={{ maxWidth: "1200px", margin: "0 auto", padding: "64px 32px 32px" }}>
+          {!onArticle && (
           <div style={{ backgroundColor: "var(--da-card)", border: "1px solid var(--da-border)", borderRadius: "8px", padding: "32px", marginBottom: "48px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "24px" }}>
             <div style={{ flex: "1 1 300px" }}>
               <p style={{ color: "var(--da-green)", fontSize: "12px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "8px" }}>📬 Newsletter</p>
@@ -40,6 +43,7 @@ export default function Footer() {
               <NewsletterSignup variant="compact" />
             </div>
           </div>
+          )}
           <div className="footer-grid" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: "48px", marginBottom: "48px" }}>
             {/* Logo + Description */}
             <div>

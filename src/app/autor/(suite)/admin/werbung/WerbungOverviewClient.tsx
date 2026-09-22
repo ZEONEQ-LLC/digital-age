@@ -4,22 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { createCampaign } from "@/lib/ads/adActions";
-import {
-  CAMPAIGN_STATUSES,
-  statusLabel,
-  type CampaignOverviewVM,
-} from "@/lib/ads/types";
+import { CAMPAIGN_STATUSES, statusLabel, type CampaignOverviewVM } from "@/lib/ads/types";
+import { card, errStyle, help, inputStyle, labelStyle, btnPrimary, btnGhost, th, td, WEIGHTS } from "./formStyles";
 
 type Props = {
   initialCampaigns: CampaignOverviewVM[];
   advertisers: { id: string; name: string }[];
-};
-
-const card: React.CSSProperties = {
-  background: "var(--da-card)",
-  border: "1px solid var(--da-border)",
-  borderRadius: 8,
-  padding: 16,
 };
 
 export default function WerbungOverviewClient({ initialCampaigns, advertisers }: Props) {
@@ -56,74 +46,88 @@ export default function WerbungOverviewClient({ initialCampaigns, advertisers }:
     });
   }
 
+  const weightField = (
+    <div>
+      <label style={labelStyle} htmlFor="nc-weight">Rotationsgewicht</label>
+      <select id="nc-weight" style={inputStyle} value={weight} onChange={(e) => setWeight(e.target.value)}>
+        {WEIGHTS.map((w) => <option key={w} value={w}>{w}</option>)}
+      </select>
+      <p style={help}>Nur relevant, wenn mehrere Kampagnen dieselbe Fläche belegen.</p>
+    </div>
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <style>{`
+        .wo-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .wo-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        @media (max-width: 767px) { .wo-row2, .wo-row3 { grid-template-columns: 1fr; } }
+      `}</style>
+
       {/* Filter + Neu */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          style={{ padding: "8px 10px", background: "var(--da-card)", color: "var(--da-text)", border: "1px solid var(--da-border)", borderRadius: 6 }}
-        >
+        <select value={filter} onChange={(e) => setFilter(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
           <option value="all">Alle Status</option>
-          {CAMPAIGN_STATUSES.map((s) => (
-            <option key={s.code} value={s.code}>{s.label}</option>
-          ))}
+          {CAMPAIGN_STATUSES.map((s) => <option key={s.code} value={s.code}>{s.label}</option>)}
         </select>
         <div style={{ flex: 1 }} />
-        <Link href="/autor/admin/werbung/kunden" style={{ color: "var(--da-muted)", fontSize: 13, textDecoration: "none" }}>
-          Kunden verwalten →
-        </Link>
-        <button
-          type="button"
-          onClick={() => setShowNew((v) => !v)}
-          style={{ padding: "8px 14px", background: "var(--da-green)", color: "var(--da-dark)", border: 0, borderRadius: 6, fontWeight: 700, cursor: "pointer" }}
-        >
+        <button type="button" onClick={() => setShowNew((v) => !v)} style={btnPrimary}>
           {showNew ? "Abbrechen" : "+ Neue Kampagne"}
         </button>
       </div>
 
       {showNew && (
-        <div style={{ ...card, display: "flex", flexDirection: "column", gap: 10 }}>
-          <label style={lblCol}>
-            <span>Kampagnen-Name</span>
-            <input placeholder="z. B. Frühlingskampagne Kunde X" value={name} onChange={(e) => setName(e.target.value)} style={inp} />
-          </label>
+        <div style={{ ...card, display: "flex", flexDirection: "column", gap: 16 }}>
           <label style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--da-text)", fontSize: 14 }}>
             <input type="checkbox" checked={isHouse} onChange={(e) => setIsHouse(e.target.checked)} />
             House-Kampagne (kein Kunde, kein Preis)
           </label>
-          {!isHouse && (
-            advertisers.length === 0 ? (
-              <p style={{ color: "var(--da-muted)", fontSize: 13, margin: 0 }}>
-                Noch keine Kunden angelegt.{" "}
-                <Link href="/autor/admin/werbung/kunden" style={{ color: "var(--da-green)" }}>Kunde anlegen →</Link>
-              </p>
-            ) : (
-              <>
-                <label style={lblCol}>
-                  <span>Kunde</span>
-                  <select value={advertiserId} onChange={(e) => setAdvertiserId(e.target.value)} style={inp}>
-                    <option value="">— Kunde wählen —</option>
-                    {advertisers.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
-                </label>
-                <label style={lblCol}>
-                  <span>Preis CHF (optional)</span>
-                  <input placeholder="z. B. 1500" value={priceChf} onChange={(e) => setPriceChf(e.target.value)} inputMode="decimal" style={inp} />
-                </label>
-              </>
-            )
+
+          {isHouse ? (
+            <div className="wo-row2">
+              <div>
+                <label style={labelStyle} htmlFor="nc-name">Kampagnen-Name</label>
+                <input id="nc-name" style={inputStyle} placeholder="z. B. House: Newsletter" value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              {weightField}
+            </div>
+          ) : (
+            <>
+              <div>
+                <label style={labelStyle} htmlFor="nc-name">Kampagnen-Name</label>
+                <input id="nc-name" style={inputStyle} placeholder="z. B. Frühlingskampagne Kunde X" value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              {advertisers.length === 0 ? (
+                <p style={{ color: "var(--da-muted)", fontSize: 13, margin: 0 }}>
+                  Noch keine Kunden angelegt.{" "}
+                  <Link href="/autor/admin/werbung/kunden" style={{ color: "var(--da-green)" }}>Kunde anlegen →</Link>
+                </p>
+              ) : (
+                <div className="wo-row3">
+                  <div>
+                    <label style={labelStyle} htmlFor="nc-adv">Kunde</label>
+                    <select id="nc-adv" style={inputStyle} value={advertiserId} onChange={(e) => setAdvertiserId(e.target.value)}>
+                      <option value="">— Kunde wählen —</option>
+                      {advertisers.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle} htmlFor="nc-price">Preis CHF (optional)</label>
+                    <input id="nc-price" style={inputStyle} placeholder="z. B. 1500" inputMode="decimal" value={priceChf} onChange={(e) => setPriceChf(e.target.value)} />
+                  </div>
+                  {weightField}
+                </div>
+              )}
+            </>
           )}
-          <label style={lblCol}>
-            <span>Gewicht (1-10)</span>
-            <input placeholder="1" value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="numeric" style={inp} />
-            <span style={help}>Steuert die Rotation bei mehreren gleichzeitigen Kampagnen auf derselben Fläche. Höher = häufiger.</span>
-          </label>
+
           {error && <p style={errStyle}>{error}</p>}
-          <button type="button" onClick={submitNew} disabled={pending} style={btnPrimary}>
-            {pending ? "Speichert…" : "Kampagne anlegen"}
-          </button>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button type="button" style={btnGhost} onClick={() => setShowNew(false)}>Abbrechen</button>
+            <button type="button" onClick={submitNew} disabled={pending} style={btnPrimary}>
+              {pending ? "Speichert…" : "Kampagne anlegen"}
+            </button>
+          </div>
         </div>
       )}
 
@@ -131,7 +135,7 @@ export default function WerbungOverviewClient({ initialCampaigns, advertisers }:
       <div style={{ ...card, padding: 0, overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <thead>
-            <tr style={{ textAlign: "left", color: "var(--da-muted)" }}>
+            <tr style={{ textAlign: "left" }}>
               <th style={th}>Kampagne</th>
               <th style={th}>Kunde</th>
               <th style={th}>Status</th>
@@ -145,7 +149,7 @@ export default function WerbungOverviewClient({ initialCampaigns, advertisers }:
               <tr><td colSpan={6} style={{ ...td, color: "var(--da-muted)" }}>Keine Kampagnen.</td></tr>
             )}
             {filtered.map((c) => (
-              <tr key={c.id} style={{ borderTop: "1px solid var(--da-border)" }}>
+              <tr key={c.id}>
                 <td style={td}>
                   <Link href={`/autor/admin/werbung/${c.id}`} style={{ color: "var(--da-text)", fontWeight: 600, textDecoration: "none" }}>
                     {c.name}
@@ -164,11 +168,3 @@ export default function WerbungOverviewClient({ initialCampaigns, advertisers }:
     </div>
   );
 }
-
-const inp: React.CSSProperties = { padding: "8px 10px", background: "var(--da-dark)", color: "var(--da-text)", border: "1px solid var(--da-border)", borderRadius: 6 };
-const btnPrimary: React.CSSProperties = { padding: "8px 14px", background: "var(--da-green)", color: "var(--da-dark)", border: 0, borderRadius: 6, fontWeight: 700, cursor: "pointer", alignSelf: "flex-start" };
-const th: React.CSSProperties = { padding: "12px 14px", fontWeight: 600, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.04em" };
-const td: React.CSSProperties = { padding: "12px 14px" };
-const errStyle: React.CSSProperties = { color: "#ff6b6b", fontSize: 13, margin: 0 };
-const lblCol: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 4, color: "var(--da-muted)", fontSize: 12 };
-const help: React.CSSProperties = { color: "var(--da-faint)", fontSize: 11, lineHeight: 1.4 };
