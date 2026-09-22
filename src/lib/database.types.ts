@@ -246,6 +246,7 @@ export type Database = {
       ad_creatives: {
         Row: {
           alt_text: string | null
+          bg_color: string | null
           body: string | null
           campaign_id: string
           created_at: string
@@ -257,11 +258,13 @@ export type Database = {
           is_active: boolean
           kind: string
           target_url: string
+          theme: string
           variant: string
           width: number | null
         }
         Insert: {
           alt_text?: string | null
+          bg_color?: string | null
           body?: string | null
           campaign_id: string
           created_at?: string
@@ -273,11 +276,13 @@ export type Database = {
           is_active?: boolean
           kind: string
           target_url: string
+          theme?: string
           variant?: string
           width?: number | null
         }
         Update: {
           alt_text?: string | null
+          bg_color?: string | null
           body?: string | null
           campaign_id?: string
           created_at?: string
@@ -289,6 +294,7 @@ export type Database = {
           is_active?: boolean
           kind?: string
           target_url?: string
+          theme?: string
           variant?: string
           width?: number | null
         }

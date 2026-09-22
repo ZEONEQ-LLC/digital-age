@@ -17,6 +17,8 @@ type CreativeCand = {
   cta_label: string | null;
   target_url: string;
   is_active: boolean;
+  theme: string;
+  bg_color: string | null;
 };
 
 type BookingCand = {
@@ -73,7 +75,7 @@ export async function GET(
   const { data, error } = await supabase
     .from("ad_bookings")
     .select(
-      "scope, scope_ref, period, campaign:ad_campaigns(id, weight, is_house, status, creatives:ad_creatives(kind, variant, headline, body, cta_label, target_url, is_active))",
+      "scope, scope_ref, period, campaign:ad_campaigns(id, weight, is_house, status, creatives:ad_creatives(kind, variant, headline, body, cta_label, target_url, is_active, theme, bg_color))",
     )
     .eq("placement_id", placement.id);
   if (error || !data) return EMPTY();
@@ -144,6 +146,9 @@ export async function GET(
       body: picked.creative.body,
       ctaLabel: picked.creative.cta_label,
       href: picked.creative.target_url,
+      // Gestaltung (F3): theme immer, bg nur bei custom. Neutrale Keys.
+      theme: picked.creative.theme,
+      ...(picked.creative.theme === "custom" && picked.creative.bg_color ? { bg: picked.creative.bg_color } : {}),
     },
     { status: 200, headers: { "Cache-Control": "no-store" } },
   );

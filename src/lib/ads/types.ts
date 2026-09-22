@@ -56,10 +56,13 @@ export type CampaignOverviewVM = {
 
 export type AdvertiserWithContacts = AdvertiserRow & { contacts: ContactRow[] };
 
+// Anteil an der Rotation, den die Kampagne HAETTE, wenn sie jetzt live waere (F1).
+export type BookingShare = { sharePct: number; othersCount: number; reason?: string };
+
 export type CampaignDetail = {
   campaign: CampaignRow;
   advertiserName: string | null;
-  bookings: (BookingRow & { placementLabel: string; placementCode: string })[];
+  bookings: (BookingRow & { placementLabel: string; placementCode: string; share: BookingShare })[];
   creatives: CreativeRow[];
 };
 
@@ -137,7 +140,11 @@ export type CreativeInput = {
   cta_label?: string | null;
   target_url: string;
   is_active?: boolean;
+  theme?: string;             // CREATIVE_THEMES; default "card"
+  bg_color?: string | null;   // nur bei theme="custom" (HEX, klein)
 };
+
+export { CREATIVE_THEMES, type CreativeTheme } from "@/lib/ads/creativeTheme";
 
 // Normalisiert eine tstzrange-Grenze aus PostgREST (z.B. "2026-09-21 18:48:38.118774+00")
 // nach ISO-8601, damit new Date() ueberall (auch Safari) parst: Leerzeichen -> T,

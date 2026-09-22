@@ -16,6 +16,7 @@ import {
   type CreativeInput,
 } from "@/lib/ads/types";
 import { PLACEMENTS, isPlacementCode } from "@/lib/ads/placements";
+import { isCreativeTheme, isHex } from "@/lib/ads/creativeTheme";
 
 type AdvertiserInsert = Database["public"]["Tables"]["ad_advertisers"]["Insert"];
 
@@ -31,6 +32,20 @@ function parsePrice(p: number | null | undefined): { ok: true; value: number | n
   if (p === null || p === undefined) return { ok: true, value: null };
   if (typeof p !== "number" || Number.isNaN(p) || p < 0) return { ok: false };
   return { ok: true, value: p };
+}
+
+// Gestaltung (F3): theme muss bekannt sein; custom braucht gueltiges HEX (klein gespeichert),
+// sonst wird bg_color unabhaengig vom Formular auf null gesetzt.
+function resolveCreativeStyle(input: { theme?: string; bg_color?: string | null }):
+  { error: string } | { theme: string; bg_color: string | null } {
+  const theme = input.theme ?? "card";
+  if (!isCreativeTheme(theme)) return { error: "Gestaltung ungültig." };
+  if (theme === "custom") {
+    const bg = (input.bg_color ?? "").trim();
+    if (!bg || !isHex(bg)) return { error: "Hintergrundfarbe fehlt oder ist kein gültiger HEX-Wert (#rrggbb)." };
+    return { theme, bg_color: bg.toLowerCase() };
+  }
+  return { theme, bg_color: null };
 }
 
 function isValidTargetUrl(u: string): boolean {
@@ -103,6 +118,9 @@ function mapDbError(error: { code?: string; message?: string } | null): string {
       .replace(/vollstaendige/g, "vollständige")
       .replace(/fuer/g, "für")
       .replace(/geaendert/g, "geändert");
+  }
+  if (error?.code === "23P01") {
+    return "Diese Buchung existiert bereits: gleiche Platzierung, gleicher Geltungsbereich, überlappender Zeitraum.";
   }
   if (error?.code === "23505") return "Eintrag bereits vorhanden.";
   // Benannte Table-CHECKs auf ad_advertisers → spezifische Meldung.
@@ -384,6 +402,8 @@ export async function createCreative(input: CreativeInput): Promise<ActionResult
     if (!input.headline.trim()) return { ok: false, error: "Headline ist erforderlich." };
     if (!url) return { ok: false, error: "Ziel-URL ist erforderlich." };
     if (!isValidTargetUrl(url)) return { ok: false, error: "Ziel-URL muss mit /, http:// oder https:// beginnen." };
+    const style = resolveCreativeStyle(input);
+    if ("error" in style) return { ok: false, error: style.error };
     const { error } = await supabase.from("ad_creatives").insert({
       campaign_id: input.campaign_id,
       kind: "internal",
@@ -393,6 +413,8 @@ export async function createCreative(input: CreativeInput): Promise<ActionResult
       cta_label: input.cta_label || null,
       target_url: url,
       is_active: input.is_active ?? true,
+      theme: style.theme,
+      bg_color: style.bg_color,
     });
     if (error) return { ok: false, error: mapDbError(error) };
     revalidateAll(input.campaign_id);
@@ -411,6 +433,8 @@ export async function updateCreative(
     if (!input.headline.trim()) return { ok: false, error: "Headline ist erforderlich." };
     if (!url) return { ok: false, error: "Ziel-URL ist erforderlich." };
     if (!isValidTargetUrl(url)) return { ok: false, error: "Ziel-URL muss mit /, http:// oder https:// beginnen." };
+    const style = resolveCreativeStyle(input);
+    if ("error" in style) return { ok: false, error: style.error };
     const { error } = await supabase
       .from("ad_creatives")
       .update({
@@ -420,6 +444,8 @@ export async function updateCreative(
         cta_label: input.cta_label || null,
         target_url: url,
         is_active: input.is_active ?? true,
+        theme: style.theme,
+        bg_color: style.bg_color,
       })
       .eq("id", id);
     if (error) return { ok: false, error: mapDbError(error) };
