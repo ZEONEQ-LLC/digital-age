@@ -1,18 +1,15 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import { PLACEMENTS, type PlacementCode } from "@/lib/ads/placements";
 
 // Neutrale Benennung nach aussen (kein ad/banner/... in Klassen/Attributen/
-// Pfad) — Adblocker-tolerant. Reserviert die Hoehe SOFORT aus den Props
-// (CLS-Schutz), gibt sie bei leerer Antwort wieder frei.
+// Pfad). Reserviert die Hoehe SOFORT aus der Geometrie-Konstante (CLS-Schutz),
+// gibt sie bei leerer Antwort wieder frei. Spezifitaet haengt nur an r/a.
 type Props = {
-  code: string;
-  scope: "home" | "ressort" | "article";
+  code: PlacementCode;
   ressortSlug?: string;
   articleSlug?: string;
-  desktopHeight: number;
-  mobileHeight: number;
-  minViewport?: number;
 };
 
 type ModuleData = {
@@ -26,15 +23,8 @@ type ModuleData = {
 
 type State = { phase: "loading" } | { phase: "empty" } | { phase: "ready"; data: ModuleData };
 
-export default function ModuleSlot({
-  code,
-  scope,
-  ressortSlug,
-  articleSlug,
-  desktopHeight,
-  mobileHeight,
-  minViewport,
-}: Props) {
+export default function ModuleSlot({ code, ressortSlug, articleSlug }: Props) {
+  const { desktopHeight, mobileHeight, minViewport } = PLACEMENTS[code];
   const id = useId().replace(/[:]/g, "");
   const [state, setState] = useState<State>({ phase: "loading" });
 
@@ -45,7 +35,7 @@ export default function ModuleSlot({
     // ohnehin per Media-Query ausgeblendet).
     if (minViewport && w < minViewport) return;
     const controller = new AbortController();
-    const qs = new URLSearchParams({ v: String(w), s: scope });
+    const qs = new URLSearchParams({ v: String(w) });
     if (ressortSlug) qs.set("r", ressortSlug);
     if (articleSlug) qs.set("a", articleSlug);
     fetch(`/api/module/${code}?${qs.toString()}`, {
@@ -62,12 +52,19 @@ export default function ModuleSlot({
       })
       .catch(() => setState({ phase: "empty" }));
     return () => controller.abort();
-  }, [code, scope, ressortSlug, articleSlug, minViewport]);
+  }, [code, ressortSlug, articleSlug, minViewport]);
 
   // Leere Antwort -> nichts rendern, reservierte Hoehe freigeben.
   if (state.phase === "empty") return null;
 
   const cls = `mod-${id}`;
+
+  // E3: House = interner Link (kein rel, kein target). Kunde = bezahlt:
+  // rel="sponsored nofollow noopener" + neuer Tab.
+  const linkAttrs =
+    state.phase === "ready" && !state.data.isHouse
+      ? { target: "_blank", rel: "sponsored nofollow noopener" }
+      : {};
 
   return (
     <div className={cls}>
@@ -94,12 +91,7 @@ export default function ModuleSlot({
         }
       `}</style>
       {state.phase === "ready" && state.data.kind === "internal" && (
-        <a
-          className="mod-inner"
-          href={state.data.href}
-          target="_blank"
-          rel="sponsored nofollow noopener"
-        >
+        <a className="mod-inner" href={state.data.href} {...linkAttrs}>
           {/* Bezahlte (Kunden-)Platzierung sichtbar als "Anzeige" kennzeichnen;
               House-Eigenwerbung braucht keine Kennzeichnung. */}
           {!state.data.isHouse && <span className="mod-kicker da-overline">Anzeige</span>}

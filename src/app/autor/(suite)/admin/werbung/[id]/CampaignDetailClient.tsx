@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   createBooking,
   createCreative,
@@ -24,6 +24,7 @@ import {
   type PlacementRow,
   type ScopeKind,
 } from "@/lib/ads/types";
+import { PLACEMENTS, isPlacementCode } from "@/lib/ads/placements";
 
 type Props = {
   detail: CampaignDetail;
@@ -44,24 +45,46 @@ const help: React.CSSProperties = { color: "var(--da-faint)", fontSize: 11, line
 export default function CampaignDetailClient({ detail, advertisers, placements }: Props) {
   const router = useRouter();
   const c = detail.campaign;
+  const isHouse = c.is_house; // E2: nach dem Anlegen unveraenderlich
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   // Stammdaten
   const [name, setName] = useState(c.name);
-  const [isHouse, setIsHouse] = useState(c.is_house);
   const [advertiserId, setAdvertiserId] = useState(c.advertiser_id ?? "");
   const [priceChf, setPriceChf] = useState(c.price_chf != null ? String(c.price_chf) : "");
   const [weight, setWeight] = useState(String(c.weight));
   const [notes, setNotes] = useState(c.notes ?? "");
 
-  // Buchung
-  const [bPlacement, setBPlacement] = useState(placements[0]?.id ?? "");
+  // Buchung — E6: fuer Kundenkampagnen nur verkaeufliche Platzierungen anbieten.
+  const bookable = useMemo(
+    () => placements.filter((p) => isHouse || p.is_sellable),
+    [placements, isHouse],
+  );
+  const [bPlacement, setBPlacement] = useState(bookable[0]?.id ?? "");
   const [bScope, setBScope] = useState<ScopeKind>("global");
   const [bRessort, setBRessort] = useState(RESSORT_SLUGS[0]?.slug ?? "");
   const [bArticle, setBArticle] = useState("");
   const [bFrom, setBFrom] = useState("");
   const [bTo, setBTo] = useState("");
+
+  // Erlaubte Scopes/Ressorts der gewaehlten Platzierung (Geometrie-Konstante).
+  const selectedPlacement = bookable.find((p) => p.id === bPlacement);
+  const geo = selectedPlacement && isPlacementCode(selectedPlacement.code) ? PLACEMENTS[selectedPlacement.code] : undefined;
+  const allowedScopes: ScopeKind[] = geo?.allowedScopes ?? ["global"];
+  const allowedRessorts = geo?.allowedRessorts
+    ? RESSORT_SLUGS.filter((r) => geo.allowedRessorts!.includes(r.slug))
+    : RESSORT_SLUGS;
+
+  function choosePlacement(id: string) {
+    setBPlacement(id);
+    const p = bookable.find((x) => x.id === id);
+    const g = p && isPlacementCode(p.code) ? PLACEMENTS[p.code] : undefined;
+    const scopes: ScopeKind[] = g?.allowedScopes ?? ["global"];
+    if (!scopes.includes(bScope)) setBScope("global");
+    const ressorts = g?.allowedRessorts ? RESSORT_SLUGS.filter((r) => g.allowedRessorts!.includes(r.slug)) : RESSORT_SLUGS;
+    if (!ressorts.some((r) => r.slug === bRessort)) setBRessort(ressorts[0]?.slug ?? "");
+  }
 
   // Kreativ
   const [showCreative, setShowCreative] = useState(false);
@@ -110,13 +133,14 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
       {/* Stammdaten */}
       <div style={card}>
         <div style={sectionTitle}>Stammdaten</div>
+        <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+          <span style={label}>Art</span>
+          <span style={{ color: "var(--da-text)", fontSize: 14 }}>{isHouse ? "House-Kampagne" : "Kunden-Kampagne"}</span>
+          <span style={help}>— nach dem Anlegen nicht änderbar</span>
+        </div>
         <label style={lblCol}>
           <span>Kampagnen-Name</span>
           <input style={inp} value={name} onChange={(e) => setName(e.target.value)} placeholder="Name der Kampagne" />
-        </label>
-        <label style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--da-text)", fontSize: 14 }}>
-          <input type="checkbox" checked={isHouse} onChange={(e) => setIsHouse(e.target.checked)} />
-          House-Kampagne
         </label>
         {!isHouse && (
           advertisers.length === 0 ? (
@@ -126,13 +150,13 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
             </p>
           ) : (
             <>
-              <div>
-                <span style={label}>Kunde</span>
+              <label style={lblCol}>
+                <span>Kunde</span>
                 <select style={inp} value={advertiserId} onChange={(e) => setAdvertiserId(e.target.value)}>
                   <option value="">— Kunde wählen —</option>
                   {advertisers.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
-              </div>
+              </label>
               <label style={lblCol}>
                 <span>Preis CHF</span>
                 <input style={inp} placeholder="z. B. 1500" inputMode="decimal" value={priceChf} onChange={(e) => setPriceChf(e.target.value)} />
@@ -151,7 +175,7 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
         </label>
         <button type="button" style={{ ...btn, alignSelf: "flex-start" }} disabled={pending} onClick={() => run(() => updateCampaign(c.id, {
           name, is_house: isHouse, advertiser_id: isHouse ? null : advertiserId || null,
-          price_chf: isHouse || !priceChf ? null : Number(priceChf), weight: Number(weight) || 1, notes,
+          price_chf: isHouse || !priceChf ? null : Number(priceChf), weight: Number(weight), notes,
         }))}>Stammdaten speichern</button>
       </div>
 
@@ -172,47 +196,53 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
 
         <div style={{ borderTop: "1px solid var(--da-border)", paddingTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
           <span style={label}>Neue Buchung</span>
-          <label style={lblCol}>
-            <span>Platzierung</span>
-            <select style={inp} value={bPlacement} onChange={(e) => setBPlacement(e.target.value)}>
-              {placements.map((p) => <option key={p.id} value={p.id}>{p.label}{p.is_sellable ? "" : " (nicht verkäuflich)"}</option>)}
-            </select>
-          </label>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <label style={{ ...lblCol, flex: 1, minWidth: 140 }}>
-              <span>Geltungsbereich</span>
-              <select style={inp} value={bScope} onChange={(e) => setBScope(e.target.value as ScopeKind)}>
-                {SCOPE_KINDS.map((s) => <option key={s.code} value={s.code}>{s.label}</option>)}
-              </select>
-            </label>
-            {bScope === "ressort" && (
-              <label style={{ ...lblCol, flex: 1, minWidth: 140 }}>
-                <span>Ressort</span>
-                <select style={inp} value={bRessort} onChange={(e) => setBRessort(e.target.value)}>
-                  {RESSORT_SLUGS.map((r) => <option key={r.slug} value={r.slug}>{r.label}</option>)}
+          {bookable.length === 0 ? (
+            <p style={{ color: "var(--da-muted)", fontSize: 13, margin: 0 }}>Keine buchbare Platzierung für diese Kampagne.</p>
+          ) : (
+            <>
+              <label style={lblCol}>
+                <span>Platzierung</span>
+                <select style={inp} value={bPlacement} onChange={(e) => choosePlacement(e.target.value)}>
+                  {bookable.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                 </select>
               </label>
-            )}
-            {bScope === "article" && (
-              <label style={{ ...lblCol, flex: 1, minWidth: 140 }}>
-                <span>Artikel-Slug</span>
-                <input style={inp} placeholder="z. B. mein-artikel" value={bArticle} onChange={(e) => setBArticle(e.target.value)} />
-              </label>
-            )}
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-            <label style={{ color: "var(--da-muted)", fontSize: 13 }}>von <input type="date" style={{ ...inp, width: "auto" }} value={bFrom} onChange={(e) => setBFrom(e.target.value)} /></label>
-            <label style={{ color: "var(--da-muted)", fontSize: 13 }}>bis <input type="date" style={{ ...inp, width: "auto" }} value={bTo} onChange={(e) => setBTo(e.target.value)} /></label>
-            <span style={{ color: "var(--da-faint)", fontSize: 12 }}>leer = unbegrenzt</span>
-          </div>
-          <button type="button" style={{ ...btn, alignSelf: "flex-start" }} disabled={pending} onClick={() => run(() => createBooking({
-            campaign_id: c.id,
-            placement_id: bPlacement,
-            scope: bScope,
-            scope_ref: bScope === "ressort" ? bRessort : bScope === "article" ? bArticle : null,
-            from: bFrom ? `${bFrom}T00:00:00.000Z` : "",
-            to: bTo ? `${bTo}T23:59:59.000Z` : null,
-          }), () => { setBFrom(""); setBTo(""); setBArticle(""); })}>Buchung hinzufügen</button>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <label style={{ ...lblCol, flex: 1, minWidth: 140 }}>
+                  <span>Geltungsbereich</span>
+                  <select style={inp} value={bScope} onChange={(e) => setBScope(e.target.value as ScopeKind)}>
+                    {SCOPE_KINDS.filter((s) => allowedScopes.includes(s.code)).map((s) => <option key={s.code} value={s.code}>{s.label}</option>)}
+                  </select>
+                </label>
+                {bScope === "ressort" && (
+                  <label style={{ ...lblCol, flex: 1, minWidth: 140 }}>
+                    <span>Ressort</span>
+                    <select style={inp} value={bRessort} onChange={(e) => setBRessort(e.target.value)}>
+                      {allowedRessorts.map((r) => <option key={r.slug} value={r.slug}>{r.label}</option>)}
+                    </select>
+                  </label>
+                )}
+                {bScope === "article" && (
+                  <label style={{ ...lblCol, flex: 1, minWidth: 140 }}>
+                    <span>Artikel-Slug</span>
+                    <input style={inp} placeholder="z. B. mein-artikel" value={bArticle} onChange={(e) => setBArticle(e.target.value)} />
+                  </label>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <label style={{ color: "var(--da-muted)", fontSize: 13 }}>von <input type="date" style={{ ...inp, width: "auto" }} value={bFrom} onChange={(e) => setBFrom(e.target.value)} /></label>
+                <label style={{ color: "var(--da-muted)", fontSize: 13 }}>bis <input type="date" style={{ ...inp, width: "auto" }} value={bTo} onChange={(e) => setBTo(e.target.value)} /></label>
+                <span style={{ color: "var(--da-faint)", fontSize: 12 }}>Zürcher Kalendertage, Enddatum inklusiv · leer = unbegrenzt</span>
+              </div>
+              <button type="button" style={{ ...btn, alignSelf: "flex-start" }} disabled={pending} onClick={() => run(() => createBooking({
+                campaign_id: c.id,
+                placement_id: bPlacement,
+                scope: bScope,
+                scope_ref: bScope === "ressort" ? bRessort : bScope === "article" ? bArticle : null,
+                from: bFrom,
+                to: bTo || null,
+              }), () => { setBFrom(""); setBTo(""); setBArticle(""); })}>Buchung hinzufügen</button>
+            </>
+          )}
         </div>
       </div>
 
@@ -263,7 +293,7 @@ export default function CampaignDetailClient({ detail, advertisers, placements }
                 <input type="checkbox" checked={crActive} onChange={(e) => setCrActive(e.target.checked)} /> aktiv
               </label>
             </div>
-            <span style={help}>Aktivierung auf Live verlangt je ein aktives Kreativ für Desktop und Mobile.</span>
+            <span style={help}>Aktivierung auf Live verlangt ein aktives Desktop-Kreativ; Mobile zusätzlich, sobald eine gebuchte Platzierung mobil ausliefert.</span>
             <label style={lblCol}>
               <span>Headline *</span>
               <input style={inp} placeholder="Kurze, prägnante Zeile" value={crHeadline} onChange={(e) => setCrHeadline(e.target.value)} />

@@ -49,7 +49,7 @@ export default function WerbungOverviewClient({ initialCampaigns, advertisers }:
         is_house: isHouse,
         advertiser_id: isHouse ? null : advertiserId || null,
         price_chf: isHouse || !priceChf ? null : Number(priceChf),
-        weight: Number(weight) || 1,
+        weight: Number(weight),
       });
       if (!res.ok) { setError(res.error); return; }
       router.push(`/autor/admin/werbung/${res.id}`);

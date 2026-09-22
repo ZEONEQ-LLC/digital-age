@@ -504,7 +504,7 @@ async function ArticleView({ article }: { article: ArticleWithFullRelations }) {
       <ArticleBodyGrid hasToc={tocItems.length > 0}>
         <article>
           <ArticleBody>
-            <BlockReader doc={doc} articleSlug={article.slug} />
+            <BlockReader doc={doc} articleSlug={article.slug} ressortSlug={categorySlug} />
           </ArticleBody>
 
           {article.tags && article.tags.length > 0 && (

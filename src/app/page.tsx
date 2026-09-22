@@ -120,7 +120,7 @@ export default async function Home() {
       <HeroBold />
       <SpotlightSection articles={spotlight} />
       <div style={{ maxWidth: "var(--max-content)", margin: "0 auto", padding: "0 var(--sp-8)" }}>
-        <ModuleSlot code="home_billboard" scope="home" desktopHeight={250} mobileHeight={100} />
+        <ModuleSlot code="home_billboard" />
       </div>
       <ArticleSection title="KI & Business" href="/ki-im-business" articles={kiBusiness.map(articleToCard)} />
       <SwissAIStrip items={swissAI} />

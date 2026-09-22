@@ -304,13 +304,7 @@ export default function StartupsBrowser({ all, featured, industries, cities }: P
               <p className="sa-cta-eintragen__hint">Kosten- und bedingungslos eintragen lassen.</p>
               <span className="sa-cta-eintragen__btn">Einreichen →</span>
             </Link>
-            <ModuleSlot
-              code="swiss_ai_sidebar"
-              scope="ressort"
-              ressortSlug="swiss-ai"
-              desktopHeight={250}
-              mobileHeight={250}
-            />
+            <ModuleSlot code="swiss_ai_sidebar" ressortSlug="swiss-ai" />
           </aside>
 
           <div>

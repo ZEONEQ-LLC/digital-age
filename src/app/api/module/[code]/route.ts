@@ -6,6 +6,7 @@ import { parsePeriod } from "@/lib/ads/types";
 // Service-Role (RLS-Bypass): Kundendaten/Preise/Laufzeiten sind ueber den
 // anon-Key nie erreichbar. Antwort ist immer JSON, nie HTML, no-store.
 // Neutrale Benennung (kein ad/banner/... im Pfad) — Adblocker-tolerant.
+// Query: v = Viewportbreite, r = Ressort-Slug, a = Artikel-Slug.
 export const dynamic = "force-dynamic";
 
 type CreativeCand = {
@@ -31,6 +32,7 @@ type BookingCand = {
   } | null;
 };
 
+// parsePeriod normalisiert die PostgREST-Grenzen nach ISO (Safari-sicher).
 function nowInPeriod(period: string, now: number): boolean {
   const parsed = parsePeriod(period);
   if (!parsed) return false;
@@ -77,7 +79,14 @@ export async function GET(
   if (error || !data) return EMPTY();
 
   const now = Date.now();
-  type Cand = { weight: number; isHouse: boolean; scope: string; scopeRef: string | null; creative: CreativeCand };
+  type Cand = {
+    campaignId: string;
+    weight: number;
+    isHouse: boolean;
+    scope: string;
+    scopeRef: string | null;
+    creative: CreativeCand;
+  };
   const cands: Cand[] = [];
   for (const b of data as unknown as BookingCand[]) {
     if (!b.campaign) continue;
@@ -88,6 +97,7 @@ export async function GET(
     );
     if (!creative) continue;
     cands.push({
+      campaignId: b.campaign.id,
       weight: b.campaign.weight,
       isHouse: b.campaign.is_house,
       scope: b.scope,
@@ -104,9 +114,17 @@ export async function GET(
   if (level.length === 0) level = cands.filter((c) => c.scope === "global");
   if (level.length === 0) return EMPTY();
 
+  // Gewicht pro Kampagne, nicht pro Buchung: erste Buchung je Kampagne gewinnt.
+  const seen = new Set<string>();
+  const perCampaign = level.filter((c) => {
+    if (seen.has(c.campaignId)) return false;
+    seen.add(c.campaignId);
+    return true;
+  });
+
   // 4. Nicht-House schlaegt House.
-  const nonHouse = level.filter((c) => !c.isHouse);
-  const pool = nonHouse.length > 0 ? nonHouse : level;
+  const nonHouse = perCampaign.filter((c) => !c.isHouse);
+  const pool = nonHouse.length > 0 ? nonHouse : perCampaign;
 
   // Gewichtet-zufaellig ziehen.
   const total = pool.reduce((sum, c) => sum + Math.max(1, c.weight), 0);

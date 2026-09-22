@@ -418,13 +418,7 @@ export default function TopicListing({
             </div>
 
             {ressortSlug && (
-              <ModuleSlot
-                code="hub_sidebar"
-                scope="ressort"
-                ressortSlug={ressortSlug}
-                desktopHeight={600}
-                mobileHeight={250}
-              />
+              <ModuleSlot code="hub_sidebar" ressortSlug={ressortSlug} />
             )}
 
             {trendingTags.length > 0 && (
