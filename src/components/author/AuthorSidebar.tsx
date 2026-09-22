@@ -24,6 +24,7 @@ const adminItems: NavItem[] = [
   { id: "admin-invites", label: "Einladungen",  href: "/autor/admin/einladungen", icon: "✉" },
   { id: "admin-prompts",  label: "Prompts Admin",  href: "/autor/admin/prompts",  icon: "❖" },
   { id: "admin-startups", label: "Startups", href: "/autor/admin/startups", icon: "⊞" },
+  { id: "admin-werbung", label: "Werbung", href: "/autor/admin/werbung", icon: "◧" },
   { id: "admin-tags",     label: "Tags",     href: "/autor/admin/tags",     icon: "#" },
   { id: "admin-newsletter", label: "Newsletter", href: "/autor/admin/newsletter", icon: "✉" },
   { id: "admin-nachrichten", label: "Nachrichten", href: "/autor/admin/nachrichten", icon: "✎" },

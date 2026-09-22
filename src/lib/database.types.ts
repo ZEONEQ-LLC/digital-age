@@ -12,8 +12,350 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
+      ad_advertisers: {
+        Row: {
+          address_addition: string | null
+          billing_email: string | null
+          billing_via_agency_id: string | null
+          city: string | null
+          commission_pct: number | null
+          country: string
+          created_at: string
+          house_number: string | null
+          id: string
+          is_agency: boolean
+          language: string
+          name: string
+          notes: string | null
+          payment_terms_days: number
+          post_office_box: string | null
+          postal_code: string | null
+          street: string | null
+          uid: string | null
+          updated_at: string
+        }
+        Insert: {
+          address_addition?: string | null
+          billing_email?: string | null
+          billing_via_agency_id?: string | null
+          city?: string | null
+          commission_pct?: number | null
+          country?: string
+          created_at?: string
+          house_number?: string | null
+          id?: string
+          is_agency?: boolean
+          language?: string
+          name: string
+          notes?: string | null
+          payment_terms_days?: number
+          post_office_box?: string | null
+          postal_code?: string | null
+          street?: string | null
+          uid?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address_addition?: string | null
+          billing_email?: string | null
+          billing_via_agency_id?: string | null
+          city?: string | null
+          commission_pct?: number | null
+          country?: string
+          created_at?: string
+          house_number?: string | null
+          id?: string
+          is_agency?: boolean
+          language?: string
+          name?: string
+          notes?: string | null
+          payment_terms_days?: number
+          post_office_box?: string | null
+          postal_code?: string | null
+          street?: string | null
+          uid?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_advertisers_billing_via_agency_id_fkey"
+            columns: ["billing_via_agency_id"]
+            isOneToOne: false
+            referencedRelation: "ad_advertisers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_bookings: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          period: unknown
+          placement_id: string
+          scope: string
+          scope_ref: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          period: unknown
+          placement_id: string
+          scope: string
+          scope_ref?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          period?: unknown
+          placement_id?: string
+          scope?: string
+          scope_ref?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_bookings_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_bookings_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "ad_placements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_campaigns: {
+        Row: {
+          advertiser_id: string | null
+          created_at: string
+          id: string
+          is_house: boolean
+          name: string
+          notes: string | null
+          price_chf: number | null
+          status: string
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          advertiser_id?: string | null
+          created_at?: string
+          id?: string
+          is_house?: boolean
+          name: string
+          notes?: string | null
+          price_chf?: number | null
+          status?: string
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          advertiser_id?: string | null
+          created_at?: string
+          id?: string
+          is_house?: boolean
+          name?: string
+          notes?: string | null
+          price_chf?: number | null
+          status?: string
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_campaigns_advertiser_id_fkey"
+            columns: ["advertiser_id"]
+            isOneToOne: false
+            referencedRelation: "ad_advertisers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_contacts: {
+        Row: {
+          advertiser_id: string
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          role: string | null
+        }
+        Insert: {
+          advertiser_id: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          role?: string | null
+        }
+        Update: {
+          advertiser_id?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_contacts_advertiser_id_fkey"
+            columns: ["advertiser_id"]
+            isOneToOne: false
+            referencedRelation: "ad_advertisers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_creatives: {
+        Row: {
+          alt_text: string | null
+          bg_color: string | null
+          body: string | null
+          campaign_id: string
+          created_at: string
+          cta_label: string | null
+          headline: string | null
+          height: number | null
+          id: string
+          image_path: string | null
+          is_active: boolean
+          kind: string
+          target_url: string
+          theme: string
+          variant: string
+          width: number | null
+        }
+        Insert: {
+          alt_text?: string | null
+          bg_color?: string | null
+          body?: string | null
+          campaign_id: string
+          created_at?: string
+          cta_label?: string | null
+          headline?: string | null
+          height?: number | null
+          id?: string
+          image_path?: string | null
+          is_active?: boolean
+          kind: string
+          target_url: string
+          theme?: string
+          variant?: string
+          width?: number | null
+        }
+        Update: {
+          alt_text?: string | null
+          bg_color?: string | null
+          body?: string | null
+          campaign_id?: string
+          created_at?: string
+          cta_label?: string | null
+          headline?: string | null
+          height?: number | null
+          id?: string
+          image_path?: string | null
+          is_active?: boolean
+          kind?: string
+          target_url?: string
+          theme?: string
+          variant?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_creatives_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_placements: {
+        Row: {
+          code: string
+          created_at: string
+          desktop_height: number
+          desktop_size: string | null
+          id: string
+          insert_after_block: number | null
+          is_sellable: boolean
+          label: string
+          max_concurrent: number
+          min_viewport: number | null
+          mobile_height: number
+          mobile_size: string | null
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          desktop_height: number
+          desktop_size?: string | null
+          id?: string
+          insert_after_block?: number | null
+          is_sellable?: boolean
+          label: string
+          max_concurrent?: number
+          min_viewport?: number | null
+          mobile_height: number
+          mobile_size?: string | null
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          desktop_height?: number
+          desktop_size?: string | null
+          id?: string
+          insert_after_block?: number | null
+          is_sellable?: boolean
+          label?: string
+          max_concurrent?: number
+          min_viewport?: number | null
+          mobile_height?: number
+          mobile_size?: string | null
+          sort_order?: number
+        }
+        Relationships: []
+      }
       ai_config: {
         Row: {
           default_model: string
@@ -371,11 +713,11 @@ export type Database = {
           body_blocks: Json | null
           body_md: string | null
           category_id: string
+          copilot_last_run: Json | null
           cover_image_alt: string | null
           cover_image_caption: string | null
           cover_image_source: string | null
           cover_image_url: string | null
-          copilot_last_run: Json | null
           created_at: string
           excerpt: string | null
           id: string
@@ -404,11 +746,11 @@ export type Database = {
           body_blocks?: Json | null
           body_md?: string | null
           category_id: string
+          copilot_last_run?: Json | null
           cover_image_alt?: string | null
           cover_image_caption?: string | null
           cover_image_source?: string | null
           cover_image_url?: string | null
-          copilot_last_run?: Json | null
           created_at?: string
           excerpt?: string | null
           id?: string
@@ -437,11 +779,11 @@ export type Database = {
           body_blocks?: Json | null
           body_md?: string | null
           category_id?: string
+          copilot_last_run?: Json | null
           cover_image_alt?: string | null
           cover_image_caption?: string | null
           cover_image_source?: string | null
           cover_image_url?: string | null
-          copilot_last_run?: Json | null
           created_at?: string
           excerpt?: string | null
           id?: string
@@ -1028,6 +1370,8 @@ export type Database = {
           new_status: Database["public"]["Enums"]["article_status"]
           notes?: string | null
           previous_status?: Database["public"]["Enums"]["article_status"] | null
+          revision_type?: string
+          snapshot?: Json | null
           title_snapshot: string
         }
         Update: {
@@ -1133,6 +1477,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      article_editorial_snapshot: {
+        Args: { a: Database["public"]["Tables"]["articles"]["Row"] }
+        Returns: Json
+      }
       can_modify_article_image: {
         Args: { article_id_text: string }
         Returns: boolean
@@ -1165,6 +1513,7 @@ export type Database = {
       }
       increment_prompt_uses: { Args: { p_id: string }; Returns: undefined }
       is_editor: { Args: never; Returns: boolean }
+      is_internal_author: { Args: never; Returns: boolean }
       merge_tags: {
         Args: { p_from_id: string; p_to_id: string }
         Returns: Json
@@ -1173,10 +1522,19 @@ export type Database = {
         Args: { p_new_name: string; p_tag_id: string }
         Returns: Json
       }
-      restore_article_revision: { Args: { p_article_id: string; p_revision_id: string }; Returns: boolean }
-      save_seo_review: { Args: { p_article_id: string; p_review: Json }; Returns: string }
+      restore_article_revision: {
+        Args: { p_article_id: string; p_revision_id: string }
+        Returns: boolean
+      }
+      save_seo_review: {
+        Args: { p_article_id: string; p_review: Json }
+        Returns: string
+      }
       suggest_startup_slug: { Args: { p_name: string }; Returns: string }
-      update_seo_review_done: { Args: { p_article_id: string; p_review: Json }; Returns: boolean }
+      update_seo_review_done: {
+        Args: { p_article_id: string; p_review: Json }
+        Returns: boolean
+      }
     }
     Enums: {
       article_status: "draft" | "in_review" | "published" | "archived"
@@ -1223,12 +1581,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1252,11 +1610,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1277,11 +1635,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1302,11 +1660,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1319,11 +1677,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1333,6 +1691,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       article_status: ["draft", "in_review", "published", "archived"],

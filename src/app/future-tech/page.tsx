@@ -105,6 +105,7 @@ export default async function FutureTechPage() {
           authors={authors}
           topTags={topTags}
           accentColor="purple"
+          ressortSlug="future-tech"
         />
       </Suspense>
       <div style={{ height: "var(--sp-20)" }} />

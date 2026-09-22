@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import ArticleListRow, { type ListArticle } from "./ArticleListRow";
 import NewsletterSignup from "./NewsletterSignup";
+import ModuleSlot from "./module/ModuleSlot";
 
 type Accent = "green" | "orange" | "purple";
 
@@ -40,6 +41,7 @@ export type TopicListingProps = {
   authors: AuthorSpotlight[];
   topTags?: TopTagItem[];
   accentColor?: Accent;
+  ressortSlug?: string;
 };
 
 const PAGE_SIZE = 6;
@@ -55,6 +57,7 @@ export default function TopicListing({
   authors,
   topTags = [],
   accentColor = "green",
+  ressortSlug,
 }: TopicListingProps) {
   const accent = accentVar[accentColor];
   const [activeCat, setActiveCat] = useState<string>(subcategories[0] ?? "Alle");
@@ -167,8 +170,6 @@ export default function TopicListing({
         .tl-grid--closed { grid-template-columns: 1fr; }
 
         .tl-aside {
-          position: sticky;
-          top: calc(var(--nav-h) + var(--sp-5));
           display: flex; flex-direction: column;
           gap: 28px;
         }
@@ -413,6 +414,10 @@ export default function TopicListing({
                 );
               })}
             </div>
+
+            {ressortSlug && (
+              <ModuleSlot code="hub_sidebar" ressortSlug={ressortSlug} />
+            )}
 
             {trendingTags.length > 0 && (
               <div>
