@@ -496,10 +496,14 @@ export async function updateCreative(
     const { supabase } = await requireEditor();
     const { data: current } = await supabase
       .from("ad_creatives")
-      .select("id, campaign_id, image_path")
+      .select("id, campaign_id, image_path, kind, variant")
       .eq("id", id)
       .maybeSingle();
     if (!current || current.campaign_id !== campaignId) return { ok: false, error: "Kreativ nicht gefunden." };
+    // H2: Variante eines gespeicherten Bild-Kreativs ist nicht aenderbar.
+    if (current.kind === "image" && input.variant !== current.variant) {
+      return { ok: false, error: "Variante eines Bild-Kreativs kann nicht geändert werden. Motiv ersetzen oder neues Kreativ anlegen." };
+    }
     const built = buildCreativePayload(campaignId, input);
     if ("error" in built) return { ok: false, error: built.error };
     const { error } = await supabase.from("ad_creatives").update(built.data).eq("id", id);
@@ -523,6 +527,127 @@ export async function deleteCreative(id: string, campaignId: string): Promise<Ac
       .maybeSingle();
     if (current?.image_path) await removeModuleImage(supabase, current.image_path);
     const { error } = await supabase.from("ad_creatives").delete().eq("id", id);
+    if (error) return { ok: false, error: mapDbError(error) };
+    revalidateAll(campaignId);
+    return { ok: true };
+  } catch (e) { return fail(e); }
+}
+
+// ── Bild-Kreative als Desktop/Mobile-Paar (H1) ───────────────────────────
+// Datenmodell bleibt: eine Zeile pro Variante. Die Paarung passiert hier und
+// im Formular. Desktop Pflicht; Mobile nur, wenn die Platzierung mobile_size
+// hat (sonst wird ein vorhandenes Mobile-Kreativ inkl. Datei entfernt).
+// Fehlendes Mobile blockiert das Speichern nicht — die Luecke wird im Admin
+// proaktiv angezeigt (H3) und vom Aktivierungs-Gate abgefangen.
+export type ImageCreativeFile = { image_path: string; width: number; height: number };
+
+export type ImageCreativePairInput = {
+  placement_id: string;
+  target_url: string;
+  alt_text: string;
+  is_active: boolean;
+  desktop: ImageCreativeFile;
+  mobile?: ImageCreativeFile | null;
+  existingDesktopId?: string | null;
+  existingMobileId?: string | null;
+};
+
+export async function saveImageCreativePair(
+  campaignId: string,
+  input: ImageCreativePairInput,
+): Promise<ActionResult> {
+  try {
+    const { supabase } = await requireEditor();
+    if (!UUID_RE.test(campaignId)) return { ok: false, error: "Kampagne ungültig." };
+    if (!UUID_RE.test(input.placement_id ?? "")) return { ok: false, error: "Bild-Kreative brauchen eine Platzierung." };
+    const { data: placement } = await supabase
+      .from("ad_placements")
+      .select("id, label, mobile_size")
+      .eq("id", input.placement_id)
+      .maybeSingle();
+    if (!placement) return { ok: false, error: "Platzierung nicht gefunden." };
+    const needsMobile = placement.mobile_size !== null;
+    if (!needsMobile && input.mobile) {
+      return { ok: false, error: `${placement.label} liefert nicht mobil aus — kein Mobile-Motiv möglich.` };
+    }
+
+    const common = {
+      kind: "image" as const,
+      placement_id: input.placement_id,
+      target_url: input.target_url,
+      alt_text: input.alt_text,
+      is_active: input.is_active,
+    };
+
+    // Vorhandene Zeilen der Platzierung laden (fuer Datei-Cleanup + Variante).
+    const ids = [input.existingDesktopId, input.existingMobileId].filter((x): x is string => !!x && UUID_RE.test(x));
+    const { data: existing } = ids.length
+      ? await supabase.from("ad_creatives").select("id, campaign_id, kind, variant, image_path").in("id", ids)
+      : { data: [] as { id: string; campaign_id: string; kind: string; variant: string; image_path: string | null }[] };
+    const byId = new Map((existing ?? []).map((r) => [r.id, r]));
+
+    async function writeOne(
+      variant: "desktop" | "mobile",
+      file: ImageCreativeFile,
+      existingId: string | null | undefined,
+    ): Promise<string | null> {
+      const built = buildCreativePayload(campaignId, { ...common, variant, image_path: file.image_path, width: file.width, height: file.height });
+      if ("error" in built) return built.error;
+      const cur = existingId ? byId.get(existingId) : undefined;
+      if (existingId && (!cur || cur.campaign_id !== campaignId || cur.kind !== "image" || cur.variant !== variant)) {
+        return "Bestehendes Kreativ passt nicht zu Kampagne oder Variante.";
+      }
+      if (cur) {
+        const { error } = await supabase.from("ad_creatives").update(built.data).eq("id", cur.id);
+        if (error) return mapDbError(error);
+        if (cur.image_path && cur.image_path !== file.image_path) await removeModuleImage(supabase, cur.image_path);
+      } else {
+        const { error } = await supabase.from("ad_creatives").insert({ campaign_id: campaignId, ...built.data });
+        if (error) return mapDbError(error);
+      }
+      return null;
+    }
+
+    // Reihenfolge: erst Desktop, dann Mobile.
+    const dErr = await writeOne("desktop", input.desktop, input.existingDesktopId);
+    if (dErr) return { ok: false, error: dErr };
+
+    if (input.mobile) {
+      const mErr = await writeOne("mobile", input.mobile, input.existingMobileId);
+      if (mErr) { revalidateAll(campaignId); return { ok: false, error: `Desktop gespeichert, Mobile nicht: ${mErr}` }; }
+    } else if (input.existingMobileId) {
+      // Platzierung ohne Mobile oder Mobile im Formular entfernt: Zeile + Datei weg.
+      const cur = byId.get(input.existingMobileId);
+      if (cur && cur.campaign_id === campaignId) {
+        if (cur.image_path) await removeModuleImage(supabase, cur.image_path);
+        const { error } = await supabase.from("ad_creatives").delete().eq("id", cur.id);
+        if (error) { revalidateAll(campaignId); return { ok: false, error: `Desktop gespeichert, Mobile nicht: ${mapDbError(error)}` }; }
+      }
+    }
+    revalidateAll(campaignId);
+    return { ok: true };
+  } catch (e) { return fail(e); }
+}
+
+// Loescht beide Zeilen (kind='image') einer Platzierung inkl. Dateien.
+export async function deleteImageCreativePair(campaignId: string, placementId: string): Promise<ActionResult> {
+  try {
+    const { supabase } = await requireEditor();
+    const { data: rows } = await supabase
+      .from("ad_creatives")
+      .select("id, image_path")
+      .eq("campaign_id", campaignId)
+      .eq("placement_id", placementId)
+      .eq("kind", "image");
+    for (const r of rows ?? []) {
+      if (r.image_path) await removeModuleImage(supabase, r.image_path);
+    }
+    const { error } = await supabase
+      .from("ad_creatives")
+      .delete()
+      .eq("campaign_id", campaignId)
+      .eq("placement_id", placementId)
+      .eq("kind", "image");
     if (error) return { ok: false, error: mapDbError(error) };
     revalidateAll(campaignId);
     return { ok: true };
