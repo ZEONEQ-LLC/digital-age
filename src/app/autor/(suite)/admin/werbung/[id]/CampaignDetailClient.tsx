@@ -373,7 +373,7 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
       <div style={{ ...card, display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <div style={sectionTitle}>Zahlen</div>
-          {stats.impressions > 0 && (
+          {(stats.impressions > 0 || stats.clicks > 0) && (
             <button type="button" style={btnSmall} onClick={() => void downloadStatsCsv()}>CSV exportieren</button>
           )}
         </div>

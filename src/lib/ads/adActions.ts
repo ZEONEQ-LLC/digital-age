@@ -689,11 +689,15 @@ export async function approveCampaignByToken(
     const supabase = createServiceClient();
     const { data: campaign } = await supabase
       .from("ad_campaigns")
-      .select("id, approved_at")
+      .select("id, approved_at, status")
       .eq("preview_token", t)
       .maybeSingle();
     if (!campaign) return { ok: false, error: APPROVE_GENERIC };
     if (campaign.approved_at) return { ok: true };
+    // Nach dem Livegang hat eine Freigabe keinen Zweck mehr (alter Tab).
+    if (["live", "paused", "ended"].includes(campaign.status)) {
+      return { ok: false, error: "Die Kampagne läuft bereits." };
+    }
 
     const { error } = await supabase
       .from("ad_campaigns")

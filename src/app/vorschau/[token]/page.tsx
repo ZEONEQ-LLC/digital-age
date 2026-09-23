@@ -23,6 +23,7 @@ export const metadata: Metadata = {
 };
 
 const TOKEN_RE = /^[0-9a-f]{48}$/;
+const RUNNING = ["live", "paused", "ended"];
 
 type PageProps = { params: Promise<{ token: string }> };
 
@@ -63,7 +64,7 @@ export default async function PreviewPage({ params }: PageProps) {
   const c = await getPreviewCampaign(token);
   if (!c) notFound();
   // Zahlen (J6): nur Kundenkampagnen ab live/pausiert/beendet.
-  const showStats = !c.isHouse && ["live", "paused", "ended"].includes(c.status);
+  const showStats = !c.isHouse && RUNNING.includes(c.status);
   let stats: CampaignStats | null = null;
   if (showStats) {
     try { stats = await getCampaignStats(createServiceClient(), c.id); } catch { stats = null; }
@@ -180,7 +181,9 @@ export default async function PreviewPage({ params }: PageProps) {
           </section>
         )}
 
-        {!c.isHouse && (
+        {/* Freigabe: Formular nur vor dem Livegang (draft/offer/confirmed); nach
+            live/paused/ended ohne Freigabe hat sie keinen Zweck mehr -> Block weg. */}
+        {!c.isHouse && (c.approvedAt || !RUNNING.includes(c.status)) && (
           <section style={card}>
             <div style={{ ...overline, marginBottom: 10 }}>Freigabe</div>
             {c.approvedAt ? (
