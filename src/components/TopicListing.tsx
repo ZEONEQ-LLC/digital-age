@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import ArticleListRow, { type ListArticle } from "./ArticleListRow";
 import NewsletterSignup from "./NewsletterSignup";
-import ModuleSlot from "./module/ModuleSlot";
+import ModuleSlot, { type SlotReserve } from "./module/ModuleSlot";
 
 type Accent = "green" | "orange" | "purple";
 
@@ -42,6 +42,7 @@ export type TopicListingProps = {
   topTags?: TopTagItem[];
   accentColor?: Accent;
   ressortSlug?: string;
+  moduleReserve?: SlotReserve;
 };
 
 const PAGE_SIZE = 6;
@@ -58,6 +59,7 @@ export default function TopicListing({
   topTags = [],
   accentColor = "green",
   ressortSlug,
+  moduleReserve,
 }: TopicListingProps) {
   const accent = accentVar[accentColor];
   const [activeCat, setActiveCat] = useState<string>(subcategories[0] ?? "Alle");
@@ -416,7 +418,7 @@ export default function TopicListing({
             </div>
 
             {ressortSlug && (
-              <ModuleSlot code="hub_sidebar" ressortSlug={ressortSlug} />
+              <ModuleSlot code="hub_sidebar" ressortSlug={ressortSlug} reserve={moduleReserve} />
             )}
 
             {trendingTags.length > 0 && (

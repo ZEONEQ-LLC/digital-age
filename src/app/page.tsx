@@ -2,6 +2,7 @@
 import HeroBold from "@/components/HeroBold";
 import SpotlightSection from "@/components/SpotlightSection";
 import ModuleSlot from "@/components/module/ModuleSlot";
+import { getSlotReservation } from "@/lib/ads/slotReservation";
 import SwissAIStrip from "@/components/SwissAIStrip";
 import ArticleSection from "@/components/ArticleSection";
 import CTAInverted from "@/components/CTAInverted";
@@ -48,12 +49,14 @@ export default async function Home() {
   // BentoGrid (Featured-Section) entfernt — die Spotlight-Section deckt das
   // Hero-Featuring ab. Kategorie-Sections filtern Hero-Artikel raus damit
   // jeder Artikel max einmal auf der Homepage erscheint.
-  const [kiBusiness, futureTech, heroKi, heroFt, startups] = await Promise.all([
+  const [kiBusiness, futureTech, heroKi, heroFt, startups, billboardReserve] = await Promise.all([
     getArticlesByCategory("ki-business", 3, { excludeHero: true }),
     getArticlesByCategory("future-tech", 3, { excludeHero: true }),
     getHeroOrLatestByCategory("ki-business"),
     getHeroOrLatestByCategory("future-tech"),
     getPublishedStartups(),
+    // G3: Bild- oder Texthoehe fuer das Billboard serverseitig reservieren.
+    getSlotReservation("home_billboard"),
   ]);
 
   // Spotlight: 1 Hero (oder Fallback-Neueste) pro Kategorie.
@@ -126,7 +129,7 @@ export default async function Home() {
         @media (max-width: 768px) { .home-module-wrap { padding: 40px var(--sp-4) 0; } }
       `}</style>
       <div className="home-module-wrap">
-        <ModuleSlot code="home_billboard" />
+        <ModuleSlot code="home_billboard" reserve={billboardReserve} />
       </div>
       <ArticleSection title="KI & Business" href="/ki-im-business" articles={kiBusiness.map(articleToCard)} />
       <SwissAIStrip items={swissAI} />

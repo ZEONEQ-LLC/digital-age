@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import InternalArticleCard from "./InternalArticleCard";
-import ModuleSlot from "./module/ModuleSlot";
+import ModuleSlot, { type SlotReserve } from "./module/ModuleSlot";
 import { PLACEMENTS } from "@/lib/ads/placements";
 import type { Block, BlockDocument, Source } from "@/types/blocks";
 import { externalLinkRe } from "@/lib/markdownLinkUrl";
@@ -16,6 +16,7 @@ type BlockReaderProps = {
   blocks?: Block[];
   articleSlug?: string;
   ressortSlug?: string;
+  moduleReserve?: SlotReserve;
 };
 
 // Platzierung article_inline: rein render-seitig NACH dem N-ten Block
@@ -430,7 +431,7 @@ function renderSourceList(sources: Source[], order: number[]): ReactNode {
   );
 }
 
-export default function BlockReader({ doc, blocks, articleSlug, ressortSlug }: BlockReaderProps) {
+export default function BlockReader({ doc, blocks, articleSlug, ressortSlug, moduleReserve }: BlockReaderProps) {
   // Backward-compat: alte Aufrufe mit blocks={...} unterstützen.
   const effectiveBlocks: Block[] = doc?.blocks ?? blocks ?? [];
   const sources: Source[] = doc?.sources ?? [];
@@ -448,7 +449,7 @@ export default function BlockReader({ doc, blocks, articleSlug, ressortSlug }: B
           {/* Reines Markup um den Slot (kein Block-Typ): Luft oben/unten wie zwischen Absaetzen. */}
           {showInlineModule && i === (inlineAfter as number) - 1 && (
             <div style={{ margin: "var(--sp-8) 0" }}>
-              <ModuleSlot code="article_inline" ressortSlug={ressortSlug} articleSlug={articleSlug} />
+              <ModuleSlot code="article_inline" ressortSlug={ressortSlug} articleSlug={articleSlug} reserve={moduleReserve} />
             </div>
           )}
         </span>

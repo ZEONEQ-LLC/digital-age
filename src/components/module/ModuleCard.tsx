@@ -1,31 +1,78 @@
 import { resolveTheme } from "@/lib/ads/creativeTheme";
 
 // Reine Praesentations-Komponente (F4): dasselbe Karten-Markup fuer Auslieferung
-// (ModuleSlot) und Admin-Vorschau. Kein Fetch, kein State. Neutrale mod-*-Klassen.
+// (ModuleSlot), Vorschau-Seite und Admin-Vorschau. Kein Fetch, kein State.
+// Neutrale mod-*-Klassen. kind "image": Motiv innerhalb desselben <a> wie der
+// Kicker (Diagnose B7) — Link-Attribute (sponsored/nofollow/_blank fuer
+// Kunden) und "Anzeige"-Kennzeichnung bleiben identisch.
 export type ModuleCardProps = {
   layout: "wide" | "stacked";
+  kind?: "internal" | "image";
   isHouse: boolean;
-  headline: string | null;
-  body: string | null;
-  ctaLabel: string | null;
   href: string;
-  theme: string;
-  bg?: string | null;
   linkAttrs?: { target?: string; rel?: string };
   // Vorschau im Admin: nicht klickbar.
   preview?: boolean;
+  // internal
+  headline?: string | null;
+  body?: string | null;
+  ctaLabel?: string | null;
+  theme?: string;
+  bg?: string | null;
+  // image
+  src?: string;
+  w?: number | null;
+  h?: number | null;
+  alt?: string;
+  // above the fold (home_billboard): kein lazy loading.
+  eager?: boolean;
 };
 
-export default function ModuleCard({
-  layout, isHouse, headline, body, ctaLabel, href, theme, bg, linkAttrs, preview,
-}: ModuleCardProps) {
-  const t = resolveTheme(theme, bg);
+export default function ModuleCard(props: ModuleCardProps) {
+  const { layout, kind = "internal", isHouse, href, linkAttrs, preview } = props;
+  const anchorAttrs = preview ? {} : linkAttrs;
+  const pe: React.CSSProperties = preview ? { pointerEvents: "none" } : {};
+
+  if (kind === "image") {
+    return (
+      <>
+        <style>{`
+          .mod-inner--image {
+            display: flex; flex-direction: column; gap: 4px; width: 100%;
+            padding: 0; background: transparent; border: 1px solid var(--da-border);
+            border-radius: var(--r-md); overflow: hidden; text-decoration: none;
+            align-self: flex-start; transition: border-color var(--t-fast);
+          }
+          .mod-inner--image:hover { border-color: var(--da-green); }
+          .mod-inner--image .mod-kicker { color: var(--da-muted); padding: 6px 8px 0; }
+          .mod-inner--image .mod-pic { display: block; width: 100%; height: auto; }
+        `}</style>
+        <a className={`mod-inner mod-inner--image mod-inner--${layout}`} style={pe} href={href} {...anchorAttrs} aria-disabled={preview || undefined}>
+          {!isHouse && <span className="mod-kicker da-overline">Anzeige</span>}
+          {/* Plain <img>: Storage laeuft ohnehin unoptimized; Masse kommen aus der DB (kein CLS). */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className="mod-pic"
+            src={props.src}
+            alt={props.alt ?? ""}
+            width={props.w ?? undefined}
+            height={props.h ?? undefined}
+            loading={props.eager ? "eager" : "lazy"}
+            decoding="async"
+            style={{ maxWidth: props.w ? `${props.w}px` : undefined }}
+          />
+        </a>
+      </>
+    );
+  }
+
+  const t = resolveTheme(props.theme ?? "card", props.bg);
   const cls = `mod-inner mod-inner--${layout}${t.flat ? " mod-inner--flat" : " mod-inner--card"}`;
   const style: React.CSSProperties = {
     background: t.background,
     color: t.color,
     ...(t.flat ? { borderColor: t.border } : {}),
-    ...(preview ? { pointerEvents: "none" } : {}),
+    ...pe,
   };
   return (
     <>
@@ -50,7 +97,7 @@ export default function ModuleCard({
         }
         .mod-inner--flat .mod-cta { color: inherit; }
         @media (min-width: 768px) {
-          .mod-inner--wide { flex-direction: row; align-items: center; justify-content: space-between; gap: var(--sp-6); }
+          .mod-inner--wide:not(.mod-inner--image) { flex-direction: row; align-items: center; justify-content: space-between; gap: var(--sp-6); }
           .mod-inner--wide .mod-cta {
             align-self: center; flex-shrink: 0; padding: 10px 16px;
             border: 1px solid var(--da-border); border-radius: var(--r-md);
@@ -60,15 +107,15 @@ export default function ModuleCard({
           .mod-inner--wide.mod-inner--card:hover .mod-cta { border-color: var(--da-green); }
         }
       `}</style>
-      <a className={cls} style={style} href={href} {...(preview ? {} : linkAttrs)} aria-disabled={preview || undefined}>
+      <a className={cls} style={style} href={href} {...anchorAttrs} aria-disabled={preview || undefined}>
         <span className="mod-text">
           {/* Bezahlte (Kunden-)Platzierung sichtbar als "Anzeige" kennzeichnen;
               House-Eigenwerbung braucht keine Kennzeichnung. */}
           {!isHouse && <span className="mod-kicker da-overline">Anzeige</span>}
-          <span className="mod-title">{headline}</span>
-          {body && <span className="mod-body">{body}</span>}
+          <span className="mod-title">{props.headline}</span>
+          {props.body && <span className="mod-body">{props.body}</span>}
         </span>
-        {ctaLabel && <span className="mod-cta">{ctaLabel} →</span>}
+        {props.ctaLabel && <span className="mod-cta">{props.ctaLabel} →</span>}
       </a>
     </>
   );

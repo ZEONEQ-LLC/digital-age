@@ -12,7 +12,8 @@ export default function Navbar() {
   // Navbar wird auf allen /autor/-Subrouten (Suite + Admin + Seiten) ausgeblendet.
   // /autor selbst (Login-Page) zeigt weiterhin die Public-Navbar.
   const isAuthorSuite = pathname.startsWith("/autor/") && pathname !== "/autor";
-  if (isAuthorSuite) return null;
+  // Kunden-Vorschau (/vorschau/<token>) ist eine schlanke Seite ohne Site-Chrome.
+  if (isAuthorSuite || pathname.startsWith("/vorschau/")) return null;
 
   return (
     <>

@@ -14,6 +14,7 @@ const RAIL_WIDTH = 160;
 export default function RailModules() {
   const pathname = usePathname() ?? "";
   if (pathname.startsWith("/autor/") && pathname !== "/autor") return null;
+  if (pathname.startsWith("/vorschau/")) return null;
 
   return (
     <div className="rail-wrap">
