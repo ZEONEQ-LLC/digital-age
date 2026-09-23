@@ -117,6 +117,7 @@ export type Database = {
         Row: {
           campaign_id: string
           created_at: string
+          expiry_notified_at: string | null
           id: string
           period: unknown
           placement_id: string
@@ -126,6 +127,7 @@ export type Database = {
         Insert: {
           campaign_id: string
           created_at?: string
+          expiry_notified_at?: string | null
           id?: string
           period: unknown
           placement_id: string
@@ -135,6 +137,7 @@ export type Database = {
         Update: {
           campaign_id?: string
           created_at?: string
+          expiry_notified_at?: string | null
           id?: string
           period?: unknown
           placement_id?: string
@@ -377,6 +380,55 @@ export type Database = {
           sort_order?: number
         }
         Relationships: []
+      }
+      ad_stats_daily: {
+        Row: {
+          campaign_id: string
+          clicks: number
+          creative_id: string
+          day: string
+          impressions: number
+          placement_id: string
+        }
+        Insert: {
+          campaign_id: string
+          clicks?: number
+          creative_id: string
+          day: string
+          impressions?: number
+          placement_id: string
+        }
+        Update: {
+          campaign_id?: string
+          clicks?: number
+          creative_id?: string
+          day?: string
+          impressions?: number
+          placement_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_stats_daily_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_stats_daily_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "ad_creatives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_stats_daily_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "ad_placements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ai_config: {
         Row: {
@@ -1539,6 +1591,15 @@ export type Database = {
       merge_tags: {
         Args: { p_from_id: string; p_to_id: string }
         Returns: Json
+      }
+      module_stats_increment: {
+        Args: {
+          p_campaign: string
+          p_creative: string
+          p_kind: string
+          p_placement: string
+        }
+        Returns: undefined
       }
       regenerate_ad_preview_token: {
         Args: { p_campaign_id: string }
