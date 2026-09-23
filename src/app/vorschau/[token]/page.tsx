@@ -5,6 +5,10 @@ import { moduleImageUrl } from "@/lib/ads/imagePath";
 import { PLACEMENTS } from "@/lib/ads/placements";
 import { getPreviewCampaign, type PreviewCreative } from "@/lib/ads/previewApi";
 import { RESSORT_SLUGS, formatPeriod } from "@/lib/ads/types";
+import { getCampaignStats, type CampaignStats } from "@/lib/ads/statsApi";
+import { COUNT_RULE_SIE, formatCount, formatCtr, formatRuntime } from "@/lib/ads/statsFormat";
+import { createServiceClient } from "@/lib/supabase/service";
+import StatsSeries from "@/components/module/StatsSeries";
 import ApproveForm from "./ApproveForm";
 
 // Kunden-Vorschau (G5): nur ueber den Token-Link erreichbar, nie indexiert,
@@ -19,6 +23,7 @@ export const metadata: Metadata = {
 };
 
 const TOKEN_RE = /^[0-9a-f]{48}$/;
+const RUNNING = ["live", "paused", "ended"];
 
 type PageProps = { params: Promise<{ token: string }> };
 
@@ -58,6 +63,12 @@ export default async function PreviewPage({ params }: PageProps) {
   if (!TOKEN_RE.test(token)) notFound();
   const c = await getPreviewCampaign(token);
   if (!c) notFound();
+  // Zahlen (J6): nur Kundenkampagnen ab live/pausiert/beendet.
+  const showStats = !c.isHouse && RUNNING.includes(c.status);
+  let stats: CampaignStats | null = null;
+  if (showStats) {
+    try { stats = await getCampaignStats(createServiceClient(), c.id); } catch { stats = null; }
+  }
 
   const card: React.CSSProperties = { background: "var(--da-card)", border: "1px solid var(--da-border)", borderRadius: 10, padding: 20 };
   const overline: React.CSSProperties = { color: "var(--da-faint)", fontSize: 10, fontWeight: 700, fontFamily: "var(--da-font-mono)", letterSpacing: "0.12em", textTransform: "uppercase" };
@@ -71,6 +82,8 @@ export default async function PreviewPage({ params }: PageProps) {
         .pv-mobile { flex: 0 0 320px; max-width: 100%; }
         .pv-link { color: var(--da-green); font-size: 14px; font-weight: 600; text-decoration: none; }
         .pv-link:hover { text-decoration: underline; }
+        .pv-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        @media (max-width: 767px) { .pv-tiles { grid-template-columns: 1fr 1fr; } }
       `}</style>
       <div className="pv-wrap">
         <header>
@@ -118,7 +131,59 @@ export default async function PreviewPage({ params }: PageProps) {
           );
         })}
 
-        {!c.isHouse && (
+        {stats && (
+          <section style={card}>
+            <div style={{ ...overline, marginBottom: 12 }}>Zahlen</div>
+            {stats.impressions === 0 && stats.clicks === 0 ? (
+              <p style={{ color: "var(--da-muted)", fontSize: 14, margin: 0 }}>Noch keine Auslieferungen gezählt.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <div className="pv-tiles">
+                  {[
+                    ["Impressionen", formatCount(stats.impressions)],
+                    ["Klicks", formatCount(stats.clicks)],
+                    ["CTR", formatCtr(stats.ctr)],
+                    ["Laufzeit", formatRuntime(stats.daysElapsed, stats.daysTotal)],
+                  ].map(([l, v]) => (
+                    <div key={l} style={{ background: "var(--da-dark)", border: "1px solid var(--da-border)", borderRadius: 8, padding: 16 }}>
+                      <div style={overline}>{l}</div>
+                      <div style={{ color: "var(--da-text)", fontFamily: "var(--da-font-display)", fontSize: 26, fontWeight: 700, marginTop: 6 }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <div style={{ ...overline, marginBottom: 8 }}>Impressionen · letzte 30 Tage</div>
+                  <StatsSeries series={stats.series} />
+                </div>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...overline, textAlign: "left", padding: "8px 0", borderBottom: "1px solid var(--da-border)" }}>Platzierung</th>
+                      <th style={{ ...overline, textAlign: "right", padding: "8px 0", borderBottom: "1px solid var(--da-border)" }}>Impressionen</th>
+                      <th style={{ ...overline, textAlign: "right", padding: "8px 0", borderBottom: "1px solid var(--da-border)" }}>Klicks</th>
+                      <th style={{ ...overline, textAlign: "right", padding: "8px 0", borderBottom: "1px solid var(--da-border)" }}>CTR</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.byPlacement.map((p) => (
+                      <tr key={p.placementId}>
+                        <td style={{ color: "var(--da-text)", fontSize: 14, fontWeight: 600, padding: "10px 0", borderBottom: "1px solid var(--da-border)" }}>{p.label}</td>
+                        <td style={{ color: "var(--da-text)", fontSize: 14, fontFamily: "var(--da-font-mono)", textAlign: "right", padding: "10px 0", borderBottom: "1px solid var(--da-border)" }}>{formatCount(p.impressions)}</td>
+                        <td style={{ color: "var(--da-text)", fontSize: 14, fontFamily: "var(--da-font-mono)", textAlign: "right", padding: "10px 0", borderBottom: "1px solid var(--da-border)" }}>{formatCount(p.clicks)}</td>
+                        <td style={{ color: "var(--da-text)", fontSize: 14, fontFamily: "var(--da-font-mono)", textAlign: "right", padding: "10px 0", borderBottom: "1px solid var(--da-border)" }}>{formatCtr(p.ctr)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <p style={{ color: "var(--da-faint)", fontSize: 12, margin: "14px 0 0", lineHeight: 1.5 }}>{COUNT_RULE_SIE}</p>
+          </section>
+        )}
+
+        {/* Freigabe: Formular nur vor dem Livegang (draft/offer/confirmed); nach
+            live/paused/ended ohne Freigabe hat sie keinen Zweck mehr -> Block weg. */}
+        {!c.isHouse && (c.approvedAt || !RUNNING.includes(c.status)) && (
           <section style={card}>
             <div style={{ ...overline, marginBottom: 10 }}>Freigabe</div>
             {c.approvedAt ? (

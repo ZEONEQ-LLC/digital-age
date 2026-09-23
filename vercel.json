@@ -3,6 +3,10 @@
     {
       "path": "/api/news-ticker/cron-refresh",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/module/daily",
+      "schedule": "0 5 * * *"
     }
   ]
 }

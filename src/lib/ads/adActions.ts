@@ -6,6 +6,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { requireEditor } from "@/lib/ads/editorGate";
 import { isModuleImagePath } from "@/lib/ads/imagePath";
 import { lookupUid } from "@/lib/ads/uidLookup";
+import { getCampaignStatsRows, type CampaignStatsRow } from "@/lib/ads/statsApi";
 import {
   RESSORT_SLUGS,
   normalizeUid,
@@ -688,11 +689,15 @@ export async function approveCampaignByToken(
     const supabase = createServiceClient();
     const { data: campaign } = await supabase
       .from("ad_campaigns")
-      .select("id, approved_at")
+      .select("id, approved_at, status")
       .eq("preview_token", t)
       .maybeSingle();
     if (!campaign) return { ok: false, error: APPROVE_GENERIC };
     if (campaign.approved_at) return { ok: true };
+    // Nach dem Livegang hat eine Freigabe keinen Zweck mehr (alter Tab).
+    if (["live", "paused", "ended"].includes(campaign.status)) {
+      return { ok: false, error: "Die Kampagne läuft bereits." };
+    }
 
     const { error } = await supabase
       .from("ad_campaigns")
@@ -713,6 +718,20 @@ export async function lookupUidAction(query: string): Promise<UidLookupResult> {
   try {
     await requireEditor();
     return await lookupUid(query);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+// ── Report (J6): flache Zeilen fuer den CSV-Export im Admin ───────────────
+export async function exportCampaignStatsRows(
+  campaignId: string,
+): Promise<{ ok: true; rows: CampaignStatsRow[] } | { ok: false; error: string }> {
+  try {
+    const { supabase } = await requireEditor();
+    if (!UUID_RE.test(campaignId)) return { ok: false, error: "Kampagne ungültig." };
+    const rows = await getCampaignStatsRows(supabase, campaignId);
+    return { ok: true, rows };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }

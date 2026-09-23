@@ -2,12 +2,15 @@ type SparklineProps = {
   data: number[];
   color?: string;
   height?: number;
+  // "min": Kurve auf den kleinsten Wert normiert (Default, Kompatibilitaet).
+  // "zero": Nullbasis — fuer absolute Zaehler wie Impressionen.
+  baseline?: "min" | "zero";
 };
 
-export default function Sparkline({ data, color = "var(--da-green)", height = 40 }: SparklineProps) {
+export default function Sparkline({ data, color = "var(--da-green)", height = 40, baseline = "min" }: SparklineProps) {
   if (data.length === 0) return null;
   const max = Math.max(...data, 1);
-  const min = Math.min(...data);
+  const min = baseline === "zero" ? 0 : Math.min(...data);
   const w = 200;
   const pad = 2;
   const xStep = (w - pad * 2) / Math.max(1, data.length - 1);

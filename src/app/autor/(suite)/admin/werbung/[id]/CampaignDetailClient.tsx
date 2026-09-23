@@ -5,8 +5,12 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import {
   createBooking, createCreative, deleteBooking, deleteCampaign, deleteCreative, deleteImageCreativePair,
-  regeneratePreviewToken, saveImageCreativePair, setCampaignStatus, updateCampaign, updateCreative,
+  exportCampaignStatsRows, regeneratePreviewToken, saveImageCreativePair, setCampaignStatus, updateCampaign, updateCreative,
 } from "@/lib/ads/adActions";
+import type { CampaignStats } from "@/lib/ads/statsApi";
+import { COUNT_RULE_DU, formatCount, formatCtr, formatRuntime } from "@/lib/ads/statsFormat";
+import StatCell from "@/components/author/StatCell";
+import StatsSeries from "@/components/module/StatsSeries";
 import { deleteCreativeImage } from "@/lib/ads/imageActions";
 import { moduleImageUrl } from "@/lib/ads/imagePath";
 import {
@@ -26,6 +30,7 @@ type Props = {
   advertisers: { id: string; name: string }[];
   placements: PlacementRow[];
   previewBase: string;
+  stats: CampaignStats;
 };
 
 const scopeLabel = (code: string) => SCOPE_KINDS.find((s) => s.code === code)?.label ?? code;
@@ -52,7 +57,18 @@ function toImage(cr: CreativeRow | null): CreativeImage | null {
   return cr && cr.image_path && cr.width && cr.height ? { path: cr.image_path, width: cr.width, height: cr.height } : null;
 }
 
-export default function CampaignDetailClient({ detail, advertisers, placements, previewBase }: Props) {
+// CSV: Semikolon (Excel CH), UTF-8 mit BOM, Muster AdminNewsletterClient.downloadCsv.
+function csvCell(v: string | number): string {
+  const t = String(v);
+  return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+}
+
+function slugify(name: string): string {
+  return name.toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50) || "kampagne";
+}
+
+export default function CampaignDetailClient({ detail, advertisers, placements, previewBase, stats }: Props) {
   const router = useRouter();
   const c = detail.campaign;
   const isHouse = c.is_house; // E2: nach dem Anlegen unveraenderlich
@@ -260,6 +276,26 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
     run(() => setCampaignStatus(c.id, next));
   }
 
+  async function downloadStatsCsv() {
+    setError(null);
+    const res = await exportCampaignStatsRows(c.id);
+    if (!res.ok) { setError(res.error); return; }
+    const header = ["Tag", "Platzierung", "Kreativ", "Variante", "Impressionen", "Klicks"];
+    const lines = [header.join(";")];
+    for (const r of res.rows) {
+      lines.push([r.day, r.placement_label, r.creative_label, r.variant, r.impressions, r.clicks].map(csvCell).join(";"));
+    }
+    const blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${slugify(c.name)}-zahlen-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   const hasRef = bScope !== "global";
   const shareTitle = `Anteil = Gewicht ${c.weight} / (${c.weight} + Summe der Gewichte der anderen Live-Kampagnen auf derselben Fläche und Ebene, überlappender Zeitraum). Nicht-House schlägt House.`;
   const previewUrl = `${previewBase}/vorschau/${c.preview_token}`;
@@ -285,10 +321,12 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
         .cd-booking--noref { grid-template-columns: 1.4fr 1fr auto auto auto; }
         .cd-preview { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
         .cd-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .cd-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
         .cd-pair-preview { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
         @media (max-width: 1023px) {
           .cd-booking--ref, .cd-booking--noref { grid-template-columns: 1fr 1fr 1fr; }
           .cd-preview, .cd-pair { grid-template-columns: 1fr; }
+          .cd-stats { grid-template-columns: 1fr 1fr; }
         }
         @media (max-width: 767px) {
           .cd-row2, .cd-row3, .cd-booking--ref, .cd-booking--noref { grid-template-columns: 1fr; }
@@ -330,6 +368,55 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
           <p style={help}>Der Kunde sieht Kreative und Buchungen, keine Adresse und keinen Preis. Mit ?vorschau=&lt;Token&gt; zeigt jede öffentliche Seite die Kampagne an ihren echten Positionen. Die Freigabe ist Information, kein Gate für live.</p>
         </div>
       )}
+
+      {/* Zahlen (J6) — auch bei House (Eigenreporting) */}
+      <div style={{ ...card, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={sectionTitle}>Zahlen</div>
+          {(stats.impressions > 0 || stats.clicks > 0) && (
+            <button type="button" style={btnSmall} onClick={() => void downloadStatsCsv()}>CSV exportieren</button>
+          )}
+        </div>
+        {stats.impressions === 0 && stats.clicks === 0 ? (
+          <p style={{ color: "var(--da-muted)", fontSize: 14, margin: 0 }}>Noch keine Auslieferungen gezählt.</p>
+        ) : (
+          <>
+            <div className="cd-stats">
+              <StatCell label="Impressionen" value={formatCount(stats.impressions)} />
+              <StatCell label="Klicks" value={formatCount(stats.clicks)} accent="var(--da-green)" />
+              <StatCell label="CTR" value={formatCtr(stats.ctr)} />
+              <StatCell label="Laufzeit" value={formatRuntime(stats.daysElapsed, stats.daysTotal)} sub="Tage bisher / gesamt" />
+            </div>
+            <div>
+              <span style={labelStyle}>Impressionen · letzte 30 Tage</span>
+              <StatsSeries series={stats.series} />
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table className="cd-table">
+                <thead>
+                  <tr>
+                    <th style={th}>Platzierung</th>
+                    <th style={{ ...th, textAlign: "right" }}>Impressionen</th>
+                    <th style={{ ...th, textAlign: "right" }}>Klicks</th>
+                    <th style={{ ...th, textAlign: "right" }}>CTR</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.byPlacement.map((p) => (
+                    <tr key={p.placementId}>
+                      <td style={{ ...td, color: "var(--da-text)", fontWeight: 600 }}>{p.label}</td>
+                      <td style={{ ...td, textAlign: "right", fontFamily: "var(--da-font-mono)" }}>{formatCount(p.impressions)}</td>
+                      <td style={{ ...td, textAlign: "right", fontFamily: "var(--da-font-mono)" }}>{formatCount(p.clicks)}</td>
+                      <td style={{ ...td, textAlign: "right", fontFamily: "var(--da-font-mono)" }}>{formatCtr(p.ctr)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+        <p style={{ ...help, margin: 0 }}>{COUNT_RULE_DU}</p>
+      </div>
 
       {/* Stammdaten */}
       <div style={{ ...card, display: "flex", flexDirection: "column", gap: 16 }}>
