@@ -1471,6 +1471,18 @@ sollten mit der echten Login-Email anlegen, sonst wiederholt sich das Problem.
 Route Groups sind URL-transparent: `/autor/ali-soy` bleibt `/autor/ali-soy`,
 `/autor/dashboard` bleibt `/autor/dashboard`.
 
+**Pfad-Gates für Site-Chrome (PR D):** Navbar, NewsTicker, Rails, CMP-Banner,
+GA4 und der Footer-Button „Cookie-Einstellungen“ entscheiden über
+`src/lib/siteChrome.ts`, nicht über `startsWith("/autor/")`.
+
+- **Neue Suite-Route** unter `src/app/autor/(suite)/` → Segment in
+  `AUTHOR_SUITE_PREFIXES` ergänzen. Sonst bekommt sie Navbar, Ticker, Rails,
+  CMP-Banner und GA4, und das gleichnamige Autoren-Handle bleibt frei
+  (`RESERVED_AUTHOR_HANDLES` leitet sich aus der Liste ab und wird in
+  `updateAuthorProfile` / `updateAuthorAsEditor` geprüft).
+- **Neue Seite ohne Site-Chrome und ohne Tracking** (wie `/vorschau`) →
+  `CHROMELESS_PREFIXES`.
+
 ### Podcasts-Schema (Session D, drop+recreate)
 
 Modell-Wechsel von "Host produziert Episoden" → "kuratierte Empfehlungen
