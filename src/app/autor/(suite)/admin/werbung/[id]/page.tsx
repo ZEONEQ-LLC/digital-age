@@ -4,6 +4,8 @@ import { getCampaignDetail, getAdvertisersLight, getPlacements } from "@/lib/ads
 import CampaignDetailClient from "./CampaignDetailClient";
 import WerbungSubNav from "@/components/author/WerbungSubNav";
 import { getBaseUrl } from "@/lib/siteUrl";
+import { createClient } from "@/lib/supabase/server";
+import { getCampaignStats } from "@/lib/ads/statsApi";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -15,6 +17,7 @@ export default async function CampaignDetailPage({ params }: PageProps) {
     getPlacements(),
   ]);
   if (!detail) notFound();
+  const stats = await getCampaignStats(await createClient(), id);
 
   return (
     <>
@@ -23,7 +26,7 @@ export default async function CampaignDetailPage({ params }: PageProps) {
         subtitle={detail.campaign.is_house ? "House-Kampagne" : detail.advertiserName ?? "Kunden-Kampagne"}
         right={<WerbungSubNav />}
       />
-      <CampaignDetailClient detail={detail} advertisers={advertisers} placements={placements} previewBase={getBaseUrl()} />
+      <CampaignDetailClient detail={detail} advertisers={advertisers} placements={placements} previewBase={getBaseUrl()} stats={stats} />
     </>
   );
 }

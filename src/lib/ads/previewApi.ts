@@ -38,7 +38,9 @@ export type PreviewBooking = {
 
 export type PreviewCampaign = {
   token: string;
+  id: string;
   name: string;
+  status: string;
   isHouse: boolean;
   advertiserName: string | null;
   approvedAt: string | null;
@@ -50,6 +52,7 @@ export type PreviewCampaign = {
 type Row = {
   id: string;
   name: string;
+  status: string;
   is_house: boolean;
   approved_at: string | null;
   approved_by: string | null;
@@ -84,7 +87,7 @@ export async function getPreviewCampaign(token: string): Promise<PreviewCampaign
   const { data, error } = await supabase
     .from("ad_campaigns")
     .select(
-      "id, name, is_house, approved_at, approved_by, approved_note, advertiser:ad_advertisers(name), " +
+      "id, name, status, is_house, approved_at, approved_by, approved_note, advertiser:ad_advertisers(name), " +
         "bookings:ad_bookings(id, placement_id, scope, scope_ref, period, placement:ad_placements(code, label)), " +
         "creatives:ad_creatives(id, kind, variant, placement_id, headline, body, cta_label, target_url, is_active, theme, bg_color, image_path, width, height, alt_text)",
     )
@@ -136,7 +139,9 @@ export async function getPreviewCampaign(token: string): Promise<PreviewCampaign
 
   return {
     token,
+    id: row.id,
     name: row.name,
+    status: row.status,
     isHouse: row.is_house,
     advertiserName: row.advertiser?.name ?? null,
     approvedAt: row.approved_at,

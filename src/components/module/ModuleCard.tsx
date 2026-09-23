@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { resolveTheme } from "@/lib/ads/creativeTheme";
 
 // Reine Praesentations-Komponente (F4): dasselbe Karten-Markup fuer Auslieferung
@@ -26,12 +27,16 @@ export type ModuleCardProps = {
   alt?: string;
   // above the fold (home_billboard): kein lazy loading.
   eager?: boolean;
+  // Klick auf den Anker (Capture, kein preventDefault) — fuer das Zaehlen (J2).
+  onActivate?: () => void;
 };
 
-export default function ModuleCard(props: ModuleCardProps) {
-  const { layout, kind = "internal", isHouse, href, linkAttrs, preview } = props;
+// Ref zeigt auf das <a class="mod-inner"> — Ziel fuer den IntersectionObserver.
+const ModuleCard = forwardRef<HTMLAnchorElement, ModuleCardProps>(function ModuleCard(props, ref) {
+  const { layout, kind = "internal", isHouse, href, linkAttrs, preview, onActivate } = props;
   const anchorAttrs = preview ? {} : linkAttrs;
   const pe: React.CSSProperties = preview ? { pointerEvents: "none" } : {};
+  const activate = onActivate ? { onClickCapture: () => onActivate() } : {};
 
   if (kind === "image") {
     return (
@@ -47,7 +52,7 @@ export default function ModuleCard(props: ModuleCardProps) {
           .mod-inner--image .mod-kicker { color: var(--da-muted); padding: 6px 8px 0; }
           .mod-inner--image .mod-pic { display: block; width: 100%; height: auto; }
         `}</style>
-        <a className={`mod-inner mod-inner--image mod-inner--${layout}`} style={pe} href={href} {...anchorAttrs} aria-disabled={preview || undefined}>
+        <a ref={ref} className={`mod-inner mod-inner--image mod-inner--${layout}`} style={pe} href={href} {...anchorAttrs} {...activate} aria-disabled={preview || undefined}>
           {!isHouse && <span className="mod-kicker da-overline">Anzeige</span>}
           {/* Plain <img>: Storage laeuft ohnehin unoptimized; Masse kommen aus der DB (kein CLS). */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -107,7 +112,7 @@ export default function ModuleCard(props: ModuleCardProps) {
           .mod-inner--wide.mod-inner--card:hover .mod-cta { border-color: var(--da-green); }
         }
       `}</style>
-      <a className={cls} style={style} href={href} {...anchorAttrs} aria-disabled={preview || undefined}>
+      <a ref={ref} className={cls} style={style} href={href} {...anchorAttrs} {...activate} aria-disabled={preview || undefined}>
         <span className="mod-text">
           {/* Bezahlte (Kunden-)Platzierung sichtbar als "Anzeige" kennzeichnen;
               House-Eigenwerbung braucht keine Kennzeichnung. */}
@@ -119,4 +124,6 @@ export default function ModuleCard(props: ModuleCardProps) {
       </a>
     </>
   );
-}
+});
+
+export default ModuleCard;

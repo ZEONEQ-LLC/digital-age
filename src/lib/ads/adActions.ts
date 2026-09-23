@@ -6,6 +6,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { requireEditor } from "@/lib/ads/editorGate";
 import { isModuleImagePath } from "@/lib/ads/imagePath";
 import { lookupUid } from "@/lib/ads/uidLookup";
+import { getCampaignStatsRows, type CampaignStatsRow } from "@/lib/ads/statsApi";
 import {
   RESSORT_SLUGS,
   normalizeUid,
@@ -713,6 +714,20 @@ export async function lookupUidAction(query: string): Promise<UidLookupResult> {
   try {
     await requireEditor();
     return await lookupUid(query);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+// ── Report (J6): flache Zeilen fuer den CSV-Export im Admin ───────────────
+export async function exportCampaignStatsRows(
+  campaignId: string,
+): Promise<{ ok: true; rows: CampaignStatsRow[] } | { ok: false; error: string }> {
+  try {
+    const { supabase } = await requireEditor();
+    if (!UUID_RE.test(campaignId)) return { ok: false, error: "Kampagne ungültig." };
+    const rows = await getCampaignStatsRows(supabase, campaignId);
+    return { ok: true, rows };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
