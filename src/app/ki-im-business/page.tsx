@@ -9,6 +9,7 @@ import { articleToListRow } from "@/lib/mappers/articleMappers";
 import { buildListingMetadata } from "@/lib/listingMetadata";
 import { buildItemListJsonLd } from "@/lib/jsonLd";
 import { getBaseUrl } from "@/lib/siteUrl";
+import { getSlotReservation } from "@/lib/ads/slotReservation";
 
 export const revalidate = 120;
 
@@ -84,6 +85,9 @@ export default async function KIBusinessPage() {
     })),
   });
 
+  // G3: Sidebar-Slot reserviert Bild- oder Texthoehe (serverseitig, cache-neutral).
+  const moduleReserve = await getSlotReservation("hub_sidebar");
+
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <script
@@ -106,6 +110,7 @@ export default async function KIBusinessPage() {
           topTags={topTags}
           accentColor="green"
           ressortSlug="ki-business"
+          moduleReserve={moduleReserve}
         />
       </Suspense>
       <div style={{ height: "var(--sp-20)" }} />

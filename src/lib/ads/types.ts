@@ -132,17 +132,42 @@ export type BookingInput = {
   to?: string | null;  // ISO oder null = offen
 };
 
+export type CreativeKind = "internal" | "image";
+
 export type CreativeInput = {
   campaign_id: string;
+  kind?: CreativeKind;          // default "internal"
   variant: "desktop" | "mobile";
-  headline: string;
+  placement_id?: string | null; // image: Pflicht (G1); internal: optional (null = alle)
+  headline?: string | null;     // internal: Pflicht
   body?: string | null;
   cta_label?: string | null;
   target_url: string;
   is_active?: boolean;
-  theme?: string;             // CREATIVE_THEMES; default "card"
-  bg_color?: string | null;   // nur bei theme="custom" (HEX, klein)
+  theme?: string;               // CREATIVE_THEMES; default "card" (nur internal)
+  bg_color?: string | null;     // nur bei theme="custom" (HEX, klein)
+  image_path?: string | null;   // image: Pfad im Bucket "modules" (aus uploadCreativeImage)
+  width?: number | null;        // image: Pixel (serverseitig ermittelt)
+  height?: number | null;
+  alt_text?: string | null;     // image: Pflicht
 };
+
+// Treffer aus dem BFS-UID-Register (G6). Nichts davon wird ausserhalb der
+// Formularfelder gespeichert.
+export type UidLookupHit = {
+  uid: string;                  // CHE#########
+  name: string;
+  street: string | null;
+  houseNumber: string | null;
+  postOfficeBox: string | null;
+  postalCode: string | null;
+  city: string | null;
+  country: string;              // ISO-2
+  legalFormCode: string | null; // BFS-Code, z.B. 0107 = GmbH
+  active: boolean;              // uidregPublicStatus = 1
+};
+
+export type UidLookupResult = { ok: true; hits: UidLookupHit[] } | { ok: false; error: string };
 
 export { CREATIVE_THEMES, type CreativeTheme } from "@/lib/ads/creativeTheme";
 

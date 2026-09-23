@@ -10,6 +10,7 @@ import AuthorBox from "@/components/AuthorBox";
 import ArticleBody from "@/components/ArticleBody";
 import ArticleSection from "@/components/ArticleSection";
 import BlockReader from "@/components/BlockReader";
+import { getSlotReservation } from "@/lib/ads/slotReservation";
 import InlineText from "@/components/InlineText";
 import NewsletterSignup from "@/components/NewsletterSignup";
 import ReadingProgress from "@/components/ReadingProgress";
@@ -263,10 +264,11 @@ export default async function ArticlePage({ params }: PageProps) {
   const { slug } = await params;
   const article = await getArticleBySlug(slug);
   if (!article || !article.author) notFound();
-  return <ArticleView article={article} />;
+  const moduleReserve = await getSlotReservation("article_inline");
+  return <ArticleView article={article} moduleReserve={moduleReserve} />;
 }
 
-async function ArticleView({ article }: { article: ArticleWithFullRelations }) {
+async function ArticleView({ article, moduleReserve }: { article: ArticleWithFullRelations; moduleReserve: "image" | "internal" }) {
   const author = article.author!;
   const isExternal = author.role === "external";
   const subcategory = article.subcategory ?? article.category?.name_de ?? "";
@@ -504,7 +506,7 @@ async function ArticleView({ article }: { article: ArticleWithFullRelations }) {
       <ArticleBodyGrid hasToc={tocItems.length > 0}>
         <article>
           <ArticleBody>
-            <BlockReader doc={doc} articleSlug={article.slug} ressortSlug={categorySlug} />
+            <BlockReader doc={doc} articleSlug={article.slug} ressortSlug={categorySlug} moduleReserve={moduleReserve} />
           </ArticleBody>
 
           {article.tags && article.tags.length > 0 && (

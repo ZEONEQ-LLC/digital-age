@@ -10,6 +10,7 @@ import {
 import { startupToCardVM } from "@/lib/mappers/startupMappers";
 import StartupsBrowser from "./StartupsBrowser";
 import { buildListingMetadata } from "@/lib/listingMetadata";
+import { getSlotReservation } from "@/lib/ads/slotReservation";
 
 export const revalidate = 300;
 
@@ -36,6 +37,8 @@ export default async function SwissAIPage() {
     { n: `${industries.length}`, l: "Branchen" },
     { n: "100%", l: "Schweizer Bezug" },
   ];
+
+  const moduleReserve = await getSlotReservation("swiss_ai_sidebar");
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
@@ -151,6 +154,7 @@ export default async function SwissAIPage() {
       </section>
 
       <StartupsBrowser
+        moduleReserve={moduleReserve}
         all={all}
         featured={featured}
         industries={industries}

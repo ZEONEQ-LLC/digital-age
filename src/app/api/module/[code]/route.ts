@@ -6,12 +6,14 @@ import { parsePeriod } from "@/lib/ads/types";
 // Service-Role (RLS-Bypass): Kundendaten/Preise/Laufzeiten sind ueber den
 // anon-Key nie erreichbar. Antwort ist immer JSON, nie HTML, no-store.
 // Neutrale Benennung (kein ad/banner/... im Pfad) — Adblocker-tolerant.
-// Query: v = Viewportbreite, r = Ressort-Slug, a = Artikel-Slug.
+// Query: v = Viewportbreite, r = Ressort-Slug, a = Artikel-Slug,
+//        p = Vorschau-Token (G5: Kampagne an ihren echten Positionen zeigen).
 export const dynamic = "force-dynamic";
 
 type CreativeCand = {
   kind: string;
   variant: string;
+  placement_id: string | null;
   headline: string | null;
   body: string | null;
   cta_label: string | null;
@@ -19,7 +21,14 @@ type CreativeCand = {
   is_active: boolean;
   theme: string;
   bg_color: string | null;
+  image_path: string | null;
+  width: number | null;
+  height: number | null;
+  alt_text: string | null;
 };
+
+const CREATIVE_SELECT =
+  "kind, variant, placement_id, headline, body, cta_label, target_url, is_active, theme, bg_color, image_path, width, height, alt_text";
 
 type BookingCand = {
   scope: string;
@@ -43,8 +52,47 @@ function nowInPeriod(period: string, now: number): boolean {
   return lowerOk && upperOk;
 }
 
-const EMPTY = () =>
-  NextResponse.json({}, { status: 200, headers: { "Cache-Control": "no-store" } });
+// Kreativ-Auswahl je Kampagne: aktiv + passende Variante; zuerst
+// placement_id = diese Platzierung, sonst placement_id null. Kind egal.
+function pickCreative(creatives: CreativeCand[], variant: string, placementId: string): CreativeCand | null {
+  const active = (creatives ?? []).filter((c) => c.is_active && c.variant === variant);
+  return active.find((c) => c.placement_id === placementId) ?? active.find((c) => c.placement_id === null) ?? null;
+}
+
+const NO_STORE = { status: 200, headers: { "Cache-Control": "no-store" } };
+const EMPTY = () => NextResponse.json({}, NO_STORE);
+
+// Antwort — keine ids, keine Kundennamen, keine Preise. Neutrale Keys.
+function respond(creative: CreativeCand, isHouse: boolean, publicUrl: (path: string) => string) {
+  if (creative.kind === "image" && creative.image_path) {
+    return NextResponse.json(
+      {
+        kind: "image",
+        isHouse,
+        src: publicUrl(creative.image_path),
+        w: creative.width,
+        h: creative.height,
+        alt: creative.alt_text ?? "",
+        href: creative.target_url,
+      },
+      NO_STORE,
+    );
+  }
+  return NextResponse.json(
+    {
+      kind: "internal",
+      isHouse,
+      headline: creative.headline,
+      body: creative.body,
+      ctaLabel: creative.cta_label,
+      href: creative.target_url,
+      // Gestaltung (F3): theme immer, bg nur bei custom.
+      theme: creative.theme,
+      ...(creative.theme === "custom" && creative.bg_color ? { bg: creative.bg_color } : {}),
+    },
+    NO_STORE,
+  );
+}
 
 export async function GET(
   request: Request,
@@ -55,8 +103,10 @@ export async function GET(
   const v = parseInt(url.searchParams.get("v") ?? "0", 10) || 0;
   const a = url.searchParams.get("a");        // Artikel-Slug
   const r = url.searchParams.get("r");        // Ressort-Slug
+  const p = url.searchParams.get("p");        // Vorschau-Token
 
   const supabase = createServiceClient();
+  const publicUrl = (path: string) => supabase.storage.from("modules").getPublicUrl(path).data.publicUrl;
 
   // 1. Platzierung laden.
   const { data: placement } = await supabase
@@ -71,11 +121,26 @@ export async function GET(
 
   const variant = v > 0 && v < 768 ? "mobile" : "desktop";
 
+  // 1b. Vorschau (G5): Kampagne per Token; hat sie eine Buchung auf dieser
+  // Platzierung, wird IHR Kreativ geliefert — Status und Zeitraum ignoriert,
+  // keine Ziehung. Sonst normaler Pfad.
+  if (p && /^[0-9a-f]{48}$/.test(p)) {
+    const { data: pc } = await supabase
+      .from("ad_campaigns")
+      .select(`id, is_house, bookings:ad_bookings(placement_id), creatives:ad_creatives(${CREATIVE_SELECT})`)
+      .eq("preview_token", p)
+      .maybeSingle();
+    if (pc && (pc.bookings ?? []).some((b) => b.placement_id === placement.id)) {
+      const creative = pickCreative(pc.creatives as unknown as CreativeCand[], variant, placement.id);
+      if (creative) return respond(creative, pc.is_house, publicUrl);
+    }
+  }
+
   // 2. Kandidaten: live-Kampagnen, Kreativ aktiv + Variante passend.
   const { data, error } = await supabase
     .from("ad_bookings")
     .select(
-      "scope, scope_ref, period, campaign:ad_campaigns(id, weight, is_house, status, creatives:ad_creatives(kind, variant, headline, body, cta_label, target_url, is_active, theme, bg_color))",
+      `scope, scope_ref, period, campaign:ad_campaigns(id, weight, is_house, status, creatives:ad_creatives(${CREATIVE_SELECT}))`,
     )
     .eq("placement_id", placement.id);
   if (error || !data) return EMPTY();
@@ -94,9 +159,7 @@ export async function GET(
     if (!b.campaign) continue;
     if (b.campaign.status !== "live") continue;
     if (!nowInPeriod(b.period, now)) continue;
-    const creative = (b.campaign.creatives ?? []).find(
-      (c) => c.is_active && c.variant === variant && c.kind === "internal",
-    );
+    const creative = pickCreative(b.campaign.creatives, variant, placement.id);
     if (!creative) continue;
     cands.push({
       campaignId: b.campaign.id,
@@ -137,19 +200,6 @@ export async function GET(
     if (roll < 0) { picked = c; break; }
   }
 
-  // 5. Antwort — keine ids, keine Kundennamen, keine Preise.
-  return NextResponse.json(
-    {
-      kind: picked.creative.kind,
-      isHouse: picked.isHouse,
-      headline: picked.creative.headline,
-      body: picked.creative.body,
-      ctaLabel: picked.creative.cta_label,
-      href: picked.creative.target_url,
-      // Gestaltung (F3): theme immer, bg nur bei custom. Neutrale Keys.
-      theme: picked.creative.theme,
-      ...(picked.creative.theme === "custom" && picked.creative.bg_color ? { bg: picked.creative.bg_color } : {}),
-    },
-    { status: 200, headers: { "Cache-Control": "no-store" } },
-  );
+  // 5. Antwort.
+  return respond(picked.creative, picked.isHouse, publicUrl);
 }

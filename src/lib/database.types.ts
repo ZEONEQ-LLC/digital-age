@@ -161,11 +161,15 @@ export type Database = {
       ad_campaigns: {
         Row: {
           advertiser_id: string | null
+          approved_at: string | null
+          approved_by: string | null
+          approved_note: string | null
           created_at: string
           id: string
           is_house: boolean
           name: string
           notes: string | null
+          preview_token: string
           price_chf: number | null
           status: string
           updated_at: string
@@ -173,11 +177,15 @@ export type Database = {
         }
         Insert: {
           advertiser_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_note?: string | null
           created_at?: string
           id?: string
           is_house?: boolean
           name: string
           notes?: string | null
+          preview_token?: string
           price_chf?: number | null
           status?: string
           updated_at?: string
@@ -185,11 +193,15 @@ export type Database = {
         }
         Update: {
           advertiser_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_note?: string | null
           created_at?: string
           id?: string
           is_house?: boolean
           name?: string
           notes?: string | null
+          preview_token?: string
           price_chf?: number | null
           status?: string
           updated_at?: string
@@ -257,6 +269,7 @@ export type Database = {
           image_path: string | null
           is_active: boolean
           kind: string
+          placement_id: string | null
           target_url: string
           theme: string
           variant: string
@@ -275,6 +288,7 @@ export type Database = {
           image_path?: string | null
           is_active?: boolean
           kind: string
+          placement_id?: string | null
           target_url: string
           theme?: string
           variant?: string
@@ -293,6 +307,7 @@ export type Database = {
           image_path?: string | null
           is_active?: boolean
           kind?: string
+          placement_id?: string | null
           target_url?: string
           theme?: string
           variant?: string
@@ -304,6 +319,13 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "ad_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_creatives_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "ad_placements"
             referencedColumns: ["id"]
           },
         ]
@@ -1517,6 +1539,10 @@ export type Database = {
       merge_tags: {
         Args: { p_from_id: string; p_to_id: string }
         Returns: Json
+      }
+      regenerate_ad_preview_token: {
+        Args: { p_campaign_id: string }
+        Returns: string
       }
       rename_tag: {
         Args: { p_new_name: string; p_tag_id: string }

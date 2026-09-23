@@ -9,5 +9,6 @@ import { usePathname } from "next/navigation";
 export default function NewsTickerGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
   if (pathname.startsWith("/autor/") && pathname !== "/autor") return null;
+  if (pathname.startsWith("/vorschau/")) return null;
   return <>{children}</>;
 }

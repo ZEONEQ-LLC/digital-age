@@ -5,11 +5,12 @@ import Link from "next/link";
 import CompanyCard from "@/components/CompanyCard";
 import CompanyRow from "@/components/CompanyRow";
 import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
-import ModuleSlot from "@/components/module/ModuleSlot";
+import ModuleSlot, { type SlotReserve } from "@/components/module/ModuleSlot";
 import { SWISS_STATUSES, EMPLOYEE_RANGES, type StartupCardVM } from "@/lib/mappers/startupMappers";
 import type { SwissStatusCode, EmployeeRangeCode } from "@/lib/startupApi";
 
 type Props = {
+  moduleReserve?: SlotReserve;
   all: StartupCardVM[];
   featured: StartupCardVM[];
   industries: string[];
@@ -22,7 +23,7 @@ const PAGE_INCREMENT = 6;
 type SwissFilter = "all" | SwissStatusCode;
 type EmpFilter = "all" | EmployeeRangeCode;
 
-export default function StartupsBrowser({ all, featured, industries, cities }: Props) {
+export default function StartupsBrowser({ moduleReserve, all, featured, industries, cities }: Props) {
   const [industry, setIndustry]   = useState<"Alle Branchen" | string>("Alle Branchen");
   const [city, setCity]           = useState<"Alle Städte" | string>("Alle Städte");
   const [status, setStatus]       = useState<SwissFilter>("all");
@@ -304,7 +305,7 @@ export default function StartupsBrowser({ all, featured, industries, cities }: P
               <p className="sa-cta-eintragen__hint">Kosten- und bedingungslos eintragen lassen.</p>
               <span className="sa-cta-eintragen__btn">Einreichen →</span>
             </Link>
-            <ModuleSlot code="swiss_ai_sidebar" ressortSlug="swiss-ai" />
+            <ModuleSlot code="swiss_ai_sidebar" ressortSlug="swiss-ai" reserve={moduleReserve} />
           </aside>
 
           <div>
