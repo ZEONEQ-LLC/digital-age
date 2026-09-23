@@ -33,6 +33,12 @@ export type PlacementGeometry = {
   allowedRessorts?: string[];
 };
 
+// Band-Aufschlag fuer article_inline (Presserat 10.1, Kundenkreative im
+// Artikel): Kopfzeile (~20 px) + Abstand (12 px) + Innenabstand oben/unten
+// (2 x 20 px). Einmal gemessen, in die reservierten Hoehen eingerechnet, damit
+// die Hoehe vor dem Fetch bekannt bleibt (CLS-Regel aus #157/#158).
+export const BAND_EXTRA = 72;
+
 export const PLACEMENTS: Record<PlacementCode, PlacementGeometry> = {
   home_billboard: {
     imageSize: { desktop: { w: 970, h: 250 }, mobile: { w: 320, h: 100 } },
@@ -51,7 +57,7 @@ export const PLACEMENTS: Record<PlacementCode, PlacementGeometry> = {
   },
   article_inline: {
     imageSize: { desktop: { w: 728, h: 90 }, mobile: { w: 300, h: 250 } },
-    internalHeight: { desktop: 132, mobile: 150 }, imageHeight: { desktop: 90, mobile: 250 },
+    internalHeight: { desktop: 132 + BAND_EXTRA, mobile: 150 + BAND_EXTRA }, imageHeight: { desktop: 90 + BAND_EXTRA, mobile: 250 + BAND_EXTRA },
     layout: "wide", insertAfterBlock: 3, allowedScopes: ["global", "ressort", "article"],
   },
   rail_left: {

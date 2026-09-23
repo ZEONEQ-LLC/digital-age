@@ -449,7 +449,7 @@ export default function BlockReader({ doc, blocks, articleSlug, ressortSlug, mod
           {/* Reines Markup um den Slot (kein Block-Typ): Luft oben/unten wie zwischen Absaetzen. */}
           {showInlineModule && i === (inlineAfter as number) - 1 && (
             <div style={{ margin: "var(--sp-8) 0" }}>
-              <ModuleSlot code="article_inline" ressortSlug={ressortSlug} articleSlug={articleSlug} reserve={moduleReserve} />
+              <ModuleSlot code="article_inline" ressortSlug={ressortSlug} articleSlug={articleSlug} reserve={moduleReserve} frame="band" />
             </div>
           )}
         </span>

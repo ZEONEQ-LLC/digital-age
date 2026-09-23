@@ -25,6 +25,9 @@ type Props = {
   ressortSlug?: string;
   articleSlug?: string;
   reserve?: SlotReserve;
+  // "band": Kundenkreative im Artikel bekommen eine abgesetzte Huelle mit
+  // Kopfzeile (Presserat 10.1). House bleibt unveraendert.
+  frame?: "band";
 };
 
 type ModuleData =
@@ -68,7 +71,7 @@ function sendEvent(code: string, k: string, t: "v" | "c"): void {
   fetch(url, { method: "POST", body, keepalive: true, headers: { "Content-Type": "text/plain" } }).catch(() => {});
 }
 
-export default function ModuleSlot({ code, ressortSlug, articleSlug, reserve = "internal" }: Props) {
+export default function ModuleSlot({ code, ressortSlug, articleSlug, reserve = "internal", frame }: Props) {
   const { internalHeight, imageHeight, minViewport, layout } = PLACEMENTS[code];
   const height = reserve === "image" ? imageHeight : internalHeight;
   const id = useId().replace(/[:]/g, "");
@@ -191,6 +194,7 @@ export default function ModuleSlot({ code, ressortSlug, articleSlug, reserve = "
           eager={code === "home_billboard"}
           linkAttrs={linkAttrs}
           onActivate={onActivate}
+          frame={frame}
         />
       )}
       {state.phase === "ready" && state.data.kind === "internal" && (
@@ -206,6 +210,7 @@ export default function ModuleSlot({ code, ressortSlug, articleSlug, reserve = "
           bg={state.data.bg}
           linkAttrs={linkAttrs}
           onActivate={onActivate}
+          frame={frame}
         />
       )}
     </div>

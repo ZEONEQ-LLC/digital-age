@@ -31,7 +31,6 @@ export async function getCampaignsOverview(): Promise<CampaignOverviewVM[]> {
     const labels = Array.from(
       new Set(c.bookings.map((b) => b.placement?.label).filter((l): l is string => !!l)),
     );
-    const firstPeriod = c.bookings[0]?.period;
     return {
       id: c.id,
       name: c.name,
@@ -40,9 +39,35 @@ export async function getCampaignsOverview(): Promise<CampaignOverviewVM[]> {
       status: c.status,
       priceChf: c.price_chf,
       placementLabels: labels,
-      periodLabel: firstPeriod ? formatPeriod(firstPeriod) : "—",
+      periodLabel: overviewPeriodLabel(c.bookings.map((b) => b.period)),
     };
   });
+}
+
+// Laufzeit ueber alle Buchungen (H8): min(lower) bis max(upper); eine offene
+// Obergrenze macht das Ganze unbefristet. Zuercher Kalendertage, Ende inklusiv.
+function overviewPeriodLabel(periods: unknown[]): string {
+  let from: string | null = null;
+  let to: string | null = null;
+  let open = false;
+  let any = false;
+  for (const p of periods) {
+    const parsed = parsePeriod(p);
+    if (!parsed) continue;
+    any = true;
+    if (parsed.lower && (from === null || new Date(parsed.lower).getTime() < new Date(from).getTime())) from = parsed.lower;
+    if (parsed.upper) {
+      if (to === null || new Date(parsed.upper).getTime() > new Date(to).getTime()) to = parsed.upper;
+    } else {
+      open = true;
+    }
+  }
+  if (!any) return "—";
+  if (open || !to) {
+    const start = from ? formatPeriod(`[${from},)`) : "";
+    return start ? `${start}, unbefristet` : "unbefristet";
+  }
+  return formatPeriod(`[${from ?? ""},${to})`);
 }
 
 // ── Anteil an der Rotation (F1) ──────────────────────────────────────────
