@@ -3,9 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
-  createAdvertiser, createContact, deleteAdvertiser, deleteContact, updateAdvertiser,
+  createAdvertiser, createContact, deleteAdvertiser, deleteContact, lookupUidAction, updateAdvertiser,
 } from "@/lib/ads/adActions";
-import { ADVERTISER_LANGUAGES, type AdvertiserInput, type AdvertiserWithContacts } from "@/lib/ads/types";
+import {
+  ADVERTISER_LANGUAGES, normalizeUid, type AdvertiserInput, type AdvertiserWithContacts, type UidLookupHit,
+} from "@/lib/ads/types";
 import { card, errStyle, help, inputStyle, labelStyle, btnPrimary, btnGhost, btnSmall } from "../formStyles";
 
 type Props = { initialAdvertisers: AdvertiserWithContacts[] };
@@ -39,6 +41,49 @@ function AdvertiserForm({
 }) {
   const set = (patch: Partial<AdvertiserInput>) => setDraft({ ...draft, ...patch });
   const [usePob, setUsePob] = useState(!!draft.post_office_box);
+
+  // UID-Register (G6): Suche mit UID-Feld, sonst mit dem Namen. Treffer
+  // fuellen die Formularfelder vor; alles bleibt editierbar, nichts wird
+  // ausserhalb der Felder gespeichert.
+  const [uidBusy, setUidBusy] = useState(false);
+  const [uidError, setUidError] = useState<string | null>(null);
+  const [uidHits, setUidHits] = useState<UidLookupHit[]>([]);
+  const [uidApplied, setUidApplied] = useState(false);
+  const uidRaw = (draft.uid ?? "").trim();
+  const uidInvalid = uidRaw !== "" && !normalizeUid(uidRaw);
+
+  async function searchUid() {
+    const query = uidRaw || draft.name.trim();
+    setUidError(null); setUidHits([]);
+    if (!query) { setUidError("Bitte UID oder Firmenname eingeben."); return; }
+    setUidBusy(true);
+    try {
+      const res = await lookupUidAction(query);
+      if (!res.ok) setUidError(res.error);
+      else setUidHits(res.hits);
+    } finally {
+      setUidBusy(false);
+    }
+  }
+
+  function applyHit(h: UidLookupHit) {
+    if ((draft.name.trim() || (draft.street ?? "").trim()) && !confirm("Bestehende Angaben (Name, Adresse) werden überschrieben. Fortfahren?")) return;
+    const hasStreet = !!h.street;
+    setUsePob(!hasStreet && !!h.postOfficeBox);
+    setDraft({
+      ...draft,
+      name: h.name.slice(0, 70),
+      uid: h.uid,
+      street: hasStreet ? (h.street ?? "").slice(0, 70) : "",
+      house_number: hasStreet ? (h.houseNumber ?? "").slice(0, 16) : "",
+      post_office_box: !hasStreet ? (h.postOfficeBox ?? "") : "",
+      postal_code: (h.postalCode ?? "").slice(0, 16),
+      city: (h.city ?? "").slice(0, 35),
+      country: COUNTRIES.includes(h.country) ? h.country : draft.country,
+    });
+    setUidHits([]);
+    setUidApplied(true);
+  }
   // Umschalter leert die jeweils ausgeblendeten Felder, damit der Adress-CHECK nicht anschlaegt.
   function togglePob(next: boolean) {
     setUsePob(next);
@@ -56,9 +101,35 @@ function AdvertiserForm({
         </div>
         <div>
           <label style={labelStyle} htmlFor="ad-uid">UID</label>
-          <input id="ad-uid" style={inputStyle} placeholder="CHE123456789" value={draft.uid ?? ""} onChange={(e) => set({ uid: e.target.value })} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <input id="ad-uid" style={inputStyle} placeholder="CHE123456789" value={draft.uid ?? ""} onChange={(e) => { set({ uid: e.target.value }); setUidApplied(false); }} />
+            <button type="button" style={{ ...btnGhost, whiteSpace: "nowrap" }} disabled={uidBusy || pending} onClick={() => void searchUid()}>
+              {uidBusy ? "Suche …" : "Im UID-Register suchen"}
+            </button>
+          </div>
+          {uidInvalid && <p style={{ ...errStyle, marginTop: 6 }}>Format CHE123456789 — der Server prüft abschliessend.</p>}
+          {uidApplied && !uidInvalid && <p style={{ ...help, color: "var(--da-green)" }}>Übernommen aus dem UID-Register (BFS)</p>}
+          {uidError && <p style={{ ...errStyle, marginTop: 6 }}>{uidError}</p>}
         </div>
       </div>
+      {uidHits.length > 0 && (
+        <div style={{ border: "1px solid var(--da-border)", borderRadius: 6, overflow: "hidden" }}>
+          {uidHits.map((h) => (
+            <button
+              key={h.uid}
+              type="button"
+              onClick={() => applyHit(h)}
+              style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr auto", gap: 12, alignItems: "center", width: "100%", textAlign: "left", padding: "10px 12px", background: "transparent", border: 0, borderBottom: "1px solid var(--da-border)", color: "var(--da-text)", cursor: "pointer", fontSize: 13 }}
+            >
+              <span style={{ fontWeight: 600 }}>{h.name}</span>
+              <span style={{ fontFamily: "var(--da-font-mono)", color: "var(--da-muted)", fontSize: 12 }}>{h.uid}</span>
+              <span style={{ color: "var(--da-muted)" }}>{[h.postalCode, h.city].filter(Boolean).join(" ")}</span>
+              <span style={{ fontSize: 10, fontFamily: "var(--da-font-mono)", letterSpacing: "0.1em", textTransform: "uppercase", color: h.active ? "var(--da-green)" : "var(--da-orange)", border: `1px solid ${h.active ? "var(--da-green)" : "var(--da-orange)"}`, borderRadius: 999, padding: "2px 7px" }}>{h.active ? "aktiv" : "inaktiv"}</span>
+            </button>
+          ))}
+          <p style={{ ...help, padding: "6px 12px 8px", margin: 0 }}>Klick übernimmt Name, UID und Adresse in das Formular.</p>
+        </div>
+      )}
 
       <span style={{ ...labelStyle, marginBottom: 0, marginTop: 4 }}>Rechnungsadresse</span>
       <label style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--da-text)", fontSize: 14 }}>

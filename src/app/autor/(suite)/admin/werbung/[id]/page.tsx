@@ -3,6 +3,7 @@ import PageTitle from "@/components/author/PageTitle";
 import { getCampaignDetail, getAdvertisersLight, getPlacements } from "@/lib/ads/adApi";
 import CampaignDetailClient from "./CampaignDetailClient";
 import WerbungSubNav from "@/components/author/WerbungSubNav";
+import { getBaseUrl } from "@/lib/siteUrl";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -22,7 +23,7 @@ export default async function CampaignDetailPage({ params }: PageProps) {
         subtitle={detail.campaign.is_house ? "House-Kampagne" : detail.advertiserName ?? "Kunden-Kampagne"}
         right={<WerbungSubNav />}
       />
-      <CampaignDetailClient detail={detail} advertisers={advertisers} placements={placements} />
+      <CampaignDetailClient detail={detail} advertisers={advertisers} placements={placements} previewBase={getBaseUrl()} />
     </>
   );
 }
