@@ -9,6 +9,7 @@ import { lookupUid } from "@/lib/ads/uidLookup";
 import { getCampaignStatsRows, type CampaignStatsRow } from "@/lib/ads/statsApi";
 import {
   RESSORT_SLUGS,
+  allowedStatusTargets,
   normalizeUid,
   type ActionResult,
   type ActionResultId,
@@ -99,6 +100,8 @@ const PASSTHROUGH_PREFIXES = [
   "Rechnung ueber Agentur",
   "Kampagnenart",
   "Diese Platzierung ist nur",
+  "Kreativ wird von einer laufenden",
+  "Kunde hat laufende Kampagnen",
 ];
 
 function mapDbError(error: { code?: string; message?: string } | null): string {
@@ -111,7 +114,8 @@ function mapDbError(error: { code?: string; message?: string } | null): string {
       .replace(/ueber/g, "über")
       .replace(/vollstaendige/g, "vollständige")
       .replace(/fuer/g, "für")
-      .replace(/geaendert/g, "geändert");
+      .replace(/geaendert/g, "geändert")
+      .replace(/koennen/g, "können");
   }
   if (error?.code === "23P01") {
     return "Diese Buchung existiert bereits: gleiche Platzierung, gleicher Geltungsbereich, überlappender Zeitraum.";
@@ -285,6 +289,17 @@ export async function updateCampaign(id: string, input: CampaignInput): Promise<
 export async function setCampaignStatus(id: string, status: CampaignStatus): Promise<ActionResult> {
   try {
     const { supabase } = await requireEditor();
+    // Statusautomat (H6): nur vorgesehene Uebergaenge; DB-Gates bleiben als Netz.
+    const { data: current } = await supabase
+      .from("ad_campaigns")
+      .select("status, is_house")
+      .eq("id", id)
+      .maybeSingle();
+    if (!current) return { ok: false, error: "Kampagne nicht gefunden." };
+    if (current.status === status) return { ok: true };
+    if (!allowedStatusTargets(current.is_house, current.status).includes(status)) {
+      return { ok: false, error: `Übergang ${current.status} → ${status} ist nicht vorgesehen.` };
+    }
     const { error } = await supabase.from("ad_campaigns").update({ status }).eq("id", id);
     if (error) return { ok: false, error: mapDbError(error) };
     revalidateAll(id);

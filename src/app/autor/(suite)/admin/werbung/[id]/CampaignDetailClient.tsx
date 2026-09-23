@@ -14,7 +14,7 @@ import StatsSeries from "@/components/module/StatsSeries";
 import { deleteCreativeImage } from "@/lib/ads/imageActions";
 import { moduleImageUrl } from "@/lib/ads/imagePath";
 import {
-  CAMPAIGN_STATUSES, CREATIVE_THEMES, RESSORT_SLUGS, SCOPE_KINDS, formatPeriod, statusLabel,
+  CAMPAIGN_STATUSES, CREATIVE_THEMES, RESSORT_SLUGS, SCOPE_KINDS, allowedStatusTargets, formatPeriod, statusLabel,
   type BookingShare, type CampaignDetail, type CampaignStatus, type CreativeKind, type CreativeRow, type PlacementRow, type ScopeKind,
 } from "@/lib/ads/types";
 import { PLACEMENTS, isPlacementCode, type PlacementCode } from "@/lib/ads/placements";
@@ -296,6 +296,9 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
     URL.revokeObjectURL(url);
   }
 
+  const statusTargets = allowedStatusTargets(isHouse, c.status);
+  const hasInlineBooking = detail.bookings.some((b) => b.placementCode === "article_inline");
+
   const hasRef = bScope !== "global";
   const shareTitle = `Anteil = Gewicht ${c.weight} / (${c.weight} + Summe der Gewichte der anderen Live-Kampagnen auf derselben Fläche und Ebene, überlappender Zeitraum). Nicht-House schlägt House.`;
   const previewUrl = `${previewBase}/vorschau/${c.preview_token}`;
@@ -344,8 +347,9 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
       {/* Status */}
       <div style={{ ...card, display: "flex", flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
         <span style={{ ...labelStyle, marginBottom: 0 }}>Status</span>
-        <select value={c.status} onChange={(e) => changeStatus(e.target.value as CampaignStatus)} style={{ ...inputStyle, width: "auto" }}>
-          {CAMPAIGN_STATUSES.map((s) => <option key={s.code} value={s.code}>{s.label}</option>)}
+        {/* Statusautomat (H6): aktueller Status plus erlaubte Ziele; ended hat keine. */}
+        <select value={c.status} onChange={(e) => changeStatus(e.target.value as CampaignStatus)} style={{ ...inputStyle, width: "auto" }} disabled={statusTargets.length === 0}>
+          {CAMPAIGN_STATUSES.filter((s) => s.code === c.status || statusTargets.includes(s.code)).map((s) => <option key={s.code} value={s.code}>{s.label}</option>)}
         </select>
         <span style={{ color: "var(--da-muted)", fontSize: 13 }}>aktuell: {statusLabel(c.status)}</span>
         <div style={{ flex: 1 }} />
@@ -755,6 +759,11 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
                           <ModuleCard layout="stacked" kind="image" isHouse={isHouse} href="#" src={moduleImageUrl(crMobile.path)} w={crMobile.width} h={crMobile.height} alt={crAlt} eager preview />
                         </div>
                       )}
+                      {hasInlineBooking && !isHouse && crDesktop && crPlacementCode === "article_inline" && (
+                        <div style={{ display: "flex", flex: "1 1 100%" }}>
+                          <ModuleCard layout="wide" kind="image" frame="band" isHouse={isHouse} href="#" src={moduleImageUrl(crDesktop.path)} w={crDesktop.width} h={crDesktop.height} alt={crAlt} eager preview />
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <p style={{ ...help, margin: 0 }}>Motiv hochladen, um die Vorschau zu sehen.</p>
@@ -870,6 +879,12 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
                       <ModuleCard layout="stacked" isHouse={isHouse} headline={crHeadline || "Headline"} body={crBody || null} ctaLabel={crCta || null} href="#" theme={crTheme} bg={crBg} preview />
                     </div>
                   </div>
+                  {/* Kundeneindruck im Artikel (Band mit Kopfzeile), wenn article_inline gebucht ist. */}
+                  {hasInlineBooking && !isHouse && (
+                    <div style={{ display: "flex", marginTop: 16 }}>
+                      <ModuleCard layout="wide" frame="band" isHouse={isHouse} headline={crHeadline || "Headline"} body={crBody || null} ctaLabel={crCta || null} href="#" theme={crTheme} bg={crBg} preview />
+                    </div>
+                  )}
                 </div>
 
                 <p style={help}>Aktivierung auf Live verlangt je gebuchter Platzierung ein aktives Desktop-Kreativ (Platzierung passend oder „alle“); Mobile zusätzlich, sobald die Platzierung mobil ausliefert.</p>

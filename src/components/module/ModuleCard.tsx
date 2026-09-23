@@ -29,7 +29,41 @@ export type ModuleCardProps = {
   eager?: boolean;
   // Klick auf den Anker (Capture, kein preventDefault) — fuer das Zaehlen (J2).
   onActivate?: () => void;
+  // "band" (nur Kundenkreative, article_inline): abgesetzte Huelle mit
+  // Kopfzeile «ANZEIGE · Werbung, nicht Teil des Artikels» (Presserat 10.1).
+  // Der Kicker in der Karte entfaellt dann; Headline kleiner.
+  frame?: "band";
 };
+
+// Huelle um den Anker: eigener Flaechen-Token (dunkler als Karte und Seite),
+// Linie oben/unten, Kopfzeile. Nimmt die Textspaltenbreite ein.
+function Band({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <style>{`
+        .mod-band {
+          flex: 1; display: flex; flex-direction: column; gap: var(--sp-3);
+          background: var(--da-darker); border-top: 1px solid var(--da-border); border-bottom: 1px solid var(--da-border);
+          padding: var(--sp-5) var(--sp-4); min-width: 0;
+        }
+        .mod-band__head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; }
+        .mod-band__label { color: var(--da-muted); }
+        .mod-band__hint { color: var(--da-muted); font-size: var(--fs-body-sm); }
+        .mod-band .mod-inner { flex: 0 0 auto; }
+        .mod-band .mod-title { font-size: var(--fs-body-lg); }
+        .mod-band .mod-inner--image { align-self: center; width: auto; max-width: 300px; }
+        @media (min-width: 768px) { .mod-band .mod-inner--image { max-width: 728px; } }
+      `}</style>
+      <div className="mod-band">
+        <div className="mod-band__head">
+          <span className="mod-band__label da-overline">Anzeige</span>
+          <span className="mod-band__hint">Werbung, nicht Teil des Artikels</span>
+        </div>
+        {children}
+      </div>
+    </>
+  );
+}
 
 // Ref zeigt auf das <a class="mod-inner"> — Ziel fuer den IntersectionObserver.
 const ModuleCard = forwardRef<HTMLAnchorElement, ModuleCardProps>(function ModuleCard(props, ref) {
@@ -37,9 +71,13 @@ const ModuleCard = forwardRef<HTMLAnchorElement, ModuleCardProps>(function Modul
   const anchorAttrs = preview ? {} : linkAttrs;
   const pe: React.CSSProperties = preview ? { pointerEvents: "none" } : {};
   const activate = onActivate ? { onClickCapture: () => onActivate() } : {};
+  // Band nur fuer Kundenkreative; die Kopfzeile ersetzt den Kicker.
+  const band = props.frame === "band" && !isHouse;
+  const showKicker = !isHouse && !band;
+  const wrap = (node: React.ReactNode) => (band ? <Band>{node}</Band> : node);
 
   if (kind === "image") {
-    return (
+    return wrap(
       <>
         <style>{`
           .mod-inner--image {
@@ -53,7 +91,7 @@ const ModuleCard = forwardRef<HTMLAnchorElement, ModuleCardProps>(function Modul
           .mod-inner--image .mod-pic { display: block; width: 100%; height: auto; }
         `}</style>
         <a ref={ref} className={`mod-inner mod-inner--image mod-inner--${layout}`} style={pe} href={href} {...anchorAttrs} {...activate} aria-disabled={preview || undefined}>
-          {!isHouse && <span className="mod-kicker da-overline">Anzeige</span>}
+          {showKicker && <span className="mod-kicker da-overline">Anzeige</span>}
           {/* Plain <img>: Storage laeuft ohnehin unoptimized; Masse kommen aus der DB (kein CLS). */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -67,7 +105,7 @@ const ModuleCard = forwardRef<HTMLAnchorElement, ModuleCardProps>(function Modul
             style={{ maxWidth: props.w ? `${props.w}px` : undefined }}
           />
         </a>
-      </>
+      </>,
     );
   }
 
@@ -79,7 +117,7 @@ const ModuleCard = forwardRef<HTMLAnchorElement, ModuleCardProps>(function Modul
     ...(t.flat ? { borderColor: t.border } : {}),
     ...pe,
   };
-  return (
+  return wrap(
     <>
       <style>{`
         .mod-inner {
@@ -116,13 +154,13 @@ const ModuleCard = forwardRef<HTMLAnchorElement, ModuleCardProps>(function Modul
         <span className="mod-text">
           {/* Bezahlte (Kunden-)Platzierung sichtbar als "Anzeige" kennzeichnen;
               House-Eigenwerbung braucht keine Kennzeichnung. */}
-          {!isHouse && <span className="mod-kicker da-overline">Anzeige</span>}
+          {showKicker && <span className="mod-kicker da-overline">Anzeige</span>}
           <span className="mod-title">{props.headline}</span>
           {props.body && <span className="mod-body">{props.body}</span>}
         </span>
         {props.ctaLabel && <span className="mod-cta">{props.ctaLabel} →</span>}
       </a>
-    </>
+    </>,
   );
 });
 

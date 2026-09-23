@@ -1554,6 +1554,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ad_campaign_coverage_gap: {
+        Args: { p_campaign: string }
+        Returns: string
+      }
       article_editorial_snapshot: {
         Args: { a: Database["public"]["Tables"]["articles"]["Row"] }
         Returns: Json

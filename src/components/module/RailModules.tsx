@@ -8,6 +8,9 @@ import { PLACEMENTS } from "@/lib/ads/placements";
 // Position:fixed = vollstaendig aus dem Fluss → das zentrierte Content-Band wird
 // nie verschoben. Darunter per Media-Query ausgeblendet UND ModuleSlot laedt
 // wegen minViewport gar nicht erst. Nicht in der Editor-Suite.
+// Keine Rails auf Funktionsseiten (H11): Login, Onboarding, Kontakt,
+// Newsletter-Bestaetigungs-/Abmeldeseiten, Pitch-Formular. Prefix-Match.
+const RAIL_EXCLUDED_PREFIXES = ["/login", "/onboarding", "/kontakt", "/newsletter", "/artikel-pitchen"];
 const RAIL_MIN = PLACEMENTS.rail_left.minViewport ?? 1680;
 const RAIL_WIDTH = 160;
 
@@ -15,6 +18,7 @@ export default function RailModules() {
   const pathname = usePathname() ?? "";
   if (pathname.startsWith("/autor/") && pathname !== "/autor") return null;
   if (pathname.startsWith("/vorschau/")) return null;
+  if (RAIL_EXCLUDED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return null;
 
   return (
     <div className="rail-wrap">
