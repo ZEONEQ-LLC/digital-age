@@ -1482,10 +1482,6 @@ GA4 und der Footer-Button „Cookie-Einstellungen“ entscheiden über
   `updateAuthorProfile` / `updateAuthorAsEditor` geprüft).
 - **Neue Seite ohne Site-Chrome und ohne Tracking** (wie `/vorschau`) →
   `CHROMELESS_PREFIXES`.
-- `npm run build` prüft Punkt 1 automatisch (`prebuild` →
-  `scripts/check-suite-prefixes.ts`): ein Ordner unter `(suite)/` ohne Eintrag
-  oder ein neues statisches Segment unter `/autor/` ohne reserviertes Handle
-  bricht den Build ab — lokal und auf Vercel.
 
 ### Podcasts-Schema (Session D, drop+recreate)
 
