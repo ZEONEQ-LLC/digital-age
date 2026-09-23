@@ -5,6 +5,7 @@ import { useRef, useState, useTransition } from "react";
 import AuthorCard from "@/components/author/AuthorCard";
 import MonoCaption from "@/components/author/MonoCaption";
 import { updateAuthorProfile } from "@/lib/authorActions";
+import { HANDLE_RULE_TEXT, normalizeAuthorHandle } from "@/lib/siteChrome";
 import { uploadAvatar } from "@/lib/storageActions";
 import type { AuthorRow } from "@/lib/authorApi";
 
@@ -102,13 +103,17 @@ export default function ProfileEditor({ initial }: { initial: AuthorRow }) {
     e.preventDefault();
     setError(null);
     setSavedAt(null);
+    // Dieselbe Regel wie serverseitig vorab pruefen: Server-Action-Fehler kommen
+    // in Production nur als generische Meldung an.
+    const h = normalizeAuthorHandle(handle);
+    if (!h.ok) { setError(h.error); return; }
     startTransition(async () => {
       try {
         // avatar_url wird separat via uploadAvatar-Flow gepflegt — hier
         // bewusst nicht im Patch, damit der Upload-Flow autoritativ bleibt.
         await updateAuthorProfile({
           display_name: displayName.trim(),
-          handle: handle.trim() || null,
+          handle: h.handle,
           job_title: jobTitle.trim() || null,
           location: location.trim() || null,
           bio: bio.trim() || null,
@@ -238,6 +243,7 @@ export default function ProfileEditor({ initial }: { initial: AuthorRow }) {
                   onChange={(e) => setHandle(e.target.value)}
                   placeholder="z.B. ali-soy"
                 />
+                <p style={{ color: "var(--da-muted)", fontSize: 12, margin: "6px 0 0" }}>{HANDLE_RULE_TEXT}</p>
               </div>
             </div>
             <div className="a-prof__row">

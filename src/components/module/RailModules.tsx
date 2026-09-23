@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { isAuthorSuitePath, isChromelessPath } from "@/lib/siteChrome";
 import ModuleSlot from "./ModuleSlot";
 import { PLACEMENTS } from "@/lib/ads/placements";
 
@@ -16,8 +17,7 @@ const RAIL_WIDTH = 160;
 
 export default function RailModules() {
   const pathname = usePathname() ?? "";
-  if (pathname.startsWith("/autor/") && pathname !== "/autor") return null;
-  if (pathname.startsWith("/vorschau/")) return null;
+  if (isAuthorSuitePath(pathname) || isChromelessPath(pathname)) return null;
   if (RAIL_EXCLUDED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return null;
 
   return (

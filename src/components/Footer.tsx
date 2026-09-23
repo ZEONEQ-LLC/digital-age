@@ -2,6 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { isAuthorSuitePath } from "@/lib/siteChrome";
 import NewsletterSignup from "./NewsletterSignup";
 
 function openCookieSettings() {
@@ -18,9 +19,7 @@ export default function Footer() {
   const pathname = usePathname() ?? "";
   // D3: auf Artikelseiten keinen Newsletter-Block im Footer (CTA am Artikelende bleibt).
   const onArticle = pathname.startsWith("/artikel/");
-  const showCookieSettings = !(
-    pathname.startsWith("/autor/") && pathname !== "/autor"
-  );
+  const showCookieSettings = !isAuthorSuitePath(pathname);
 
   return (
     <>

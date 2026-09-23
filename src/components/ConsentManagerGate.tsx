@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { isAuthorSuitePath, isChromelessPath } from "@/lib/siteChrome";
 import Script from "next/script";
 
 // Bindet Google Funding Choices als reines CMP ein (KEIN AdSense — wir
@@ -9,7 +10,7 @@ import Script from "next/script";
 // identisch zu NewsTickerGate.
 export default function ConsentManagerGate() {
   const pathname = usePathname() ?? "";
-  if (pathname.startsWith("/autor/") && pathname !== "/autor") return null;
+  if (isAuthorSuitePath(pathname) || isChromelessPath(pathname)) return null;
 
   return (
     <>

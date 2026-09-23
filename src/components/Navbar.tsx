@@ -4,16 +4,15 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { isAuthorSuitePath, isChromelessPath } from "@/lib/siteChrome";
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const pathname = usePathname() ?? "";
-  // Navbar wird auf allen /autor/-Subrouten (Suite + Admin + Seiten) ausgeblendet.
-  // /autor selbst (Login-Page) zeigt weiterhin die Public-Navbar.
-  const isAuthorSuite = pathname.startsWith("/autor/") && pathname !== "/autor";
-  // Kunden-Vorschau (/vorschau/<token>) ist eine schlanke Seite ohne Site-Chrome.
-  if (isAuthorSuite || pathname.startsWith("/vorschau/")) return null;
+  // Keine Navbar in der Autoren-Suite und auf chrome-freien Seiten (Vorschau);
+  // oeffentliche Profile /autor/<handle> zeigen sie (siteChrome.ts).
+  if (isAuthorSuitePath(pathname) || isChromelessPath(pathname)) return null;
 
   return (
     <>
