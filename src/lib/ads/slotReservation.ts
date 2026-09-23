@@ -36,11 +36,12 @@ export async function getSlotReservation(code: PlacementCode): Promise<SlotReser
     const { data, error } = await supabase
       .from("ad_bookings")
       .select(
-        "placement_id, period, placement:ad_placements!inner(code), campaign:ad_campaigns!inner(status, is_house, creatives:ad_creatives(kind, is_active, placement_id))",
+        "placement_id, period, placement:ad_placements!inner(code), campaign:ad_campaigns!inner(status, is_house, creatives:ad_creatives!ad_creatives_campaign_id_fkey(kind, is_active, placement_id))",
       )
       .filter("placement.code", "eq", code)
       .filter("campaign.status", "eq", "live")
       .filter("campaign.is_house", "eq", false);
+    if (error) console.error("[module] slot reservation query failed:", error.message);
     if (error || !data) return "internal";
     const now = Date.now();
     for (const b of data as unknown as Row[]) {

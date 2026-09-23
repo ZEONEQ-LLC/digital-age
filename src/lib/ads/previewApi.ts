@@ -89,7 +89,7 @@ export async function getPreviewCampaign(token: string): Promise<PreviewCampaign
     .select(
       "id, name, status, is_house, approved_at, approved_by, approved_note, advertiser:ad_advertisers(name), " +
         "bookings:ad_bookings(id, placement_id, scope, scope_ref, period, placement:ad_placements(code, label)), " +
-        "creatives:ad_creatives(id, kind, variant, placement_id, headline, body, cta_label, target_url, is_active, theme, bg_color, image_path, width, height, alt_text)",
+        "creatives:ad_creatives!ad_creatives_campaign_id_fkey(id, kind, variant, placement_id, headline, body, cta_label, target_url, is_active, theme, bg_color, image_path, width, height, alt_text)",
     )
     .eq("preview_token", token)
     .maybeSingle();

@@ -387,6 +387,7 @@ export type Database = {
           clicks: number
           creative_id: string
           day: string
+          id: string
           impressions: number
           placement_id: string
         }
@@ -395,6 +396,7 @@ export type Database = {
           clicks?: number
           creative_id: string
           day: string
+          id?: string
           impressions?: number
           placement_id: string
         }
@@ -403,6 +405,7 @@ export type Database = {
           clicks?: number
           creative_id?: string
           day?: string
+          id?: string
           impressions?: number
           placement_id?: string
         }

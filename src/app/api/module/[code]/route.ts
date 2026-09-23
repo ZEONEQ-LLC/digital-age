@@ -180,7 +180,7 @@ export async function GET(
   if (p && /^[0-9a-f]{48}$/.test(p)) {
     const { data: pc } = await supabase
       .from("ad_campaigns")
-      .select(`id, is_house, bookings:ad_bookings(placement_id), creatives:ad_creatives(${CREATIVE_SELECT})`)
+      .select(`id, is_house, bookings:ad_bookings(placement_id), creatives:ad_creatives!ad_creatives_campaign_id_fkey(${CREATIVE_SELECT})`)
       .eq("preview_token", p)
       .maybeSingle();
     if (pc && (pc.bookings ?? []).some((b) => b.placement_id === placement.id)) {
@@ -194,9 +194,11 @@ export async function GET(
   const { data, error } = await supabase
     .from("ad_bookings")
     .select(
-      `scope, scope_ref, period, campaign:ad_campaigns(id, weight, is_house, status, creatives:ad_creatives(${CREATIVE_SELECT}))`,
+      `scope, scope_ref, period, campaign:ad_campaigns(id, weight, is_house, status, creatives:ad_creatives!ad_creatives_campaign_id_fkey(${CREATIVE_SELECT}))`,
     )
     .eq("placement_id", placement.id);
+  // Fehler sichtbar machen (Hotfix): ein stiller Ausfall blieb stundenlang unbemerkt.
+  if (error) console.error("[module] delivery query failed:", error.message);
   if (error || !data) return EMPTY();
 
   const now = Date.now();
