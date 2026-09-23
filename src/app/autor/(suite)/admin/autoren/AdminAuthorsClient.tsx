@@ -14,6 +14,7 @@ import {
   deleteAuthorAsEditor,
   type AuthorAdminPatch,
 } from "@/lib/authorAdminActions";
+import { HANDLE_RULE_TEXT, normalizeAuthorHandle } from "@/lib/siteChrome";
 import { buildInviteMessage } from "@/lib/inviteTextTemplate";
 import AvatarUploadBlock from "@/components/author/AvatarUploadBlock";
 
@@ -423,6 +424,9 @@ function EditAuthorDrawer({ author, inviterName, onClose, onSaved, onDeleted }: 
 
   function save() {
     setError(null);
+    // Handle-Regel vorab pruefen (Server prueft zusaetzlich; Action-Fehler sind in Production generisch).
+    const h = normalizeAuthorHandle(handle);
+    if (!h.ok) { setError(h.error); return; }
     const social_links: Record<string, string> = {};
     if (linkedin.trim()) social_links.linkedin = linkedin.trim();
     if (twitter.trim()) social_links.twitter = twitter.trim();
@@ -431,7 +435,7 @@ function EditAuthorDrawer({ author, inviterName, onClose, onSaved, onDeleted }: 
     const patch: AuthorAdminPatch = {
       display_name: displayName,
       email,
-      handle: handle.trim() || null,
+      handle: h.handle,
       job_title: jobTitle.trim() || null,
       location: location.trim() || null,
       bio: bio.trim() || null,
@@ -536,6 +540,7 @@ function EditAuthorDrawer({ author, inviterName, onClose, onSaved, onDeleted }: 
         <div className="a-adm-field">
           <label>Handle (für /autor/&lt;handle&gt;)</label>
           <input className="a-adm-input" value={handle} onChange={(e) => setHandle(e.target.value)} disabled={pending} />
+          <div style={{ color: "var(--da-muted)", fontSize: 12, marginTop: 4 }}>{HANDLE_RULE_TEXT}</div>
         </div>
         <div className="a-adm-field">
           <label>Rolle</label>

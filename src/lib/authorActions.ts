@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { normalizeAuthorHandle } from "@/lib/siteChrome";
 import { createClient } from "@/lib/supabase/server";
 import { deleteAllArticleImages } from "@/lib/storageActions";
 import { renderBlockDocumentToMarkdown } from "@/lib/blockDocumentMarkdown";
@@ -438,6 +439,11 @@ export type AuthorProfilePatch = {
 export async function updateAuthorProfile(patch: AuthorProfilePatch): Promise<AuthorRow> {
   const supabase = await createClient();
   const me = await requireCurrentAuthor();
+  if (patch.handle !== undefined) {
+    const h = normalizeAuthorHandle(patch.handle);
+    if (!h.ok) throw new Error(h.error);
+    patch = { ...patch, handle: h.handle };
+  }
   const { data, error } = await supabase
     .from("authors")
     .update(patch)

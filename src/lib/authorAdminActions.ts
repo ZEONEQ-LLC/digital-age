@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/database.types";
+import { normalizeAuthorHandle } from "@/lib/siteChrome";
 
 type AuthorRow = Database["public"]["Tables"]["authors"]["Row"];
 type AuthorUpdate = Database["public"]["Tables"]["authors"]["Update"];
@@ -53,7 +54,11 @@ export async function updateAuthorAsEditor(id: string, patch: AuthorAdminPatch):
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) throw new Error("E-Mail-Format ungültig.");
     update.email = v;
   }
-  if (patch.handle !== undefined) update.handle = patch.handle ?? null;
+  if (patch.handle !== undefined) {
+    const h = normalizeAuthorHandle(patch.handle);
+    if (!h.ok) throw new Error(h.error);
+    update.handle = h.handle;
+  }
   if (patch.job_title !== undefined) update.job_title = patch.job_title ?? null;
   if (patch.location !== undefined) update.location = patch.location ?? null;
   if (patch.bio !== undefined) update.bio = patch.bio ?? null;
