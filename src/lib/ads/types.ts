@@ -22,6 +22,35 @@ export const CAMPAIGN_STATUSES: { code: CampaignStatus; label: string }[] = [
   { code: "cancelled", label: "Storniert" },
 ];
 
+// Statusautomat (H6): erlaubte Uebergaenge je Kampagnenart. UI zeigt nur
+// diese Ziele, setCampaignStatus prueft dieselbe Konstante serverseitig;
+// DB-Gates bleiben als Netz.
+export const STATUS_TRANSITIONS: Record<"customer" | "house", Record<CampaignStatus, CampaignStatus[]>> = {
+  customer: {
+    draft: ["offer", "cancelled"],
+    offer: ["confirmed", "draft", "cancelled"],
+    confirmed: ["live", "offer", "cancelled"],
+    live: ["paused", "ended"],
+    paused: ["live", "ended"],
+    ended: [],
+    cancelled: ["draft"],
+  },
+  house: {
+    draft: ["live", "cancelled"],
+    offer: ["draft", "cancelled"],
+    confirmed: ["live", "cancelled"],
+    live: ["paused", "ended"],
+    paused: ["live", "ended"],
+    ended: [],
+    cancelled: ["draft"],
+  },
+};
+
+export function allowedStatusTargets(isHouse: boolean, from: string): CampaignStatus[] {
+  const table = STATUS_TRANSITIONS[isHouse ? "house" : "customer"];
+  return (table as Record<string, CampaignStatus[]>)[from] ?? [];
+}
+
 export function statusLabel(code: string): string {
   return CAMPAIGN_STATUSES.find((s) => s.code === code)?.label ?? code;
 }
