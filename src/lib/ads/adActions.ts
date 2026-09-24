@@ -7,6 +7,7 @@ import { requireEditor } from "@/lib/ads/editorGate";
 import { isModuleImagePath } from "@/lib/ads/imagePath";
 import { lookupUid } from "@/lib/ads/uidLookup";
 import { getCampaignStatsRows, type CampaignStatsRow } from "@/lib/ads/statsApi";
+import { TEXT_LIMITS } from "@/lib/ads/mediaKit";
 import {
   RESSORT_SLUGS,
   allowedStatusTargets,
@@ -452,6 +453,12 @@ function buildCreativePayload(
 
   const headline = (input.headline ?? "").trim();
   if (!headline) return { error: "Headline ist erforderlich." };
+  // Zeichenlimits wie auf /mediadaten zugesagt (TEXT_LIMITS, mediaKit.ts).
+  const body = (input.body ?? "").trim();
+  const cta = (input.cta_label ?? "").trim();
+  if (headline.length > TEXT_LIMITS.headline) return { error: `Titel ist zu lang (max. ${TEXT_LIMITS.headline} Zeichen).` };
+  if (body.length > TEXT_LIMITS.body) return { error: `Text ist zu lang (max. ${TEXT_LIMITS.body} Zeichen).` };
+  if (cta.length > TEXT_LIMITS.cta) return { error: `Button ist zu lang (max. ${TEXT_LIMITS.cta} Zeichen).` };
   const style = resolveCreativeStyle(input);
   if ("error" in style) return { error: style.error };
   return {
@@ -460,8 +467,8 @@ function buildCreativePayload(
       variant: input.variant,
       placement_id: placementId,
       headline,
-      body: input.body || null,
-      cta_label: input.cta_label || null,
+      body: body || null,
+      cta_label: cta || null,
       image_path: null,
       width: null,
       height: null,

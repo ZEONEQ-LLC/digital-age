@@ -87,6 +87,17 @@ export default function KontaktPage() {
     if (submitted) window.scrollTo({ top: 0, behavior: "smooth" });
   }, [submitted]);
 
+  // ?thema=<wert> belegt das Anliegen vor (z.B. /kontakt?thema=werbung von
+  // /mediadaten). Nur Werte aus TOPICS. Kein useSearchParams, damit die
+  // statische Seite ohne Suspense-Grenze auskommt; einmalig nach dem Mount.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const thema = new URLSearchParams(window.location.search).get("thema");
+    const match = TOPICS.find((t) => t.value === thema);
+    if (match) setData((p) => (p.topic ? p : { ...p, topic: match.value }));
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   const set = <K extends keyof ContactFormState>(k: K, v: ContactFormState[K]) => {
     setData((p) => ({ ...p, [k]: v }));
     if (errors[k as FieldKey]) {
@@ -501,7 +512,10 @@ export default function KontaktPage() {
                   {[
                     "Wir lesen jede Nachricht persönlich",
                     "Du bekommst Antwort innerhalb von 5 Werktagen",
-                    "Bei Werbung/Kooperationen melden wir uns mit Mediadaten",
+                    <>
+                      Bei Werbung melden wir uns mit Verfügbarkeiten und einer Offerte.{" "}
+                      <Link href="/mediadaten" style={{ color: "var(--da-green)" }}>Formate und Preise</Link>
+                    </>,
                   ].map((line, i) => (
                     <li key={i}>
                       <span className="num">0{i + 1}</span>
