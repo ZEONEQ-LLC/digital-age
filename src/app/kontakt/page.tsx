@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import Footer from "@/components/Footer";
 
 import PageHero from "@/components/PageHero";
+import { MEDIA_INQUIRY_MESSAGES, isMediaPackage } from "@/lib/ads/mediaKit";
 import { submitContactMessage } from "@/lib/contact/submit";
 
 type Topic = "" | "allgemein" | "werbung" | "kooperation" | "feedback" | "presse" | "sonstiges";
@@ -87,14 +88,23 @@ export default function KontaktPage() {
     if (submitted) window.scrollTo({ top: 0, behavior: "smooth" });
   }, [submitted]);
 
-  // ?thema=<wert> belegt das Anliegen vor (z.B. /kontakt?thema=werbung von
-  // /mediadaten). Nur Werte aus TOPICS. Kein useSearchParams, damit die
-  // statische Seite ohne Suspense-Grenze auskommt; einmalig nach dem Mount.
+  // ?thema=<wert> belegt das Anliegen vor, ?paket=<wert> die Nachricht (z.B.
+  // /kontakt?thema=werbung&paket=komplett von /mediadaten). Nur Werte aus
+  // TOPICS bzw. MEDIA_PACKAGES, unbekannte werden ignoriert, nichts wird
+  // ueberschrieben. Kein useSearchParams, damit die statische Seite ohne
+  // Suspense-Grenze auskommt; einmalig nach dem Mount.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    const thema = new URLSearchParams(window.location.search).get("thema");
-    const match = TOPICS.find((t) => t.value === thema);
-    if (match) setData((p) => (p.topic ? p : { ...p, topic: match.value }));
+    const params = new URLSearchParams(window.location.search);
+    const topic = TOPICS.find((t) => t.value === params.get("thema"))?.value;
+    const paket = params.get("paket");
+    const message = isMediaPackage(paket) ? MEDIA_INQUIRY_MESSAGES[paket] : undefined;
+    if (!topic && !message) return;
+    setData((p) => ({
+      ...p,
+      topic: p.topic || topic || "",
+      message: p.message.trim() ? p.message : (message ?? p.message),
+    }));
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 

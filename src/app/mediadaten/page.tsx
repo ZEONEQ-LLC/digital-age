@@ -8,18 +8,14 @@ import { resolveTheme } from "@/lib/ads/creativeTheme";
 import {
   CREATIVE_SPECS, MEDIA_EXAMPLES, MEDIA_EXAMPLE_BRAND, MEDIA_EXAMPLE_ORDER, MEDIA_INQUIRY_HREF,
   MEDIA_PARTNERS, MEDIA_PLACEMENTS, MEDIA_PRICING, PRICE_NOTE, RETINA, TEXT_LIMITS,
-  exampleSize, fileSize, formatSize, placementFormat, placementWhere, sameSize,
+  exampleSize, fileSize, formatSize, mediaInquiryHref, placementFormat, sameSize,
   type MediaPlacement,
 } from "@/lib/ads/mediaKit";
 import { buildListingMetadata } from "@/lib/listingMetadata";
-import { getPublishedStartups } from "@/lib/startupApi";
-import { createPublicClient } from "@/lib/supabase/public";
 import { MdFrame, PlacementMobileMotif, PlacementSketch } from "./PlacementVisual";
 
-// Oeffentliche Mediadaten fuer Werbekunden. ISR (stuendlich), nur Anon-Reads
-// ueber createPublicClient: kein cookies(), kein Service-Client. Sie-Form.
+// Oeffentliche Mediadaten fuer Werbekunden. Statisch, ohne DB-Zugriff. Sie-Form.
 // Neutrale Klassennamen (md-*). Masse aus PLACEMENTS via mediaKit.ts.
-export const revalidate = 3600;
 
 export const metadata: Metadata = buildListingMetadata({
   path: "/mediadaten",
@@ -27,28 +23,6 @@ export const metadata: Metadata = buildListingMetadata({
   description:
     "Mediadaten von digital age: fünf Platzierungen mit eigenen Motiven für Desktop und Mobile, Formate und Masse, Grundsätze, Ablauf und Preise für Ihre Anzeige.",
 });
-
-async function getCounts(): Promise<{ articles: number | null; startups: number | null }> {
-  let articles: number | null = null;
-  let startups: number | null = null;
-  try {
-    const supabase = createPublicClient();
-    const { count, error } = await supabase
-      .from("articles")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "published");
-    if (!error) articles = count ?? null;
-  } catch {
-    // ohne Zahl rendern
-  }
-  try {
-    // Exakt der Filter der Swiss-AI-Listing-Seite (published + featured).
-    startups = (await getPublishedStartups()).length;
-  } catch {
-    // ohne Zahl rendern
-  }
-  return { articles, startups };
-}
 
 function Arrow() {
   return (
@@ -128,13 +102,7 @@ function SpecRows({ p }: { p: MediaPlacement }) {
   );
 }
 
-export default async function MediadatenPage() {
-  const { articles, startups } = await getCounts();
-  const stats = [
-    articles != null ? { n: articles, label: "Fachartikel" } : null,
-    startups != null ? { n: startups, label: "Unternehmen im Swiss AI Verzeichnis" } : null,
-    { n: MEDIA_PLACEMENTS.length, label: "Platzierungen" },
-  ].filter((s): s is { n: number; label: string } => s !== null);
+export default function MediadatenPage() {
   const [featured, ...otherPrices] = MEDIA_PRICING;
   const ex = CREATIVE_SPECS.text.example;
 
@@ -171,9 +139,6 @@ export default async function MediadatenPage() {
         .md-hero__title { margin: 0; color: var(--da-text); font-family: var(--da-font-display); font-size: 64px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
         .md-hero__title em { font-style: normal; color: var(--da-green); }
         .md-hero__lead { margin: 0; color: var(--da-muted); font-size: 18px; line-height: 1.65; max-width: 580px; }
-        .md-hero__stats { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; color: var(--da-muted); font-family: var(--da-font-mono); font-size: 13px; }
-        .md-hero__stats strong { color: var(--da-text); }
-        .md-hero__sep { color: var(--da-border); }
         .md-hero__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
         .md-hero__example { display: flex; flex-direction: column; gap: 14px; padding: 24px; background: var(--da-darker); border: 1px solid var(--da-border-soft); border-radius: var(--r-lg); }
         .md-hero__pair { display: flex; align-items: flex-end; gap: 16px; margin-top: 6px; }
@@ -350,12 +315,6 @@ export default async function MediadatenPage() {
         .md-partners__list a { color: var(--da-text); font-size: 15px; font-weight: 600; text-decoration: none; }
         .md-partners__list a:hover { color: var(--da-green); }
 
-        /* Kontakt-Band */
-        .md-contact { padding: 72px 0; background: var(--da-darker); border-top: 1px solid var(--da-border-soft); }
-        .md-contact__inner { display: flex; align-items: center; justify-content: space-between; gap: 48px; }
-        .md-contact__text { display: flex; flex-direction: column; gap: 12px; max-width: 720px; }
-        .md-contact__title { margin: 0; color: var(--da-text); font-family: var(--da-font-display); font-size: 32px; font-weight: 700; line-height: 1.15; }
-
         @media (max-width: 1099px) {
           .md-pl { grid-template-columns: 1fr; gap: 32px; }
           .md-hero__grid { grid-template-columns: 1fr; gap: 40px; }
@@ -372,7 +331,6 @@ export default async function MediadatenPage() {
         }
         @media (max-width: 899px) {
           .md-prices { grid-template-columns: 1fr; }
-          .md-contact__inner { flex-direction: column; align-items: stretch; gap: 20px; }
         }
         @media (max-width: 767px) {
           .md-shell { padding: 0 var(--sp-5); }
@@ -386,8 +344,6 @@ export default async function MediadatenPage() {
           .md-hero__text { gap: 20px; }
           .md-hero__title { font-size: 46px; }
           .md-hero__lead { font-size: 16px; }
-          .md-hero__stats { flex-direction: column; align-items: flex-start; }
-          .md-hero__sep { display: none; }
           .md-hero__actions { flex-direction: column; gap: 10px; margin-top: 4px; }
           .md-hero__example { padding: 0; background: transparent; border: 0; gap: 10px; }
           .md-btn { justify-content: center; height: 52px; padding: 0 22px; font-size: 16px; }
@@ -415,12 +371,11 @@ export default async function MediadatenPage() {
           .md-price { padding: 24px 20px; gap: 18px; }
           .md-price__head { flex-direction: column-reverse; align-items: flex-start; }
           .md-price__name { font-size: 22px; }
+          .md-price__badge { letter-spacing: 0.08em; }
           .md-price__amount { flex-direction: column; align-items: flex-start; gap: 2px; }
           .md-price__value { font-size: 42px; }
           .md-price--plain .md-price__value { font-size: 32px; }
           .md-price__cta { align-self: stretch; }
-          .md-contact { padding: 48px 0; }
-          .md-contact__title { font-size: 26px; line-height: 1.2; }
         }
       `}</style>
 
@@ -432,14 +387,6 @@ export default async function MediadatenPage() {
             <h1 className="md-hero__title">Media<em>daten</em></h1>
             <p className="md-hero__lead">
               Das Schweizer Fachmedium für KI und Technologie. Ihre Anzeige erscheint neben Fachartikeln, in den Ressorts und im Swiss AI Verzeichnis – direkt verkauft, klar gekennzeichnet und ohne Tracking von Dritten.
-            </p>
-            <p className="md-hero__stats">
-              {stats.map((s, i) => (
-                <span key={s.label} style={{ display: "contents" }}>
-                  {i > 0 && <span className="md-hero__sep" aria-hidden="true">/</span>}
-                  <span><strong>{s.n}</strong> {s.label}</span>
-                </span>
-              ))}
             </p>
             <div className="md-hero__actions">
               <Link href={MEDIA_INQUIRY_HREF} className="da-btn da-btn--primary md-btn">Anfrage senden<Arrow /></Link>
@@ -480,7 +427,7 @@ export default async function MediadatenPage() {
                     <span className="md-pl__no">{p.no}</span>
                     <h3 className="md-pl__title">{p.title}</h3>
                   </div>
-                  <p className="md-pl__where">{placementWhere(p, startups)}</p>
+                  <p className="md-pl__where">{p.where}</p>
                   <div className="md-only-narrow"><PlacementMobileMotif code={p.codes[0]} /></div>
                   <SpecRows p={p} />
                 </div>
@@ -624,9 +571,9 @@ export default async function MediadatenPage() {
         <div className="md-shell">
           <div className="md-head">
             <p className="md-overline">Preise</p>
-            <h2 className="md-h2">Früh dabei sein</h2>
+            <h2 className="md-h2">Preise</h2>
             <p className="md-lead">
-              digital age ist jung und wächst. Partner der ersten Stunde sind drei Monate auf allen Plätzen präsent und behalten ihren Preis bei der Verlängerung.
+              Zum Start bieten wir ein Komplettpaket für höchstens drei Kunden an: alle Plätze, drei Monate, Preisgarantie für die Verlängerung. Einzelne Platzierungen buchen Sie auf Anfrage.
             </p>
           </div>
           <div className="md-prices">
@@ -643,11 +590,11 @@ export default async function MediadatenPage() {
                 <ul className="md-price__lines">
                   {featured.lines.map((l) => <li key={l}><Check />{l}</li>)}
                 </ul>
-                <Link href={MEDIA_INQUIRY_HREF} className="da-btn da-btn--primary md-btn md-price__cta">Partner werden<Arrow /></Link>
+                <Link href={mediaInquiryHref(featured.key)} className="da-btn da-btn--primary md-btn md-price__cta">{featured.cta}<Arrow /></Link>
               </div>
             )}
             {otherPrices.map((p) => (
-              <div key={p.name} className="md-price md-price--plain">
+              <div key={p.key} className="md-price md-price--plain">
                 <div className="md-price__head">
                   <h3 className="md-price__name">{p.name}</h3>
                   {p.badge && <span className="md-price__badge">{p.badge}</span>}
@@ -659,7 +606,7 @@ export default async function MediadatenPage() {
                 <ul className="md-price__lines">
                   {p.lines.map((l) => <li key={l}><Check muted />{l}</li>)}
                 </ul>
-                <Link href={MEDIA_INQUIRY_HREF} className="da-btn da-btn--secondary md-btn md-price__cta">Anfrage senden</Link>
+                <Link href={mediaInquiryHref(p.key)} className="da-btn da-btn--secondary md-btn md-price__cta">{p.cta}</Link>
               </div>
             ))}
           </div>
@@ -667,7 +614,7 @@ export default async function MediadatenPage() {
 
           {MEDIA_PARTNERS.length > 0 && (
             <div className="md-partners">
-              <p className="md-label">Unsere Partner</p>
+              <p className="md-label">Aktuelle Werbekunden</p>
               <ul className="md-partners__list">
                 {MEDIA_PARTNERS.map((p) => (
                   <li key={p.url}><a href={p.url} rel="sponsored nofollow noopener" target="_blank">{p.name}</a></li>
@@ -675,19 +622,6 @@ export default async function MediadatenPage() {
               </ul>
             </div>
           )}
-        </div>
-      </section>
-
-      {/* 7. Kontakt-Band */}
-      <section className="md-contact">
-        <div className="md-shell md-contact__inner">
-          <div className="md-contact__text">
-            <h2 className="md-contact__title">Interesse an einer Platzierung?</h2>
-            <p className="md-lead">
-              Schreiben Sie uns, welche Fläche und welcher Zeitraum Sie interessiert. Wir melden uns mit Verfügbarkeiten und einer Offerte.
-            </p>
-          </div>
-          <Link href={MEDIA_INQUIRY_HREF} className="da-btn da-btn--primary md-btn">Anfrage senden<Arrow /></Link>
         </div>
       </section>
 

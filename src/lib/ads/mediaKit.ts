@@ -24,7 +24,6 @@ export type MediaPlacement = {
   // Der erste Code liefert die Masse; die Rail steht mit beiden Seiten.
   codes: PlacementCode[];
   title: string;
-  // "{startups} " wird durch die Anzahl der gelisteten Unternehmen ersetzt.
   where: string;
   bookable: string;
   share: string;
@@ -59,7 +58,7 @@ export const MEDIA_PLACEMENTS: MediaPlacement[] = [
     no: "03",
     codes: ["swiss_ai_sidebar"],
     title: "Swiss AI Sidebar",
-    where: "In der linken Seitenleiste des Swiss AI Verzeichnisses mit {startups} Schweizer KI-Unternehmen, unter dem Hinweis zum Eintragen. Auf dem Handy über der Firmenliste.",
+    where: "In der linken Seitenleiste des Swiss AI Verzeichnisses, unter dem Hinweis zum Eintragen. Auf dem Handy über der Firmenliste.",
     bookable: "Swiss AI Verzeichnis",
     share: SHARE,
     desktopName: "Medium Rectangle",
@@ -84,10 +83,6 @@ export const MEDIA_PLACEMENTS: MediaPlacement[] = [
     fileNote: "je Seite",
   },
 ];
-
-export function placementWhere(p: MediaPlacement, startups: number | null): string {
-  return p.where.replace("{startups} ", startups != null ? `${startups} ` : "");
-}
 
 export function placementFormat(p: MediaPlacement): { desktop: Size; mobile: Size | null } {
   const code = p.codes[0];
@@ -177,41 +172,71 @@ export const CREATIVE_SPECS = {
   },
 };
 
+// Pakete: Preis-Karten auf /mediadaten und Vorbelegung auf /kontakt?paket=…
+export const MEDIA_PACKAGES = ["komplett", "einzel"] as const;
+export type MediaPackage = (typeof MEDIA_PACKAGES)[number];
+
+export function isMediaPackage(value: string | null): value is MediaPackage {
+  return value !== null && (MEDIA_PACKAGES as readonly string[]).includes(value);
+}
+
+// Anfrage-Link mit Paket, z. B. /kontakt?thema=werbung&paket=komplett.
+export function mediaInquiryHref(key: MediaPackage): string {
+  return `${MEDIA_INQUIRY_HREF}&paket=${key}`;
+}
+
 export type MediaPrice = {
+  key: MediaPackage;
   name: string;
   price: string;
   unit?: string;
   badge?: string;
   lines: string[];
+  cta: string;
 };
 
-export const MEDIA_PRICING: MediaPrice[] = [
-  {
-    name: "Gründungspartner",
-    price: "CHF 1'500",
-    unit: "für 3 Monate",
-    badge: "MAX. 3 PARTNER",
-    lines: [
-      "Ihre Anzeige auf allen fünf Platzierungen, Desktop und Mobile",
-      "Im Wechsel mit höchstens zwei weiteren Partnern",
-      "Nennung als Partner auf dieser Seite",
-      "Zahlen jederzeit über Ihren persönlichen Link",
-      "Preis für die Verlängerung 12 Monate garantiert",
-    ],
-  },
-  {
-    name: "Einzelbuchung",
-    price: "auf Anfrage",
-    lines: [
-      "Eine Platzierung, ein Ressort oder einzelne Artikel",
-      "Laufzeit ab einem Monat",
-      "Dieselben Zahlen, derselbe Vorschau-Link",
-    ],
-  },
-];
+const COMPLETE_TERM = "3 Monate";
+
+const COMPLETE_PACKAGE: MediaPrice = {
+  key: "komplett",
+  name: "Komplettpaket",
+  price: "CHF 1'500",
+  unit: `für ${COMPLETE_TERM}`,
+  // Geschuetzte Leerzeichen: bricht auf schmalen Bildschirmen hoechstens vor "MAX." um.
+  badge: "EINFÜHRUNGSANGEBOT · MAX.\u00a03\u00a0KUNDEN",
+  lines: [
+    "Ihre Anzeige auf allen fünf Platzierungen, Desktop und Mobile",
+    "Im Wechsel mit höchstens zwei weiteren Kunden",
+    "Nennung Ihres Unternehmens auf dieser Seite",
+    "Zahlen jederzeit über Ihren persönlichen Link",
+    "Preis für die Verlängerung 12 Monate garantiert",
+  ],
+  cta: "Komplettpaket anfragen",
+};
+
+const SINGLE_BOOKING: MediaPrice = {
+  key: "einzel",
+  name: "Einzelbuchung",
+  price: "auf Anfrage",
+  lines: [
+    "Eine Platzierung, ein Ressort oder einzelne Artikel",
+    "Laufzeit ab einem Monat",
+    "Dieselben Zahlen, derselbe Vorschau-Link",
+  ],
+  cta: "Einzelbuchung anfragen",
+};
+
+export const MEDIA_PRICING: MediaPrice[] = [COMPLETE_PACKAGE, SINGLE_BOOKING];
+
+// Nachricht auf /kontakt?paket=… (nur in ein leeres Feld). Preis und
+// Laufzeit kommen aus dem Paket oben, nicht doppelt getippt.
+export const MEDIA_INQUIRY_MESSAGES: Record<MediaPackage, string> = {
+  komplett: `Ich interessiere mich für das Komplettpaket (alle Platzierungen, ${COMPLETE_TERM}, ${COMPLETE_PACKAGE.price}).`,
+  einzel: "Ich interessiere mich für eine Einzelbuchung. Platzierung und Zeitraum: ",
+};
 
 export const PRICE_NOTE = "Preise in CHF.";
 
-// Gruendungspartner, die auf /mediadaten genannt werden. Leer = Abschnitt
-// "Unsere Partner" wird nicht gerendert.
+// Werbekunden, die auf /mediadaten genannt werden. Leer = Abschnitt
+// "Aktuelle Werbekunden" wird nicht gerendert.
 export const MEDIA_PARTNERS: { name: string; url: string }[] = [];
