@@ -291,6 +291,7 @@ export default function MediadatenPage() {
         .md-step__text { color: var(--da-muted); font-size: 14px; line-height: 1.6; }
         .md-step__link { margin-top: auto; color: var(--da-green); font-size: 14px; font-weight: 600; text-decoration: none; }
         .md-step__link:hover { text-decoration: underline; }
+        .md-step__nowrap { white-space: nowrap; }
 
         /* Preise */
         .md-prices { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 24px; align-items: stretch; }
@@ -558,7 +559,7 @@ export default function MediadatenPage() {
                 <div className="md-step__body">
                   <span className="md-step__title">{s.title}</span>
                   <span className="md-step__text">{s.text}</span>
-                  {s.link && <Link href={MEDIA_INQUIRY_HREF} className="md-step__link">Zum Anfrageformular{"\u00a0"}→</Link>}
+                  {s.link && <Link href={MEDIA_INQUIRY_HREF} className="md-step__link">Zum <span className="md-step__nowrap">Formular →</span></Link>}
                 </div>
               </li>
             ))}
@@ -571,7 +572,7 @@ export default function MediadatenPage() {
         <div className="md-shell">
           <div className="md-head">
             <p className="md-overline">Preise</p>
-            <h2 className="md-h2">Preise</h2>
+            <h2 className="md-h2">Paket oder einzeln buchen</h2>
             <p className="md-lead">
               Zum Start bieten wir ein Komplettpaket für höchstens drei Kunden an: alle Plätze, drei Monate, Preisgarantie für die Verlängerung. Einzelne Platzierungen buchen Sie auf Anfrage.
             </p>
