@@ -202,5 +202,8 @@ export async function saveTickerSettings(s: TickerSettings): Promise<void> {
 
   if (error) throw error;
   revalidatePath("/autor/news-ticker");
-  revalidatePath("/");
+  // Der Ticker sitzt im Root-Layout und steckt auch in statisch
+  // vorgerenderten Seiten (/kontakt, /mediadaten, ...). "layout" erneuert
+  // alle Seiten beim naechsten Aufruf, nicht nur die Startseite.
+  revalidatePath("/", "layout");
 }
