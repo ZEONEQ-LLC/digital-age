@@ -22,6 +22,7 @@ const STATIC_ROUTES: StaticEntry[] = [
   { path: "/podcasts", priority: 0.7, changeFrequency: "weekly" },
   { path: "/newsletter", priority: 0.5, changeFrequency: "monthly" },
   { path: "/tags", priority: 0.5, changeFrequency: "weekly" },
+  { path: "/mediadaten", priority: 0.5, changeFrequency: "monthly" },
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

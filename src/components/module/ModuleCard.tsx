@@ -90,7 +90,7 @@ const ModuleCard = forwardRef<HTMLAnchorElement, ModuleCardProps>(function Modul
           .mod-inner--image .mod-kicker { color: var(--da-muted); padding: 6px 8px 0; }
           .mod-inner--image .mod-pic { display: block; width: 100%; height: auto; }
         `}</style>
-        <a ref={ref} className={`mod-inner mod-inner--image mod-inner--${layout}`} style={pe} href={href} {...anchorAttrs} {...activate} aria-disabled={preview || undefined}>
+        <a ref={ref} className={`mod-inner mod-inner--image mod-inner--${layout}`} style={pe} href={href} {...anchorAttrs} {...activate} aria-disabled={preview || undefined} tabIndex={preview ? -1 : undefined}>
           {showKicker && <span className="mod-kicker da-overline">Anzeige</span>}
           {/* Plain <img>: Storage laeuft ohnehin unoptimized; Masse kommen aus der DB (kein CLS). */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -150,7 +150,7 @@ const ModuleCard = forwardRef<HTMLAnchorElement, ModuleCardProps>(function Modul
           .mod-inner--wide.mod-inner--card:hover .mod-cta { border-color: var(--da-green); }
         }
       `}</style>
-      <a ref={ref} className={cls} style={style} href={href} {...anchorAttrs} {...activate} aria-disabled={preview || undefined}>
+      <a ref={ref} className={cls} style={style} href={href} {...anchorAttrs} {...activate} aria-disabled={preview || undefined} tabIndex={preview ? -1 : undefined}>
         <span className="mod-text">
           {/* Bezahlte (Kunden-)Platzierung sichtbar als "Anzeige" kennzeichnen;
               House-Eigenwerbung braucht keine Kennzeichnung. */}

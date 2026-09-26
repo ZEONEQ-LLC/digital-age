@@ -86,9 +86,11 @@ export function expectedSize(code: PlacementCode, variant: "desktop" | "mobile")
 }
 
 // G2: Seitenverhaeltnis innerhalb 2 % des Katalogformats, Breite >= Nennbreite
-// (Retina-Vielfache erlaubt).
+// (Retina-Vielfache erlaubt). Toleranz auch auf /mediadaten angezeigt.
+export const ASPECT_TOLERANCE = 0.02;
+
 export function matchesExpectedSize(w: number, h: number, exp: Size): boolean {
   if (w <= 0 || h <= 0) return false;
   const ratio = (w / h) / (exp.w / exp.h);
-  return Math.abs(ratio - 1) <= 0.02 && w >= exp.w;
+  return Math.abs(ratio - 1) <= ASPECT_TOLERANCE && w >= exp.w;
 }

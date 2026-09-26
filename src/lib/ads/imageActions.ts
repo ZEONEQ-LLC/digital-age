@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { imageSize } from "image-size";
 import { requireEditor } from "@/lib/ads/editorGate";
 import { isModuleImagePath } from "@/lib/ads/imagePath";
+import { MODULE_IMAGE_MAX_BYTES, MODULE_IMAGE_MIME_EXT } from "@/lib/ads/imageSpec";
 import { expectedSize, isPlacementCode, matchesExpectedSize } from "@/lib/ads/placements";
 
 // Upload von Bild-Kreativen (G2/G4). Server Action mit FormData und ssr-Client
@@ -11,13 +12,8 @@ import { expectedSize, isPlacementCode, matchesExpectedSize } from "@/lib/ads/pl
 // Kundenmotive bleiben unveraendert, animierte GIFs bleiben animiert. Die
 // Masse werden serverseitig mit image-size aus dem Buffer gelesen — dem
 // Client wird nichts geglaubt.
-const MAX_BYTES = 2 * 1024 * 1024; // 2 MiB (Bucket-Limit)
-const MIME_EXT: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif",
-};
+const MAX_BYTES = MODULE_IMAGE_MAX_BYTES;
+const MIME_EXT = MODULE_IMAGE_MIME_EXT;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export type UploadCreativeImageResult =

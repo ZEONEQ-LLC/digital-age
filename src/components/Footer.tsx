@@ -85,6 +85,7 @@ export default function Footer() {
                   { label: "Über digital age", href: "/ueber-uns" },
                   { label: "Redaktion", href: "/redaktion" },
                   { label: "Kontakt", href: "/kontakt" },
+                  { label: "Werben", href: "/mediadaten" },
                   { label: "KI-Transparenz", href: "/ki-transparenz" },
                   { label: "Community-Richtlinien", href: "/community-richtlinien" },
                   { label: "Impressum", href: "/impressum" },

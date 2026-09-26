@@ -19,6 +19,7 @@ import {
 } from "@/lib/ads/types";
 import { PLACEMENTS, isPlacementCode, type PlacementCode } from "@/lib/ads/placements";
 import { isHex, resolveTheme } from "@/lib/ads/creativeTheme";
+import { TEXT_LIMITS } from "@/lib/ads/mediaKit";
 import ModuleCard from "@/components/module/ModuleCard";
 import CreativeImageUploader, { formatHint, type CreativeImage } from "@/components/module/CreativeImageUploader";
 import {
@@ -43,6 +44,12 @@ function shareText(s: BookingShare): { text: string; orange: boolean } {
   if (s.reason) return { text: `0 % · ${s.reason}`, orange: true };
   if (s.sharePct === 100 && s.othersCount === 0) return { text: "100 % · allein", orange: false };
   return { text: `${s.sharePct} % · neben ${s.othersCount}`, orange: false };
+}
+
+// Zaehler "x / 60" unter den Textfeldern; rot ueber dem Limit (Server lehnt ab).
+function CharCount({ value, max }: { value: string; max: number }) {
+  const len = value.trim().length;
+  return <p style={{ ...help, textAlign: "right", color: len > max ? "#ff6b6b" : "var(--da-muted)" }}>{len} / {max}</p>;
 }
 
 function formatDate(iso: string): string {
@@ -852,15 +859,18 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
                 <div>
                   <label style={labelStyle} htmlFor="cr-headline">Headline *</label>
                   <input id="cr-headline" style={inputStyle} placeholder="Kurze, prägnante Zeile" value={crHeadline} onChange={(e) => setCrHeadline(e.target.value)} />
+                  <CharCount value={crHeadline} max={TEXT_LIMITS.headline} />
                 </div>
                 <div>
                   <label style={labelStyle} htmlFor="cr-body">Body</label>
                   <textarea id="cr-body" style={{ ...inputStyle, minHeight: 60 }} placeholder="Optionaler Beschreibungstext" value={crBody} onChange={(e) => setCrBody(e.target.value)} />
+                  <CharCount value={crBody} max={TEXT_LIMITS.body} />
                 </div>
                 <div className="cd-row2">
                   <div>
                     <label style={labelStyle} htmlFor="cr-cta">CTA-Label</label>
                     <input id="cr-cta" style={inputStyle} placeholder="z. B. Jetzt entdecken" value={crCta} onChange={(e) => setCrCta(e.target.value)} />
+                    <CharCount value={crCta} max={TEXT_LIMITS.cta} />
                   </div>
                   <div>
                     <label style={labelStyle} htmlFor="cr-url">Ziel-URL *</label>

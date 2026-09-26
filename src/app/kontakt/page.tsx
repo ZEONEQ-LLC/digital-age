@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import Footer from "@/components/Footer";
 
 import PageHero from "@/components/PageHero";
+import { MEDIA_INQUIRY_MESSAGES, isMediaPackage } from "@/lib/ads/mediaKit";
 import { submitContactMessage } from "@/lib/contact/submit";
 
 type Topic = "" | "allgemein" | "werbung" | "kooperation" | "feedback" | "presse" | "sonstiges";
@@ -86,6 +87,26 @@ export default function KontaktPage() {
   useEffect(() => {
     if (submitted) window.scrollTo({ top: 0, behavior: "smooth" });
   }, [submitted]);
+
+  // ?thema=<wert> belegt das Anliegen vor, ?paket=<wert> die Nachricht (z.B.
+  // /kontakt?thema=werbung&paket=komplett von /mediadaten). Nur Werte aus
+  // TOPICS bzw. MEDIA_PACKAGES, unbekannte werden ignoriert, nichts wird
+  // ueberschrieben. Kein useSearchParams, damit die statische Seite ohne
+  // Suspense-Grenze auskommt; einmalig nach dem Mount.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const topic = TOPICS.find((t) => t.value === params.get("thema"))?.value;
+    const paket = params.get("paket");
+    const message = isMediaPackage(paket) ? MEDIA_INQUIRY_MESSAGES[paket] : undefined;
+    if (!topic && !message) return;
+    setData((p) => ({
+      ...p,
+      topic: p.topic || topic || "",
+      message: p.message.trim() ? p.message : (message ?? p.message),
+    }));
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const set = <K extends keyof ContactFormState>(k: K, v: ContactFormState[K]) => {
     setData((p) => ({ ...p, [k]: v }));
@@ -501,7 +522,10 @@ export default function KontaktPage() {
                   {[
                     "Wir lesen jede Nachricht persönlich",
                     "Du bekommst Antwort innerhalb von 5 Werktagen",
-                    "Bei Werbung/Kooperationen melden wir uns mit Mediadaten",
+                    <>
+                      Bei Werbung melden wir uns mit Verfügbarkeiten und einer Offerte.{" "}
+                      <Link href="/mediadaten" style={{ color: "var(--da-green)" }}>Formate und Preise</Link>
+                    </>,
                   ].map((line, i) => (
                     <li key={i}>
                       <span className="num">0{i + 1}</span>
