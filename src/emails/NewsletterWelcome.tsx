@@ -4,7 +4,7 @@ import Layout, {
   Paragraph,
   SITE_URL,
 } from "./_layout";
-import { Link, Section } from "@react-email/components";
+import { Link, Section } from "react-email";
 
 type Props = {
   unsubscribeUrl: string;
