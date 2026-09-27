@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { saveTickerSettings, type TickerSettings } from "@/lib/newsTickerActions";
 
 type Props = {
   initial: TickerSettings;
 };
+
+const SPEEDS = ["slow", "normal", "fast"] as const;
 
 const SPEED_LABELS: Record<TickerSettings["ticker_speed"], string> = {
   slow: "Langsam",
@@ -18,9 +20,12 @@ export default function SettingsSection({ initial }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [savedHint, setSavedHint] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // Eindeutige id pro Instanz: AuthorShell rendert die Seite fuer Tablet und
+  // Desktop zweimal, feste ids wuerden das Label an die versteckte Kopie binden.
+  const speedId = useId();
 
+  // ticker_speed speichert sofort (changeSpeed), zaehlt hier nicht mit.
   const dirty =
-    settings.ticker_speed !== initial.ticker_speed ||
     settings.items_per_source !== initial.items_per_source ||
     settings.is_paused !== initial.is_paused ||
     settings.scheduler_enabled !== initial.scheduler_enabled ||
@@ -51,6 +56,15 @@ export default function SettingsSection({ initial }: Props) {
 
   function toggleScheduler(checked: boolean) {
     const next = { ...settings, scheduler_enabled: checked };
+    setSettings(next);
+    save(next);
+  }
+
+  // Geschwindigkeit speichert ebenfalls sofort.
+  function changeSpeed(value: string) {
+    const speed = SPEEDS.find((s) => s === value);
+    if (!speed) return;
+    const next = { ...settings, ticker_speed: speed };
     setSettings(next);
     save(next);
   }
@@ -116,35 +130,25 @@ export default function SettingsSection({ initial }: Props) {
 
         {/* Geschwindigkeit */}
         <div>
-          <p style={{ color: "var(--da-text)", fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+          <label
+            htmlFor={speedId}
+            style={{ display: "block", color: "var(--da-text)", fontSize: 14, fontWeight: 600, marginBottom: 8 }}
+          >
             Geschwindigkeit
-          </p>
-          <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-            {(["slow", "normal", "fast"] as const).map((s) => {
-              const id = `ticker-speed-${s}`;
-              return (
-                <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <input
-                    id={id}
-                    type="radio"
-                    name="ticker_speed"
-                    value={s}
-                    checked={settings.ticker_speed === s}
-                    onChange={() =>
-                      setSettings((prev) => ({ ...prev, ticker_speed: s }))
-                    }
-                    disabled={pending}
-                  />
-                  <label
-                    htmlFor={id}
-                    style={{ color: "var(--da-text)", fontSize: 13, cursor: "pointer" }}
-                  >
-                    {SPEED_LABELS[s]}
-                  </label>
-                </div>
-              );
-            })}
-          </div>
+          </label>
+          <select
+            id={speedId}
+            value={settings.ticker_speed}
+            onChange={(e) => changeSpeed(e.target.value)}
+            disabled={pending}
+            style={{ ...inputStyle, width: 160 }}
+          >
+            {SPEEDS.map((s) => (
+              <option key={s} value={s}>
+                {SPEED_LABELS[s]}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Items pro Quelle */}
