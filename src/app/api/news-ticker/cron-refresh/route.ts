@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -86,6 +87,11 @@ export async function GET(request: Request) {
   try {
     const { runRefresh } = await import("@/lib/newsTicker/refresh");
     const stats = await runRefresh();
+    // Der Ticker sitzt im Root-Layout und steckt auch in statisch
+    // vorgerenderten Seiten (/kontakt, /mediadaten, ...). "layout" erneuert
+    // alle Seiten beim naechsten Aufruf. Nur im Erfolgspfad: die fruehen
+    // Returns laufen stuendlich durch und sollen nichts invalidieren.
+    revalidatePath("/", "layout");
     return NextResponse.json({ ok: true, stats });
   } catch (err) {
     console.error("[news-ticker:cron] runRefresh threw:", err);
