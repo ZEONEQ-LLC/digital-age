@@ -1,4 +1,4 @@
-import { Section } from "@react-email/components";
+import { Section } from "react-email";
 import Layout, { CtaButton, Heading, HintBox, Paragraph } from "./_layout";
 
 type Props = {

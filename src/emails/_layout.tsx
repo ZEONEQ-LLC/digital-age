@@ -7,7 +7,7 @@ import {
   Link,
   Preview,
   Section,
-} from "@react-email/components";
+} from "react-email";
 import type { ReactNode } from "react";
 
 // Geteilte Basis für alle Newsletter/Invite-Mails.
@@ -116,7 +116,9 @@ export default function Layout({ previewText, children }: LayoutProps) {
         <style dangerouslySetInnerHTML={{ __html: HEAD_CSS }} />
       </Head>
       <Preview>{previewText}</Preview>
+      {/* react-email 6 setzt am Body sonst lang="en" und ueberschreibt Html. */}
       <Body
+        lang="de"
         className="body-bg"
         style={{
           backgroundColor: "#f4f4f5",
