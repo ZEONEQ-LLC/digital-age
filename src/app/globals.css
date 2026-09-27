@@ -7,8 +7,8 @@
 
 @import "tailwindcss";
 
-/* Schriften werden in src/app/layout.tsx via next/font/google self-hostet
-   geladen (Inter, Roboto Mono, Space Grotesk). Die CSS-Variablen
+/* Schriften werden in src/app/layout.tsx via next/font/local aus
+   src/app/fonts geladen (Inter, Roboto Mono, Space Grotesk). Die CSS-Variablen
    --font-inter, --font-roboto-mono, --font-space-grotesk werden auf
    <html className="..."> gesetzt — die Aliase --font-family-* und
    --da-font-* unten zeigen darauf. Kein Runtime-Request an Google. */

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Roboto_Mono, Space_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import NewsTicker from "@/components/NewsTicker";
@@ -10,25 +10,37 @@ import AnalyticsGate from "@/components/AnalyticsGate";
 import RailModules from "@/components/module/RailModules";
 import { getBaseUrl } from "@/lib/siteUrl";
 
-// Self-hosted Google Fonts via next/font/google. Wird zur Build-Time von
-// Google geladen und mit den Site-Assets ausgeliefert — keine Runtime-
-// Requests an fonts.googleapis.com (DSGVO-relevant, BGH-Urteil 2022).
-// latin-ext deckt Schweizer/Deutsche Umlaute + ßzfff... ab.
-const inter = Inter({
-  subsets: ["latin", "latin-ext"],
-  weight: ["300", "400", "500", "600", "700"],
+// Schriften liegen im Repo (src/app/fonts, Herkunft im README dort) und
+// werden mit den Site-Assets ausgeliefert: kein Download von Google beim
+// Build (der liess Deploys scheitern) und keine Runtime-Requests an
+// fonts.googleapis.com (DSGVO, BGH-Urteil 2022). Je Schrift eine variable
+// woff2 mit latin + latin-ext. Pro Gewicht ein Eintrag auf dieselbe Datei,
+// wie bisher bei Google: Zwischengewichte fallen auf dieselben Schnitte.
+const inter = localFont({
+  src: [
+    { path: "./fonts/inter-var.woff2", weight: "300", style: "normal" },
+    { path: "./fonts/inter-var.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/inter-var.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/inter-var.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/inter-var.woff2", weight: "700", style: "normal" },
+  ],
   display: "swap",
   variable: "--font-inter",
 });
-const robotoMono = Roboto_Mono({
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "700"],
+const robotoMono = localFont({
+  src: [
+    { path: "./fonts/roboto-mono-var.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/roboto-mono-var.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/roboto-mono-var.woff2", weight: "700", style: "normal" },
+  ],
   display: "swap",
   variable: "--font-roboto-mono",
 });
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin", "latin-ext"],
-  weight: ["500", "700"],
+const spaceGrotesk = localFont({
+  src: [
+    { path: "./fonts/space-grotesk-var.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/space-grotesk-var.woff2", weight: "700", style: "normal" },
+  ],
   display: "swap",
   variable: "--font-space-grotesk",
 });
