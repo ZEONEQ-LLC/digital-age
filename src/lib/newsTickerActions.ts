@@ -158,7 +158,10 @@ export async function triggerRefresh(): Promise<
   const { runRefresh } = await import("./newsTicker/refresh");
   const stats = await runRefresh();
   revalidatePath("/autor/news-ticker");
-  revalidatePath("/");
+  // Der Ticker sitzt im Root-Layout und steckt auch in statisch
+  // vorgerenderten Seiten (/kontakt, /mediadaten, ...). "layout" erneuert
+  // alle Seiten beim naechsten Aufruf, nicht nur die Startseite.
+  revalidatePath("/", "layout");
   return stats;
 }
 
