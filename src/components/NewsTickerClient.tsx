@@ -23,9 +23,11 @@ const SPEED_DURATIONS: Record<TickerSpeed, string> = {
   fast: "60s",
 };
 
-// Leser-Tempo relativ zur Admin-Geschwindigkeit (= 1×). Klick-Zyklus wie
-// beim Tippen auf die Tempo-Taste in Apple Podcasts.
-const RATES = [1, 1.5, 2, 0.5] as const;
+// Leser-Tempo relativ zur Admin-Geschwindigkeit (= 1×), Klick-Zyklus wie
+// die Tempo-Taste in Apple Podcasts. Bewusst ohne 2× (unlesbar), dafür
+// mit 0.25× als zweiter Lese-Stufe. Ein frueher gespeicherter Wert 2
+// faellt durch die Pruefung auf bekannte Werte auf 1× zurueck.
+const RATES = [1, 1.5, 0.5, 0.25] as const;
 const RATE_STORAGE_KEY = "da:ticker-rate";
 
 const CATEGORY_LABELS: Record<string, string> = {
