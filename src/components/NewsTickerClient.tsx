@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type TickerItem = {
   id: string;
@@ -22,6 +22,11 @@ const SPEED_DURATIONS: Record<TickerSpeed, string> = {
   normal: "120s",
   fast: "60s",
 };
+
+// Leser-Tempo relativ zur Admin-Geschwindigkeit (= 1×). Klick-Zyklus wie
+// beim Tippen auf die Tempo-Taste in Apple Podcasts.
+const RATES = [1, 1.5, 2, 0.5] as const;
+const RATE_STORAGE_KEY = "da:ticker-rate";
 
 const CATEGORY_LABELS: Record<string, string> = {
   "ki-business": "KI & Business",
@@ -50,6 +55,62 @@ export default function NewsTickerClient({ items, speed }: Props) {
   // resetted bei Page-Navigation — bewusst kein localStorage, damit der
   // Ticker nach Reload wieder läuft.
   const [userPaused, setUserPaused] = useState(false);
+  // Leser-Tempo. Initial immer 1× rendern (kein Hydration-Mismatch);
+  // der gespeicherte Wert kommt erst im Effect nach dem Mount.
+  const [rate, setRate] = useState<number>(1);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Reduced Motion / gespeichertes Tempo: bewusst setState nach dem Mount
+  // (externe Browser-Zustaende; initial 1x/laufend rendern haelt Server-
+  // und Client-HTML identisch). Gleiches Muster wie /kontakt.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  // Reduced Motion: Ticker angehalten starten; die Play-Taste bleibt nutzbar.
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setUserPaused(true);
+  }, []);
+
+  // Gespeichertes Tempo lesen — vom Leser selbst gesetzte Funktions-
+  // einstellung (kein Tracking, daher ohne Consent-Kopplung). Nur bekannte
+  // Werte annehmen.
+  useEffect(() => {
+    try {
+      const stored = parseFloat(window.localStorage.getItem(RATE_STORAGE_KEY) ?? "");
+      if ((RATES as readonly number[]).includes(stored)) setRate(stored);
+    } catch {
+      // Storage blockiert (Private Mode o. ä.) → bleibt bei 1×.
+    }
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Tempo ohne Positionssprung anwenden: nicht die animation-duration
+  // aendern (dabei springt die Laufposition), sondern die laufende
+  // CSS-Animation ueber die Web Animations API beschleunigen/bremsen.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (typeof el.getAnimations === "function") {
+      const anim = el.getAnimations()[0];
+      if (anim) {
+        if (typeof anim.updatePlaybackRate === "function") anim.updatePlaybackRate(rate);
+        else anim.playbackRate = rate;
+        return;
+      }
+    }
+    // Fallback ohne getAnimations: Dauer direkt setzen.
+    el.style.animationDuration = `${parseFloat(duration) / rate}s`;
+  }, [rate, duration]);
+
+  function cycleRate() {
+    const next = RATES[(RATES.indexOf(rate as (typeof RATES)[number]) + 1) % RATES.length];
+    setRate(next);
+    try {
+      window.localStorage.setItem(RATE_STORAGE_KEY, String(next));
+    } catch {
+      // Storage blockiert → Tempo gilt nur fuer diese Seite.
+    }
+  }
+
+  const rateLabel = `${rate}×`;
 
   // ESC schliesst Modal.
   useEffect(() => {
@@ -98,6 +159,15 @@ export default function NewsTickerClient({ items, speed }: Props) {
           font-family: inherit;
         }
         .ticker-playpause:hover { opacity: 0.7; }
+        .ticker-rate {
+          min-width: 32px;
+          min-height: 32px;
+          justify-content: center;
+          margin-left: 0;
+          font-family: var(--da-font-mono);
+          font-size: 11px;
+          font-weight: 700;
+        }
       `}</style>
 
       <div
@@ -153,13 +223,22 @@ export default function NewsTickerClient({ items, speed }: Props) {
               </svg>
             )}
           </button>
+          <button
+            type="button"
+            className="ticker-playpause ticker-rate"
+            onClick={cycleRate}
+            aria-label={`Tickertempo: ${rateLabel}`}
+            title={`Tickertempo: ${rateLabel}`}
+          >
+            {rateLabel}
+          </button>
         </div>
         {/* min-width: 0 ist hier kritisch: ohne diesen Wert hat der Flex-
             Item-Default `min-width: auto`, und der 38000+px breite
             .ticker-scroll-Inhalt schiebt das ganze Layout über den Viewport
             hinaus (sichtbar auf iPhone-Portrait <440px). */}
         <div style={{ overflow: "hidden", flex: 1, minWidth: 0, height: "100%", display: "flex", alignItems: "center" }}>
-          <div className={`ticker-scroll${userPaused ? " user-paused" : ""}`}>
+          <div ref={scrollRef} className={`ticker-scroll${userPaused ? " user-paused" : ""}`}>
             {repeated.map((item, i) => (
               <button
                 key={`${item.id}-${i}`}
