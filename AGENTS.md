@@ -5,7 +5,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Stack-Versionen (Stand: April 2026)
 
-- **Next.js 16.2.3** — App Router, src-dir, TypeScript
+- **Next.js 16.3.6** — App Router, src-dir, TypeScript
 - **React 19.2.4**
 - **Tailwind CSS v4** — Theme via `@theme` in `src/app/globals.css`, NICHT in `tailwind.config.ts`
 - **ESLint 9** — Befehl ist `eslint` direkt, NICHT `next lint`
