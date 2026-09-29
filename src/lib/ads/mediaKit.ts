@@ -209,6 +209,7 @@ const COMPLETE_PACKAGE: MediaPrice = {
     "Im Wechsel mit höchstens zwei weiteren Kunden",
     "Nennung Ihres Unternehmens auf dieser Seite",
     "Zahlen jederzeit über Ihren persönlichen Link",
+    "UTM-Parameter für Ihr Google Analytics werden automatisch angehängt",
     "Preis für die Verlängerung 12 Monate garantiert",
   ],
   cta: "Komplettpaket anfragen",

@@ -1,4 +1,5 @@
 import "server-only";
+import { utmContentFor } from "@/lib/ads/utm";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { parsePeriod } from "@/lib/ads/types";
@@ -32,6 +33,7 @@ export type CampaignStatsRow = {
   placement_label: string;
   creative_label: string;
   variant: string;
+  utm_content: string;
   impressions: number;
   clicks: number;
 };
@@ -132,14 +134,14 @@ type RowsQuery = {
   day: string;
   impressions: number;
   clicks: number;
-  placement: { label: string } | null;
+  placement: { label: string; code: string } | null;
   creative: { kind: string; variant: string; headline: string | null; width: number | null; height: number | null } | null;
 };
 
 export async function getCampaignStatsRows(supabase: Sb, campaignId: string): Promise<CampaignStatsRow[]> {
   const { data } = await supabase
     .from("ad_stats_daily")
-    .select("day, impressions, clicks, placement:ad_placements(label), creative:ad_creatives(kind, variant, headline, width, height)")
+    .select("day, impressions, clicks, placement:ad_placements(label, code), creative:ad_creatives(kind, variant, headline, width, height)")
     .eq("campaign_id", campaignId)
     .order("day", { ascending: true });
   return ((data ?? []) as unknown as RowsQuery[]).map((r) => ({
@@ -149,6 +151,8 @@ export async function getCampaignStatsRows(supabase: Sb, campaignId: string): Pr
       ? r.creative.kind === "image" ? `Bild ${r.creative.width ?? "?"}x${r.creative.height ?? "?"}` : (r.creative.headline ?? "")
       : "?",
     variant: r.creative?.variant ?? "",
+    // Verbindet unsere Zahlen mit GA4 (utm_content = Platzierung-Geraet).
+    utm_content: r.placement?.code && r.creative?.variant ? utmContentFor(r.placement.code, r.creative.variant) : "",
     impressions: r.impressions,
     clicks: r.clicks,
   }));

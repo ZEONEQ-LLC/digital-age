@@ -150,6 +150,9 @@ export type CampaignInput = {
   price_chf?: number | null;
   weight: number;
   notes?: string | null;
+  // Tracking: UTM-Parameter beim Ausliefern (utm.ts). House: immer aus.
+  utm_enabled?: boolean;
+  utm_campaign?: string | null;
 };
 
 export type BookingInput = {
