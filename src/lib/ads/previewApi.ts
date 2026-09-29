@@ -46,6 +46,8 @@ export type PreviewCampaign = {
   approvedAt: string | null;
   approvedBy: string | null;
   approvedNote: string | null;
+  utmEnabled: boolean;
+  utmCampaign: string | null;
   bookings: PreviewBooking[];
 };
 
@@ -57,6 +59,8 @@ type Row = {
   approved_at: string | null;
   approved_by: string | null;
   approved_note: string | null;
+  utm_enabled: boolean;
+  utm_campaign: string | null;
   advertiser: { name: string } | null;
   bookings: {
     id: string;
@@ -87,7 +91,7 @@ export async function getPreviewCampaign(token: string): Promise<PreviewCampaign
   const { data, error } = await supabase
     .from("ad_campaigns")
     .select(
-      "id, name, status, is_house, approved_at, approved_by, approved_note, advertiser:ad_advertisers(name), " +
+      "id, name, status, is_house, approved_at, approved_by, approved_note, utm_enabled, utm_campaign, advertiser:ad_advertisers(name), " +
         "bookings:ad_bookings(id, placement_id, scope, scope_ref, period, placement:ad_placements(code, label)), " +
         "creatives:ad_creatives!ad_creatives_campaign_id_fkey(id, kind, variant, placement_id, headline, body, cta_label, target_url, is_active, theme, bg_color, image_path, width, height, alt_text)",
     )
@@ -147,6 +151,8 @@ export async function getPreviewCampaign(token: string): Promise<PreviewCampaign
     approvedAt: row.approved_at,
     approvedBy: row.approved_by,
     approvedNote: row.approved_note,
+    utmEnabled: row.utm_enabled,
+    utmCampaign: row.utm_campaign,
     bookings,
   };
 }

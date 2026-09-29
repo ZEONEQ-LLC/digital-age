@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useId, useMemo, useState, useTransition } from "react";
 import {
   createBooking, createCreative, deleteBooking, deleteCampaign, deleteCreative, deleteImageCreativePair,
   exportCampaignStatsRows, regeneratePreviewToken, saveImageCreativePair, setCampaignStatus, updateCampaign, updateCreative,
@@ -20,6 +20,7 @@ import {
 import { PLACEMENTS, isPlacementCode, type PlacementCode } from "@/lib/ads/placements";
 import { isHex, resolveTheme } from "@/lib/ads/creativeTheme";
 import { TEXT_LIMITS } from "@/lib/ads/mediaKit";
+import { UTM_CAMPAIGN_MAX, buildTrackedUrl, hasOwnUtmParams, isValidUtmCampaign, slugCampaign } from "@/lib/ads/utm";
 import ModuleCard from "@/components/module/ModuleCard";
 import CreativeImageUploader, { formatHint, type CreativeImage } from "@/components/module/CreativeImageUploader";
 import {
@@ -39,6 +40,9 @@ const ressortLabel = (slug: string) => RESSORT_SLUGS.find((r) => r.slug === slug
 const themeLabel = (code: string) => CREATIVE_THEMES.find((t) => t.code === code)?.label ?? code;
 
 const WEIGHT_HELP = "Anteil an der Rotation im Verhältnis zu den anderen Live-Kampagnen auf derselben Fläche. Beispiel: diese Kampagne 3, eine andere 1 → diese erscheint bei 3 von 4 Aufrufen. Allein auf der Fläche: immer, unabhängig vom Wert. House-Kampagnen laufen nur, wenn keine Kundenkampagne live ist.";
+
+// Ab diesen Status ist eine gesetzte Kampagnen-Kennung eingefroren (DB-Gate).
+const RUNNING = ["live", "paused", "ended"];
 
 function shareText(s: BookingShare): { text: string; orange: boolean } {
   if (s.reason) return { text: `0 % · ${s.reason}`, orange: true };
@@ -89,6 +93,18 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
   const [priceChf, setPriceChf] = useState(c.price_chf != null ? String(c.price_chf) : "");
   const [weight, setWeight] = useState(String(c.weight));
   const [notes, setNotes] = useState(c.notes ?? "");
+
+  // Tracking (UTM): Parameter entstehen beim Ausliefern; hier nur Schalter,
+  // Kennung und die fertigen Links zur Ansicht. ids per useId (Suite rendert doppelt).
+  const [utmEnabled, setUtmEnabled] = useState(c.utm_enabled);
+  const [utmCampaign, setUtmCampaign] = useState(c.utm_campaign ?? "");
+  const [copiedRow, setCopiedRow] = useState<string | null>(null);
+  const utmEnabledId = useId();
+  const utmCampaignId = useId();
+  const utmLocked = RUNNING.includes(c.status) && !!c.utm_campaign;
+  const utmSuggestion = slugCampaign(name);
+  const utmKennung = utmCampaign.trim();
+  const utmValid = utmKennung === "" || isValidUtmCampaign(utmKennung);
 
   // Buchung — E6: fuer Kundenkampagnen nur verkaeufliche Platzierungen anbieten.
   const bookable = useMemo(() => placements.filter((p) => isHouse || p.is_sellable), [placements, isHouse]);
@@ -287,10 +303,10 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
     setError(null);
     const res = await exportCampaignStatsRows(c.id);
     if (!res.ok) { setError(res.error); return; }
-    const header = ["Tag", "Platzierung", "Kreativ", "Variante", "Impressionen", "Klicks"];
+    const header = ["Tag", "Platzierung", "Kreativ", "Variante", "Impressionen", "Klicks", "utm_content"];
     const lines = [header.join(";")];
     for (const r of res.rows) {
-      lines.push([r.day, r.placement_label, r.creative_label, r.variant, r.impressions, r.clicks].map(csvCell).join(";"));
+      lines.push([r.day, r.placement_label, r.creative_label, r.variant, r.impressions, r.clicks, r.utm_content].map(csvCell).join(";"));
     }
     const blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -309,6 +325,38 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
   const hasRef = bScope !== "global";
   const shareTitle = `Anteil = Gewicht ${c.weight} / (${c.weight} + Summe der Gewichte der anderen Live-Kampagnen auf derselben Fläche und Ebene, überlappender Zeitraum). Nicht-House schlägt House.`;
   const previewUrl = `${previewBase}/vorschau/${c.preview_token}`;
+
+  // Stammdaten und Tracking speichern ueber dieselbe Action; beide Bloecke
+  // schicken deshalb den vollen Stand, sonst wuerde ein Block den anderen leeren.
+  const campaignPayload = () => ({
+    name, is_house: isHouse, advertiser_id: isHouse ? null : advertiserId || null,
+    price_chf: isHouse || !priceChf ? null : Number(priceChf), weight: Number(weight), notes,
+    utm_enabled: utmEnabled, utm_campaign: utmKennung || null,
+  });
+
+  // «So sehen die Links aus»: eine Zeile pro aktivem Kreativ und Platzierung;
+  // Kreative ohne Platzierung gelten fuer alle gebuchten.
+  const utmRows = !isHouse && utmEnabled && utmKennung && utmValid
+    ? detail.creatives.filter((cr) => cr.is_active).flatMap((cr) => {
+        const ids = cr.placement_id ? [cr.placement_id] : Array.from(bookedByPlacement.keys());
+        return ids.flatMap((pid) => {
+          const code = placementCodeOf(pid);
+          if (!code) return [];
+          const own = hasOwnUtmParams(cr.target_url);
+          return [{
+            key: `${cr.id}-${pid}`, placement: placementLabel(pid), variant: cr.variant, own,
+            url: own ? cr.target_url : buildTrackedUrl(cr.target_url, { campaign: utmKennung, placementCode: code, variant: cr.variant }),
+          }];
+        });
+      })
+    : [];
+
+  function copyRow(key: string, url: string) {
+    navigator.clipboard?.writeText(url).then(() => {
+      setCopiedRow(key);
+      setTimeout(() => setCopiedRow(null), 1500);
+    });
+  }
 
   const thumb = (cr: CreativeRow | null, missing: string) =>
     cr && cr.image_path ? (
@@ -484,12 +532,91 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
           <textarea id="cd-notes" style={{ ...inputStyle, minHeight: 60 }} placeholder="Interne Notizen" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button type="button" style={btnPrimary} disabled={pending} onClick={() => run(() => updateCampaign(c.id, {
-            name, is_house: isHouse, advertiser_id: isHouse ? null : advertiserId || null,
-            price_chf: isHouse || !priceChf ? null : Number(priceChf), weight: Number(weight), notes,
-          }))}>Stammdaten speichern</button>
+          <button type="button" style={btnPrimary} disabled={pending} onClick={() => run(() => updateCampaign(c.id, campaignPayload()))}>Stammdaten speichern</button>
         </div>
       </div>
+
+      {/* Tracking (UTM) — nur Kundenkampagnen. */}
+      {!isHouse && (
+        <div style={{ ...card, display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={sectionTitle}>Tracking</div>
+          <label htmlFor={utmEnabledId} style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--da-text)", fontSize: 14, cursor: "pointer" }}>
+            <input id={utmEnabledId} type="checkbox" checked={utmEnabled} onChange={(e) => setUtmEnabled(e.target.checked)} />
+            UTM-Parameter an Ziel-Links anhängen
+          </label>
+          <div className="cd-row2">
+            <div>
+              <label style={labelStyle} htmlFor={utmCampaignId}>Kampagnen-Kennung</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  id={utmCampaignId}
+                  style={{ ...inputStyle, fontFamily: "var(--da-font-mono)" }}
+                  placeholder={utmSuggestion || "z. B. topinserate-herbst"}
+                  value={utmCampaign}
+                  disabled={utmLocked}
+                  maxLength={UTM_CAMPAIGN_MAX}
+                  onChange={(e) => setUtmCampaign(e.target.value.toLowerCase().replace(/\s+/g, ""))}
+                />
+                {!utmLocked && (
+                  <button type="button" style={{ ...btnSmall, whiteSpace: "nowrap" }} disabled={!utmSuggestion} onClick={() => setUtmCampaign(utmSuggestion)}>Vorschlag übernehmen</button>
+                )}
+              </div>
+              {!utmValid && <p style={{ ...errStyle, marginTop: 6 }}>Nur Kleinbuchstaben, Ziffern und Bindestriche, max. {UTM_CAMPAIGN_MAX} Zeichen.</p>}
+              <p style={help}>
+                {utmLocked
+                  ? "Während der Laufzeit nicht änderbar (Google Analytics)."
+                  : !utmKennung
+                    ? "Ohne Kennung wird nichts angehängt."
+                    : "Landet als utm_campaign in Google Analytics, zusammen mit utm_source=digital-age und utm_medium=banner. Ab live ist die Kennung eingefroren."}
+              </p>
+            </div>
+            <div />
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button type="button" style={btnPrimary} disabled={pending || !utmValid} onClick={() => run(() => updateCampaign(c.id, campaignPayload()))}>Tracking speichern</button>
+          </div>
+          <div style={{ borderTop: "1px solid var(--da-border)", paddingTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+            <span style={labelStyle}>So sehen die Links aus</span>
+            {!utmEnabled ? (
+              <p style={{ ...help, margin: 0 }}>Tracking ist aus, die Ziel-URLs gehen unverändert raus.</p>
+            ) : !utmKennung ? (
+              <p style={{ ...help, margin: 0 }}>Ohne Kennung wird nichts angehängt.</p>
+            ) : !utmValid ? (
+              <p style={{ ...help, margin: 0 }}>Kennung zuerst korrigieren.</p>
+            ) : utmRows.length === 0 ? (
+              <p style={{ ...help, margin: 0 }}>Noch kein aktives Kreativ auf einer gebuchten Platzierung.</p>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table className="cd-table">
+                  <thead>
+                    <tr>
+                      <th style={th}>Platzierung</th>
+                      <th style={th}>Gerät</th>
+                      <th style={th}>Link</th>
+                      <th style={th} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {utmRows.map((r) => (
+                      <tr key={r.key}>
+                        <td style={{ ...td, color: "var(--da-text)", fontWeight: 600, whiteSpace: "nowrap" }}>{r.placement}</td>
+                        <td style={{ ...td, fontFamily: "var(--da-font-mono)", fontSize: 12, color: "var(--da-muted)" }}>{r.variant}</td>
+                        <td style={{ ...td, fontFamily: "var(--da-font-mono)", fontSize: 12, wordBreak: "break-all", color: r.own ? "var(--da-muted)" : "var(--da-text)" }}>
+                          {r.own ? "Ziel-URL enthält eigene UTM-Parameter, wir hängen nichts an" : r.url}
+                        </td>
+                        <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
+                          {!r.own && <button type="button" style={btnSmall} onClick={() => copyRow(r.key, r.url)}>{copiedRow === r.key ? "Kopiert" : "Kopieren"}</button>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <p style={{ ...help, margin: 0 }}>Gespeichert bleibt die saubere Ziel-URL. Die Parameter entstehen erst beim Ausliefern, auch in der Vorschau mit ?vorschau=.</p>
+          </div>
+        </div>
+      )}
 
       {/* Buchungen */}
       <div style={{ ...card, display: "flex", flexDirection: "column", gap: 16 }}>

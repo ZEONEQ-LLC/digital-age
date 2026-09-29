@@ -3,6 +3,7 @@ import { isbot } from "isbot";
 import { createServiceClient } from "@/lib/supabase/service";
 import { parsePeriod } from "@/lib/ads/types";
 import { signDelivery, verifyDelivery } from "@/lib/ads/deliveryToken";
+import { buildTrackedUrl } from "@/lib/ads/utm";
 
 // Oeffentliche Auslieferung eines Platzierungs-Moduls. force-dynamic +
 // Service-Role (RLS-Bypass): Kundendaten/Preise/Laufzeiten sind ueber den
@@ -35,17 +36,18 @@ type CreativeCand = {
 const CREATIVE_SELECT =
   "id, kind, variant, placement_id, headline, body, cta_label, target_url, is_active, theme, bg_color, image_path, width, height, alt_text";
 
+type CampaignUtm = { is_house: boolean; utm_enabled: boolean; utm_campaign: string | null };
+
 type BookingCand = {
   scope: string;
   scope_ref: string | null;
   period: string;
-  campaign: {
+  campaign: ({
     id: string;
     weight: number;
-    is_house: boolean;
     status: string;
     creatives: CreativeCand[];
-  } | null;
+  } & CampaignUtm) | null;
 };
 
 // parsePeriod normalisiert die PostgREST-Grenzen nach ISO (Safari-sicher).
@@ -67,10 +69,18 @@ function pickCreative(creatives: CreativeCand[], variant: string, placementId: s
 const NO_STORE = { status: 200, headers: { "Cache-Control": "no-store" } };
 const EMPTY = () => NextResponse.json({}, NO_STORE);
 
+// Ziel-Link: Kundenkampagnen mit Tracking und Kennung bekommen die
+// UTM-Parameter erst hier angehaengt (utm.ts); House und relative Links
+// bleiben, wie sie gespeichert sind. Gilt auch fuer die Vorschau.
+function hrefFor(creative: CreativeCand, c: CampaignUtm, placementCode: string, variant: string): string {
+  if (c.is_house || !c.utm_enabled || !c.utm_campaign) return creative.target_url;
+  return buildTrackedUrl(creative.target_url, { campaign: c.utm_campaign, placementCode, variant });
+}
+
 // Antwort — keine ids, keine Kundennamen, keine Preise. Neutrale Keys.
 // k = signiertes Auslieferungs-Token (nur wenn Service-Key vorhanden und kein
 // Vorschau-Aufruf); ohne k zaehlt der Client nichts.
-function respond(creative: CreativeCand, isHouse: boolean, publicUrl: (path: string) => string, k: string | null) {
+function respond(creative: CreativeCand, isHouse: boolean, href: string, publicUrl: (path: string) => string, k: string | null) {
   const token = k ? { k } : {};
   if (creative.kind === "image" && creative.image_path) {
     return NextResponse.json(
@@ -81,7 +91,7 @@ function respond(creative: CreativeCand, isHouse: boolean, publicUrl: (path: str
         w: creative.width,
         h: creative.height,
         alt: creative.alt_text ?? "",
-        href: creative.target_url,
+        href,
         ...token,
       },
       NO_STORE,
@@ -94,7 +104,7 @@ function respond(creative: CreativeCand, isHouse: boolean, publicUrl: (path: str
       headline: creative.headline,
       body: creative.body,
       ctaLabel: creative.cta_label,
-      href: creative.target_url,
+      href,
       // Gestaltung (F3): theme immer, bg nur bei custom.
       theme: creative.theme,
       ...(creative.theme === "custom" && creative.bg_color ? { bg: creative.bg_color } : {}),
@@ -164,7 +174,7 @@ export async function GET(
   // 1. Platzierung laden.
   const { data: placement } = await supabase
     .from("ad_placements")
-    .select("id, min_viewport")
+    .select("id, code, min_viewport")
     .eq("code", code)
     .maybeSingle();
   if (!placement) return EMPTY();
@@ -180,13 +190,13 @@ export async function GET(
   if (p && /^[0-9a-f]{48}$/.test(p)) {
     const { data: pc } = await supabase
       .from("ad_campaigns")
-      .select(`id, is_house, bookings:ad_bookings(placement_id), creatives:ad_creatives!ad_creatives_campaign_id_fkey(${CREATIVE_SELECT})`)
+      .select(`id, is_house, utm_enabled, utm_campaign, bookings:ad_bookings(placement_id), creatives:ad_creatives!ad_creatives_campaign_id_fkey(${CREATIVE_SELECT})`)
       .eq("preview_token", p)
       .maybeSingle();
     if (pc && (pc.bookings ?? []).some((b) => b.placement_id === placement.id)) {
       const creative = pickCreative(pc.creatives as unknown as CreativeCand[], variant, placement.id);
-      // Vorschau wird nicht gezaehlt: kein Token.
-      if (creative) return respond(creative, pc.is_house, publicUrl, null);
+      // Vorschau wird nicht gezaehlt: kein Token. Der Link ist der echte.
+      if (creative) return respond(creative, pc.is_house, hrefFor(creative, pc, placement.code, variant), publicUrl, null);
     }
   }
 
@@ -194,7 +204,7 @@ export async function GET(
   const { data, error } = await supabase
     .from("ad_bookings")
     .select(
-      `scope, scope_ref, period, campaign:ad_campaigns(id, weight, is_house, status, creatives:ad_creatives!ad_creatives_campaign_id_fkey(${CREATIVE_SELECT}))`,
+      `scope, scope_ref, period, campaign:ad_campaigns(id, weight, is_house, status, utm_enabled, utm_campaign, creatives:ad_creatives!ad_creatives_campaign_id_fkey(${CREATIVE_SELECT}))`,
     )
     .eq("placement_id", placement.id);
   // Fehler sichtbar machen (Hotfix): ein stiller Ausfall blieb stundenlang unbemerkt.
@@ -206,6 +216,7 @@ export async function GET(
     campaignId: string;
     weight: number;
     isHouse: boolean;
+    utm: CampaignUtm;
     scope: string;
     scopeRef: string | null;
     creative: CreativeCand;
@@ -221,6 +232,7 @@ export async function GET(
       campaignId: b.campaign.id,
       weight: b.campaign.weight,
       isHouse: b.campaign.is_house,
+      utm: b.campaign,
       scope: b.scope,
       scopeRef: b.scope_ref,
       creative,
@@ -258,5 +270,5 @@ export async function GET(
 
   // 5. Antwort mit Auslieferungs-Token.
   const k = signDelivery({ c: picked.campaignId, r: picked.creative.id, p: placement.id });
-  return respond(picked.creative, picked.isHouse, publicUrl, k);
+  return respond(picked.creative, picked.isHouse, hrefFor(picked.creative, picked.utm, placement.code, variant), publicUrl, k);
 }

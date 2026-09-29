@@ -7,6 +7,7 @@ import { getPreviewCampaign, type PreviewCreative } from "@/lib/ads/previewApi";
 import { RESSORT_SLUGS, formatPeriod } from "@/lib/ads/types";
 import { getCampaignStats, type CampaignStats } from "@/lib/ads/statsApi";
 import { COUNT_RULE_SIE, formatCount, formatCtr, formatRuntime } from "@/lib/ads/statsFormat";
+import { UTM_MEDIUM, UTM_SOURCE, utmContentFor } from "@/lib/ads/utm";
 import { createServiceClient } from "@/lib/supabase/service";
 import StatsSeries from "@/components/module/StatsSeries";
 import ApproveForm from "./ApproveForm";
@@ -69,6 +70,15 @@ export default async function PreviewPage({ params }: PageProps) {
   if (showStats) {
     try { stats = await getCampaignStats(createServiceClient(), c.id); } catch { stats = null; }
   }
+
+  // Google Analytics (UTM): nur Kundenkampagnen mit Tracking und Kennung.
+  const showUtm = !c.isHouse && c.utmEnabled && !!c.utmCampaign;
+  const utmExampleCode = c.bookings.find((b) => b.placementCode)?.placementCode ?? "home_billboard";
+  const utmRows: [string, string][] = [
+    ["Quelle / Medium", `${UTM_SOURCE} / ${UTM_MEDIUM}`],
+    ["Kampagne", c.utmCampaign ?? ""],
+    ["Inhalt", `Platzierung und Gerät, z. B. ${utmContentFor(utmExampleCode, "desktop")}`],
+  ];
 
   const card: React.CSSProperties = { background: "var(--da-card)", border: "1px solid var(--da-border)", borderRadius: 10, padding: 20 };
   const overline: React.CSSProperties = { color: "var(--da-faint)", fontSize: 10, fontWeight: 700, fontFamily: "var(--da-font-mono)", letterSpacing: "0.12em", textTransform: "uppercase" };
@@ -178,6 +188,23 @@ export default async function PreviewPage({ params }: PageProps) {
               </div>
             )}
             <p style={{ color: "var(--da-faint)", fontSize: 12, margin: "14px 0 0", lineHeight: 1.5 }}>{COUNT_RULE_SIE}</p>
+          </section>
+        )}
+
+        {showUtm && (
+          <section style={card}>
+            <div style={{ ...overline, marginBottom: 12 }}>Google Analytics</div>
+            <dl style={{ margin: 0, display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px 16px" }}>
+              {utmRows.map(([k, v]) => (
+                <div key={k} style={{ display: "contents" }}>
+                  <dt style={{ color: "var(--da-muted)", fontSize: 14 }}>{k}</dt>
+                  <dd style={{ margin: 0, color: "var(--da-text)", fontSize: 14, fontFamily: "var(--da-font-mono)" }}>{v}</dd>
+                </div>
+              ))}
+            </dl>
+            <p style={{ color: "var(--da-muted)", fontSize: 14, margin: "14px 0 0", lineHeight: 1.5 }}>
+              In Google Analytics finden Sie die Besuche unter Akquisition → Traffic-Akquisition, Quelle/Medium {UTM_SOURCE} / {UTM_MEDIUM}.
+            </p>
           </section>
         )}
 

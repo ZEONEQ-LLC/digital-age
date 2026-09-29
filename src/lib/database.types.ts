@@ -176,6 +176,8 @@ export type Database = {
           price_chf: number | null
           status: string
           updated_at: string
+          utm_campaign: string | null
+          utm_enabled: boolean
           weight: number
         }
         Insert: {
@@ -192,6 +194,8 @@ export type Database = {
           price_chf?: number | null
           status?: string
           updated_at?: string
+          utm_campaign?: string | null
+          utm_enabled?: boolean
           weight?: number
         }
         Update: {
@@ -208,6 +212,8 @@ export type Database = {
           price_chf?: number | null
           status?: string
           updated_at?: string
+          utm_campaign?: string | null
+          utm_enabled?: boolean
           weight?: number
         }
         Relationships: [

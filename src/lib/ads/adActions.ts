@@ -8,6 +8,7 @@ import { isModuleImagePath } from "@/lib/ads/imagePath";
 import { lookupUid } from "@/lib/ads/uidLookup";
 import { getCampaignStatsRows, type CampaignStatsRow } from "@/lib/ads/statsApi";
 import { TEXT_LIMITS } from "@/lib/ads/mediaKit";
+import { UTM_CAMPAIGN_MAX, isValidUtmCampaign } from "@/lib/ads/utm";
 import {
   RESSORT_SLUGS,
   allowedStatusTargets,
@@ -58,6 +59,17 @@ function resolveCreativeStyle(input: { theme?: string; bg_color?: string | null 
   return { theme, bg_color: null };
 }
 
+// Tracking (utm.ts): House immer aus; Kennung leer = null, sonst gegen das
+// Muster des DB-CHECKs pruefen. Das Einfrieren ab live macht der Trigger.
+function parseUtm(input: CampaignInput, isHouse: boolean): { error: string } | { utm_enabled: boolean; utm_campaign: string | null } {
+  if (isHouse) return { utm_enabled: false, utm_campaign: null };
+  const raw = (input.utm_campaign ?? "").trim();
+  if (raw && !isValidUtmCampaign(raw)) {
+    return { error: `Kampagnen-Kennung ungültig: nur Kleinbuchstaben, Ziffern und Bindestriche, max. ${UTM_CAMPAIGN_MAX} Zeichen.` };
+  }
+  return { utm_enabled: input.utm_enabled ?? true, utm_campaign: raw || null };
+}
+
 function isValidTargetUrl(u: string): boolean {
   return u.startsWith("/") || u.startsWith("http://") || u.startsWith("https://");
 }
@@ -103,6 +115,7 @@ const PASSTHROUGH_PREFIXES = [
   "Diese Platzierung ist nur",
   "Kreativ wird von einer laufenden",
   "Kunde hat laufende Kampagnen",
+  "Kampagnen-Kennung",
 ];
 
 function mapDbError(error: { code?: string; message?: string } | null): string {
@@ -116,7 +129,12 @@ function mapDbError(error: { code?: string; message?: string } | null): string {
       .replace(/vollstaendige/g, "vollständige")
       .replace(/fuer/g, "für")
       .replace(/geaendert/g, "geändert")
-      .replace(/koennen/g, "können");
+      .replace(/koennen/g, "können")
+      .replace(/waehrend/g, "während")
+      .replace(/aenderbar/g, "änderbar");
+  }
+  if (msg.includes("ad_campaigns_utm_campaign_format")) {
+    return `Kampagnen-Kennung ungültig: nur Kleinbuchstaben, Ziffern und Bindestriche, max. ${UTM_CAMPAIGN_MAX} Zeichen.`;
   }
   if (error?.code === "23P01") {
     return "Diese Buchung existiert bereits: gleiche Platzierung, gleicher Geltungsbereich, überlappender Zeitraum.";
@@ -232,6 +250,8 @@ export async function createCampaign(input: CampaignInput): Promise<ActionResult
     if (!isValidWeight(input.weight)) return { ok: false, error: "Gewicht muss eine ganze Zahl von 1 bis 10 sein." };
     const price = parsePrice(input.price_chf);
     if (!price.ok) return { ok: false, error: "Preis ungültig." };
+    const utm = parseUtm(input, input.is_house);
+    if ("error" in utm) return { ok: false, error: utm.error };
     const { data, error } = await supabase
       .from("ad_campaigns")
       .insert({
@@ -242,6 +262,8 @@ export async function createCampaign(input: CampaignInput): Promise<ActionResult
         weight: input.weight,
         notes: input.notes || null,
         status: "draft",
+        utm_enabled: utm.utm_enabled,
+        utm_campaign: utm.utm_campaign,
       })
       .select("id")
       .single();
@@ -271,6 +293,8 @@ export async function updateCampaign(id: string, input: CampaignInput): Promise<
     if (!isHouse && !input.advertiser_id) {
       return { ok: false, error: "Kunden-Kampagne braucht einen Kunden." };
     }
+    const utm = parseUtm(input, isHouse);
+    if ("error" in utm) return { ok: false, error: utm.error };
     const { error } = await supabase
       .from("ad_campaigns")
       .update({
@@ -279,6 +303,8 @@ export async function updateCampaign(id: string, input: CampaignInput): Promise<
         price_chf: isHouse ? null : price.value,
         weight: input.weight,
         notes: input.notes || null,
+        utm_enabled: utm.utm_enabled,
+        utm_campaign: utm.utm_campaign,
       })
       .eq("id", id);
     if (error) return { ok: false, error: mapDbError(error) };
