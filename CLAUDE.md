@@ -12,7 +12,7 @@ bleibt erreichbar, ist aber nicht mehr primäre Domain.
 
 ## Stack
 
-- Next.js 16.2.3 (App Router, src-dir, TypeScript)
+- Next.js 16.3.6 (App Router, src-dir, TypeScript)
 - React 19.2.4
 - Tailwind CSS v4 (Theme in `src/app/globals.css` via `@theme`)
 - Supabase (geplant: Postgres, Auth, Storage, Edge Functions) — einzige DB

@@ -32,23 +32,14 @@ const nextConfig: NextConfig = {
   // Eintrag beide Varianten.
   skipTrailingSlashRedirect: true,
   images: {
+    // Nur der eigene Storage-Host, alle entfernten Bilder laufen unoptimized.
+    // Ein neues <Image> ohne unoptimized von einem anderen Host braucht hier
+    // einen Eintrag.
     remotePatterns: [
-      { protocol: "https", hostname: "picsum.photos" },
-      { protocol: "https", hostname: "i.pravatar.cc" },
-      { protocol: "https", hostname: "*.mzstatic.com" },
-      { protocol: "https", hostname: "i.scdn.co" },
       {
         protocol: "https",
-        hostname: "*.supabase.co",
-        pathname: "/storage/v1/**",
-      },
-      // Temporär: alte WP-Hosting-URLs der migrierten Artikel. Fällt mit
-      // Phase 8e (Bilder ins Supabase-Storage) weg. Vor Domain-Switch
-      // zwingend, sonst werden URLs tot.
-      {
-        protocol: "https",
-        hostname: "digital-age.ch",
-        pathname: "/wp-content/uploads/**",
+        hostname: "dkmvadaypxiaxwfkbghz.supabase.co",
+        pathname: "/storage/v1/object/public/**",
       },
     ],
   },
