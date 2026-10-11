@@ -2028,6 +2028,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           )}
           <ArticleBody>
             <BlockReader
+              locale={locale}
               doc={
                 doc ?? {
                   version: BLOCK_SCHEMA_VERSION,

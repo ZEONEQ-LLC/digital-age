@@ -506,7 +506,7 @@ async function ArticleView({ article, moduleReserve }: { article: ArticleWithFul
       <ArticleBodyGrid hasToc={tocItems.length > 0}>
         <article>
           <ArticleBody>
-            <BlockReader doc={doc} articleSlug={article.slug} ressortSlug={categorySlug} moduleReserve={moduleReserve} />
+            <BlockReader doc={doc} articleSlug={article.slug} ressortSlug={categorySlug} moduleReserve={moduleReserve} locale={article.locale} />
           </ArticleBody>
 
           {article.tags && article.tags.length > 0 && (
