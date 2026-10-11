@@ -17,6 +17,9 @@ type BlockReaderProps = {
   articleSlug?: string;
   ressortSlug?: string;
   moduleReserve?: SlotReserve;
+  // Artikelsprache (articles.locale: "de-CH" | "en") fuer UI-Texte des Readers,
+  // z. B. die Ueberschrift der Quellenliste. Default Deutsch.
+  locale?: string | null;
 };
 
 // Platzierung article_inline: rein render-seitig NACH dem N-ten Block
@@ -396,9 +399,10 @@ function renderBlock(
 //   - Body MIT [^N]-Refs → in Auftrittsreihenfolge (Auto-Renumber-Spec)
 //   - Body OHNE Refs aber sources vorhanden → alle in Array-Reihenfolge
 // Visuelle Gestaltung unveraendert.
-function renderSourceList(sources: Source[], order: number[]): ReactNode {
+function renderSourceList(sources: Source[], order: number[], locale?: string | null): ReactNode {
   const items = computeSourceListItems(sources, order);
   if (items.length === 0) return null;
+  const heading = locale === "en" ? "Sources" : "Quellen";
   return (
     <section
       style={{
@@ -408,7 +412,7 @@ function renderSourceList(sources: Source[], order: number[]): ReactNode {
       }}
     >
       <h2 style={{ fontFamily: "var(--da-font-display)", fontSize: 20, marginBottom: 12 }}>
-        Quellen
+        {heading}
       </h2>
       <ol style={{ paddingLeft: 22 }}>
         {items.map(({ display, source: s }) => (
@@ -431,7 +435,7 @@ function renderSourceList(sources: Source[], order: number[]): ReactNode {
   );
 }
 
-export default function BlockReader({ doc, blocks, articleSlug, ressortSlug, moduleReserve }: BlockReaderProps) {
+export default function BlockReader({ doc, blocks, articleSlug, ressortSlug, moduleReserve, locale }: BlockReaderProps) {
   // Backward-compat: alte Aufrufe mit blocks={...} unterstützen.
   const effectiveBlocks: Block[] = doc?.blocks ?? blocks ?? [];
   const sources: Source[] = doc?.sources ?? [];
@@ -454,7 +458,7 @@ export default function BlockReader({ doc, blocks, articleSlug, ressortSlug, mod
           )}
         </span>
       ))}
-      {renderSourceList(sources, order)}
+      {renderSourceList(sources, order, locale)}
     </>
   );
 }
