@@ -1000,7 +1000,7 @@ Env als Default-Quelle (Env bleibt Fallback).
   hat Platzhalter):
   - `ANTHROPIC_API_KEY` — Provider-Key. Niemals committen.
   - `ANTHROPIC_MODEL` — globale Default-Modell-Wahl
-    (z.B. `claude-haiku-4-5`). Task→Modell-Verzweigung ist explizit
+    (z.B. `claude-haiku-5-5`). Task→Modell-Verzweigung ist explizit
     out-of-scope für A1a.
 
 - **Manuelle Type-Ergänzung in `database.types.ts`:** der

@@ -9,10 +9,10 @@ import type { AiTask } from "@/lib/ai/types";
 //
 // image_alt ist ein VISION-Task: ohne vision-faehiges Modell failt Schritt 4
 // des Co-Pilot-Laufs (und der manuelle ALT-Button) bei JEDEM Lauf, bis ein
-// Admin-Override gesetzt ist — das Feature waere nach Deploy kaputt. Haiku 4.5
+// Admin-Override gesetzt ist — das Feature waere nach Deploy kaputt. Haiku 5.5
 // ist vision-faehig und guenstig; ALT-Texte brauchen kein grosses Modell.
 export const TASK_MODEL_DEFAULTS: Partial<Record<AiTask, string>> = {
-  image_alt: "claude-haiku-4-5",
+  image_alt: "claude-haiku-5-5",
 };
 
 // Auflösung: gueltiger Override → Task-Default → genereller Default.

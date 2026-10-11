@@ -4,7 +4,8 @@
 //
 // Sichert die kuratierte Modell-Liste (Reihenfolge + IDs) und das
 // isKnownModel-Verhalten ab — insbesondere, dass die entfernten IDs
-// (Sonnet 4.6, Opus 4.6, Opus 4.7) nicht mehr als bekannt gelten, damit
+// (Haiku 4.5, Sonnet 5, Opus 4.8, Fable 5 sowie die noch aelteren Sonnet 4.6,
+// Opus 4.6, Opus 4.7) nicht mehr als bekannt gelten, damit
 // der Config-Resolver-Fallback und die "(unbekannt)"-UI korrekt greifen.
 
 import { KNOWN_MODELS, KNOWN_MODEL_IDS, isKnownModel } from "../models";
@@ -18,12 +19,16 @@ function ok(label: string, cond: boolean, detail?: string): void {
 function section(l: string): void { process.stdout.write(`\n=== ${l} ===\n`); }
 
 const EXPECTED_IDS = [
+  "claude-haiku-5-5",
+  "claude-sonnet-5-5",
+  "claude-opus-5-5",
+  "claude-fable-5-1",
+];
+const REMOVED_IDS = [
   "claude-haiku-4-5",
   "claude-sonnet-5",
   "claude-opus-4-8",
   "claude-fable-5",
-];
-const REMOVED_IDS = [
   "claude-sonnet-4-6",
   "claude-opus-4-6",
   "claude-opus-4-7",
