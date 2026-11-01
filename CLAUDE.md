@@ -1011,6 +1011,19 @@ Env als Default-Quelle (Env bleibt Fallback).
   identisch durch das CLI überschrieben — die Marker dürfen dann
   entfernt werden.
 
+### Podcast-Empfehlung per Teilen (Ingest)
+
+iOS-Kurzbefehl «An digital-age» schickt einen Apple-Podcasts-Link an
+`POST /api/podcasts/ingest` (Bearer `PODCAST_INGEST_TOKEN`, IP-Rate-Limit
+über `newsletter_signup_attempts.action = 'podcast_ingest'`). Der Endpoint
+legt sofort einen Entwurf an (`is_published = false`, `ingest_status =
+pending`) und ergänzt nach der Antwort per `after()` Metadaten (Apple-Seite
+plus iTunes Lookup) und KI-Felder (Task `podcast_ingest`, ohne Session über
+`src/lib/ai/systemCall.ts`). Freigabe nur eingeloggt unter
+`/autor/admin/freigaben` (fürs iPhone gebaut). Dubletten über
+`podcasts.apple_episode_id` / `apple_show_id` (partielle Unique-Indizes).
+Anleitung für den Kurzbefehl: `docs/podcast-kurzbefehl.md`.
+
 ### Invite-Flow (PR B)
 
 **Pragma:** Editor generiert Token, kopiert URL und versendet sie manuell

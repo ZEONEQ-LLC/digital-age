@@ -35,6 +35,7 @@ const TASK_LABELS: Record<AiTask, string> = {
   abstract_generate: "Abstract generieren",
   highlight_suggestions: "Highlight-Vorschläge",
   image_alt: "Bild-ALT-Texte",
+  podcast_ingest: "Podcast-Empfehlung per Teilen",
 };
 
 // Visuelle Gruppierung der UI-sichtbaren Tasks. Reihenfolge im Array =
@@ -65,6 +66,11 @@ const TASK_GROUPS: TaskGroup[] = [
     id: "news",
     label: "News",
     tasks: ["news_item_generation"],
+  },
+  {
+    id: "podcasts",
+    label: "Podcasts",
+    tasks: ["podcast_ingest"],
   },
 ];
 

@@ -1,0 +1,244 @@
+import "server-only";
+
+import { createServiceClient } from "@/lib/supabase/service";
+import { callLLMForAuthor } from "@/lib/ai/systemCall";
+import { PODCAST_CATEGORIES, isPodcastCategory } from "@/lib/podcastCategories";
+import { slugifyPodcast } from "@/lib/podcastSlug";
+import { parseAppleLink, type AppleLink } from "@/lib/podcasts/appleLink";
+import { fetchApplePageMeta, lookupAppleShow, type ApplePageMeta, type AppleShowMeta } from "@/lib/podcasts/appleMeta";
+
+// Empfehlung per Teilen: Apple-Link -> Entwurf (sofort) -> Anreicherung im
+// Hintergrund (Metadaten + KI) -> Freigabe durch einen Editor unter
+// /autor/admin/freigaben. Der Endpoint veroeffentlicht nie.
+//
+// Zwei Phasen, damit der Kurzbefehl in unter 2 s eine Antwort bekommt:
+//   ingestAppleLink   : Link lesen, Dublette pruefen, Entwurf mit Titel anlegen
+//   enrichPodcastDraft: Apple-Seite + iTunes Lookup + KI, Zeile vervollstaendigen
+//
+// Fehler landen sichtbar auf der Zeile (ingest_status = failed, ingest_error)
+// und nie still im Log allein.
+
+export type IngestOutcome =
+  | { status: "created"; id: string; message: string }
+  | { status: "exists"; id: string; message: string }
+  | { status: "invalid"; message: string }
+  | { status: "error"; message: string };
+
+type Sb = ReturnType<typeof createServiceClient>;
+
+const DEFAULT_CATEGORY = PODCAST_CATEGORIES[0];
+const LANGS = new Set(["de", "en", "fr", "it"]);
+
+// Empfehler: feste Author-ID aus der Env, sonst der erste Editor.
+async function resolveRecommenderId(supabase: Sb): Promise<string | null> {
+  const fixed = process.env.PODCAST_INGEST_AUTHOR_ID?.trim();
+  if (fixed) {
+    const { data } = await supabase.from("authors").select("id").eq("id", fixed).maybeSingle();
+    if (data) return data.id;
+    console.error("[podcast-ingest] PODCAST_INGEST_AUTHOR_ID zeigt auf keinen Author, Fallback erster Editor.");
+  }
+  const { data } = await supabase
+    .from("authors")
+    .select("id")
+    .eq("role", "editor")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
+// Titel-Notnagel aus dem Pfad-Slug, falls die Apple-Seite nicht lesbar ist.
+function titleFromLink(link: AppleLink): string {
+  const seg = new URL(link.url).pathname.split("/").filter(Boolean);
+  const slug = seg.length >= 2 ? seg[seg.length - 2] : seg[seg.length - 1] ?? "";
+  const words = slug.replace(/[-_]+/g, " ").trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : "Podcast-Empfehlung";
+}
+
+async function findExisting(supabase: Sb, link: AppleLink): Promise<{ id: string; title: string } | null> {
+  const q = supabase.from("podcasts").select("id, title");
+  const { data } = link.episodeId
+    ? await q.eq("apple_episode_id", link.episodeId).maybeSingle()
+    : await q.eq("apple_show_id", link.showId).is("apple_episode_id", null).maybeSingle();
+  return data ?? null;
+}
+
+export async function ingestAppleLink(rawUrl: string): Promise<IngestOutcome> {
+  const link = parseAppleLink(rawUrl);
+  if (!link) {
+    return { status: "invalid", message: "Kein Apple-Podcasts-Link erkannt. Bitte den Link einer Folge oder Show teilen." };
+  }
+  const supabase = createServiceClient();
+
+  const existing = await findExisting(supabase, link);
+  if (existing) return { status: "exists", id: existing.id, message: `Schon vorhanden: ${existing.title}` };
+
+  const recommenderId = await resolveRecommenderId(supabase);
+  if (!recommenderId) return { status: "error", message: "Kein Empfehler konfiguriert (PODCAST_INGEST_AUTHOR_ID oder Editor fehlt)." };
+
+  // Titel sofort von der Apple-Seite (kurz), damit die Mitteilung aussagekraeftig ist.
+  const meta = await fetchApplePageMeta(link.url);
+  const title = (meta?.title ?? titleFromLink(link)).slice(0, 200);
+
+  const base = {
+    title,
+    description: null,
+    cover_image_url: meta?.image ?? null,
+    language: "de",
+    podcast_category: DEFAULT_CATEGORY,
+    source_type: "external",
+    apple_podcasts_url: link.url,
+    apple_show_id: link.showId,
+    apple_episode_id: link.episodeId,
+    duration_seconds: meta?.durationSeconds ?? null,
+    ai_generated: false,
+    is_published: false,
+    recommended_by_id: recommenderId,
+    recommended_at: new Date().toISOString(),
+    ingest_status: "pending",
+    ingest_error: null,
+  };
+
+  let slug = slugifyPodcast(title) || `podcast-${Date.now()}`;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data, error } = await supabase.from("podcasts").insert({ ...base, slug }).select("id").single();
+    if (!error && data) {
+      return { status: "created", id: data.id, message: `Erhalten: ${title}` };
+    }
+    if (error?.code === "23505") {
+      // Slug oder Apple-ID kollidiert: Apple-ID -> parallel eingetroffen = vorhanden.
+      const again = await findExisting(supabase, link);
+      if (again) return { status: "exists", id: again.id, message: `Schon vorhanden: ${again.title}` };
+      slug = `${slugifyPodcast(title)}-${Math.floor(Math.random() * 9000 + 1000)}`;
+      continue;
+    }
+    console.error("[podcast-ingest] Insert fehlgeschlagen:", error?.message);
+    return { status: "error", message: "Entwurf konnte nicht gespeichert werden." };
+  }
+  return { status: "error", message: "Kein eindeutiger Slug gefunden." };
+}
+
+// ── Anreicherung ──────────────────────────────────────────────────────────
+type Draft = {
+  id: string;
+  title: string;
+  apple_podcasts_url: string | null;
+  apple_show_id: string | null;
+  apple_episode_id: string | null;
+  recommended_by_id: string | null;
+  cover_image_url: string | null;
+};
+
+type AiFields = { description: string; category: string; language: string; title?: string };
+
+function stripCodeFence(raw: string): string {
+  return raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+}
+
+function parseAiFields(raw: string): AiFields | null {
+  try {
+    const p = JSON.parse(stripCodeFence(raw)) as Record<string, unknown>;
+    const description = typeof p.description === "string" ? p.description.trim() : "";
+    const category = typeof p.category === "string" ? p.category.trim() : "";
+    const language = typeof p.language === "string" ? p.language.trim().toLowerCase() : "";
+    const title = typeof p.title === "string" ? p.title.trim() : undefined;
+    if (!description) return null;
+    return { description, category, language, title };
+  } catch (err) {
+    console.error("[podcast-ingest] KI-Antwort kein JSON:", err instanceof Error ? err.message : String(err));
+    return null;
+  }
+}
+
+function buildSystem(): string {
+  return [
+    "Du schreibst fuer digital-age.ch, ein Schweizer Magazin fuer KI und Future Tech.",
+    "Aufgabe: Aus Metadaten einer Podcast-Folge oder eines Podcasts eine Empfehlung erstellen.",
+    "Antworte NUR mit einem JSON-Objekt, ohne Erklaerung, ohne Code-Fence:",
+    '{"description": string, "category": string, "language": "de"|"en"|"fr"|"it", "title": string}',
+    "description: 2 bis 3 Saetze auf Deutsch (Schweizer Schreibweise, ss statt ß), in eigenen Worten, sachlich, kein Marketing, keine Anbieterbeschreibung kopieren, keine Ich-Form.",
+    `category: genau einer dieser Werte: ${PODCAST_CATEGORIES.map((c) => `"${c}"`).join(", ")}.`,
+    "language: Sprache, in der der Podcast gesprochen wird (aus Titel/Beschreibung ableiten).",
+    "title: der Originaltitel, bereinigt um Folgennummern-Praefixe wie '#541 -' oder 'Ep. 12:', sonst unveraendert.",
+  ].join("\n");
+}
+
+function buildPrompt(d: Draft, meta: ApplePageMeta | null, show: AppleShowMeta | null): string {
+  const kind = d.apple_episode_id ? "Podcast-Folge" : "Podcast (ganze Show)";
+  const lines = [
+    `Art: ${kind}`,
+    `Titel: ${meta?.title ?? d.title}`,
+    show?.name || meta?.showName ? `Podcast/Show: ${show?.name ?? meta?.showName}` : null,
+    show?.genre ? `Genre laut Apple: ${show.genre}` : null,
+    meta?.releaseDate ? `Veroeffentlicht: ${meta.releaseDate}` : null,
+    meta?.durationSeconds ? `Dauer: ${Math.round(meta.durationSeconds / 60)} Minuten` : null,
+    meta?.description ? `Beschreibung des Anbieters (nur als Quelle, nicht kopieren):\n${meta.description.slice(0, 3000)}` : "Keine Anbieterbeschreibung verfuegbar.",
+  ].filter((l): l is string => !!l);
+  return lines.join("\n");
+}
+
+export async function enrichPodcastDraft(id: string): Promise<void> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("podcasts")
+    .select("id, title, apple_podcasts_url, apple_show_id, apple_episode_id, recommended_by_id, cover_image_url")
+    .eq("id", id)
+    .maybeSingle();
+  const draft = data as Draft | null;
+  if (!draft || !draft.apple_podcasts_url || !draft.recommended_by_id) return;
+
+  const fail = async (msg: string) => {
+    console.error(`[podcast-ingest] ${draft.id}: ${msg}`);
+    await supabase.from("podcasts").update({ ingest_status: "failed", ingest_error: msg.slice(0, 500) }).eq("id", draft.id);
+  };
+
+  try {
+    const [meta, show] = await Promise.all([
+      fetchApplePageMeta(draft.apple_podcasts_url),
+      draft.apple_show_id ? lookupAppleShow(draft.apple_show_id) : Promise.resolve(null),
+    ]);
+    if (!meta && !show) {
+      await fail("Weder Apple-Seite noch iTunes Lookup lieferten Daten.");
+      return;
+    }
+
+    const ai = await callLLMForAuthor(draft.recommended_by_id, {
+      system: buildSystem(),
+      prompt: buildPrompt(draft, meta, show),
+      maxTokens: 400,
+      task: "podcast_ingest",
+    });
+    if (!ai.ok) {
+      await fail(`KI-Schritt fehlgeschlagen (${ai.kind}): ${ai.message}`);
+      return;
+    }
+    const fields = parseAiFields(ai.text);
+    if (!fields) {
+      await fail("KI-Antwort hatte nicht das erwartete Format.");
+      return;
+    }
+
+    // Cover: Folge -> Bild der Apple-Seite, Show -> 600px-Artwork aus dem Lookup.
+    const cover = draft.apple_episode_id
+      ? (meta?.image ?? show?.artwork ?? draft.cover_image_url)
+      : (show?.artwork ?? meta?.image ?? draft.cover_image_url);
+
+    const { error } = await supabase
+      .from("podcasts")
+      .update({
+        title: (fields.title || meta?.title || draft.title).slice(0, 200),
+        description: fields.description.slice(0, 1500),
+        podcast_category: isPodcastCategory(fields.category) ? fields.category : DEFAULT_CATEGORY,
+        language: LANGS.has(fields.language) ? fields.language : "de",
+        cover_image_url: cover,
+        duration_seconds: meta?.durationSeconds ?? null,
+        ai_generated: true,
+        ingest_status: "ready",
+        ingest_error: null,
+      })
+      .eq("id", draft.id);
+    if (error) await fail(`Speichern fehlgeschlagen: ${error.message}`);
+  } catch (err) {
+    await fail(err instanceof Error ? err.message : String(err));
+  }
+}

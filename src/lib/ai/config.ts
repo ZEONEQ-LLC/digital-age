@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { resolveTaskModel } from "@/lib/ai/taskModel";
 import type { AiTask, LLMParams } from "@/lib/ai/types";
@@ -20,6 +22,7 @@ const KNOWN_TASKS: ReadonlySet<AiTask> = new Set<AiTask>([
   "abstract_generate",
   "highlight_suggestions",
   "image_alt",
+  "podcast_ingest",
 ]);
 
 // Schema der Row (deckt sich mit Database["public"]["Tables"]["ai_config"]
@@ -36,10 +39,15 @@ type AiConfigRow = {
 // die Funktion graceful auf die Caller-Werte zurück und loggt einmalig
 // eine Warnung — `callLLM` soll daran NICHT crashen und auch nicht
 // `kind:"config"` zurückgeben (das ist Env-Konfig-Fehlen vorbehalten).
-export async function resolveLLMConfig(params: LLMParams): Promise<LLMParams> {
+// `client` optional: Route Handler ohne Session (Bearer-Token, Cron) reichen den
+// Service-Client herein, sonst liest RLS die Config-Row nicht (systemCall.ts).
+export async function resolveLLMConfig(
+  params: LLMParams,
+  client?: SupabaseClient<Database>,
+): Promise<LLMParams> {
   let row: AiConfigRow | null = null;
   try {
-    const supabase = await createClient();
+    const supabase = client ?? (await createClient());
     const { data, error } = await supabase
       .from("ai_config")
       .select("system_prompt, default_model, task_model_overrides")

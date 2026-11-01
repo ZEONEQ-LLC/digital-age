@@ -1,4 +1,5 @@
 import { getCurrentAuthor } from "@/lib/authorApi";
+import { getPendingApprovalsCount } from "@/lib/podcasts/approvalsApi";
 import AuthorMobileBlock from "./AuthorMobileBlock";
 import AuthorSidebar from "./AuthorSidebar";
 import AuthorTopNav from "./AuthorTopNav";
@@ -10,11 +11,13 @@ type AuthorShellProps = {
 
 export default async function AuthorShell({ children }: AuthorShellProps) {
   const row = await getCurrentAuthor();
+  const pendingApprovals = row?.role === "editor" ? await getPendingApprovalsCount() : 0;
   const author: AuthorChip = {
     name: row?.display_name ?? "Unbekannt",
     avatar: row?.avatar_url ?? "",
     jobTitle: row?.job_title ?? undefined,
     userRole: row?.role ?? "external",
+    pendingApprovals,
   };
 
   return (

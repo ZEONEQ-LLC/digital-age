@@ -17,6 +17,7 @@ const items: NavItem[] = [
 ];
 
 const adminItems: NavItem[] = [
+  { id: "admin-freigaben", label: "Freigaben", href: "/autor/admin/freigaben", icon: "✓" },
   { id: "admin-articles", label: "Alle Artikel", href: "/autor/admin/artikel",     icon: "▦" },
   { id: "admin-authors", label: "Autoren",     href: "/autor/admin/autoren",     icon: "◌" },
   { id: "admin-invites", label: "Einladungen", href: "/autor/admin/einladungen", icon: "✉" },
@@ -105,6 +106,7 @@ export default function AuthorTopNav({ author }: AuthorTopNavProps) {
           border-bottom-color: var(--da-green);
           font-weight: 600;
         }
+        .a-tn__badge { margin-left: 6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--da-green); color: #0b0b0c; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
         .a-tn__icon { font-size: 11px; opacity: 0.7; }
         .a-tn__item--active .a-tn__icon { opacity: 1; }
         .a-tn__divider {
@@ -163,6 +165,9 @@ export default function AuthorTopNav({ author }: AuthorTopNavProps) {
                     >
                       <span className="a-tn__icon">{it.icon}</span>
                       {it.label}
+                      {it.id === "admin-freigaben" && (author.pendingApprovals ?? 0) > 0 && (
+                        <span className="a-tn__badge" aria-label="offene Freigaben">{author.pendingApprovals}</span>
+                      )}
                     </Link>
                   );
                 })}

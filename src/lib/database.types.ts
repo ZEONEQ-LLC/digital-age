@@ -1350,7 +1350,9 @@ export type Database = {
       podcasts: {
         Row: {
           ai_generated: boolean
+          apple_episode_id: string | null
           apple_podcasts_url: string | null
+          apple_show_id: string | null
           audible_url: string | null
           audio_url: string | null
           cover_image_url: string | null
@@ -1359,6 +1361,8 @@ export type Database = {
           duration_seconds: number | null
           file_size_bytes: number | null
           id: string
+          ingest_error: string | null
+          ingest_status: string | null
           is_published: boolean
           language: string
           podcast_category: string
@@ -1376,7 +1380,9 @@ export type Database = {
         }
         Insert: {
           ai_generated?: boolean
+          apple_episode_id?: string | null
           apple_podcasts_url?: string | null
+          apple_show_id?: string | null
           audible_url?: string | null
           audio_url?: string | null
           cover_image_url?: string | null
@@ -1385,6 +1391,8 @@ export type Database = {
           duration_seconds?: number | null
           file_size_bytes?: number | null
           id?: string
+          ingest_error?: string | null
+          ingest_status?: string | null
           is_published?: boolean
           language: string
           podcast_category: string
@@ -1402,7 +1410,9 @@ export type Database = {
         }
         Update: {
           ai_generated?: boolean
+          apple_episode_id?: string | null
           apple_podcasts_url?: string | null
+          apple_show_id?: string | null
           audible_url?: string | null
           audio_url?: string | null
           cover_image_url?: string | null
@@ -1411,6 +1421,8 @@ export type Database = {
           duration_seconds?: number | null
           file_size_bytes?: number | null
           id?: string
+          ingest_error?: string | null
+          ingest_status?: string | null
           is_published?: boolean
           language?: string
           podcast_category?: string
