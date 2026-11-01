@@ -115,30 +115,36 @@ export type Database = {
       }
       ad_bookings: {
         Row: {
+          archived_at: string | null
           campaign_id: string
           created_at: string
           expiry_notified_at: string | null
           id: string
+          paused_at: string | null
           period: unknown
           placement_id: string
           scope: string
           scope_ref: string | null
         }
         Insert: {
+          archived_at?: string | null
           campaign_id: string
           created_at?: string
           expiry_notified_at?: string | null
           id?: string
+          paused_at?: string | null
           period: unknown
           placement_id: string
           scope: string
           scope_ref?: string | null
         }
         Update: {
+          archived_at?: string | null
           campaign_id?: string
           created_at?: string
           expiry_notified_at?: string | null
           id?: string
+          paused_at?: string | null
           period?: unknown
           placement_id?: string
           scope?: string

@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import {
   formatPeriod,
+  isBookingActive,
   parsePeriod,
   type AdvertiserWithContacts,
   type BookingShare,
@@ -17,19 +18,21 @@ import {
 
 type OverviewQueryRow = CampaignRow & {
   advertiser: { name: string } | null;
-  bookings: { period: string; placement: { label: string } | null }[];
+  bookings: { period: string; archived_at: string | null; placement: { label: string } | null }[];
 };
 
 export async function getCampaignsOverview(): Promise<CampaignOverviewVM[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("ad_campaigns")
-    .select("*, advertiser:ad_advertisers(name), bookings:ad_bookings(period, placement:ad_placements(label))")
+    .select("*, advertiser:ad_advertisers(name), bookings:ad_bookings(period, archived_at, placement:ad_placements(label))")
     .order("created_at", { ascending: false });
   if (error || !data) return [];
   return (data as unknown as OverviewQueryRow[]).map((c) => {
+    // Archivierte Buchungen zaehlen weder fuer Platzierungen noch Laufzeit.
+    const active = c.bookings.filter((b) => !b.archived_at);
     const labels = Array.from(
-      new Set(c.bookings.map((b) => b.placement?.label).filter((l): l is string => !!l)),
+      new Set(active.map((b) => b.placement?.label).filter((l): l is string => !!l)),
     );
     return {
       id: c.id,
@@ -39,7 +42,7 @@ export async function getCampaignsOverview(): Promise<CampaignOverviewVM[]> {
       status: c.status,
       priceChf: c.price_chf,
       placementLabels: labels,
-      periodLabel: overviewPeriodLabel(c.bookings.map((b) => b.period)),
+      periodLabel: overviewPeriodLabel(active.map((b) => b.period)),
     };
   });
 }
@@ -93,6 +96,8 @@ type ShareCandidateRow = {
   scope: string;
   scope_ref: string | null;
   period: unknown;
+  paused_at: string | null;
+  archived_at: string | null;
   campaign: { id: string; status: string; is_house: boolean; weight: number } | null;
 };
 
@@ -118,7 +123,7 @@ function computeShares(
     if (bb) {
       for (const c of all) {
         if (!c.campaign || c.campaign.id === ownCampaignId) continue;
-        if (c.campaign.status !== "live") continue;
+        if (c.campaign.status !== "live" || !isBookingActive(c)) continue;
         if (c.placement_id !== b.placement_id || c.scope !== b.scope || (c.scope_ref ?? "") !== ref) continue;
         const cb = toBound(c.period);
         if (!cb || !overlaps(bb, cb)) continue;
@@ -176,7 +181,7 @@ export async function getCampaignDetail(id: string): Promise<CampaignDetail | nu
   if (placementIds.length > 0) {
     const { data: cand } = await supabase
       .from("ad_bookings")
-      .select("id, campaign_id, placement_id, scope, scope_ref, period, campaign:ad_campaigns(id, status, is_house, weight)")
+      .select("id, campaign_id, placement_id, scope, scope_ref, period, paused_at, archived_at, campaign:ad_campaigns(id, status, is_house, weight)")
       .in("placement_id", placementIds);
     all = (cand ?? []) as unknown as ShareCandidateRow[];
   }

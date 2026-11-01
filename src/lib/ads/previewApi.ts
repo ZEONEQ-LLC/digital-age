@@ -68,6 +68,7 @@ type Row = {
     scope: string;
     scope_ref: string | null;
     period: unknown;
+    archived_at: string | null;
     placement: { code: string; label: string } | null;
   }[];
   creatives: PreviewCreative[];
@@ -92,7 +93,7 @@ export async function getPreviewCampaign(token: string): Promise<PreviewCampaign
     .from("ad_campaigns")
     .select(
       "id, name, status, is_house, approved_at, approved_by, approved_note, utm_enabled, utm_campaign, advertiser:ad_advertisers(name), " +
-        "bookings:ad_bookings(id, placement_id, scope, scope_ref, period, placement:ad_placements(code, label)), " +
+        "bookings:ad_bookings(id, placement_id, scope, scope_ref, period, archived_at, placement:ad_placements(code, label)), " +
         "creatives:ad_creatives!ad_creatives_campaign_id_fkey(id, kind, variant, placement_id, headline, body, cta_label, target_url, is_active, theme, bg_color, image_path, width, height, alt_text)",
     )
     .eq("preview_token", token)
@@ -115,6 +116,7 @@ export async function getPreviewCampaign(token: string): Promise<PreviewCampaign
 
   const bookings: PreviewBooking[] = [];
   for (const b of row.bookings ?? []) {
+    if (b.archived_at) continue;   // Archiv gehoert nicht in die Kundenvorschau
     const code = b.placement?.code ?? "";
     const placementCode = isPlacementCode(code) ? code : null;
     let path = "/";
