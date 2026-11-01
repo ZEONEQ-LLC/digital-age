@@ -1,7 +1,7 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/service";
 import { PLACEMENTS, type PlacementCode } from "@/lib/ads/placements";
-import { parsePeriod } from "@/lib/ads/types";
+import { isBookingActive, parsePeriod } from "@/lib/ads/types";
 
 // G3: Die Seite entscheidet serverseitig, ob ein Slot Bild- oder Texthoehe
 // reserviert. Ein einziges Boolean: "existiert jetzt eine live Nicht-House-
@@ -14,6 +14,8 @@ export type SlotReservation = "image" | "internal";
 type Row = {
   placement_id: string;
   period: unknown;
+  paused_at: string | null;
+  archived_at: string | null;
   campaign: {
     status: string;
     is_house: boolean;
@@ -36,7 +38,7 @@ export async function getSlotReservation(code: PlacementCode): Promise<SlotReser
     const { data, error } = await supabase
       .from("ad_bookings")
       .select(
-        "placement_id, period, placement:ad_placements!inner(code), campaign:ad_campaigns!inner(status, is_house, creatives:ad_creatives!ad_creatives_campaign_id_fkey(kind, is_active, placement_id))",
+        "placement_id, period, paused_at, archived_at, placement:ad_placements!inner(code), campaign:ad_campaigns!inner(status, is_house, creatives:ad_creatives!ad_creatives_campaign_id_fkey(kind, is_active, placement_id))",
       )
       .filter("placement.code", "eq", code)
       .filter("campaign.status", "eq", "live")
@@ -46,7 +48,7 @@ export async function getSlotReservation(code: PlacementCode): Promise<SlotReser
     const now = Date.now();
     for (const b of data as unknown as Row[]) {
       if (!b.campaign || b.campaign.status !== "live" || b.campaign.is_house) continue;
-      if (!nowInPeriod(b.period, now)) continue;
+      if (!isBookingActive(b) || !nowInPeriod(b.period, now)) continue;
       const hit = (b.campaign.creatives ?? []).some(
         (c) => c.kind === "image" && c.is_active && (c.placement_id === null || c.placement_id === b.placement_id),
       );

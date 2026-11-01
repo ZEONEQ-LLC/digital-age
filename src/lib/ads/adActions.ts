@@ -13,10 +13,12 @@ import {
   RESSORT_SLUGS,
   allowedStatusTargets,
   normalizeUid,
+  parsePeriod,
   type ActionResult,
   type ActionResultId,
   type AdvertiserInput,
   type BookingInput,
+  type BulkBookingResult,
   type CampaignInput,
   type CampaignStatus,
   type ContactInput,
@@ -420,13 +422,192 @@ export async function createBooking(input: BookingInput): Promise<ActionResult> 
   } catch (e) { return fail(e); }
 }
 
-export async function deleteBooking(id: string, campaignId: string): Promise<ActionResult> {
+// ── Buchungen: Lebenszyklus (einzeln = Liste mit einer ID) ────────────────
+// Jede Aktion nimmt Buchungs-IDs derselben Kampagne. Nicht anwendbare Zeilen
+// (z. B. schon pausiert) werden uebersprungen und gezaehlt; Kapazitaets-
+// Konflikte meldet das DB-Gate je Zeile mit Platzierung — nichts wird still
+// verworfen. Zeilenweise Updates, damit gueltige Zeilen durchkommen und der
+// Konflikt trotzdem sichtbar ist.
+type LifecycleRow = {
+  id: string;
+  period: unknown;
+  paused_at: string | null;
+  archived_at: string | null;
+  placement: { label: string } | null;
+};
+
+const MAX_BULK = 200;
+
+function zurichDay(iso: string): string {
+  return new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Zurich" });
+}
+
+async function loadBookingsForAction(
+  supabase: Awaited<ReturnType<typeof requireEditor>>["supabase"],
+  campaignId: string,
+  ids: string[],
+): Promise<{ rows: LifecycleRow[] } | { error: string }> {
+  if (!UUID_RE.test(campaignId)) return { error: "Kampagne ungültig." };
+  if (!Array.isArray(ids) || ids.length === 0) return { error: "Keine Buchung ausgewählt." };
+  if (ids.length > MAX_BULK || ids.some((id) => !UUID_RE.test(id))) return { error: "Auswahl ungültig." };
+  const { data, error } = await supabase
+    .from("ad_bookings")
+    .select("id, period, paused_at, archived_at, placement:ad_placements(label)")
+    .eq("campaign_id", campaignId)
+    .in("id", ids);
+  if (error) return { error: mapDbError(error) };
+  const byId = new Map(((data ?? []) as unknown as LifecycleRow[]).map((r) => [r.id, r]));
+  // Reihenfolge der Auswahl beibehalten; fremde/unbekannte IDs fallen weg.
+  const rows = ids.map((id) => byId.get(id)).filter((r): r is LifecycleRow => !!r);
+  if (rows.length === 0) return { error: "Buchungen nicht gefunden." };
+  return { rows };
+}
+
+function labelOf(r: LifecycleRow): string {
+  return r.placement?.label ?? "Platzierung";
+}
+
+// Neuer Zeitraum: Startgrenze bleibt, Ende = Zuercher Kalendertag inklusiv
+// (24:00 exklusiv, wie createBooking). Ende vor Start -> null.
+function periodWithNewEnd(period: unknown, to: string): string | null {
+  const p = parsePeriod(period);
+  if (!p?.lower) return null;
+  if (to < zurichDay(p.lower)) return null;
+  return `[${p.lower},${to} 24:00 Europe/Zurich)`;
+}
+
+function isExpired(period: unknown, now: number): boolean {
+  const p = parsePeriod(period);
+  return !!p?.upper && new Date(p.upper).getTime() <= now;
+}
+
+export async function extendBookings(campaignId: string, ids: string[], to: string): Promise<BulkBookingResult> {
   try {
     const { supabase } = await requireEditor();
-    const { error } = await supabase.from("ad_bookings").delete().eq("id", id);
-    if (error) return { ok: false, error: mapDbError(error) };
+    const end = (to ?? "").trim();
+    if (!DATE_RE.test(end)) return { ok: false, error: "Enddatum ungültig (YYYY-MM-DD)." };
+    const loaded = await loadBookingsForAction(supabase, campaignId, ids);
+    if ("error" in loaded) return { ok: false, error: loaded.error };
+
+    let done = 0;
+    let skipped = 0;
+    const conflicts: { label: string; error: string }[] = [];
+    for (const r of loaded.rows) {
+      if (r.archived_at) { skipped += 1; continue; }
+      const period = periodWithNewEnd(r.period, end);
+      if (!period) { conflicts.push({ label: labelOf(r), error: "Enddatum liegt vor dem Startdatum." }); continue; }
+      // Ablaufwarnung fuer das neue Ende wieder scharf.
+      const { error } = await supabase
+        .from("ad_bookings")
+        .update({ period, expiry_notified_at: null })
+        .eq("id", r.id);
+      if (error) { conflicts.push({ label: labelOf(r), error: mapDbError(error) }); continue; }
+      done += 1;
+    }
     revalidateAll(campaignId);
-    return { ok: true };
+    return { ok: true, done, skipped, conflicts };
+  } catch (e) { return fail(e); }
+}
+
+// Pausieren / Fortsetzen / Archivieren: eine Abfrage, Filter bestimmt die
+// anwendbaren Zeilen; Rest = uebersprungen.
+async function flagBookings(
+  campaignId: string,
+  ids: string[],
+  patch: { paused_at?: string | null; archived_at?: string | null },
+  applicable: (r: LifecycleRow) => boolean,
+): Promise<BulkBookingResult> {
+  try {
+    const { supabase } = await requireEditor();
+    const loaded = await loadBookingsForAction(supabase, campaignId, ids);
+    if ("error" in loaded) return { ok: false, error: loaded.error };
+    const targets = loaded.rows.filter(applicable);
+    let done = 0;
+    const conflicts: { label: string; error: string }[] = [];
+    if (targets.length > 0) {
+      const { data, error } = await supabase
+        .from("ad_bookings")
+        .update(patch)
+        .in("id", targets.map((r) => r.id))
+        .select("id");
+      if (error) {
+        // Gate hat die ganze Gruppe abgelehnt (z. B. Ueberbuchung beim Fortsetzen) -> je Zeile melden.
+        for (const r of targets) conflicts.push({ label: labelOf(r), error: mapDbError(error) });
+      } else {
+        done = data?.length ?? 0;
+      }
+    }
+    revalidateAll(campaignId);
+    return { ok: true, done, skipped: loaded.rows.length - targets.length, conflicts };
+  } catch (e) { return fail(e); }
+}
+
+export async function pauseBookings(campaignId: string, ids: string[]): Promise<BulkBookingResult> {
+  return flagBookings(campaignId, ids, { paused_at: new Date().toISOString() }, (r) => !r.archived_at && !r.paused_at);
+}
+
+export async function resumeBookings(campaignId: string, ids: string[]): Promise<BulkBookingResult> {
+  return flagBookings(campaignId, ids, { paused_at: null }, (r) => !r.archived_at && !!r.paused_at);
+}
+
+export async function archiveBookings(campaignId: string, ids: string[]): Promise<BulkBookingResult> {
+  return flagBookings(campaignId, ids, { archived_at: new Date().toISOString() }, (r) => !r.archived_at);
+}
+
+// Reaktivieren: Archiv-Flag weg; abgelaufene Buchungen brauchen ein neues
+// Enddatum (sonst Konflikt, nicht stilles Wiederbeleben in der Vergangenheit).
+export async function reactivateBookings(campaignId: string, ids: string[], to?: string | null): Promise<BulkBookingResult> {
+  try {
+    const { supabase } = await requireEditor();
+    const end = (to ?? "").trim();
+    if (end && !DATE_RE.test(end)) return { ok: false, error: "Enddatum ungültig (YYYY-MM-DD)." };
+    const loaded = await loadBookingsForAction(supabase, campaignId, ids);
+    if ("error" in loaded) return { ok: false, error: loaded.error };
+
+    const now = Date.now();
+    let done = 0;
+    let skipped = 0;
+    const conflicts: { label: string; error: string }[] = [];
+    for (const r of loaded.rows) {
+      if (!r.archived_at) { skipped += 1; continue; }
+      const patch: { archived_at: null; period?: string; expiry_notified_at?: null } = { archived_at: null };
+      if (isExpired(r.period, now)) {
+        if (!end) { conflicts.push({ label: labelOf(r), error: "Abgelaufen — zum Reaktivieren ein neues Enddatum wählen." }); continue; }
+        const period = periodWithNewEnd(r.period, end);
+        if (!period) { conflicts.push({ label: labelOf(r), error: "Enddatum liegt vor dem Startdatum." }); continue; }
+        patch.period = period;
+        patch.expiry_notified_at = null;
+      }
+      const { error } = await supabase.from("ad_bookings").update(patch).eq("id", r.id);
+      if (error) { conflicts.push({ label: labelOf(r), error: mapDbError(error) }); continue; }
+      done += 1;
+    }
+    revalidateAll(campaignId);
+    return { ok: true, done, skipped, conflicts };
+  } catch (e) { return fail(e); }
+}
+
+// Endgueltig loeschen: nur aus dem Archiv. ad_stats_daily haengt an Kampagne,
+// Kreativ und Platzierung, nicht an der Buchung — Zahlen bleiben erhalten.
+export async function deleteArchivedBookings(campaignId: string, ids: string[]): Promise<BulkBookingResult> {
+  try {
+    const { supabase } = await requireEditor();
+    const loaded = await loadBookingsForAction(supabase, campaignId, ids);
+    if ("error" in loaded) return { ok: false, error: loaded.error };
+    const targets = loaded.rows.filter((r) => !!r.archived_at);
+    let done = 0;
+    if (targets.length > 0) {
+      const { data, error } = await supabase
+        .from("ad_bookings")
+        .delete()
+        .in("id", targets.map((r) => r.id))
+        .not("archived_at", "is", null)
+        .select("id");
+      if (error) return { ok: false, error: mapDbError(error) };
+      done = data?.length ?? 0;
+    }
+    revalidateAll(campaignId);
+    return { ok: true, done, skipped: loaded.rows.length - targets.length, conflicts: [] };
   } catch (e) { return fail(e); }
 }
 

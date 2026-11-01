@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useMemo, useState, useTransition } from "react";
 import {
-  createBooking, createCreative, deleteBooking, deleteCampaign, deleteCreative, deleteImageCreativePair,
-  exportCampaignStatsRows, regeneratePreviewToken, saveImageCreativePair, setCampaignStatus, updateCampaign, updateCreative,
+  archiveBookings, createBooking, createCreative, deleteArchivedBookings, deleteCampaign, deleteCreative, deleteImageCreativePair,
+  exportCampaignStatsRows, extendBookings, pauseBookings, reactivateBookings, regeneratePreviewToken, resumeBookings,
+  saveImageCreativePair, setCampaignStatus, updateCampaign, updateCreative,
 } from "@/lib/ads/adActions";
 import type { CampaignStats } from "@/lib/ads/statsApi";
 import { COUNT_RULE_DU, formatCount, formatCtr, formatRuntime } from "@/lib/ads/statsFormat";
@@ -14,8 +15,9 @@ import StatsSeries from "@/components/module/StatsSeries";
 import { deleteCreativeImage } from "@/lib/ads/imageActions";
 import { moduleImageUrl } from "@/lib/ads/imagePath";
 import {
-  CAMPAIGN_STATUSES, CREATIVE_THEMES, RESSORT_SLUGS, SCOPE_KINDS, allowedStatusTargets, formatPeriod, statusLabel,
-  type BookingShare, type CampaignDetail, type CampaignStatus, type CreativeKind, type CreativeRow, type PlacementRow, type ScopeKind,
+  BOOKING_STATE_LABELS, CAMPAIGN_STATUSES, CREATIVE_THEMES, RESSORT_SLUGS, SCOPE_KINDS, allowedStatusTargets, bookingState, formatPeriod, parsePeriod, statusLabel,
+  type BookingShare, type BookingState, type BulkBookingResult, type CampaignDetail, type CampaignStatus, type CreativeKind, type CreativeRow,
+  type PlacementRow, type ScopeKind,
 } from "@/lib/ads/types";
 import { PLACEMENTS, isPlacementCode, type PlacementCode } from "@/lib/ads/placements";
 import { isHex, resolveTheme } from "@/lib/ads/creativeTheme";
@@ -50,10 +52,32 @@ function shareText(s: BookingShare): { text: string; orange: boolean } {
   return { text: `${s.sharePct} % · neben ${s.othersCount}`, orange: false };
 }
 
+const STATE_COLOR: Record<BookingState, string> = {
+  planned: "var(--da-text)",
+  live: "var(--da-green)",
+  paused: "var(--da-orange)",
+  expired: "var(--da-muted)",
+  archived: "var(--da-muted)",
+};
+
+// Ergebnis einer Sammelaktion als ein Satz; Konflikte mit Platzierung und Grund.
+function bulkMessage(verb: string, r: Extract<BulkBookingResult, { ok: true }>): string {
+  const parts = [`${r.done} ${verb}`];
+  if (r.skipped > 0) parts.push(`${r.skipped} übersprungen (nicht anwendbar)`);
+  if (r.conflicts.length > 0) parts.push(`${r.conflicts.length} Konflikt${r.conflicts.length === 1 ? "" : "e"}: ${r.conflicts.map((c) => `${c.label} — ${c.error}`).join("; ")}`);
+  return parts.join(", ") + ".";
+}
+
 // Zaehler "x / 60" unter den Textfeldern; rot ueber dem Limit (Server lehnt ab).
 function CharCount({ value, max }: { value: string; max: number }) {
   const len = value.trim().length;
   return <p style={{ ...help, textAlign: "right", color: len > max ? "#ff6b6b" : "var(--da-muted)" }}>{len} / {max}</p>;
+}
+
+// Enddatum bereits erreicht (obere Grenze exklusiv) — auch fuer archivierte Zeilen.
+function isPastEnd(period: unknown, now: number): boolean {
+  const p = parsePeriod(period);
+  return !!p?.upper && new Date(p.upper).getTime() <= now;
 }
 
 function formatDate(iso: string): string {
@@ -85,7 +109,17 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
   const isHouse = c.is_house; // E2: nach dem Anlegen unveraenderlich
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Buchungen: Archiv standardmaessig ausgeblendet; Auswahl fuer Sammelaktionen.
+  const activeBookings = useMemo(() => detail.bookings.filter((b) => !b.archived_at), [detail.bookings]);
+  const archivedBookings = useMemo(() => detail.bookings.filter((b) => !!b.archived_at), [detail.bookings]);
+  const [showArchive, setShowArchive] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [extendTo, setExtendTo] = useState("");
+  // Zeitbezug fuer den abgeleiteten Status: einmal pro Mount (Render bleibt rein).
+  const [nowTs] = useState(() => Date.now());
 
   // Stammdaten
   const [name, setName] = useState(c.name);
@@ -125,14 +159,14 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
   // "(gebucht: …)"-Suffix pro Platzierung: welche Scopes diese Kampagne dort schon belegt.
   const bookedByPlacement = useMemo(() => {
     const m = new Map<string, string[]>();
-    for (const b of detail.bookings) {
+    for (const b of activeBookings) {
       const label = b.scope === "global" ? "global" : b.scope === "ressort" ? `Ressort ${ressortLabel(b.scope_ref ?? "")}` : `Artikel ${b.scope_ref ?? ""}`;
       const list = m.get(b.placement_id) ?? [];
       if (!list.includes(label)) list.push(label);
       m.set(b.placement_id, list);
     }
     return m;
-  }, [detail.bookings]);
+  }, [activeBookings]);
 
   const bookedPlacements = useMemo(() => placements.filter((p) => bookedByPlacement.has(p.id)), [placements, bookedByPlacement]);
   const otherPlacements = useMemo(() => placements.filter((p) => !bookedByPlacement.has(p.id)), [placements, bookedByPlacement]);
@@ -161,7 +195,7 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
   const coverageGaps = useMemo<string[]>(() => {
     const gaps: string[] = [];
     const seen = new Set<string>();
-    for (const b of detail.bookings) {
+    for (const b of activeBookings) {
       if (seen.has(b.placement_id)) continue;
       seen.add(b.placement_id);
       const p = placementById.get(b.placement_id);
@@ -173,7 +207,7 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
       if (p && p.mobile_size !== null && !has("mobile")) gaps.push(`${label}: Mobile-Motiv fehlt — Kampagne kann nicht live gehen.`);
     }
     return gaps;
-  }, [detail.bookings, detail.creatives, placementById]);
+  }, [activeBookings, detail.creatives, placementById]);
 
   function choosePlacement(id: string) {
     setBPlacement(id);
@@ -216,12 +250,53 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, after?: () => void) {
     setError(null);
+    setInfo(null);
     startTransition(async () => {
       const res = await fn();
       if (!res.ok) { setError(res.error ?? "Fehler."); return; }
       after?.();
       router.refresh();
     });
+  }
+
+  // Sammel-/Einzelaktion auf Buchungen: Ergebnis als Satz, Auswahl leeren, neu laden.
+  function runBulk(verb: string, fn: () => Promise<BulkBookingResult>) {
+    setError(null);
+    setInfo(null);
+    startTransition(async () => {
+      const res = await fn();
+      if (!res.ok) { setError(res.error); return; }
+      setInfo(bulkMessage(verb, res));
+      setSelected([]);
+      router.refresh();
+    });
+  }
+
+  const visibleBookings = showArchive ? archivedBookings : activeBookings;
+  const selectedRows = visibleBookings.filter((b) => selected.includes(b.id));
+  const allSelected = visibleBookings.length > 0 && selectedRows.length === visibleBookings.length;
+  const selectedExpired = selectedRows.some((b) => bookingState(b, nowTs) === "expired" || (b.archived_at && isPastEnd(b.period, nowTs)));
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+  function switchArchive(next: boolean) {
+    setShowArchive(next);
+    setSelected([]);
+    setInfo(null);
+  }
+  function extend(ids: string[]) {
+    if (!extendTo) { setError("Bitte zuerst ein Enddatum wählen."); return; }
+    runBulk("verlängert", () => extendBookings(c.id, ids, extendTo));
+  }
+  function reactivate(ids: string[]) {
+    const needsDate = archivedBookings.filter((b) => ids.includes(b.id)).some((b) => isPastEnd(b.period, nowTs));
+    if (needsDate && !extendTo) { setError("Mindestens eine Buchung ist abgelaufen — bitte ein neues Enddatum wählen."); return; }
+    runBulk("reaktiviert", () => reactivateBookings(c.id, ids, extendTo || null));
+  }
+  function deleteForever(ids: string[]) {
+    if (!confirm(`${ids.length} archivierte Buchung${ids.length === 1 ? "" : "en"} endgültig löschen? Das lässt sich nicht rückgängig machen.`)) return;
+    runBulk("gelöscht", () => deleteArchivedBookings(c.id, ids));
   }
 
   function resetCreative() {
@@ -320,7 +395,7 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
   }
 
   const statusTargets = allowedStatusTargets(isHouse, c.status);
-  const hasInlineBooking = detail.bookings.some((b) => b.placementCode === "article_inline");
+  const hasInlineBooking = activeBookings.some((b) => b.placementCode === "article_inline");
 
   const hasRef = bScope !== "global";
   const shareTitle = `Anteil = Gewicht ${c.weight} / (${c.weight} + Summe der Gewichte der anderen Live-Kampagnen auf derselben Fläche und Ebene, überlappender Zeitraum). Nicht-House schlägt House.`;
@@ -398,6 +473,7 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
 
       <Link href="/autor/admin/werbung" style={{ color: "var(--da-muted)", fontSize: 13, textDecoration: "none" }}>← Alle Kampagnen</Link>
       {error && <p style={errStyle}>{error}</p>}
+      {info && <p style={{ color: "var(--da-green)", fontSize: 13, margin: 0 }}>{info}</p>}
 
       {/* Status */}
       <div style={{ ...card, display: "flex", flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
@@ -620,40 +696,95 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
 
       {/* Buchungen */}
       <div style={{ ...card, display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={sectionTitle}>Buchungen</div>
-        {detail.bookings.length === 0 ? (
-          <p style={{ color: "var(--da-muted)", fontSize: 14, margin: 0 }}>Keine Buchungen.</p>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ ...sectionTitle, marginBottom: 0 }}>Buchungen</div>
+          <div style={{ flex: 1 }} />
+          <button type="button" style={{ ...btnSmall, ...(showArchive ? {} : { borderColor: "var(--da-green)", color: "var(--da-green)" }) }} onClick={() => switchArchive(false)}>Aktiv ({activeBookings.length})</button>
+          <button type="button" style={{ ...btnSmall, ...(showArchive ? { borderColor: "var(--da-green)", color: "var(--da-green)" } : {}) }} onClick={() => switchArchive(true)}>Archiv ({archivedBookings.length})</button>
+        </div>
+
+        {selectedRows.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", padding: 10, border: "1px solid var(--da-border)", borderRadius: 6 }}>
+            <span style={{ color: "var(--da-text)", fontSize: 13, fontWeight: 600 }}>{selectedRows.length} ausgewählt</span>
+            {!showArchive ? (
+              <>
+                <input type="date" aria-label="Neues Enddatum" style={{ ...inputStyle, width: "auto" }} value={extendTo} onChange={(e) => setExtendTo(e.target.value)} />
+                <button type="button" style={btnSmall} disabled={pending} onClick={() => extend(selected)}>Verlängern bis Datum</button>
+                <button type="button" style={btnSmall} disabled={pending || !selectedRows.some((b) => !b.paused_at)} onClick={() => runBulk("pausiert", () => pauseBookings(c.id, selected))}>Pausieren</button>
+                <button type="button" style={btnSmall} disabled={pending || !selectedRows.some((b) => !!b.paused_at)} onClick={() => runBulk("fortgesetzt", () => resumeBookings(c.id, selected))}>Fortsetzen</button>
+                <button type="button" style={btnSmall} disabled={pending} onClick={() => runBulk("archiviert", () => archiveBookings(c.id, selected))}>Archivieren</button>
+              </>
+            ) : (
+              <>
+                {selectedExpired && <input type="date" aria-label="Neues Enddatum" style={{ ...inputStyle, width: "auto" }} value={extendTo} onChange={(e) => setExtendTo(e.target.value)} />}
+                <button type="button" style={btnSmall} disabled={pending} onClick={() => reactivate(selected)}>Reaktivieren</button>
+                <button type="button" style={{ ...btnSmall, color: "#ff6b6b" }} disabled={pending} onClick={() => deleteForever(selected)}>Endgültig löschen</button>
+              </>
+            )}
+          </div>
+        )}
+
+        {visibleBookings.length === 0 ? (
+          <p style={{ color: "var(--da-muted)", fontSize: 14, margin: 0 }}>{showArchive ? "Archiv ist leer." : "Keine Buchungen."}</p>
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table className="cd-table">
               <thead>
                 <tr>
+                  <th style={{ ...th, width: 28 }}>
+                    <input type="checkbox" aria-label="Alle auswählen" checked={allSelected} onChange={(e) => setSelected(e.target.checked ? visibleBookings.map((b) => b.id) : [])} />
+                  </th>
                   <th style={th}>Platzierung</th>
                   <th style={th}>Geltungsbereich</th>
                   <th style={th}>Referenz</th>
                   <th style={th}>Zeitraum</th>
+                  <th style={th}>Status</th>
                   <th style={th}>Anteil (wenn live)</th>
                   <th style={th} />
                 </tr>
               </thead>
               <tbody>
-                {detail.bookings.map((b) => {
+                {visibleBookings.map((b) => {
                   const s = shareText(b.share);
+                  const state = bookingState(b, nowTs);
+                  const checked = selected.includes(b.id);
                   return (
-                    <tr key={b.id}>
+                    <tr key={b.id} style={checked ? { background: "rgba(74, 222, 128, 0.06)" } : undefined}>
+                      <td style={td}><input type="checkbox" aria-label="Buchung auswählen" checked={checked} onChange={() => toggleSelected(b.id)} /></td>
                       <td style={{ ...td, color: "var(--da-text)", fontWeight: 600 }}>{b.placementLabel}</td>
                       <td style={td}>{scopeLabel(b.scope)}</td>
                       <td style={td}>{b.scope === "global" ? "—" : b.scope === "ressort" ? ressortLabel(b.scope_ref ?? "") : b.scope_ref}</td>
                       <td style={{ ...td, color: "var(--da-muted)" }}>{formatPeriod(b.period)}</td>
+                      <td style={{ ...td, color: STATE_COLOR[state], fontWeight: 600, whiteSpace: "nowrap" }}>{BOOKING_STATE_LABELS[state]}</td>
                       <td style={{ ...td, color: s.orange ? "var(--da-orange)" : "var(--da-text-strong)", whiteSpace: "nowrap" }} title={shareTitle}>{s.text}</td>
-                      <td style={{ ...td, textAlign: "right" }}>
-                        <button type="button" style={btnSmall} disabled={pending} onClick={() => run(() => deleteBooking(b.id, c.id))}>Löschen</button>
+                      <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
+                        <span style={{ display: "inline-flex", gap: 6 }}>
+                          {state === "archived" ? (
+                            <>
+                              <button type="button" style={btnSmall} disabled={pending} onClick={() => reactivate([b.id])}>Reaktivieren</button>
+                              <button type="button" style={{ ...btnSmall, color: "#ff6b6b" }} disabled={pending} onClick={() => deleteForever([b.id])}>Löschen</button>
+                            </>
+                          ) : (
+                            <>
+                              <button type="button" style={btnSmall} disabled={pending} title="Enddatum aus dem Datumsfeld der Auswahlleiste" onClick={() => { if (!selected.includes(b.id)) setSelected([b.id]); extend([b.id]); }}>Verlängern</button>
+                              {b.paused_at
+                                ? <button type="button" style={btnSmall} disabled={pending} onClick={() => runBulk("fortgesetzt", () => resumeBookings(c.id, [b.id]))}>Fortsetzen</button>
+                                : <button type="button" style={btnSmall} disabled={pending} onClick={() => runBulk("pausiert", () => pauseBookings(c.id, [b.id]))}>Pausieren</button>}
+                              <button type="button" style={btnSmall} disabled={pending} onClick={() => runBulk("archiviert", () => archiveBookings(c.id, [b.id]))}>Archivieren</button>
+                            </>
+                          )}
+                        </span>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+            <p style={help}>
+              {showArchive
+                ? "Archivierte Buchungen werden nicht ausgeliefert und belegen keine Kapazität. Reaktivieren prüft die Kapazität neu; abgelaufene Buchungen brauchen dazu ein neues Enddatum. Endgültig löschen entfernt nur die Buchung, die Zahlen bleiben."
+                : "Pausieren stoppt die Auslieferung sofort, der Zeitraum läuft weiter. Verlängern setzt das Enddatum (Zürcher Kalendertag, inklusiv) und prüft die Kapazität je Buchung; Konflikte werden gemeldet, gültige Zeilen angewendet. Archivieren ersetzt das Löschen."}
+            </p>
           </div>
         )}
 

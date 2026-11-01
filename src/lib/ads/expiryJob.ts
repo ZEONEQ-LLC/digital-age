@@ -81,6 +81,7 @@ export async function runExpiryWarnings(now: Date = new Date()): Promise<ExpiryR
       "id, period, placement:ad_placements(label), campaign:ad_campaigns!inner(id, name, status, is_house, preview_token, advertiser:ad_advertisers(billing_email))",
     )
     .is("expiry_notified_at", null)
+    .is("archived_at", null)
     .filter("campaign.status", "eq", "live")
     .filter("campaign.is_house", "eq", false);
   if (error) {

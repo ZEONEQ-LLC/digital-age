@@ -95,6 +95,42 @@ export type CampaignDetail = {
   creatives: CreativeRow[];
 };
 
+// ── Buchungs-Lebenszyklus (paused_at / archived_at) ──
+// Abgeleiteter Status pro Zeile; Archiv schlaegt Pause, Pause schlaegt Zeitraum.
+export type BookingState = "planned" | "live" | "paused" | "expired" | "archived";
+
+export const BOOKING_STATE_LABELS: Record<BookingState, string> = {
+  planned: "Geplant",
+  live: "Live",
+  paused: "Pausiert",
+  expired: "Abgelaufen",
+  archived: "Archiviert",
+};
+
+export function bookingState(
+  b: { period: unknown; paused_at: string | null; archived_at: string | null },
+  now: number = Date.now(),
+): BookingState {
+  if (b.archived_at) return "archived";
+  if (b.paused_at) return "paused";
+  const p = parsePeriod(b.period);
+  if (p?.upper && new Date(p.upper).getTime() <= now) return "expired";
+  if (p?.lower && new Date(p.lower).getTime() > now) return "planned";
+  return "live";
+}
+
+// Ausgeliefert wird nur, was weder pausiert noch archiviert ist (Zeitraum
+// prueft der Aufrufer wie bisher).
+export function isBookingActive(b: { paused_at: string | null; archived_at: string | null }): boolean {
+  return !b.paused_at && !b.archived_at;
+}
+
+// Ergebnis einer Sammelaktion: angewendet / uebersprungen (nicht anwendbar,
+// z. B. schon pausiert) / Konflikte mit Grund je Buchung.
+export type BulkBookingResult =
+  | { ok: true; done: number; skipped: number; conflicts: { label: string; error: string }[] }
+  | { ok: false; error: string };
+
 // ── Action-Inputs + Result ──
 export type ActionResult = { ok: true } | { ok: false; error: string };
 export type ActionResultId = { ok: true; id: string } | { ok: false; error: string };

@@ -74,7 +74,7 @@ export async function getCampaignStats(supabase: Sb, campaignId: string, days = 
       .from("ad_stats_daily")
       .select("placement_id, day, impressions, clicks, placement:ad_placements(label)")
       .eq("campaign_id", campaignId),
-    supabase.from("ad_bookings").select("period").eq("campaign_id", campaignId),
+    supabase.from("ad_bookings").select("period").eq("campaign_id", campaignId).is("archived_at", null),
   ]);
   const stats = (rows ?? []) as unknown as StatRow[];
 

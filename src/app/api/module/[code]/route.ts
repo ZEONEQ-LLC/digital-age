@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isbot } from "isbot";
 import { createServiceClient } from "@/lib/supabase/service";
-import { parsePeriod } from "@/lib/ads/types";
+import { parsePeriod, isBookingActive } from "@/lib/ads/types";
 import { signDelivery, verifyDelivery } from "@/lib/ads/deliveryToken";
 import { buildTrackedUrl } from "@/lib/ads/utm";
 
@@ -42,6 +42,8 @@ type BookingCand = {
   scope: string;
   scope_ref: string | null;
   period: string;
+  paused_at: string | null;
+  archived_at: string | null;
   campaign: ({
     id: string;
     weight: number;
@@ -204,7 +206,7 @@ export async function GET(
   const { data, error } = await supabase
     .from("ad_bookings")
     .select(
-      `scope, scope_ref, period, campaign:ad_campaigns(id, weight, is_house, status, utm_enabled, utm_campaign, creatives:ad_creatives!ad_creatives_campaign_id_fkey(${CREATIVE_SELECT}))`,
+      `scope, scope_ref, period, paused_at, archived_at, campaign:ad_campaigns(id, weight, is_house, status, utm_enabled, utm_campaign, creatives:ad_creatives!ad_creatives_campaign_id_fkey(${CREATIVE_SELECT}))`,
     )
     .eq("placement_id", placement.id);
   // Fehler sichtbar machen (Hotfix): ein stiller Ausfall blieb stundenlang unbemerkt.
@@ -225,6 +227,7 @@ export async function GET(
   for (const b of data as unknown as BookingCand[]) {
     if (!b.campaign) continue;
     if (b.campaign.status !== "live") continue;
+    if (!isBookingActive(b)) continue;   // pausiert / archiviert
     if (!nowInPeriod(b.period, now)) continue;
     const creative = pickCreative(b.campaign.creatives, variant, placement.id);
     if (!creative) continue;
