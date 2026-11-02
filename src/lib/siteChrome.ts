@@ -2,7 +2,8 @@
 // Rails, CMP, GA4, Footer-Cookie-Button) und fuer reservierte Autoren-Handles.
 // Client-sicher (keine Server-Imports).
 //
-// Suite-Routen liegen in src/app/autor/(suite)/ (plus /autor/artikel/neu).
+// Suite-Routen liegen in src/app/autor/(suite)/ (plus /autor/artikel/neu und
+// /autor/freigaben in der eigenen Group (freigaben), handy-tauglich).
 // Neue Suite-Route = neuer Eintrag hier, sonst bekommt sie Navbar und Banner.
 // Oeffentliche Profile /autor/<handle> fallen bewusst NICHT darunter.
 export const AUTHOR_SUITE_PREFIXES = [
@@ -15,6 +16,7 @@ export const AUTHOR_SUITE_PREFIXES = [
   "/autor/news-ticker",
   "/autor/seiten",
   "/autor/admin",
+  "/autor/freigaben",
 ] as const;
 
 // Seiten ohne Site-Chrome und ohne Tracking (Kunden-Vorschau, #158).

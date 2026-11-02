@@ -17,7 +17,7 @@ const items: NavItem[] = [
 ];
 
 const adminItems: NavItem[] = [
-  { id: "admin-freigaben", label: "Freigaben", href: "/autor/admin/freigaben", icon: "✓" },
+  { id: "admin-freigaben", label: "Freigaben", href: "/autor/freigaben", icon: "✓" },
   { id: "admin-articles", label: "Alle Artikel",   href: "/autor/admin/artikel",     icon: "▦" },
   { id: "admin-pages",   label: "Seiten",        href: "/autor/seiten",            icon: "▢" },
   { id: "admin-news-ticker", label: "News-Ticker", href: "/autor/news-ticker", icon: "📰" },

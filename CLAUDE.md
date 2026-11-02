@@ -1020,7 +1020,9 @@ legt sofort einen Entwurf an (`is_published = false`, `ingest_status =
 pending`) und ergänzt nach der Antwort per `after()` Metadaten (Apple-Seite
 plus iTunes Lookup) und KI-Felder (Task `podcast_ingest`, ohne Session über
 `src/lib/ai/systemCall.ts`). Freigabe nur eingeloggt unter
-`/autor/admin/freigaben` (fürs iPhone gebaut). Dubletten über
+`/autor/freigaben` (eigene Route-Gruppe `(freigaben)`, Shell mit
+`mobile="allow"`, damit die Seite auf dem Handy läuft; die übrige Suite
+bleibt unter 768px gesperrt). Dubletten über
 `podcasts.apple_episode_id` / `apple_show_id` (partielle Unique-Indizes).
 Anleitung für den Kurzbefehl: `docs/podcast-kurzbefehl.md`.
 

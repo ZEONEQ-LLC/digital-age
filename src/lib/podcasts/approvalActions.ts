@@ -7,7 +7,7 @@ import { enrichPodcastDraft } from "@/lib/podcasts/ingest";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
-// Freigaben (/autor/admin/freigaben): nur Editoren, RLS podcasts_editor_all
+// Freigaben (/autor/freigaben): nur Editoren, RLS podcasts_editor_all
 // bleibt das Netz. Veroeffentlichen setzt is_published, Verwerfen loescht den
 // Entwurf, Erneut versuchen wiederholt die Anreicherung.
 async function requireEditor() {
@@ -17,7 +17,7 @@ async function requireEditor() {
 }
 
 function revalidate(slug?: string | null): void {
-  revalidatePath("/autor/admin/freigaben");
+  revalidatePath("/autor/freigaben");
   revalidatePath("/autor/podcasts");
   revalidatePath("/podcasts");
   revalidatePath("/", "layout");

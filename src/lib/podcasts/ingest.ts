@@ -9,7 +9,7 @@ import { fetchApplePageMeta, lookupAppleShow, type ApplePageMeta, type AppleShow
 
 // Empfehlung per Teilen: Apple-Link -> Entwurf (sofort) -> Anreicherung im
 // Hintergrund (Metadaten + KI) -> Freigabe durch einen Editor unter
-// /autor/admin/freigaben. Der Endpoint veroeffentlicht nie.
+// /autor/freigaben. Der Endpoint veroeffentlicht nie.
 //
 // Zwei Phasen, damit der Kurzbefehl in unter 2 s eine Antwort bekommt:
 //   ingestAppleLink   : Link lesen, Dublette pruefen, Entwurf mit Titel anlegen
