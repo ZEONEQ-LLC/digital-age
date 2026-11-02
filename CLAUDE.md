@@ -1065,6 +1065,112 @@ kein Knopf); Pause-Knopf unten rechts (WCAG 2.2.2), pausiert ausserhalb des
 Viewports und bei verstecktem Tab. Das Bild bleibt LCP, Poster und Fallback.
 Listen, Spotlight, Rubriken, Admin, Dashboard, Autorenprofil: immer statisch.
 
+### Hero Studio, Teil 2: Studio im Editor (PR 182)
+
+Tab «Hero Studio» im Artikel-Editor (zwischen Details und Quellen, bedingt
+gerendert, `dynamic(..., { ssr: false })`), Button «Hero Studio öffnen» in der
+Box «Beitragsbild». Port des abgenommenen Prototyps (`claude code briefings/
+hero-studio-uebergabe/`, Stand 31.10.2026). Geräte: iPad und Desktop ab
+1024 px, Handy ist kein Ziel.
+
+**Aufbau**
+- `src/lib/hero-studio/vendor/hero-engine.js`: Engine des Prototyps als ESM-
+  Vendor-Modul, GENERIERT von `scripts/hero-studio/freeze-engine.py` aus den
+  Prototyp-Quellen plus `scripts/hero-studio/parts/engine-api.js` (Render-
+  Fassade). Factory `createHeroEngine({ icons, iconTags, scriptFont, logoMask })`,
+  alle Globals des Prototyps sind Closure-Variablen pro Instanz; `mulberry32`,
+  `strHash`, `recipeFor` unverändert (gleiches Rezept = gleiches Bild). Typen
+  in `vendor/index.d.ts`. Ordner steht in `eslint.config.mjs` globalIgnores,
+  keine Edits von Hand (EDIT-Liste im Freeze-Skript).
+- Daten `src/lib/hero-studio/data/lucide-icons.json` (1691 Lucide-Symbole als
+  Pfade plus Tags, ISC) und `ems-allure.json` (Einstrich-Schrift, OFL 1.1);
+  `lucide-static`/`hersheytext` sind NICHT installiert, Regenerieren siehe
+  `scripts/hero-studio/README.md`. Schriften fürs Canvas als Kopie in
+  `public/fonts/` («DA Grotesk», «DA Mono», «DA Inter» per FontFace,
+  `fonts.ts`), Logo-Maske `public/images/hero-studio/logo-mask.png`. Alles
+  lädt nur im Studio (`engine.ts` → dynamische Imports).
+- Komponenten `src/components/author/hero-studio/`: `HeroStudio` (Wurzel: ein
+  rAF-Loop, läuft nur bei sichtbarer Bühne und sichtbarem Tab, `dispose()`
+  beim Unmount), `HeroFlow`, `HeroProposals`, `HeroStage`, `HeroPanel`,
+  `HeroTake`, `HeroDownloads`, `HeroPosts`, Stile `studioStyles.ts` (Präfix
+  `hs-`, Container-Queries, Admin-Tokens). Alle IDs per `useId()`.
+- Sitzung (Vorschläge, Auswahl, letztes Ergebnis mit Blobs) lebt im
+  EditorClient (`heroSessionRef`) und überlebt den Tab-Wechsel.
+
+**Rezept v1** (`recipe.ts`, `articles.cover_recipe`, im Revisions-Snapshot):
+`{ version: 1, studioVersion, engine, variant, overrides (nur Schlüssel aus dem
+Optionen-Schema), text, figure, kiMotifs (v1 nur icon), animated, seedKey, fp,
+snapshot { title, author, date, category }, files { hero, og, video },
+createdAt }`. `seedKey` ist der Slug beim ersten Übernehmen und bleibt auch nach
+einer Slug-Änderung. `parseHeroRecipe` liefert null für alles, was kein Rezept
+v1 ist (auch JSON-null aus dem Restore alter Snapshots). Artikeldaten fürs
+Studio kommen aus dem Editor-State (`heroArticle`-Memo: Titel, Rubrikname,
+zugewiesener Autor, Datum TT.MM.JJJJ oder heute, Lesezeit, Fokus-Keyword, Lead,
+Klartext des Body, Sprache); Lazy-Sync des Tiptap-Stands beim Tab-Wechsel.
+
+**Übernehmen** (`runTake` → `handleHeroApply` im EditorClient): Hero-PNG
+1920×1080 und OG-PNG 1200×630 bei `heroP` rendern, bei «animiert» das Hero-MP4
+1280×720 mit Mediabunny (`video.ts`: H.264 über WebCodecs, 30 fps, eine
+Schleife ab `heroP`, Keyframe alle 2 s, Bitrate W·H·30·0,14 geklemmt 3 bis
+14 Mbit/s; über 5 MB einmal mit 60 % Bitrate, sonst Fehlermeldung). Direkt-
+Upload aus dem Browser (`upload.ts`, Muster Podcast) in den Bucket `articles`
+als `<articleId>/hero-<uuid8>.png`, `og-<uuid8>.png`, `hero-<uuid8>.mp4`,
+cacheControl 1 Jahr, upsert false. Dann EIN `saveArticle` mit explizit
+zusammengesetzten Werten (Muster Co-Pilot, ungespeicherte Editor-Änderungen
+gehen mit) = eine Revision: `cover_image_url`, `cover_image_alt` (Caption und
+Source bleiben), `og_image_url`, `cover_video_url`, `cover_video_alt`,
+`cover_recipe`. Scheitert das Speichern (RLS, Guard), setzt der Editor nichts
+und das Studio löscht die eben hochgeladenen Dateien.
+
+**Aufräumregel:** `cleanupHeroFiles` löscht nach jedem ERFOLGREICHEN Save
+(manuell, Einreichen, Publizieren, Co-Pilot, Studio) die Dateien `hero-*`/`og-*`
+des zuvor gespeicherten Rezepts, die weder das neue Rezept noch das Cover
+referenzieren (`deleteHeroAssets`, nur eigene Pfade, best-effort). Wird das
+Beitragsbild im Details-Tab ersetzt oder entfernt, leert `handleCoverChange`
+Teilen-Bild, Animation und Rezept im State. «Veraltet» (`heroStaleChanges`:
+Rezept-Snapshot gegen Titel, Autor, Datum, Rubrik) erscheint orange im
+Details-Tab und im Studio, kein Publish-Blocker.
+
+**Downloads** (`HeroDownloads`, `zip.ts`): immer lokal aus dem Rezept
+gerendert, Videos beim ersten Klick, danach in der Sitzung. ZIP (eigener Store-
+Writer) `digital-age_<slug>_hero-paket.zip` mit website/, social/, texte/,
+rezept.json, LIESMICH.txt; Auslieferung per `<a download>` mit Object-URL.
+
+**KI** (`src/lib/ai/heroPrompts.ts`, `heroActions.ts`): Tasks `hero_proposals`
+(Default Haiku 5.5, maxTokens 1200) und `social_posts` (700), editierbare
+Strategien `hero_proposals`/`social_posts` in der Registry, Gruppe «Hero Studio»
+im Admin. Kein Auto-Start: Button «Vorschläge mit KI». Listen (Animationen,
+Bewegungen, Farbklänge, letzte Heroes, Symbolnamen) kommen aus der Engine in
+den User-Prompt; der Parser prüft Symbolnamen gegen `lucide-icons.json`, die
+Kennungen gegen `enums.ts` (Spiegel der Engine, bei Engine-Änderungen
+nachziehen). Ergebnis in `articles.cover_proposals` `{ version: 1, contentHash,
+createdAt, schlagwort, kennzahl, linie, typo }` über `saveHeroProposals` (Server-
+Client, RLS, max 64 KB, KEIN saveArticle, keine Revision); beim Öffnen gelten
+gespeicherte Vorschläge nur, wenn `contentHash` (FNV-1a aus Titel, Keyword,
+Lead, Text ≤ 3500, Rubrik) zum Inhalt passt. Posttexte werden nicht
+gespeichert (Anzeige und ZIP). Anti-Wiederholung: `memory.ts` liest die
+letzten 40 `cover_recipe` anderer Artikel über den Browser-Client (RLS).
+
+**Lizenzen:** `src/lib/hero-studio/LICENSES.md` und ausgeliefert unter
+`/licenses/hero-studio.txt` (Link «Lizenzen» im Studio): Lucide ISC (Feather-
+Teile MIT), hersheytext MIT, EMS Allure OFL 1.1, Site-Schriften OFL 1.1,
+Mediabunny 1.65.0 MPL-2.0 (exakt gepinnt, unverändert verwendet).
+
+**Prüfen:** `scripts/hero-studio/compare-references.mjs` rendert die sechs
+Referenzen aus `referenzen/` mit der Engine (Playwright) und vergleicht Pixel;
+mit `--prototype` zusätzlich gegen den Prototyp im selben Chromium (muss 0 px
+liefern; gegen fremd erzeugte PNGs weichen nur Glyphenränder der Text-
+Rasterung ab). Manuelle Tests: `src/lib/ai/__tests__/heroPrompts.manual.ts`,
+`src/lib/hero-studio/__tests__/recipe.manual.ts`.
+
+**Bekannte Grenzen:** H.264-Encoder braucht WebCodecs (Safari ab 16.4, Chrome,
+Edge; Secure Context, also localhost oder https); fehlt er, ist der Schalter
+«Im Beitrag animiert abspielen» aus und Social-Videos entfallen. Der Headless-
+Chromium im Container kann kein H.264 (Pipeline dort nur mit VP9/WebM
+prüfbar). `ImageUploader` löscht das Vorgängerbild sofort beim Hochladen
+(bekannt, eigener Punkt). `cover_video_alt` ist keine Publish-Pflicht. Eigene
+KI-Zeichnungen (`d`) und Vision-Bildkontrolle sind in v1 aus.
+
 ### Invite-Flow (PR B)
 
 **Pragma:** Editor generiert Token, kopiert URL und versendet sie manuell
