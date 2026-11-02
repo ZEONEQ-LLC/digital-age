@@ -55,22 +55,27 @@ curl -s -X POST https://digital-age.ch/api/podcasts/ingest \
   -d '{"url":"https://podcasts.apple.com/ch/podcast/x/id1291423644?i=1000790301141"}'
 ```
 
-## Spotify- und YouTube-Links
+## YouTube-Link
 
-Die Anreicherung sucht parallel zur KI den passenden Spotify-Link (Show oder
-Folge, Spotify Web API) und das YouTube-Video der Folge (YouTube Data API).
-Gesetzt wird nur ein Treffer, dessen Titel klar zur Apple-Folge passt und der
-beim Kanal der Show liegt; sonst bleibt das Feld leer und die Freigaben-Karte
-zeigt «Spotify fehlt» bzw. «YouTube fehlt». Audible hat keine Such-API und
-bleibt manuell. Env: `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`,
-`YOUTUBE_API_KEY`; fehlt ein Wert, wird die Quelle still übersprungen.
+Die Anreicherung sucht parallel zur KI das YouTube-Video der Folge (YouTube
+Data API, Env `YOUTUBE_API_KEY`). Gesetzt wird nur ein Treffer, dessen Titel
+klar zur Apple-Folge passt und der beim Kanal der Show liegt; sonst bleibt das
+Feld leer und die Freigaben-Karte zeigt «YouTube fehlt». Dieselbe Suche gibt
+es im Podcast-Formular als Button «Suchen» neben dem YouTube-Feld, auch für
+bereits veröffentlichte Einträge (bearbeiten, Suchen, speichern). Mit
+Apple-Link im Formular wird der Kanal geprüft, ohne Apple-Link zählt nur der
+Titel mit strengerer Schwelle.
+
+Spotify wird nicht automatisch gesucht: Spotify verlangt seit Februar 2026 ein
+Premium-Konto des App-Besitzers, sonst antwortet die API mit 403. Spotify- und
+Audible-Links bleiben manuell.
 
 ## Mail nach der Anreicherung
 
 Sobald Cover, Beschreibung und Kategorie ergänzt sind, geht eine Mail an die
 `authors.email` des Empfehlers (Resend, Absender `NEWSLETTER_FROM_EMAIL`):
 Betreff «Zur Freigabe: <Titel>», mit Cover, KI-Beschreibung, Kategorie,
-Sprache, Dauer, gefundenen Plattform-Links und Button «Prüfen und freigeben»
+Sprache, Dauer, vorhandenen Plattform-Links und Button «Prüfen und freigeben»
 auf `/autor/freigaben`.
 Scheitert die Anreicherung, kommt stattdessen «Empfehlung braucht Hilfe:
 <Titel>» mit dem Grund. «Erneut versuchen» auf der Freigaben-Seite
