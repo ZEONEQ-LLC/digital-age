@@ -39,7 +39,8 @@ export default function PodcastDraftReady(p: PodcastDraftMailProps) {
     .join(" · ");
   const found = [p.appleUrl ? "Apple Podcasts" : null, p.spotifyUrl ? "Spotify" : null, p.youtubeUrl ? "YouTube" : null]
     .filter((m): m is string => !!m);
-  const missing = [p.spotifyUrl ? null : "Spotify", p.youtubeUrl ? null : "YouTube"].filter((m): m is string => !!m);
+  // Nur YouTube wird gesucht; Spotify ist manuell (kein API-Zugang, #178).
+  const missing = p.youtubeUrl ? [] : ["YouTube"];
 
   return (
     <Layout previewText={ready ? `Zur Freigabe: ${p.title}` : `Anreicherung fehlgeschlagen: ${p.title}`}>

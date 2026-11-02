@@ -7,6 +7,7 @@ import AuthorCard from "@/components/author/AuthorCard";
 import InternalArticleAutocomplete from "@/components/editor/InternalArticleAutocomplete";
 import type { ArticleSearchResult } from "@/lib/articleSearchActions";
 import { createPodcast, updatePodcast, type PodcastInput } from "@/lib/podcastActions";
+import { lookupYouTubeLink } from "@/lib/podcasts/lookupActions";
 import { PODCAST_LANGUAGES } from "@/lib/mappers/podcastMappers";
 import { uploadPodcastAudio, uploadPodcastCover } from "@/lib/podcast/upload";
 import {
@@ -101,6 +102,23 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
 
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [ytBusy, setYtBusy] = useState(false);
+  const [ytNote, setYtNote] = useState<string | null>(null);
+
+  async function handleYouTubeLookup() {
+    setYtNote(null);
+    if (!title.trim() && !appleUrl.trim()) { setYtNote("Zuerst Titel oder Apple-Link eingeben."); return; }
+    setYtBusy(true);
+    try {
+      const res = await lookupYouTubeLink({ title, appleUrl: appleUrl.trim() || null });
+      if (res.ok) { setYoutubeUrl(res.url); setYtNote("Gefunden, bitte kurz prüfen."); }
+      else setYtNote(res.message);
+    } catch (e) {
+      setYtNote(e instanceof Error ? e.message : "Suche fehlgeschlagen.");
+    } finally {
+      setYtBusy(false);
+    }
+  }
 
   function validate(): string | null {
     if (!title.trim()) return "Titel fehlt.";
@@ -404,7 +422,35 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
           <div>
-            <label style={labelStyle} htmlFor="pf-youtube">YouTube-URL</label>
+            <div style={{ position: "relative" }}>
+              <label style={labelStyle} htmlFor="pf-youtube">YouTube-URL</label>
+              {/* absolut, damit die Zeile nicht hoeher wird als die Nachbar-Labels */}
+              <button
+                type="button"
+                onClick={handleYouTubeLookup}
+                disabled={ytBusy || pending}
+                title="Video zu Titel und Apple-Link auf YouTube suchen"
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: -6,
+                  padding: "3px 8px",
+                  borderRadius: 3,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  fontFamily: "var(--da-font-mono)",
+                  cursor: ytBusy ? "default" : "pointer",
+                  background: "transparent",
+                  color: "var(--da-muted-soft)",
+                  border: "1px solid var(--da-border)",
+                  opacity: ytBusy ? 0.6 : 1,
+                }}
+              >
+                {ytBusy ? "Sucht …" : "Suchen"}
+              </button>
+            </div>
             <input
               id="pf-youtube"
               type="url"
@@ -413,6 +459,9 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
               onChange={(e) => setYoutubeUrl(e.target.value)}
               placeholder="https://youtube.com/..."
             />
+            {ytNote && (
+              <p style={{ color: "var(--da-muted)", fontSize: 11, margin: "6px 0 0" }}>{ytNote}</p>
+            )}
           </div>
           <div>
             <label style={labelStyle} htmlFor="pf-soundcloud">SoundCloud-URL</label>

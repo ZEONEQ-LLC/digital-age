@@ -258,8 +258,8 @@ async function enrich(supabase: Sb, id: string): Promise<void> {
       return;
     }
 
-    // KI und Plattform-Suche (Spotify, YouTube) parallel; die Suche ist
-    // fehlertolerant und liefert null, wenn Key oder Treffer fehlen.
+    // KI und YouTube-Suche parallel; die Suche ist fehlertolerant und
+    // liefert null, wenn Key oder Treffer fehlen.
     const [ai, links] = await Promise.all([
       callLLMForAuthor(draft.recommended_by_id, {
         system: buildSystem(),
@@ -295,7 +295,6 @@ async function enrich(supabase: Sb, id: string): Promise<void> {
         podcast_category: isPodcastCategory(fields.category) ? fields.category : DEFAULT_CATEGORY,
         language: LANGS.has(fields.language) ? fields.language : "de",
         cover_image_url: cover,
-        spotify_url: links.spotifyUrl,
         youtube_url: links.youtubeUrl,
         duration_seconds: meta?.durationSeconds ?? null,
         ai_generated: true,
