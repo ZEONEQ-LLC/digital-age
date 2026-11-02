@@ -30,8 +30,10 @@ type Props = {
   reduceMotion: boolean;
   dlHeadRef: RefObject<HTMLParagraphElement | null>;
   onJump: () => void;
-  /** Downloads und Posttexte (Stufen D und E) */
+  /** Downloads (Stufe D) */
   extra?: React.ReactNode;
+  /** Posttexte (Stufe E), unter dem ALT-Text */
+  posts?: React.ReactNode;
 };
 
 export async function copyText(text: string, btn: HTMLButtonElement): Promise<void> {
@@ -41,7 +43,7 @@ export async function copyText(text: string, btn: HTMLButtonElement): Promise<vo
   setTimeout(() => { btn.textContent = label; }, 1600);
 }
 
-export default function HeroTake({ animated, animatedDisabled, animatedHint, onAnimated, onTake, takeBusy, takeLabel, status, progress, whatRows, fresh, result, staleText, article, reduceMotion, dlHeadRef, onJump, extra }: Props) {
+export default function HeroTake({ animated, animatedDisabled, animatedHint, onAnimated, onTake, takeBusy, takeLabel, status, progress, whatRows, fresh, result, staleText, article, reduceMotion, dlHeadRef, onJump, extra, posts }: Props) {
   const hId = useId();
   const altId = useId();
   const [altCopied, setAltCopied] = useState(false);
@@ -137,6 +139,7 @@ export default function HeroTake({ animated, animatedDisabled, animatedHint, onA
                 >{altCopied ? "Kopiert" : "Kopieren"}</button>
               </div>
               <textarea id={altId} rows={3} readOnly value={result.altStatic} />
+              {posts}
             </div>
             <div className="hs-field">
               <p className="hs-sub-h">Am Beitrag gespeichert</p>

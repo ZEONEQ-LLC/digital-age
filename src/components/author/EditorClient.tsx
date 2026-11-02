@@ -73,6 +73,7 @@ import { generateAbstract } from "@/lib/ai/abstractActions";
 import { heroStaleChanges, parseHeroRecipe, recipeFilePaths, recipeToJson, type HeroRecipe } from "@/lib/hero-studio/recipe";
 import { deleteHeroAssets, heroAssetPathFromUrl } from "@/lib/hero-studio/upload";
 import type { HeroApplyInput, HeroApplyResult, HeroArticleInput, HeroSession } from "@/lib/hero-studio/types";
+import { parseHeroProposalsStore } from "@/lib/ai/heroPrompts";
 
 // Hero Studio nur im Tab laden (Engine, Icon-Daten, Schriften): kein SSR, kein
 // Bundle-Anteil fuer die uebrige Suite.
@@ -134,6 +135,8 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   const [coverVideoUrl, setCoverVideoUrl] = useState<string | null>(article.cover_video_url ?? null);
   const [coverVideoAlt, setCoverVideoAlt] = useState<string | null>(article.cover_video_alt ?? null);
   const [coverRecipe, setCoverRecipe] = useState<HeroRecipe | null>(() => parseHeroRecipe(article.cover_recipe));
+  // KI-Vorschlaege des Studios (cover_proposals): eigener Schreibpfad ohne Revision.
+  const heroProposals = useMemo(() => parseHeroProposalsStore(article.cover_proposals), [article.cover_proposals]);
   // Rezept-Stand nach dem letzten ERFOLGREICHEN Save: Dateien, die danach nicht
   // mehr referenziert sind, werden geloescht (Aufraeumregel des Studios).
   const savedRecipeRef = useRef<HeroRecipe | null>(parseHeroRecipe(article.cover_recipe));
@@ -2043,6 +2046,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         <HeroStudio
           article={heroArticle}
           recipe={coverRecipe}
+          proposals={heroProposals}
           saved={coverRecipe ? { coverUrl: cover, ogUrl: ogImageUrl || cover, videoUrl: coverVideoUrl, alt: coverMetadata.alt } : null}
           session={heroSessionRef.current}
           onSessionChange={onHeroSession}

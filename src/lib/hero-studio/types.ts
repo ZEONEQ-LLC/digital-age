@@ -1,6 +1,7 @@
 // Schnittstelle zwischen EditorClient und dem Hero Studio (Tab im Artikel-Editor).
 
 import type { HeroRecipe } from "./recipe";
+import type { HeroProposalsStore } from "@/lib/ai/heroPrompts";
 import type { HeroEngineId, HeroLang, HeroSpec, HeroViewId } from "./vendor";
 
 // Artikeldaten, wie das Studio sie braucht (Diagnose I): alles aus dem Editor-State.
@@ -76,6 +77,8 @@ export type HeroStudioProps = {
   article: HeroArticleInput;
   /** gespeichertes Rezept des Artikels (cover_recipe) oder null */
   recipe: HeroRecipe | null;
+  /** gespeicherte KI-Vorschlaege (cover_proposals) oder null; gelten nur bei passendem contentHash */
+  proposals: HeroProposalsStore | null;
   /** gespeicherte Dateien des Artikels, damit Schritt 3 den uebernommenen Stand zeigt */
   saved: { coverUrl: string; ogUrl: string; videoUrl: string | null; alt: string } | null;
   session: HeroSession | null;

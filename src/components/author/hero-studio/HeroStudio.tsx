@@ -21,6 +21,9 @@ import HeroStage from "./HeroStage";
 import HeroPanel from "./HeroPanel";
 import HeroTake, { type TakeStatus } from "./HeroTake";
 import HeroDownloads from "./HeroDownloads";
+import HeroPosts, { aiErrorText } from "./HeroPosts";
+import { generateHeroProposals, saveHeroProposals } from "@/lib/ai/heroActions";
+import { heroContentHash, type HeroProposalsPayload } from "@/lib/ai/heroPrompts";
 import { renderPng as renderPngBlob } from "@/lib/hero-studio/render";
 
 const clone = <T,>(o: T): T => JSON.parse(JSON.stringify(o)) as T;
@@ -48,7 +51,7 @@ function visibleOf(list: HeroSpec[], filter: HeroFilter): HeroSpec[] {
   return list.filter((p) => p.engine === filter).slice(0, 4);
 }
 
-export default function HeroStudio({ article, recipe, saved, session, onSessionChange, onApply }: HeroStudioProps) {
+export default function HeroStudio({ article, recipe, proposals, saved, session, onSessionChange, onApply }: HeroStudioProps) {
   const reduceMotion = useSyncExternalStore(subscribeReduced, getReduced, getReducedServer);
 
   const [engine, setEngine] = useState<HeroEngine | null>(null);
@@ -60,7 +63,13 @@ export default function HeroStudio({ article, recipe, saved, session, onSessionC
   const [animated, setAnimated] = useState<boolean>(session?.animated ?? recipe?.animated ?? false);
   const [chosen, setChosen] = useState<boolean>(session?.chosen ?? !!recipe);
   const [motifsOpen, setMotifsOpen] = useState<boolean>(session?.motifsOpen ?? false);
-  const [kiKeyword] = useState<string>(session?.kiKeyword ?? "");
+  const [kiKeyword, setKiKeyword] = useState<string>(session?.kiKeyword ?? "");
+  const [kiRunning, setKiRunning] = useState(false);
+  const [kiNote, setKiNote] = useState<{ msg: string; tone?: "ok" | "warn" | "busy" } | null>(
+    session?.props.some((p) => p.source === "ki")
+      ? { msg: "Vorschläge von Claude für diesen Beitrag.", tone: "ok" }
+      : { msg: "Ohne KI wählt das Studio Motive und Bewegungen über Stichworte im Beitrag. Mit KI liest Claude den ganzen Beitrag und begründet jeden Vorschlag." },
+  );
   const [take, setTake] = useState<HeroTakeResult | null>(session?.take ?? null);
   const [takeBusy, setTakeBusy] = useState(false);
   const [status, setStatus] = useState<TakeStatus>(null);
@@ -94,6 +103,8 @@ export default function HeroStudio({ article, recipe, saved, session, onSessionC
   const dlHeadRef = useRef<HTMLParagraphElement | null>(null);
 
   const articleKey = JSON.stringify(article);
+  const contentHash = useMemo(() => heroContentHash({ headline: article.headline, keyword: article.keyword, lead: article.lead, body: article.body, rubrik: article.rubrik }), [article.headline, article.keyword, article.lead, article.body, article.rubrik]);
+  const contentHashRef = useRef(contentHash); useEffect(() => { contentHashRef.current = contentHash; }, [contentHash]);
   const articleRef = useRef<HeroArticleInput>(article); useEffect(() => { articleRef.current = article; }, [article]);
   const seedKey = useMemo(() => recipe?.seedKey ?? "", [recipe]);
 
@@ -138,6 +149,14 @@ export default function HeroStudio({ article, recipe, saved, session, onSessionC
             const savedSpec = recipeToSpec(recipe, "saved");
             e.registerSpec(savedSpec);
             list = [savedSpec];
+          }
+          // Gespeicherte KI-Vorschlaege zum aktuellen Inhalt direkt zeigen.
+          if (proposals && proposals.contentHash === contentHashRef.current) {
+            const { specs, kiKeyword: sw } = e.specsFromKi(proposals);
+            specs.forEach((s) => { s.id = nextId(); });
+            if (sw) setKiKeyword(sw);
+            list = list.concat(specs);
+            if (specs.length) setKiNote({ msg: `Vorschläge von Claude für diesen Beitrag (gespeichert).${sw ? ` Schlagwort: «${sw}».` : ""}`, tone: "ok" });
           }
           list = ensureProps(e, list, filter);
           setProps(list);
@@ -478,6 +497,52 @@ export default function HeroStudio({ article, recipe, saved, session, onSessionC
     }
   }, [engine, animated, videoOk, chosen, onApply, renderPng, setTakeStatus, take]);
 
+  // KI-Vorschlaege: Antwort in Specs umsetzen (specsFromKi), KI zuerst, Autos fuellen auf.
+  const applyKiResult = useCallback((payload: HeroProposalsPayload, fromStore: boolean) => {
+    if (!engine) return;
+    const { specs, kiKeyword: sw } = engine.specsFromKi(payload);
+    specs.forEach((s) => { s.id = nextId(); });
+    if (sw) setKiKeyword(sw);
+    setProps((prev) => {
+      const savedOnes = prev.filter((p) => p.source === "saved");
+      const autos = prev.filter((p) => p.source !== "ki" && p.source !== "saved").slice(0, 4);
+      const next = ensureProps(engine, savedOnes.concat(specs, autos), filter);
+      const vis = visibleOf(next, filter);
+      setSelId(vis.find((p) => p.source === "ki")?.id ?? vis[0]?.id ?? null);
+      return next;
+    });
+    tRef.current = 0;
+    setKiNote({ msg: `${fromStore ? "Vorschläge von Claude für diesen Beitrag (gespeichert)." : `Claude hat ${specs.length} Vorschläge erstellt.`}${sw ? ` Schlagwort: «${sw}».` : ""}`, tone: "ok" });
+    return specs.length;
+  }, [engine, ensureProps, filter, nextId]);
+
+  const runKi = useCallback(async () => {
+    if (!engine || kiRunning) return;
+    const a = articleRef.current;
+    if (!a.headline.trim()) { setKiNote({ msg: "Zuerst im Beitrag eine Headline eingeben.", tone: "warn" }); return; }
+    setKiRunning(true);
+    setKiNote({ msg: "Claude liest den Beitrag und entwirft vier Vorschläge. Das dauert meist 20 bis 60 Sekunden.", tone: "busy" });
+    try {
+      const recent = engine.recentHeroes().map((m, i) => `${i + 1}. ${m.engine === "line" ? "Linie" : "Typo"}: ${m.engine === "line" ? (engine.motifInfo(engine.baseSpec("line"), String(m.fp.motif))?.name ?? String(m.fp.motif)) : String(m.fp.motion)}, Farbklang ${String(m.fp.color)}`);
+      const res = await generateHeroProposals(a.articleId, {
+        headline: a.headline, rubrik: a.rubrik, author: a.author, keyword: a.keyword, lead: a.lead, body: a.body,
+        animList: engine.animList(), motionList: engine.motionList(), schemeList: engine.schemeList(), recent, iconNames: engine.promptIconNames(),
+      }, a.lang);
+      if (!res.ok) { setKiNote({ msg: aiErrorText(res.error, "Vorschläge"), tone: "warn" }); return; }
+      const n = applyKiResult(res.proposals, false);
+      if (!n) { setKiNote({ msg: "Die Antwort enthielt keine brauchbaren Vorschläge. Nochmals versuchen.", tone: "warn" }); return; }
+      const saved = await saveHeroProposals(a.articleId, { version: 1, contentHash: contentHashRef.current, createdAt: new Date().toISOString(), ...res.proposals });
+      if (!saved.ok) setKiNote((prev) => ({ msg: `${prev?.msg ?? ""} Nicht am Beitrag gespeichert (${saved.error}), die Vorschläge bleiben in dieser Sitzung.`, tone: "ok" }));
+    } catch (err) {
+      console.error(err);
+      setKiNote({ msg: "Vorschläge konnten nicht geladen werden. Nochmals versuchen.", tone: "warn" });
+    } finally {
+      setKiRunning(false);
+    }
+  }, [engine, kiRunning, applyKiResult]);
+
+  const onPosts = useCallback((posts: HeroTakeResult["posts"]) => setTake((t) => (t ? { ...t, posts } : t)), []);
+
   // Downloads: gerenderte Blobs in der Sitzung zwischenspeichern, Loop waehrenddessen anhalten.
   const onTakeUpdate = useCallback((next: HeroTakeResult) => setTake(next), []);
   const onDlBusy = useCallback((b: boolean) => { takeBusyRef.current = b; }, []);
@@ -515,8 +580,8 @@ export default function HeroStudio({ article, recipe, saved, session, onSessionC
           <HeroProposals
             cards={cards} selId={selId} filter={filter} onFilter={onFilter} onChoose={onChoose} onReroll={onReroll}
             registerCanvas={registerCanvas}
-            kiNote={{ msg: "Ohne KI wählt das Studio Motive und Bewegungen über Stichworte im Beitrag. Mit KI liest Claude den ganzen Beitrag und begründet jeden Vorschlag." }}
-            kiButton={null}
+            kiNote={kiNote}
+            kiButton={{ label: kiRunning ? "Claude liest …" : "Vorschläge mit KI", onClick: runKi, disabled: kiRunning || takeBusy }}
             memNote={memNote}
           />
           {sel && panel && (
@@ -547,6 +612,7 @@ export default function HeroStudio({ article, recipe, saved, session, onSessionC
               staleText={staleText}
               article={{ headline: article.headline, rubrik: article.rubrik, author: article.author, date: article.date }}
               reduceMotion={reduceMotion} dlHeadRef={dlHeadRef} onJump={onJump}
+              posts={take ? <HeroPosts article={article} take={take} onPosts={onPosts} /> : null}
               extra={take ? (
                 <HeroDownloads
                   engine={engine} take={take} article={{ headline: article.headline, slug: article.slug }}

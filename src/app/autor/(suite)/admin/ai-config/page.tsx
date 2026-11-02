@@ -16,6 +16,8 @@ const PROMPT_LABELS: Record<EditablePromptId, string> = {
   seo_review: "SEO — Verbesserungsvorschläge (Analyse)",
   highlight_suggestions: "Highlight-Vorschläge",
   image_alt: "Bild-ALT-Texte",
+  hero_proposals: "Hero Studio — Vorschläge",
+  social_posts: "Hero Studio — Posttexte",
 };
 
 // TASK_LABELS enthält alle Tasks, für die das UI ein Override-Dropdown
@@ -36,6 +38,8 @@ const TASK_LABELS: Record<AiTask, string> = {
   highlight_suggestions: "Highlight-Vorschläge",
   image_alt: "Bild-ALT-Texte",
   podcast_ingest: "Podcast-Empfehlung per Teilen",
+  hero_proposals: "Hero Studio — Vorschläge",
+  social_posts: "Hero Studio — Posttexte",
 };
 
 // Visuelle Gruppierung der UI-sichtbaren Tasks. Reihenfolge im Array =
@@ -71,6 +75,11 @@ const TASK_GROUPS: TaskGroup[] = [
     id: "podcasts",
     label: "Podcasts",
     tasks: ["podcast_ingest"],
+  },
+  {
+    id: "hero",
+    label: "Hero Studio",
+    tasks: ["hero_proposals", "social_posts"],
   },
 ];
 
