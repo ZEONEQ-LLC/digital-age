@@ -1,5 +1,6 @@
 import { getCurrentAuthor } from "@/lib/authorApi";
 import { getPendingApprovalsCount } from "@/lib/podcasts/approvalsApi";
+import AuthorMobileBar from "./AuthorMobileBar";
 import AuthorMobileBlock from "./AuthorMobileBlock";
 import AuthorSidebar from "./AuthorSidebar";
 import AuthorTopNav from "./AuthorTopNav";
@@ -7,9 +8,12 @@ import type { AuthorChip } from "@/types/authorVM";
 
 type AuthorShellProps = {
   children: React.ReactNode;
+  /** "block" (Default): unter 768px Sperrbildschirm. "allow": schmale
+   *  Kopfzeile + Inhalt, fuer Seiten wie Freigaben, die aufs Handy gehoeren. */
+  mobile?: "block" | "allow";
 };
 
-export default async function AuthorShell({ children }: AuthorShellProps) {
+export default async function AuthorShell({ children, mobile = "block" }: AuthorShellProps) {
   const row = await getCurrentAuthor();
   const pendingApprovals = row?.role === "editor" ? await getPendingApprovalsCount() : 0;
   const author: AuthorChip = {
@@ -28,6 +32,10 @@ export default async function AuthorShell({ children }: AuthorShellProps) {
         .a-shell__mobile { display: block; }
         .a-shell__tablet { display: none; }
         .a-shell__desktop { display: none; }
+        .a-shell__mobile-main {
+          padding: 20px 16px 56px;
+          animation: da-fadein var(--t-slow) ease;
+        }
 
         @media (min-width: 768px) {
           .a-shell__mobile { display: none; }
@@ -53,7 +61,14 @@ export default async function AuthorShell({ children }: AuthorShellProps) {
       `}</style>
       <div className="a-shell">
         <div className="a-shell__mobile">
-          <AuthorMobileBlock />
+          {mobile === "allow" ? (
+            <>
+              <AuthorMobileBar author={author} />
+              <main className="a-shell__mobile-main">{children}</main>
+            </>
+          ) : (
+            <AuthorMobileBlock />
+          )}
         </div>
 
         <div className="a-shell__tablet">

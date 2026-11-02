@@ -5,7 +5,7 @@ Empfehlung erfassen. Der Kurzbefehl schickt den Link an
 `POST /api/podcasts/ingest`. Der Endpoint legt einen Entwurf an und antwortet
 sofort; Titel, Cover, Beschreibung (KI), Kategorie und Sprache werden im
 Hintergrund ergänzt. Veröffentlicht wird erst unter
-`/autor/admin/freigaben` (eingeloggt, Editor).
+`/autor/freigaben` (eingeloggt, Editor).
 
 ## Voraussetzungen (einmalig)
 
@@ -57,7 +57,7 @@ curl -s -X POST https://digital-age.ch/api/podcasts/ingest \
 
 ## Freigabe auf dem iPhone
 
-`https://digital-age.ch/autor/admin/freigaben` als Lesezeichen oder auf den
+`https://digital-age.ch/autor/freigaben` als Lesezeichen oder auf den
 Home-Bildschirm legen (Safari, Teilen, «Zum Home-Bildschirm»). Pro Eintrag:
 Cover, Titel, Beschreibung, Kategorie, Sprache, dann **Veröffentlichen** oder
 **Verwerfen**. Solange die Pille «KI ergänzt …» zeigt, ist Veröffentlichen

@@ -9,7 +9,7 @@ import { enrichPodcastDraft, ingestAppleLink } from "@/lib/podcasts/ingest";
 // Schutz: PODCAST_INGEST_TOKEN als Bearer, dazu IP-Rate-Limit. Legt nur einen
 // Entwurf an und antwortet sofort; Metadaten und KI laufen nach der Antwort
 // (after()). Veroeffentlicht wird ausschliesslich eingeloggt unter
-// /autor/admin/freigaben.
+// /autor/freigaben.
 //
 // Antwort immer JSON mit `message` (deutsch), damit der Kurzbefehl den Text
 // direkt als Mitteilung zeigen kann. Fachliche Ergebnisse (vorhanden,
