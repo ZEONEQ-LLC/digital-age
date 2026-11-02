@@ -20,8 +20,8 @@ export default function SettingsSection({ initial }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [savedHint, setSavedHint] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  // Eindeutige id pro Instanz: AuthorShell rendert die Seite fuer Tablet und
-  // Desktop zweimal, feste ids wuerden das Label an die versteckte Kopie binden.
+  // Eindeutige id pro Instanz (useId), damit Label und Select auch bei
+  // mehrfachem Mount zusammenbleiben.
   const speedId = useId();
 
   // ticker_speed speichert sofort (changeSpeed), zaehlt hier nicht mit.

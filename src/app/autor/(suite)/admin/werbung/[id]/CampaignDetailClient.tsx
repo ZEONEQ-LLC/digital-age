@@ -129,7 +129,7 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
   const [notes, setNotes] = useState(c.notes ?? "");
 
   // Tracking (UTM): Parameter entstehen beim Ausliefern; hier nur Schalter,
-  // Kennung und die fertigen Links zur Ansicht. ids per useId (Suite rendert doppelt).
+  // Kennung und die fertigen Links zur Ansicht. ids per useId.
   const [utmEnabled, setUtmEnabled] = useState(c.utm_enabled);
   const [utmCampaign, setUtmCampaign] = useState(c.utm_campaign ?? "");
   const [copiedRow, setCopiedRow] = useState<string | null>(null);

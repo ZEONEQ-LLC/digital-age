@@ -145,7 +145,7 @@ export default function AuthorSidebar({ author }: AuthorSidebarProps) {
           font-family: inherit;
         }
         .a-sb__foot-item:hover { color: var(--da-text); }
-        @media (max-width: 1024px) {
+        @media (max-width: 1023px) {
           .a-sb { display: none; }
         }
       `}</style>

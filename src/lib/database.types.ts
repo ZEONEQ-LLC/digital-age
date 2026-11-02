@@ -807,19 +807,17 @@ export type Database = {
           cover_image_caption: string | null
           cover_image_source: string | null
           cover_image_url: string | null
-          // ── HERO STUDIO (manuell, nach db push durch gen types ersetzen)
-          og_image_url: string | null
-          cover_video_url: string | null
-          cover_video_alt: string | null
-          cover_recipe: Json | null
           cover_proposals: Json | null
-          // ── /HERO STUDIO
+          cover_recipe: Json | null
+          cover_video_alt: string | null
+          cover_video_url: string | null
           created_at: string
           excerpt: string | null
           id: string
           is_featured: boolean
           is_hero: boolean
           locale: string
+          og_image_url: string | null
           published_at: string | null
           reading_minutes: number | null
           seo_description: string | null
@@ -847,19 +845,17 @@ export type Database = {
           cover_image_caption?: string | null
           cover_image_source?: string | null
           cover_image_url?: string | null
-          // ── HERO STUDIO (manuell, nach db push durch gen types ersetzen)
-          og_image_url?: string | null
-          cover_video_url?: string | null
-          cover_video_alt?: string | null
-          cover_recipe?: Json | null
           cover_proposals?: Json | null
-          // ── /HERO STUDIO
+          cover_recipe?: Json | null
+          cover_video_alt?: string | null
+          cover_video_url?: string | null
           created_at?: string
           excerpt?: string | null
           id?: string
           is_featured?: boolean
           is_hero?: boolean
           locale?: string
+          og_image_url?: string | null
           published_at?: string | null
           reading_minutes?: number | null
           seo_description?: string | null
@@ -887,19 +883,17 @@ export type Database = {
           cover_image_caption?: string | null
           cover_image_source?: string | null
           cover_image_url?: string | null
-          // ── HERO STUDIO (manuell, nach db push durch gen types ersetzen)
-          og_image_url?: string | null
-          cover_video_url?: string | null
-          cover_video_alt?: string | null
-          cover_recipe?: Json | null
           cover_proposals?: Json | null
-          // ── /HERO STUDIO
+          cover_recipe?: Json | null
+          cover_video_alt?: string | null
+          cover_video_url?: string | null
           created_at?: string
           excerpt?: string | null
           id?: string
           is_featured?: boolean
           is_hero?: boolean
           locale?: string
+          og_image_url?: string | null
           published_at?: string | null
           reading_minutes?: number | null
           seo_description?: string | null
