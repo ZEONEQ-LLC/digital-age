@@ -1025,7 +1025,10 @@ plus iTunes Lookup) und KI-Felder (Task `podcast_ingest`, ohne Session über
 bleibt unter 768px gesperrt). Nach der Anreicherung Mail an `authors.email`
 des Empfehlers über `src/lib/podcasts/mail.ts` (Template
 `src/emails/PodcastDraftReady.tsx`, ready wie failed; nur vom Endpoint,
-nicht beim Retry). Dubletten über
+nicht beim Retry). Spotify-/YouTube-Links über `src/lib/podcasts/platformLinks.ts`
+(Web-API-Suchen mit Titelabgleich `titleMatch.ts`, Schwellen 0.6 Folge /
+0.7 Show; Env `SPOTIFY_CLIENT_ID/SECRET`, `YOUTUBE_API_KEY`, fehlend = null).
+Dubletten über
 `podcasts.apple_episode_id` / `apple_show_id` (partielle Unique-Indizes).
 Anleitung für den Kurzbefehl: `docs/podcast-kurzbefehl.md`.
 
