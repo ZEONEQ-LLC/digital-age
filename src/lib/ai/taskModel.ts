@@ -11,8 +11,12 @@ import type { AiTask } from "@/lib/ai/types";
 // des Co-Pilot-Laufs (und der manuelle ALT-Button) bei JEDEM Lauf, bis ein
 // Admin-Override gesetzt ist — das Feature waere nach Deploy kaputt. Haiku 5.5
 // ist vision-faehig und guenstig; ALT-Texte brauchen kein grosses Modell.
+//
+// podcast_ingest: kurze Beschreibung + Kategorie aus Metadaten — guenstiges
+// Modell reicht; Admin-Override bleibt moeglich.
 export const TASK_MODEL_DEFAULTS: Partial<Record<AiTask, string>> = {
   image_alt: "claude-haiku-5-5",
+  podcast_ingest: "claude-haiku-5-5",
 };
 
 // Auflösung: gueltiger Override → Task-Default → genereller Default.

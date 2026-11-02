@@ -44,7 +44,11 @@ export type AiTask =
   // uebergeben, Output ist JSON ({alt}). Vom Co-Pilot fuer Hero + Inline-
   // Bilder ohne ALT genutzt. Braucht ein vision-faehiges Modell (Haiku 4.5
   // und Sonnet 5 koennen Image-Content-Blocks).
-  | "image_alt"; // (Registrierung in config.ts/configActions.ts KNOWN_TASKS + Admin)
+  | "image_alt"
+  // Podcast-Empfehlung per Teilen (api/podcasts/ingest): Kurzbeschreibung,
+  // Kategorie und Sprache aus Apple-Metadaten. Laeuft ohne Session ueber
+  // callLLMForAuthor (systemCall.ts).
+  | "podcast_ingest"; // (Registrierung in config.ts/configActions.ts KNOWN_TASKS + Admin)
 
 // Minimaler Image-Input fuer Vision-Tasks. Aktuell nur URL-Source (die
 // Bild-URLs sind public Supabase-Storage-URLs, die Anthropic selbst laden

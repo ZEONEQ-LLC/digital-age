@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { PODCAST_CATEGORIES } from "@/lib/podcastCategories";
 import Image from "next/image";
 import AuthorCard from "@/components/author/AuthorCard";
 import InternalArticleAutocomplete from "@/components/editor/InternalArticleAutocomplete";
@@ -25,15 +26,7 @@ type Props = {
   onCancel: () => void;
 };
 
-const CATEGORIES = [
-  "KI & Forschung",
-  "KI im Business",
-  "News & Updates",
-  "Tech & Society",
-  "Future Tech",
-  "Swiss AI",
-  "Tools & Praxis",
-];
+const CATEGORIES = PODCAST_CATEGORIES;
 
 const labelStyle: React.CSSProperties = {
   display: "block",

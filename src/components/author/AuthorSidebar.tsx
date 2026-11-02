@@ -17,6 +17,7 @@ const items: NavItem[] = [
 ];
 
 const adminItems: NavItem[] = [
+  { id: "admin-freigaben", label: "Freigaben", href: "/autor/admin/freigaben", icon: "✓" },
   { id: "admin-articles", label: "Alle Artikel",   href: "/autor/admin/artikel",     icon: "▦" },
   { id: "admin-pages",   label: "Seiten",        href: "/autor/seiten",            icon: "▢" },
   { id: "admin-news-ticker", label: "News-Ticker", href: "/autor/news-ticker", icon: "📰" },
@@ -128,6 +129,7 @@ export default function AuthorSidebar({ author }: AuthorSidebarProps) {
           border-left-color: var(--da-green);
           font-weight: 600;
         }
+        .a-sb__badge { margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--da-green); color: #0b0b0c; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
         .a-sb__nav-icon { font-size: 12px; opacity: 0.7; }
         .a-sb__nav-item--active .a-sb__nav-icon { opacity: 1; }
         .a-sb__foot {
@@ -214,6 +216,9 @@ export default function AuthorSidebar({ author }: AuthorSidebarProps) {
                   >
                     <span className="a-sb__nav-icon">{it.icon}</span>
                     {it.label}
+                    {it.id === "admin-freigaben" && (author.pendingApprovals ?? 0) > 0 && (
+                      <span className="a-sb__badge" aria-label="offene Freigaben">{author.pendingApprovals}</span>
+                    )}
                   </Link>
                 );
               })}

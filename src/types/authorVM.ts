@@ -5,4 +5,6 @@ export type AuthorChip = {
   avatar: string;
   jobTitle?: string;
   userRole: "external" | "author" | "editor";
+  /** Offene Freigaben (nur Editor); Badge am Nav-Punkt «Freigaben». */
+  pendingApprovals?: number;
 };
