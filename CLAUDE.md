@@ -1152,7 +1152,10 @@ rezept.json, LIESMICH.txt; Auslieferung per `<a download>` mit Object-URL.
 **KI** (`src/lib/ai/heroPrompts.ts`, `heroActions.ts`): Tasks `hero_proposals`
 (Default Haiku 5.5, maxTokens 1200) und `social_posts` (700), editierbare
 Strategien `hero_proposals`/`social_posts` in der Registry, Gruppe «Hero Studio»
-im Admin. Kein Auto-Start: Button «Vorschläge mit KI». Listen (Animationen,
+im Admin. Kein Auto-Start: Box in Schritt 1 links unter dem Titel, ohne KI-
+Vorschläge Hinweis mit primärem Button «Vorschläge mit KI erstellen» (Karten
+darunter heissen «Vorschläge aus Stichworten»), mit Vorschlägen sekundärer
+Button «Neue KI-Vorschläge»; Fortschritt und Fehler in derselben Box. Listen (Animationen,
 Bewegungen, Farbklänge, letzte Heroes, Symbolnamen) kommen aus der Engine in
 den User-Prompt; der Parser prüft Symbolnamen gegen `lucide-icons.json`, die
 Kennungen gegen `enums.ts` (Spiegel der Engine, bei Engine-Änderungen

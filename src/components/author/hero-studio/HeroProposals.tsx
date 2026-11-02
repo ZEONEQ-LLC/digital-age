@@ -21,7 +21,9 @@ type Props = {
   onReroll: (id: string) => void;
   registerCanvas: (id: string, el: HTMLCanvasElement | null) => void;
   kiNote: { msg: string; tone?: "ok" | "warn" | "busy" } | null;
-  kiButton: { label: string; onClick: () => void; disabled?: boolean } | null;
+  kiButton: { label: string; onClick: () => void; disabled?: boolean; primary?: boolean } | null;
+  /** KI-Vorschlaege fuer den aktuellen Inhalt vorhanden */
+  hasKi: boolean;
   memNote: string;
   /** Hinweis, wenn kein Fokus-Keyword gesetzt ist (Schlagwort kommt aus Titel oder KI) */
   keywordNote: string | null;
@@ -29,7 +31,7 @@ type Props = {
 
 const FILTERS: [HeroFilter, string][] = [["alle", "Alle"], ["line", "Linie"], ["typo", "Typo"]];
 
-export default function HeroProposals({ cards, selId, filter, onFilter, onChoose, onReroll, registerCanvas, kiNote, kiButton, memNote, keywordNote }: Props) {
+export default function HeroProposals({ cards, selId, filter, onFilter, onChoose, onReroll, registerCanvas, kiNote, kiButton, hasKi, memNote, keywordNote }: Props) {
   const hId = useId();
   return (
     <section className="hs-step" aria-labelledby={hId}>
@@ -42,12 +44,15 @@ export default function HeroProposals({ cards, selId, filter, onFilter, onChoose
         </div>
       </div>
       {keywordNote && <p className="hs-hint" data-hs="keyword-note">{keywordNote}</p>}
-      <div className="hs-step-head">
-        <p className="hs-note" data-tone={kiNote?.tone}>{kiNote?.msg ?? ""}</p>
+      {/* KI-Box links unter dem Titel: ohne KI-Vorschlaege Hinweis mit primaerem Button,
+          mit Vorschlaegen Text und sekundaerer Button; waehrend des Laufs Fortschritt hier. */}
+      <div className="hs-ki" data-state={hasKi ? "ok" : "none"} data-hs="ki-box">
+        <p className="hs-note" data-tone={kiNote?.tone} role="status" aria-live="polite">{kiNote?.msg ?? ""}</p>
         {kiButton && (
-          <button type="button" className="hs-btn line small" onClick={kiButton.onClick} disabled={kiButton.disabled}>{kiButton.label}</button>
+          <button type="button" className={`hs-btn ${kiButton.primary ? "primary" : "line"}`} onClick={kiButton.onClick} disabled={kiButton.disabled}>{kiButton.label}</button>
         )}
       </div>
+      {!hasKi && <p className="hs-sub-h">Vorschläge aus Stichworten</p>}
       <div className="hs-cards">
         {cards.map(({ spec, title, why, alt }) => {
           const id = spec.id ?? "";

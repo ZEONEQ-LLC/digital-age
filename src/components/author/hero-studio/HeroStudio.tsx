@@ -30,6 +30,9 @@ import { keywordFromTitle } from "@/lib/hero-studio/keyword";
 
 const clone = <T,>(o: T): T => JSON.parse(JSON.stringify(o)) as T;
 
+// Hinweisbox in Schritt 1, solange es fuer den aktuellen Inhalt keine KI-Vorschlaege gibt.
+const KI_NONE_MSG = "Noch keine KI-Vorschläge für diesen Beitrag. Claude liest den Beitrag und schlägt vier passende Varianten vor. Das dauert meist 10 bis 30 Sekunden.";
+
 function subscribeReduced(cb: () => void): () => void {
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
   mq.addEventListener("change", cb);
@@ -70,7 +73,7 @@ export default function HeroStudio({ article, recipe, proposals, saved, session,
   const [kiNote, setKiNote] = useState<{ msg: string; tone?: "ok" | "warn" | "busy" } | null>(
     session?.props.some((p) => p.source === "ki")
       ? { msg: "Vorschläge von Claude für diesen Beitrag.", tone: "ok" }
-      : { msg: "Ohne KI wählt das Studio Motive und Bewegungen über Stichworte im Beitrag. Mit KI liest Claude den ganzen Beitrag und begründet jeden Vorschlag." },
+      : { msg: KI_NONE_MSG },
   );
   const [take, setTake] = useState<HeroTakeResult | null>(session?.take ?? null);
   const [takeBusy, setTakeBusy] = useState(false);
@@ -526,7 +529,7 @@ export default function HeroStudio({ article, recipe, proposals, saved, session,
     const a = articleRef.current;
     if (!a.headline.trim()) { setKiNote({ msg: "Zuerst im Beitrag eine Headline eingeben.", tone: "warn" }); return; }
     setKiRunning(true);
-    setKiNote({ msg: "Claude liest den Beitrag und entwirft vier Vorschläge. Das dauert meist 20 bis 60 Sekunden.", tone: "busy" });
+    setKiNote({ msg: "Claude liest den Beitrag und entwirft vier Vorschläge. Das dauert meist 10 bis 30 Sekunden.", tone: "busy" });
     try {
       const recent = engine.recentHeroes().map((m, i) => `${i + 1}. ${m.engine === "line" ? "Linie" : "Typo"}: ${m.engine === "line" ? (engine.motifInfo(engine.baseSpec("line"), String(m.fp.motif))?.name ?? String(m.fp.motif)) : String(m.fp.motion)}, Farbklang ${String(m.fp.color)}`);
       const res = await generateHeroProposals(a.articleId, {
@@ -569,6 +572,8 @@ export default function HeroStudio({ article, recipe, proposals, saved, session,
     : "Gedächtnis der Redaktion: noch leer. Jedes übernommene Hero wird vermerkt.";
   const staleText = staleChanges.length ? `Du hast seither etwas geändert (${staleChanges.join(", ")}).` : null;
   const defaultText = article.keyword || kiKeyword || keywordFromTitle(article.headline);
+  // KI-Vorschlaege vorhanden: Box mit sekundaerem Button «Neue KI-Vorschläge», sonst Hinweisbox mit primaerem Button.
+  const hasKi = props.some((p) => p.source === "ki");
   // Hinweis ohne Fokus-Keyword (Schritt 1 unter dem Titel, Schritt 2 beim Schlagwort-Feld).
   const keywordFrom = article.keyword ? null : kiKeyword ? "aus den KI-Vorschlägen" : "aus dem Titel";
   const keywordNote = keywordFrom ? `Kein Fokus-Keyword im SEO-Tab. Das Schlagwort kommt ${keywordFrom}; in Schritt 2 anpassen oder im SEO-Tab setzen.` : null;
@@ -590,7 +595,8 @@ export default function HeroStudio({ article, recipe, proposals, saved, session,
             cards={cards} selId={selId} filter={filter} onFilter={onFilter} onChoose={onChoose} onReroll={onReroll}
             registerCanvas={registerCanvas}
             kiNote={kiNote}
-            kiButton={{ label: kiRunning ? "Claude liest …" : "Vorschläge mit KI", onClick: runKi, disabled: kiRunning || takeBusy }}
+            kiButton={{ label: kiRunning ? "Claude liest …" : hasKi ? "Neue KI-Vorschläge" : "Vorschläge mit KI erstellen", onClick: runKi, disabled: kiRunning || takeBusy, primary: !hasKi }}
+            hasKi={hasKi}
             memNote={memNote}
             keywordNote={keywordNote}
           />

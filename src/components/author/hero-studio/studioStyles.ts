@@ -48,6 +48,9 @@ export const HERO_STUDIO_CSS = `
 .hs-seg[aria-pressed="true"]{background:var(--hs-fg);color:#111}
 .hs-seg[aria-pressed="true"] small{color:#555}
 
+.hs-ki{display:grid;gap:12px;justify-items:start;padding:14px 16px;border:1px solid var(--hs-line-soft);border-radius:var(--hs-r-lg);background:var(--hs-surface)}
+.hs-ki[data-state="none"]{border-color:color-mix(in srgb,var(--hs-accent) 45%,var(--hs-line-soft));background:color-mix(in srgb,var(--hs-accent) 6%,var(--hs-surface))}
+.hs-ki .hs-note{min-height:0}
 .hs-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .hs-card{display:grid;grid-template-rows:auto 1fr;border:1px solid var(--hs-line-soft);border-radius:var(--hs-r-lg);background:var(--hs-surface);overflow:hidden;min-width:0}
 .hs-card[aria-current="true"]{border-color:var(--hs-accent);box-shadow:0 0 0 1px var(--hs-accent)}
