@@ -1,6 +1,6 @@
 import "server-only";
 
-import { pickBest, type Candidate } from "@/lib/podcasts/titleMatch";
+import { bestSimilarity, pickBest, type Candidate } from "@/lib/podcasts/titleMatch";
 
 // Plattform-Links zu einer Apple-Empfehlung: Spotify (Web API, Client
 // Credentials) und YouTube (Data API v3, API-Key). Beides deterministische
@@ -11,6 +11,18 @@ import { pickBest, type Candidate } from "@/lib/podcasts/titleMatch";
 // und der Editor ergaenzt den Link bei Bedarf am Desktop.
 
 const TIMEOUT_MS = 6_000;
+
+// Fehlerantworten mit Body loggen: Spotify und YouTube schicken den Grund
+// (z.B. Premium-Pflicht, Quota, Key-Einschraenkung) im JSON-Body mit, der
+// Status allein sagt nichts.
+async function errorDetail(res: Response): Promise<string> {
+  try {
+    const text = (await res.text()).replace(/\s+/g, " ").trim();
+    return text ? ` ${text.slice(0, 300)}` : "";
+  } catch {
+    return "";
+  }
+}
 const EPISODE_THRESHOLD = 0.6;
 const SHOW_THRESHOLD = 0.7;
 const SPOTIFY_MARKET = "CH";
@@ -24,6 +36,15 @@ export type PlatformLinks = {
   spotifyUrl: string | null;
   youtubeUrl: string | null;
 };
+
+// Kandidaten mit Score fuers Log, damit sich die Schwellen aus echten
+// Faellen nachjustieren lassen.
+function describe<T>(wanted: string, cands: Candidate<T>[]): string {
+  if (cands.length === 0) return "keine Kandidaten";
+  return cands
+    .map((c) => `${bestSimilarity(wanted, c.title).toFixed(2)} "${c.title.slice(0, 80)}"`)
+    .join(" | ");
+}
 
 // ── Spotify ────────────────────────────────────────────────────────────────
 let spotifyToken: { value: string; expiresAt: number } | null = null;
@@ -44,7 +65,7 @@ async function getSpotifyToken(): Promise<string | null> {
     cache: "no-store",
   });
   if (!res.ok) {
-    console.error(`[podcast-ingest:spotify] Token-Request ${res.status}`);
+    console.error(`[podcast-ingest:spotify] Token-Request ${res.status}${await errorDetail(res)}`);
     return null;
   }
   const json = (await res.json()) as { access_token?: string; expires_in?: number };
@@ -60,7 +81,7 @@ async function spotifyGet<T>(token: string, path: string): Promise<T | null> {
     cache: "no-store",
   });
   if (!res.ok) {
-    console.error(`[podcast-ingest:spotify] ${path.split("?")[0]} ${res.status}`);
+    console.error(`[podcast-ingest:spotify] ${path.split("?")[0]} ${res.status}${await errorDetail(res)}`);
     return null;
   }
   return (await res.json()) as T;
@@ -76,8 +97,12 @@ export async function findSpotifyUrl(input: PlatformLookupInput): Promise<string
 
   const q = encodeURIComponent(input.showName);
   const shows = await spotifyGet<{ shows: { items: SpotifyShow[] } }>(token, `/search?q=${q}&type=show&market=${SPOTIFY_MARKET}&limit=5`);
-  const show = pickBest(input.showName, (shows?.shows.items ?? []).map((s): Candidate<SpotifyShow> => ({ item: s, title: s.name })), SHOW_THRESHOLD);
-  if (!show) return null;
+  const showCands = (shows?.shows.items ?? []).map((s): Candidate<SpotifyShow> => ({ item: s, title: s.name }));
+  const show = pickBest(input.showName, showCands, SHOW_THRESHOLD);
+  if (!show) {
+    console.warn(`[podcast-ingest:spotify] keine Show zu "${input.showName}": ${describe(input.showName, showCands)}`);
+    return null;
+  }
   if (!input.episodeTitle) return show.item.external_urls.spotify;
 
   // Folge: erst die 50 neuesten Folgen der Show, dann Suche + Show-Pruefung.
@@ -87,8 +112,12 @@ export async function findSpotifyUrl(input: PlatformLookupInput): Promise<string
 
   const eq = encodeURIComponent(input.episodeTitle.slice(0, 100));
   const found = await spotifyGet<{ episodes: { items: SpotifyEpisode[] } }>(token, `/search?q=${eq}&type=episode&market=${SPOTIFY_MARKET}&limit=10`);
-  const cand = pickBest(input.episodeTitle, (found?.episodes.items ?? []).filter(Boolean).map((e): Candidate<SpotifyEpisode> => ({ item: e, title: e.name })), EPISODE_THRESHOLD);
-  if (!cand) return null;
+  const epCands = (found?.episodes.items ?? []).filter(Boolean).map((e): Candidate<SpotifyEpisode> => ({ item: e, title: e.name }));
+  const cand = pickBest(input.episodeTitle, epCands, EPISODE_THRESHOLD);
+  if (!cand) {
+    console.warn(`[podcast-ingest:spotify] keine Folge zu "${input.episodeTitle}": ${describe(input.episodeTitle, epCands)}`);
+    return null;
+  }
   const full = await spotifyGet<SpotifyEpisode>(token, `/episodes/${cand.item.id}?market=${SPOTIFY_MARKET}`);
   return full?.show?.id === show.item.id ? full.external_urls.spotify : null;
 }
@@ -112,7 +141,7 @@ async function youtubeSearch(params: Record<string, string>): Promise<YtSearchIt
     cache: "no-store",
   });
   if (!res.ok) {
-    console.error(`[podcast-ingest:youtube] search ${res.status}`);
+    console.error(`[podcast-ingest:youtube] search ${res.status}${await errorDetail(res)}`);
     return [];
   }
   const json = (await res.json()) as { items?: YtSearchItem[] };
@@ -133,7 +162,12 @@ export async function findYouTubeUrl(input: PlatformLookupInput): Promise<string
   // landen Clips oder Fremdvideos als Link auf der Seite.
   const sameChannel = videos.filter((v) => pickBest(input.showName!, [{ item: v, title: decodeHtml(v.snippet.channelTitle) }], 0.5));
   const hit = pickBest(input.episodeTitle, sameChannel.map((v): Candidate<YtSearchItem> => ({ item: v, title: decodeHtml(v.snippet.title) })), EPISODE_THRESHOLD);
-  return hit?.item.id.videoId ? `https://www.youtube.com/watch?v=${hit.item.id.videoId}` : null;
+  if (!hit) {
+    const all = videos.map((v): Candidate<YtSearchItem> => ({ item: v, title: `${decodeHtml(v.snippet.channelTitle)} › ${decodeHtml(v.snippet.title)}` }));
+    console.warn(`[podcast-ingest:youtube] kein Video zu "${input.episodeTitle}" (${sameChannel.length}/${videos.length} vom Kanal): ${describe(input.episodeTitle, all)}`);
+    return null;
+  }
+  return hit.item.id.videoId ? `https://www.youtube.com/watch?v=${hit.item.id.videoId}` : null;
 }
 
 // ── Beides, fehlertolerant ─────────────────────────────────────────────────
