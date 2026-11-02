@@ -1126,6 +1126,11 @@ Zeichen (Stufen: mit Farbklang, ohne, kurzer Schlagwort-Teil, Wortgrenze),
 Animation höchstens 250 Zeichen; Test `__tests__/alt.manual.ts`. Scheitert das Speichern (RLS, Guard), setzt der Editor nichts
 und das Studio löscht die eben hochgeladenen Dateien.
 
+`saveArticle` revalidiert bei publizierten Artikeln zusätzlich `/artikel/<slug>`
+(bei Slug-Wechsel alten und neuen Pfad), damit das neue Hero sofort live ist;
+Startseite und Rubrikseiten bleiben beim ISR. Der Vorschau-Tab zeigt bei
+gesetzter Animation dieselbe `ArticleCoverVideo` über dem Bild.
+
 **Aufräumregel:** `cleanupHeroFiles` löscht nach jedem ERFOLGREICHEN Save
 (manuell, Einreichen, Publizieren, Co-Pilot, Studio) die Dateien `hero-*`/`og-*`
 des zuvor gespeicherten Rezepts, die weder das neue Rezept noch das Cover

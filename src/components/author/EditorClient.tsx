@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import AuthorStatusBadge from "@/components/author/AuthorStatusBadge";
+import ArticleCoverVideo from "@/components/ArticleCoverVideo";
 import EditorDetailsTab from "@/components/author/EditorDetailsTab";
 import type { HeroStudioStatus } from "@/components/author/FeaturedImageBox";
 import EditorRevisions from "@/components/author/EditorRevisions";
@@ -2157,18 +2158,32 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             )}
           </div>
           {cover && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={cover}
-              alt=""
+            // Wie auf der Beitragsseite: Bild als Poster, bei gesetzter Animation
+            // dieselbe Komponente ArticleCoverVideo darueber (Pause-Knopf, reduced motion).
+            <div
               style={{
+                position: "relative",
                 width: "100%",
                 aspectRatio: "16/9",
-                objectFit: "cover",
                 borderRadius: 8,
+                overflow: "hidden",
                 marginBottom: 24,
+                background: "var(--da-dark)",
               }}
-            />
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={cover}
+                alt=""
+                style={{
+                  display: "block",
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
+              />
+              {coverVideoUrl && <ArticleCoverVideo src={coverVideoUrl} poster={cover} />}
+            </div>
           )}
           <h1
             style={{
