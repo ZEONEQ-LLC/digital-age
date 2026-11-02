@@ -14,9 +14,13 @@ import type { AiTask } from "@/lib/ai/types";
 //
 // podcast_ingest: kurze Beschreibung + Kategorie aus Metadaten — guenstiges
 // Modell reicht; Admin-Override bleibt moeglich.
+//
+// hero_proposals: 1200 Output-Tokens plus Thinking muessen in den 30-s-Timeout
+// passen — Haiku 5.5 als Default, Sonnet per Admin-Override moeglich.
 export const TASK_MODEL_DEFAULTS: Partial<Record<AiTask, string>> = {
   image_alt: "claude-haiku-5-5",
   podcast_ingest: "claude-haiku-5-5",
+  hero_proposals: "claude-haiku-5-5",
 };
 
 // Auflösung: gueltiger Override → Task-Default → genereller Default.

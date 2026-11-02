@@ -26,6 +26,9 @@ const eslintConfig = defineConfig([
     "src/components/tiptap-extension/**",
     "src/hooks/**",
     "src/lib/tiptap-utils.ts",
+    // Hero Studio: Engine des abgenommenen Prototyps, per scripts/hero-studio/freeze-engine.py
+    // generiert (Vendor-Code, Zeichenlogik woertlich). Keine Edits von Hand, kein Lint-Drift.
+    "src/lib/hero-studio/vendor/**",
   ]),
 ]);
 

@@ -121,7 +121,7 @@ export default function ArticleCoverVideo({ src, poster }: Props) {
         }
         .acv__video--visible { opacity: 1; }
         .acv__btn {
-          position: absolute; right: 12px; bottom: 12px;
+          position: absolute; right: 12px; bottom: 12px; z-index: 2;
           width: 36px; height: 36px; border-radius: 999px;
           border: 1px solid rgba(255,255,255,0.35);
           background: rgba(28,28,30,0.72);
@@ -155,7 +155,6 @@ export default function ArticleCoverVideo({ src, poster }: Props) {
           onClick={toggle}
           aria-label={paused ? "Animation abspielen" : "Animation anhalten"}
           aria-describedby={labelId}
-          aria-pressed={paused}
         >
           {paused ? (
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" /></svg>

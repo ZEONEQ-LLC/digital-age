@@ -159,15 +159,20 @@ export async function saveArticle(id: string, patch: ArticlePatch): Promise<Arti
 
   // Auto-Reset von Featured/Hero bei Kategorie-Wechsel. Frontend zeigt vorher
   // einen Bestätigungs-Dialog (Block D in PR 2b), aber wir doppeln server-
-  // seitig damit der State garantiert konsistent bleibt.
-  if (dbPatch.category_id !== undefined) {
+  // seitig damit der State garantiert konsistent bleibt. Derselbe Read merkt
+  // sich den bisherigen Slug, damit bei einem Slug-Wechsel auch der alte Pfad
+  // der Beitragsseite revalidiert wird.
+  let previousSlug: string | null = null;
+  if (dbPatch.category_id !== undefined || dbPatch.slug !== undefined) {
     const { data: current } = await supabase
       .from("articles")
-      .select("category_id, is_featured, is_hero")
+      .select("category_id, is_featured, is_hero, slug")
       .eq("id", id)
       .single();
+    previousSlug = current?.slug ?? null;
     if (
       current &&
+      dbPatch.category_id !== undefined &&
       current.category_id !== dbPatch.category_id &&
       (current.is_featured || current.is_hero)
     ) {
@@ -196,6 +201,13 @@ export async function saveArticle(id: string, patch: ArticlePatch): Promise<Arti
 
   revalidatePath("/autor/artikel");
   revalidatePath(`/autor/artikel/${id}`);
+  // Publizierte Beitragsseite sofort neu bauen statt erst nach dem ISR-Fenster
+  // (revalidate = 600 in /artikel/[slug]); bei Slug-Wechsel alten und neuen Pfad.
+  // Startseite und Rubrikseiten bleiben beim ISR.
+  if (data.status === "published") {
+    revalidatePath(`/artikel/${data.slug}`);
+    if (previousSlug && previousSlug !== data.slug) revalidatePath(`/artikel/${previousSlug}`);
+  }
   return data;
 }
 

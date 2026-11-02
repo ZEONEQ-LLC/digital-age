@@ -48,7 +48,14 @@ export type AiTask =
   // Podcast-Empfehlung per Teilen (api/podcasts/ingest): Kurzbeschreibung,
   // Kategorie und Sprache aus Apple-Metadaten. Laeuft ohne Session ueber
   // callLLMForAuthor (systemCall.ts).
-  | "podcast_ingest"; // (Registrierung in config.ts/configActions.ts KNOWN_TASKS + Admin)
+  | "podcast_ingest" // (Registrierung in config.ts/configActions.ts KNOWN_TASKS + Admin)
+  // Hero Studio (PR 182): vier Hero-Vorschlaege (2 Linie, 2 Typo) aus dem
+  // Beitrag als JSON, auf Knopfdruck im Tab «Hero Studio», gespeichert in
+  // articles.cover_proposals (keine Revision). v1 nur Symbol-Motive.
+  | "hero_proposals"
+  // Hero Studio: Posttexte fuer LinkedIn und Instagram zum Beitrag (JSON),
+  // nur Anzeige und ZIP-Paket, nicht gespeichert.
+  | "social_posts";
 
 // Minimaler Image-Input fuer Vision-Tasks. Aktuell nur URL-Source (die
 // Bild-URLs sind public Supabase-Storage-URLs, die Anthropic selbst laden

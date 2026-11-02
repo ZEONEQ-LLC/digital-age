@@ -24,7 +24,15 @@ type Props = {
     { ok: true; alt: string } | { ok: false; error: string }
   >;
   canGenerateAlt?: boolean;
+  // Hero Studio (PR 182): Button unter der Dropzone, Hinweis «veraltet» darunter.
+  onOpenHeroStudio?: () => void;
+  heroStaleText?: string | null;
+  // Aktives Studio-Hero (Rezept vorhanden und Cover = Hero des Rezepts): Statuszeile
+  // ueber den Buttons, Button-Text «Im Hero Studio bearbeiten».
+  heroStudioStatus?: HeroStudioStatus | null;
 };
+
+export type HeroStudioStatus = { engine: "line" | "typo"; animated: boolean };
 
 function extractFilename(url: string): string | null {
   const match = url.match(/\/articles\/[^/]+\/([^?]+)$/);
@@ -39,6 +47,9 @@ export default function FeaturedImageBox({
   onMetadataChange,
   onGenerateAlt,
   canGenerateAlt,
+  onOpenHeroStudio,
+  heroStaleText,
+  heroStudioStatus,
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -86,11 +97,71 @@ export default function FeaturedImageBox({
     <AuthorCard padding={18}>
       <MonoCaption>Beitragsbild</MonoCaption>
       <div style={{ marginTop: 4 }}>
+        {/* key: der Uploader uebernimmt currentImageUrl nur als Startwert; jede
+            Cover-Aenderung von aussen (Studio, Entfernen, Restore) muss ihn neu
+            aufsetzen, sonst bleibt die Dropzone auf dem alten Stand. */}
         <ImageUploader
+          key={coverImageUrl || "leer"}
           articleId={articleId}
           currentImageUrl={coverImageUrl || undefined}
           onUploadComplete={handleCoverUploaded}
         />
+        {onOpenHeroStudio && (
+          <>
+            {heroStudioStatus && (
+              <p
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 7,
+                  marginTop: 12,
+                  marginBottom: 0,
+                  color: "var(--da-muted)",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  fontFamily: "var(--da-font-mono)",
+                }}
+              >
+                <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--da-green)", flex: "none" }} />
+                <span>Aus dem Hero Studio · {heroStudioStatus.engine === "line" ? "Linie" : "Typo"} · {heroStudioStatus.animated ? "animiert" : "statisch"}</span>
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={onOpenHeroStudio}
+              style={{
+                marginTop: 10,
+                width: "100%",
+                background: "transparent",
+                color: "var(--da-green)",
+                border: "1px solid var(--da-green)",
+                padding: "7px 12px",
+                borderRadius: 4,
+                fontSize: 11,
+                fontFamily: "var(--da-font-mono)",
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+              }}
+            >
+              <span aria-hidden style={{ fontSize: 13, lineHeight: 1 }}>◧</span>
+              <span>{heroStudioStatus ? "Im Hero Studio bearbeiten" : "Hero Studio öffnen"}</span>
+            </button>
+            {heroStaleText && (
+              <p role="status" style={{ color: "var(--da-orange)", fontSize: 11, marginTop: 8, lineHeight: 1.5 }}>
+                <span aria-hidden style={{ fontWeight: 700, marginRight: 6 }}>!</span>
+                {heroStaleText}
+              </p>
+            )}
+          </>
+        )}
         {coverImageUrl && (
           <>
             <button

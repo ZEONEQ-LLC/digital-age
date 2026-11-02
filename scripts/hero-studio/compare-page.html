@@ -1,0 +1,48 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Hero Studio · Referenzvergleich</title>
+<body style="margin:0;background:#000">
+<script type="module">
+import { createHeroEngine } from '/repo/src/lib/hero-studio/vendor/hero-engine.js';
+const [icons, font] = await Promise.all([
+  fetch('/repo/src/lib/hero-studio/data/lucide-icons.json').then(r => r.json()),
+  fetch('/repo/src/lib/hero-studio/data/ems-allure.json').then(r => r.json()),
+]);
+for (const [fam, url, w] of [['DA Grotesk', '/repo/public/fonts/space-grotesk-var.woff2', '300 700'], ['DA Mono', '/repo/public/fonts/roboto-mono-var.woff2', '100 700'], ['DA Inter', '/repo/public/fonts/inter-var.woff2', '100 900']]) {
+  const f = new FontFace(fam, `url(${url}) format("woff2")`, { weight: w, style: 'normal', display: 'block' });
+  await f.load(); document.fonts.add(f);
+}
+await Promise.all([document.fonts.load('700 100px "DA Grotesk"'), document.fonts.load('300 100px "DA Grotesk"'), document.fonts.load('500 40px "DA Mono"'), document.fonts.load('700 40px "DA Mono"')]);
+const engine = createHeroEngine({ icons: icons.icons, iconTags: icons.tags, scriptFont: font, logoMask: '/repo/public/images/hero-studio/logo-mask.png' });
+await engine.logoReady;
+engine.clearTextCaches();
+window.__engine = engine;
+window.__compare = async (ref, art, file, viewId, p) => {
+  engine.setArticle(Object.assign({}, art, { slug: ref.seedKey }));
+  const view = engine.VIEW_BY_ID[viewId];
+  const f = engine.FORMATS[view.fmt];
+  const c = document.createElement('canvas'); c.width = f.w; c.height = f.h;
+  engine.renderSpec(c.getContext('2d'), ref.spec, { p }, view, 1);
+  const img = new Image();
+  await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error('Referenz nicht ladbar: ' + file.slice(0, 60))); img.src = file.startsWith('data:') ? file : '/refs/' + file; });
+  const rc = document.createElement('canvas'); rc.width = img.naturalWidth; rc.height = img.naturalHeight;
+  rc.getContext('2d').drawImage(img, 0, 0);
+  if (rc.width !== c.width || rc.height !== c.height) return { error: `Groesse ${c.width}x${c.height}, Referenz ${rc.width}x${rc.height}` };
+  const A = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+  const B = rc.getContext('2d').getImageData(0, 0, rc.width, rc.height).data;
+  const dc = document.createElement('canvas'); dc.width = c.width; dc.height = c.height;
+  const dctx = dc.getContext('2d'); const D = dctx.createImageData(c.width, c.height);
+  let bad = 0, any = 0, maxd = 0;
+  for (let i = 0; i < A.length; i += 4) {
+    const d = Math.max(Math.abs(A[i] - B[i]), Math.abs(A[i + 1] - B[i + 1]), Math.abs(A[i + 2] - B[i + 2]));
+    if (d > 0) any++;
+    if (d > maxd) maxd = d;
+    if (d > 16) { bad++; D.data[i] = 255; D.data[i + 1] = 0; D.data[i + 2] = 0; D.data[i + 3] = 255; }
+    else { const g = (B[i] + B[i + 1] + B[i + 2]) / 12 | 0; D.data[i] = g; D.data[i + 1] = g; D.data[i + 2] = g; D.data[i + 3] = 255; }
+  }
+  dctx.putImageData(D, 0, 0);
+  const total = c.width * c.height;
+  return { w: c.width, h: c.height, total, any, bad, maxd, pct: bad * 100 / total, diffPng: bad ? dc.toDataURL('image/png') : null, renderPng: c.toDataURL('image/png') };
+};
+window.__ready = true;
+</script>
