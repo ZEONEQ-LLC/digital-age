@@ -807,6 +807,13 @@ export type Database = {
           cover_image_caption: string | null
           cover_image_source: string | null
           cover_image_url: string | null
+          // ── HERO STUDIO (manuell, nach db push durch gen types ersetzen)
+          og_image_url: string | null
+          cover_video_url: string | null
+          cover_video_alt: string | null
+          cover_recipe: Json | null
+          cover_proposals: Json | null
+          // ── /HERO STUDIO
           created_at: string
           excerpt: string | null
           id: string
@@ -840,6 +847,13 @@ export type Database = {
           cover_image_caption?: string | null
           cover_image_source?: string | null
           cover_image_url?: string | null
+          // ── HERO STUDIO (manuell, nach db push durch gen types ersetzen)
+          og_image_url?: string | null
+          cover_video_url?: string | null
+          cover_video_alt?: string | null
+          cover_recipe?: Json | null
+          cover_proposals?: Json | null
+          // ── /HERO STUDIO
           created_at?: string
           excerpt?: string | null
           id?: string
@@ -873,6 +887,13 @@ export type Database = {
           cover_image_caption?: string | null
           cover_image_source?: string | null
           cover_image_url?: string | null
+          // ── HERO STUDIO (manuell, nach db push durch gen types ersetzen)
+          og_image_url?: string | null
+          cover_video_url?: string | null
+          cover_video_alt?: string | null
+          cover_recipe?: Json | null
+          cover_proposals?: Json | null
+          // ── /HERO STUDIO
           created_at?: string
           excerpt?: string | null
           id?: string

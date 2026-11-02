@@ -92,11 +92,56 @@ export type ArticlePatch = {
   // Co-Pilot-Report des letzten Laufs (CopilotReport-Struktur). Loest keine
   // content-Revision aus (nicht in der Trigger-Feldliste).
   copilot_last_run?: Json | null;
+  // Hero Studio (Migration 20261102150000): Teilen-Bild, Animation, Rezept.
+  // Alle vier sind im Revisions-Snapshot und loesen eine content-Revision
+  // aus. cover_proposals bewusst NICHT hier (eigener Schreibpfad ab PR 3).
+  og_image_url?: string | null;
+  cover_video_url?: string | null;
+  cover_video_alt?: string | null;
+  cover_recipe?: Json | null;
 };
+
+// Serverseitige Plausibilitaet der Hero-Studio-Felder. saveArticle wirft
+// mit deutschem Text; der Editor zeigt die Meldung im roten Banner
+// (a-edit-error), weil handleSave jeden Fehler per setError durchreicht.
+const HERO_URL_MAX = 1000;
+const HERO_ALT_MAX = 1000;
+const HERO_RECIPE_MAX_BYTES = 32 * 1024;
+
+function assertHeroUrl(value: string | null | undefined, label: string): void {
+  if (value == null) return;
+  if (typeof value !== "string" || !value.startsWith("https://")) {
+    throw new Error(`${label}: nur https-URLs erlaubt.`);
+  }
+  if (value.length > HERO_URL_MAX) {
+    throw new Error(`${label}: URL zu lang (max ${HERO_URL_MAX} Zeichen).`);
+  }
+}
+
+function validateHeroFields(patch: Pick<ArticlePatch, "og_image_url" | "cover_video_url" | "cover_video_alt" | "cover_recipe">): void {
+  assertHeroUrl(patch.og_image_url, "Teilen-Bild");
+  assertHeroUrl(patch.cover_video_url, "Hero-Animation");
+  if (patch.cover_video_alt != null) {
+    if (typeof patch.cover_video_alt !== "string") throw new Error("Animations-Beschreibung: ungültiger Wert.");
+    if (patch.cover_video_alt.length > HERO_ALT_MAX) {
+      throw new Error(`Animations-Beschreibung zu lang (max ${HERO_ALT_MAX} Zeichen).`);
+    }
+  }
+  if (patch.cover_recipe != null) {
+    const r = patch.cover_recipe;
+    if (typeof r !== "object" || Array.isArray(r) || typeof (r as { version?: unknown }).version !== "number") {
+      throw new Error("Hero-Rezept: Objekt mit numerischem `version` erwartet.");
+    }
+    if (JSON.stringify(r).length > HERO_RECIPE_MAX_BYTES) {
+      throw new Error("Hero-Rezept zu gross (max 32 KB).");
+    }
+  }
+}
 
 export async function saveArticle(id: string, patch: ArticlePatch): Promise<ArticleRow> {
   const supabase = await createClient();
   await requireCurrentAuthor();
+  validateHeroFields(patch);
 
   // Visual-Editor ist Source-of-Truth: wenn body_blocks im Patch, regeneriert
   // der Server body_md daraus (überschreibt ggf. einen mitgesendeten body_md-

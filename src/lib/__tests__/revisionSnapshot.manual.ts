@@ -23,12 +23,14 @@ section("REVISION_SNAPSHOT_FIELDS — Inhalt");
   const set = new Set<string>(REVISION_SNAPSHOT_FIELDS);
   for (const f of ["title", "body_blocks", "body_md", "excerpt", "slug",
     "seo_title", "seo_description", "seo_keyword_primary", "seo_keywords_secondary",
-    "cover_image_url", "category_id", "subcategory", "tags", "locale", "subtitle"]) {
+    "cover_image_url", "category_id", "subcategory", "tags", "locale", "subtitle",
+    "og_image_url", "cover_video_url", "cover_video_alt", "cover_recipe"]) {
     ok(`enthaelt ${f}`, set.has(f));
   }
   // Bewusst NICHT enthalten.
   for (const f of ["status", "seo_review", "seo_review_at", "is_featured",
-    "is_hero", "published_at", "word_count", "updated_at", "id", "author_id"]) {
+    "is_hero", "published_at", "word_count", "updated_at", "id", "author_id",
+    "copilot_last_run", "cover_proposals"]) {
     ok(`enthaelt NICHT ${f}`, !set.has(f));
   }
 }
