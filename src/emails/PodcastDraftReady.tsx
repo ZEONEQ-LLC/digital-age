@@ -18,6 +18,8 @@ export type PodcastDraftMailProps = {
   durationLabel?: string | null;
   reviewUrl: string;
   appleUrl?: string | null;
+  spotifyUrl?: string | null;
+  youtubeUrl?: string | null;
   error?: string | null;
 };
 
@@ -35,6 +37,9 @@ export default function PodcastDraftReady(p: PodcastDraftMailProps) {
   const meta = [p.kind, p.category, p.languageLabel, p.durationLabel ?? null]
     .filter((m): m is string => !!m)
     .join(" · ");
+  const found = [p.appleUrl ? "Apple Podcasts" : null, p.spotifyUrl ? "Spotify" : null, p.youtubeUrl ? "YouTube" : null]
+    .filter((m): m is string => !!m);
+  const missing = [p.spotifyUrl ? null : "Spotify", p.youtubeUrl ? null : "YouTube"].filter((m): m is string => !!m);
 
   return (
     <Layout previewText={ready ? `Zur Freigabe: ${p.title}` : `Anreicherung fehlgeschlagen: ${p.title}`}>
@@ -78,8 +83,12 @@ export default function PodcastDraftReady(p: PodcastDraftMailProps) {
                 {p.showName}
               </p>
             )}
-            <p className="text-muted" style={{ margin: 0, color: "#52525b", fontSize: 12, lineHeight: 1.5, fontFamily: FONT_BODY }}>
+            <p className="text-muted" style={{ margin: "0 0 6px", color: "#52525b", fontSize: 12, lineHeight: 1.5, fontFamily: FONT_BODY }}>
               {meta}
+            </p>
+            <p className="text-muted" style={{ margin: 0, color: "#52525b", fontSize: 12, lineHeight: 1.5, fontFamily: FONT_BODY }}>
+              Links: {found.join(" · ")}
+              {missing.length > 0 && ready ? ` · ${missing.join(" und ")} nicht gefunden` : ""}
             </p>
           </Column>
         </Row>

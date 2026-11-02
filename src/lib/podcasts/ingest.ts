@@ -7,6 +7,7 @@ import { slugifyPodcast } from "@/lib/podcastSlug";
 import { parseAppleLink, type AppleLink } from "@/lib/podcasts/appleLink";
 import { fetchApplePageMeta, lookupAppleShow, type ApplePageMeta, type AppleShowMeta } from "@/lib/podcasts/appleMeta";
 import { sendPodcastDraftNotification } from "@/lib/podcasts/mail";
+import { findPlatformLinks } from "@/lib/podcasts/platformLinks";
 import { PODCAST_LANGUAGES } from "@/lib/mappers/podcastMappers";
 
 // Empfehlung per Teilen: Apple-Link -> Entwurf (sofort) -> Anreicherung im
@@ -199,7 +200,7 @@ function durationLabel(sec: number | null): string | null {
 async function notifyRecommender(supabase: Sb, id: string): Promise<void> {
   const { data: row } = await supabase
     .from("podcasts")
-    .select("title, description, cover_image_url, podcast_category, language, duration_seconds, apple_podcasts_url, apple_episode_id, ingest_status, ingest_error, recommended_by_id")
+    .select("title, description, cover_image_url, podcast_category, language, duration_seconds, apple_podcasts_url, spotify_url, youtube_url, apple_episode_id, ingest_status, ingest_error, recommended_by_id")
     .eq("id", id)
     .maybeSingle();
   if (!row || !row.recommended_by_id || (row.ingest_status !== "ready" && row.ingest_status !== "failed")) return;
@@ -220,6 +221,8 @@ async function notifyRecommender(supabase: Sb, id: string): Promise<void> {
       languageLabel: langLabel(row.language),
       durationLabel: durationLabel(row.duration_seconds),
       appleUrl: row.apple_podcasts_url,
+      spotifyUrl: row.spotify_url,
+      youtubeUrl: row.youtube_url,
       error: row.ingest_error,
     },
   });
@@ -255,12 +258,20 @@ async function enrich(supabase: Sb, id: string): Promise<void> {
       return;
     }
 
-    const ai = await callLLMForAuthor(draft.recommended_by_id, {
-      system: buildSystem(),
-      prompt: buildPrompt(draft, meta, show),
-      maxTokens: 400,
-      task: "podcast_ingest",
-    });
+    // KI und Plattform-Suche (Spotify, YouTube) parallel; die Suche ist
+    // fehlertolerant und liefert null, wenn Key oder Treffer fehlen.
+    const [ai, links] = await Promise.all([
+      callLLMForAuthor(draft.recommended_by_id, {
+        system: buildSystem(),
+        prompt: buildPrompt(draft, meta, show),
+        maxTokens: 400,
+        task: "podcast_ingest",
+      }),
+      findPlatformLinks({
+        showName: show?.name ?? meta?.showName ?? null,
+        episodeTitle: draft.apple_episode_id ? (meta?.title ?? draft.title) : null,
+      }),
+    ]);
     if (!ai.ok) {
       await fail(`KI-Schritt fehlgeschlagen (${ai.kind}): ${ai.message}`);
       return;
@@ -284,6 +295,8 @@ async function enrich(supabase: Sb, id: string): Promise<void> {
         podcast_category: isPodcastCategory(fields.category) ? fields.category : DEFAULT_CATEGORY,
         language: LANGS.has(fields.language) ? fields.language : "de",
         cover_image_url: cover,
+        spotify_url: links.spotifyUrl,
+        youtube_url: links.youtubeUrl,
         duration_seconds: meta?.durationSeconds ?? null,
         ai_generated: true,
         ingest_status: "ready",

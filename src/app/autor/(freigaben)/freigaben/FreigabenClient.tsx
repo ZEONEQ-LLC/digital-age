@@ -59,6 +59,10 @@ export default function FreigabenClient({ items }: Props) {
         .fg__pill--failed { background: rgba(255, 107, 107, 0.14); color: #ff6b6b; }
         .fg__desc { color: var(--da-text); font-size: 15px; line-height: 1.55; margin: 0; }
         .fg__note { color: var(--da-muted); font-size: 13px; line-height: 1.5; margin: 0; }
+        .fg__links { display: flex; flex-wrap: wrap; gap: 6px; }
+        .fg__chip { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid var(--da-border); color: var(--da-text); text-decoration: none; }
+        .fg__chip:hover { border-color: var(--da-muted); }
+        .fg__chip--missing { color: var(--da-muted); border-style: dashed; }
         .fg__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .fg__btn { border-radius: 10px; padding: 14px 12px; font-size: 15px; font-weight: 700; border: 1px solid var(--da-border); background: transparent; color: var(--da-text); cursor: pointer; }
         .fg__btn:disabled { opacity: 0.5; cursor: default; }
@@ -114,6 +118,14 @@ export default function FreigabenClient({ items }: Props) {
               <p className="fg__note">Grund: {it.ingest_error}</p>
             )}
 
+            {status !== "pending" && (
+              <div className="fg__links" aria-label="Plattform-Links">
+                {it.apple_podcasts_url && <a className="fg__chip" href={it.apple_podcasts_url} target="_blank" rel="noopener">Apple Podcasts</a>}
+                {it.spotify_url ? <a className="fg__chip" href={it.spotify_url} target="_blank" rel="noopener">Spotify</a> : <span className="fg__chip fg__chip--missing">Spotify fehlt</span>}
+                {it.youtube_url ? <a className="fg__chip" href={it.youtube_url} target="_blank" rel="noopener">YouTube</a> : <span className="fg__chip fg__chip--missing">YouTube fehlt</span>}
+              </div>
+            )}
+
             <div className="fg__actions">
               <button type="button" className="fg__btn fg__btn--primary" disabled={pending || status === "pending"} onClick={() => run(it.id, () => approvePodcastDraft(it.id))}>
                 {busy ? "…" : "Veröffentlichen"}
@@ -125,7 +137,6 @@ export default function FreigabenClient({ items }: Props) {
 
             <div className="fg__foot">
               <span style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                {it.apple_podcasts_url && <a className="fg__link" href={it.apple_podcasts_url} target="_blank" rel="noopener">In Apple Podcasts öffnen</a>}
                 <Link className="fg__link" href="/autor/podcasts">Am Desktop bearbeiten</Link>
               </span>
               {status !== "pending" && (
