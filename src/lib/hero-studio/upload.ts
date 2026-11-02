@@ -37,9 +37,13 @@ export async function uploadHeroAsset(articleId: string, blob: Blob, kind: HeroA
   return { path, url: data.publicUrl };
 }
 
-// Nur Pfade des eigenen Artikels, die vom Studio stammen (hero-*, og-*).
+// Nur Pfade des eigenen Artikels im exakten Studio-Schema
+// `<articleId>/hero-<8 hex>.png|mp4` bzw. `<articleId>/og-<8 hex>.png|mp4`.
+// Alles andere (Unterordner, `..`, fremde Dateinamen, andere Artikel) wird nie geloescht.
 export function isHeroAssetPath(articleId: string, path: string): boolean {
-  return path.startsWith(`${articleId}/hero-`) || path.startsWith(`${articleId}/og-`);
+  if (!articleId || typeof path !== "string") return false;
+  const id = articleId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^${id}/(hero|og)-[0-9a-f]{8}\\.(png|mp4)$`).test(path);
 }
 
 // Best-effort: Fehler werden verschluckt, Rueckgabe = Zahl der angefragten Loeschungen.

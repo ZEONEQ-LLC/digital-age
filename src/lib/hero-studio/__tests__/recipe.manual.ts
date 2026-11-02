@@ -5,6 +5,7 @@
 import {
   buildHeroRecipe, heroStaleChanges, parseHeroRecipe, recipeByteLength, recipeFilePaths, recipeToSpec, sanitizeOverrides,
 } from "../recipe";
+import { isHeroAssetPath } from "../upload";
 
 let passes = 0, fails = 0;
 function ok(label: string, cond: boolean, detail?: string): void {
@@ -60,6 +61,16 @@ section("heroStaleChanges");
     ok("Titel + Datum", heroStaleChanges(r, { title: "T2", author: "A", date: "02.11.2026", category: "K" }).join(",") === "Titel,Datum");
     ok("Autor + Rubrik", heroStaleChanges(r, { title: "T", author: "B", date: "01.11.2026", category: "F" }).join(",") === "Autor,Rubrik");
   } else ok("Rezept parst", false);
+}
+
+section("isHeroAssetPath (Loeschpfad)");
+{
+  const id = "961c0197-606a-4a27-8cd0-1d76edb4fe1a";
+  ok("exaktes Studio-Schema erlaubt", isHeroAssetPath(id, `${id}/hero-0a1b2c3d.png`) && isHeroAssetPath(id, `${id}/og-ffffffff.png`) && isHeroAssetPath(id, `${id}/hero-00000000.mp4`));
+  ok("alles andere nie", [
+    `${id}/cover.webp`, `${id}/hero-0a1b2c3d.webp`, `${id}/hero-0a1b2c3.png`, `${id}/hero-0A1B2C3D.png`, `${id}/sub/hero-0a1b2c3d.png`,
+    `${id}/../x/hero-0a1b2c3d.png`, `../${id}/hero-0a1b2c3d.png`, `00000000-0000-0000-0000-000000000000/hero-0a1b2c3d.png`, `${id}/hero-0a1b2c3d.png?x=1`, `${id}/hero-0a1b2c3d.png\n`, "",
+  ].every((p) => !isHeroAssetPath(id, p)) && !isHeroAssetPath("", "/hero-0a1b2c3d.png"));
 }
 
 process.stdout.write(`\nResult: ${passes} pass, ${fails} fail\n`);

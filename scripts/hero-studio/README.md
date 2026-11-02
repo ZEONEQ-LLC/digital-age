@@ -38,6 +38,12 @@ bei Abweichungen, eine Diff-Maske. Der Prototyp hat die Referenzen mit `readMin 
 
 Mit `--prototype <pfad zu prototyp/digital-age-hero-studio.html>` laeuft zusaetzlich Teil 2: der
 Prototyp selbst wird im selben Chromium gerendert und mit der Engine verglichen. Das trennt
-Port-Fehler (Teil 2 muss 0 px liefern) von Unterschieden der Text-Rasterung zwischen Plattformen
-(Teil 1 gegen Referenzen, die auf einem anderen Rechner entstanden sind, weicht an Glyphenraendern ab).
+Port-Fehler (Teil 2 muss 0 px liefern) von Unterschieden der Text-Rasterung (Teil 1).
 Die Prototyp-Datei bleibt unveraendert; die Fassade wird nur in der Kopie im Speicher eingehaengt.
+
+**Herkunft der Referenzen (Stand 02.11.2026):** Die PNGs in `referenzen/` wurden in einer Linux-
+Umgebung mit Playwright-Chromium gerendert, nicht auf dem Mac. Abweichungen in Teil 1 liegen
+ausschliesslich an Glyphenraendern (Headline, Meta-Zeile, Schlagwort) und kommen von
+unterschiedlichen Chromium-Builds (Schrift-Rasterung, Hinting); Linien, Logo, Signatur und
+Texturen sind identisch. Massgeblich fuer den Port ist Teil 2, der Vergleich gegen den Prototyp
+im selben Browser: 24/24 Bilder identisch (0 px Differenz).
