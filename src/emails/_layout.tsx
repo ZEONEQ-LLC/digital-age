@@ -24,6 +24,7 @@ import type { ReactNode } from "react";
 //   .text-muted   — kleinere/schwächere Hinweise
 //   .cta-button   — Primary-Action-Button
 //   .accent-link  — Inline-Akzent-Links (z.B. „.ch" im Logo)
+//   .card-box     — neutrale Info-Karte (z.B. Podcast-Vorschau)
 //   .hint-box     — Box für „Achtung"-Hinweise
 //   .hint-strong  — Headline innerhalb hint-box
 //   .hint-text    — Body innerhalb hint-box
@@ -65,6 +66,7 @@ const HEAD_CSS = `
   @media (prefers-color-scheme: dark) {
     .body-bg { background-color: #1c1c1e !important; }
     .container { background-color: #26262a !important; }
+    .card-box { background-color: #1c1c1e !important; }
     .heading, .text-primary { color: #ffffff !important; }
     .text-muted { color: #c4c4c8 !important; }
     .cta-button {

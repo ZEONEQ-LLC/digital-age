@@ -6,6 +6,8 @@ import { PODCAST_CATEGORIES, isPodcastCategory } from "@/lib/podcastCategories";
 import { slugifyPodcast } from "@/lib/podcastSlug";
 import { parseAppleLink, type AppleLink } from "@/lib/podcasts/appleLink";
 import { fetchApplePageMeta, lookupAppleShow, type ApplePageMeta, type AppleShowMeta } from "@/lib/podcasts/appleMeta";
+import { sendPodcastDraftNotification } from "@/lib/podcasts/mail";
+import { PODCAST_LANGUAGES } from "@/lib/mappers/podcastMappers";
 
 // Empfehlung per Teilen: Apple-Link -> Entwurf (sofort) -> Anreicherung im
 // Hintergrund (Metadaten + KI) -> Freigabe durch einen Editor unter
@@ -16,7 +18,9 @@ import { fetchApplePageMeta, lookupAppleShow, type ApplePageMeta, type AppleShow
 //   enrichPodcastDraft: Apple-Seite + iTunes Lookup + KI, Zeile vervollstaendigen
 //
 // Fehler landen sichtbar auf der Zeile (ingest_status = failed, ingest_error)
-// und nie still im Log allein.
+// und nie still im Log allein. Mit notify=true (Endpoint) geht danach eine
+// Mail an den Empfehler (authors.email), ready wie failed; der Retry aus der
+// Freigaben-Seite verschickt keine Mail.
 
 export type IngestOutcome =
   | { status: "created"; id: string; message: string }
@@ -177,8 +181,57 @@ function buildPrompt(d: Draft, meta: ApplePageMeta | null, show: AppleShowMeta |
   return lines.join("\n");
 }
 
-export async function enrichPodcastDraft(id: string): Promise<void> {
+type EnrichOptions = { notify?: boolean };
+
+function langLabel(code: string): string {
+  return PODCAST_LANGUAGES.find((l) => l.code === code)?.label ?? code.toUpperCase();
+}
+
+function durationLabel(sec: number | null): string | null {
+  if (!sec) return null;
+  const h = Math.floor(sec / 3600);
+  const m = Math.round((sec % 3600) / 60);
+  return h > 0 ? `${h} Std. ${m} Min.` : `${m} Min.`;
+}
+
+// Liest die fertige Zeile und schickt die Mail. Fehler nur ins Log: die Mail
+// ist Komfort, der Entwurf liegt so oder so auf der Freigaben-Seite.
+async function notifyRecommender(supabase: Sb, id: string): Promise<void> {
+  const { data: row } = await supabase
+    .from("podcasts")
+    .select("title, description, cover_image_url, podcast_category, language, duration_seconds, apple_podcasts_url, apple_episode_id, ingest_status, ingest_error, recommended_by_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!row || !row.recommended_by_id || (row.ingest_status !== "ready" && row.ingest_status !== "failed")) return;
+  const { data: author } = await supabase.from("authors").select("email").eq("id", row.recommended_by_id).maybeSingle();
+  if (!author?.email) {
+    console.error(`[podcast-ingest] ${id}: Empfehler ohne E-Mail, keine Mail.`);
+    return;
+  }
+  await sendPodcastDraftNotification({
+    to: author.email,
+    props: {
+      status: row.ingest_status,
+      kind: row.apple_episode_id ? "Folge" : "Podcast",
+      title: row.title,
+      coverUrl: row.cover_image_url,
+      description: row.description,
+      category: row.podcast_category,
+      languageLabel: langLabel(row.language),
+      durationLabel: durationLabel(row.duration_seconds),
+      appleUrl: row.apple_podcasts_url,
+      error: row.ingest_error,
+    },
+  });
+}
+
+export async function enrichPodcastDraft(id: string, opts: EnrichOptions = {}): Promise<void> {
   const supabase = createServiceClient();
+  await enrich(supabase, id);
+  if (opts.notify) await notifyRecommender(supabase, id);
+}
+
+async function enrich(supabase: Sb, id: string): Promise<void> {
   const { data } = await supabase
     .from("podcasts")
     .select("id, title, apple_podcasts_url, apple_show_id, apple_episode_id, recommended_by_id, cover_image_url")
