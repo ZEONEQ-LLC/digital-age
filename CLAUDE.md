@@ -1022,7 +1022,10 @@ plus iTunes Lookup) und KI-Felder (Task `podcast_ingest`, ohne Session über
 `src/lib/ai/systemCall.ts`). Freigabe nur eingeloggt unter
 `/autor/freigaben` (eigene Route-Gruppe `(freigaben)`, Shell mit
 `mobile="allow"`, damit die Seite auf dem Handy läuft; die übrige Suite
-bleibt unter 768px gesperrt). Dubletten über
+bleibt unter 768px gesperrt). Nach der Anreicherung Mail an `authors.email`
+des Empfehlers über `src/lib/podcasts/mail.ts` (Template
+`src/emails/PodcastDraftReady.tsx`, ready wie failed; nur vom Endpoint,
+nicht beim Retry). Dubletten über
 `podcasts.apple_episode_id` / `apple_show_id` (partielle Unique-Indizes).
 Anleitung für den Kurzbefehl: `docs/podcast-kurzbefehl.md`.
 

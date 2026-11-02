@@ -55,6 +55,17 @@ curl -s -X POST https://digital-age.ch/api/podcasts/ingest \
   -d '{"url":"https://podcasts.apple.com/ch/podcast/x/id1291423644?i=1000790301141"}'
 ```
 
+## Mail nach der Anreicherung
+
+Sobald Cover, Beschreibung und Kategorie ergänzt sind, geht eine Mail an die
+`authors.email` des Empfehlers (Resend, Absender `NEWSLETTER_FROM_EMAIL`):
+Betreff «Zur Freigabe: <Titel>», mit Cover, KI-Beschreibung, Kategorie,
+Sprache, Dauer und Button «Prüfen und freigeben» auf `/autor/freigaben`.
+Scheitert die Anreicherung, kommt stattdessen «Empfehlung braucht Hilfe:
+<Titel>» mit dem Grund. «Erneut versuchen» auf der Freigaben-Seite
+verschickt keine Mail. Fehlt der Resend-Key, bleibt der Entwurf trotzdem
+auf der Freigaben-Seite liegen.
+
 ## Freigabe auf dem iPhone
 
 `https://digital-age.ch/autor/freigaben` als Lesezeichen oder auf den

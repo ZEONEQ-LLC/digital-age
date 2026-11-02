@@ -77,7 +77,7 @@ export async function POST(request: Request) {
   const outcome = await ingestAppleLink(url);
   if (outcome.status === "created") {
     const id = outcome.id;
-    after(() => enrichPodcastDraft(id));
+    after(() => enrichPodcastDraft(id, { notify: true }));
   }
   const httpStatus = outcome.status === "error" ? 500 : 200;
   return NextResponse.json({ ok: outcome.status !== "error", ...outcome }, { status: httpStatus });
