@@ -26,6 +26,7 @@ import { generateHeroProposals, saveHeroProposals } from "@/lib/ai/heroActions";
 import { heroContentHash, type HeroProposalsPayload } from "@/lib/ai/heroPrompts";
 import { renderPng as renderPngBlob } from "@/lib/hero-studio/render";
 import { heroAltAnimated, heroAltStatic } from "@/lib/hero-studio/alt";
+import { keywordFromTitle } from "@/lib/hero-studio/keyword";
 
 const clone = <T,>(o: T): T => JSON.parse(JSON.stringify(o)) as T;
 
@@ -112,7 +113,9 @@ export default function HeroStudio({ article, recipe, proposals, saved, session,
   const applyArticle = useCallback((eng: HeroEngine, a: HeroArticleInput) => {
     const key = seedKey || eng.articleKeyFrom(a.slug, a.headline);
     eng.setArticle({ slug: key, headline: a.headline, rubrik: a.rubrik, author: a.author, date: a.date, readMin: a.readMin, keyword: a.keyword, figure: a.figure, lead: a.lead, body: a.body });
-    eng.setKiKeyword(kiKeyword);
+    // Engine-Reihenfolge fuer den Text: Fokus-Keyword → kiKeyword. Ohne beides kommt das
+    // Schlagwort aus dem Titel (keyword.ts), damit nie «digital age» gezeichnet wird.
+    eng.setKiKeyword(kiKeyword || keywordFromTitle(a.headline));
   }, [seedKey, kiKeyword]);
 
   const ensureProps = useCallback((eng: HeroEngine, list: HeroSpec[], f: HeroFilter): HeroSpec[] => {
@@ -213,7 +216,7 @@ export default function HeroStudio({ article, recipe, proposals, saved, session,
     setProps((prev) => {
       const kept = prev.filter((p) => p.source === "ki" || p.source === "saved");
       const next = ensureProps(engine, kept, filter);
-      next.forEach((p) => { if (p.source !== "ki") p.text = articleRef.current.keyword || kiKeyword; });
+      next.forEach((p) => { if (p.source !== "ki") p.text = articleRef.current.keyword || kiKeyword || keywordFromTitle(articleRef.current.headline); });
       return next;
     });
   }, [engine, articleKey, applyArticle, ensureProps, filter, kiKeyword]);
@@ -565,7 +568,11 @@ export default function HeroStudio({ article, recipe, proposals, saved, session,
     ? `Gedächtnis der Redaktion: ${memCount} frühere Heroes anderer Beiträge, neue Vorschläge weichen davon ab.`
     : "Gedächtnis der Redaktion: noch leer. Jedes übernommene Hero wird vermerkt.";
   const staleText = staleChanges.length ? `Du hast seither etwas geändert (${staleChanges.join(", ")}).` : null;
-  const defaultText = article.keyword || kiKeyword;
+  const defaultText = article.keyword || kiKeyword || keywordFromTitle(article.headline);
+  // Hinweis ohne Fokus-Keyword (Schritt 1 unter dem Titel, Schritt 2 beim Schlagwort-Feld).
+  const keywordFrom = article.keyword ? null : kiKeyword ? "aus den KI-Vorschlägen" : "aus dem Titel";
+  const keywordNote = keywordFrom ? `Kein Fokus-Keyword im SEO-Tab. Das Schlagwort kommt ${keywordFrom}; in Schritt 2 anpassen oder im SEO-Tab setzen.` : null;
+  const keywordHint = keywordFrom ? `Kein Fokus-Keyword im SEO-Tab. Das Schlagwort kommt ${keywordFrom}; hier anpassen oder im SEO-Tab setzen.` : null;
 
   return (
     <div className="hs" ref={rootRef}>
@@ -585,6 +592,7 @@ export default function HeroStudio({ article, recipe, proposals, saved, session,
             kiNote={kiNote}
             kiButton={{ label: kiRunning ? "Claude liest …" : "Vorschläge mit KI", onClick: runKi, disabled: kiRunning || takeBusy }}
             memNote={memNote}
+            keywordNote={keywordNote}
           />
           {sel && panel && (
             <HeroStage
@@ -598,7 +606,7 @@ export default function HeroStudio({ article, recipe, proposals, saved, session,
             >
               <HeroPanel
                 engine={engine} spec={sel} eff={panel.eff} title={panel.title} why={panel.why} check={panel.check}
-                motifsOpen={motifsOpen} onMotifsOpen={setMotifsOpen} defaultText={defaultText}
+                motifsOpen={motifsOpen} onMotifsOpen={setMotifsOpen} defaultText={defaultText} keywordHint={keywordHint}
                 onOverride={onOverride} onText={onText} onRoll={onRoll} onReset={onReset}
               />
             </HeroStage>

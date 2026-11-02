@@ -23,11 +23,13 @@ type Props = {
   kiNote: { msg: string; tone?: "ok" | "warn" | "busy" } | null;
   kiButton: { label: string; onClick: () => void; disabled?: boolean } | null;
   memNote: string;
+  /** Hinweis, wenn kein Fokus-Keyword gesetzt ist (Schlagwort kommt aus Titel oder KI) */
+  keywordNote: string | null;
 };
 
 const FILTERS: [HeroFilter, string][] = [["alle", "Alle"], ["line", "Linie"], ["typo", "Typo"]];
 
-export default function HeroProposals({ cards, selId, filter, onFilter, onChoose, onReroll, registerCanvas, kiNote, kiButton, memNote }: Props) {
+export default function HeroProposals({ cards, selId, filter, onFilter, onChoose, onReroll, registerCanvas, kiNote, kiButton, memNote, keywordNote }: Props) {
   const hId = useId();
   return (
     <section className="hs-step" aria-labelledby={hId}>
@@ -39,6 +41,7 @@ export default function HeroProposals({ cards, selId, filter, onFilter, onChoose
           ))}
         </div>
       </div>
+      {keywordNote && <p className="hs-hint" data-hs="keyword-note">{keywordNote}</p>}
       <div className="hs-step-head">
         <p className="hs-note" data-tone={kiNote?.tone}>{kiNote?.msg ?? ""}</p>
         {kiButton && (

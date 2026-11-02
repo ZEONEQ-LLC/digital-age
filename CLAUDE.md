@@ -1107,6 +1107,10 @@ v1 ist (auch JSON-null aus dem Restore alter Snapshots). Artikeldaten fürs
 Studio kommen aus dem Editor-State (`heroArticle`-Memo: Titel, Rubrikname,
 zugewiesener Autor, Datum TT.MM.JJJJ oder heute, Lesezeit, Fokus-Keyword, Lead,
 Klartext des Body, Sprache); Lazy-Sync des Tiptap-Stands beim Tab-Wechsel.
+Schlagwort-Reihenfolge: Fokus-Keyword → Schlagwort der KI-Vorschläge → aus dem
+Titel (`keyword.ts`, ganzer Titel bis 26 Zeichen, sonst Wortgrenze, Satzzeichen
+weg); die Engine bekommt nie einen leeren Text. Ohne Fokus-Keyword steht ein
+Hinweis in Schritt 1 und beim Schlagwort-Feld in Schritt 2.
 
 **Übernehmen** (`runTake` → `handleHeroApply` im EditorClient): Hero-PNG
 1920×1080 und OG-PNG 1200×630 bei `heroP` rendern, bei «animiert» das Hero-MP4

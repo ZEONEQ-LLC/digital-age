@@ -15,6 +15,8 @@ type Props = {
   motifsOpen: boolean;
   onMotifsOpen: (v: boolean) => void;
   defaultText: string;
+  /** Hinweis unter dem Schlagwort-Feld, wenn kein Fokus-Keyword gesetzt ist */
+  keywordHint: string | null;
   onOverride: (k: string, v: HeroOptionValue, live?: boolean) => void;
   onText: (v: string) => void;
   onRoll: () => void;
@@ -85,7 +87,7 @@ function IconSearch({ engine, onPick }: { engine: HeroEngine; onPick: (iconName:
 
 const C_D = "#1c1c1e";
 
-export default function HeroPanel({ engine, spec, eff, title, why, check, motifsOpen, onMotifsOpen, defaultText, onOverride, onText, onRoll, onReset }: Props) {
+export default function HeroPanel({ engine, spec, eff, title, why, check, motifsOpen, onMotifsOpen, defaultText, keywordHint, onOverride, onText, onRoll, onReset }: Props) {
   const textId = useId();
   const sliderBase = useId();
   const e = eff;
@@ -171,11 +173,11 @@ export default function HeroPanel({ engine, spec, eff, title, why, check, motifs
               <Chips items={Object.entries(engine.ANIMS).map(([k, a]) => ({ v: k, label: a.name }))} current={String(e.anim ?? "")} onPick={(v) => onOverride("anim", v)} />
             </Field>
             {morphField}
-            <Field label="Schlagwort">{textInput("Erscheint unter der Zeichnung oder handgeschrieben")}</Field>
+            <Field label="Schlagwort" hint={keywordHint}>{textInput("Erscheint unter der Zeichnung oder handgeschrieben")}</Field>
           </>
         ) : (
           <>
-            <Field label="Text">{textInput("1 bis 3 Wörter, höchstens 20 Zeichen")}</Field>
+            <Field label="Text" hint={keywordHint}>{textInput("1 bis 3 Wörter, höchstens 20 Zeichen")}</Field>
             <Field label="Bewegung" hint={(engine.MODES[String(e.motion)]?.desc ?? "") + "."}>
               <Chips items={Object.entries(engine.MODES).map(([k, m]) => ({ v: k, label: m.name }))} current={String(e.motion ?? "")} onPick={(v) => onOverride("motion", v)} />
             </Field>

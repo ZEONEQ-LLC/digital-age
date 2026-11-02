@@ -1,4 +1,5 @@
-// Manueller Test-Runner fuer src/lib/hero-studio/alt.ts (kurzer ALT ≤ 125, Animation ≤ 250).
+// Manueller Test-Runner fuer src/lib/hero-studio/alt.ts (kurzer ALT ≤ 125, Animation ≤ 250)
+// und keyword.ts (Schlagwort aus dem Titel).
 //   npx tsx src/lib/hero-studio/__tests__/alt.manual.ts
 // Exit 0 = alles gruen, 1 = mind. ein Fail.
 // Die Bausteine (parts) stammen aus engine.altParts() der vendorten Engine fuer die sechs
@@ -6,6 +7,7 @@
 // abgelesen am 02.11.2026 im Headless-Chromium.
 
 import { HERO_ALT_MAX, HERO_VIDEO_ALT_MAX, composeHeroAlt, cutAtWord, fitHeroAlt, fitHeroVideoAlt, motifNoun } from "../alt";
+import { keywordFromTitle } from "../keyword";
 import type { HeroAltParts } from "../vendor";
 
 let passes = 0, fails = 0;
@@ -93,6 +95,17 @@ section("Hilfsfunktionen");
   const v = fitHeroVideoAlt(long);
   ok("Video-ALT ≤ 250 am Satzende", v.length <= HERO_VIDEO_ALT_MAX && v.endsWith("Grund."), String(v.length));
   ok("Video-ALT kurz bleibt", fitHeroVideoAlt("Eine Linie.") === "Eine Linie.");
+}
+
+section("keywordFromTitle");
+{
+  ok("kurzer Titel ganz", keywordFromTitle("Einführung in IoT") === "Einführung in IoT");
+  ok("Satzzeichen am Ende weg", keywordFromTitle("Was bringt KI im KMU?") === "Was bringt KI im KMU" && keywordFromTitle("«Agentic AI»") === "Agentic AI");
+  ok("Wortgrenze, hoechstens 26", keywordFromTitle("Your Bank Knows Your Transactions. But Your AI Might Move Your Money.") === "Your Bank Knows Your" && keywordFromTitle("Wie KMU mit Agenten heute Zeit sparen") === "Wie KMU mit Agenten heute");
+  ok("Satzzeichen im gekuerzten Teil beendet das Schlagwort", keywordFromTitle("Mega-Trend IoT: Die Vernetzung der Dinge") === "Mega-Trend IoT" && keywordFromTitle("KI im Alltag. Was sich jetzt ändert") === "KI im Alltag" && keywordFromTitle("Die Bank, die KI und das Geld der Kunden") === "Die Bank, die KI und das");
+  ok("genau 26 an der Grenze", keywordFromTitle("Zwölf Thesen zur Zukunft de Arbeit") === "Zwölf Thesen zur Zukunft" && keywordFromTitle("abcdefghijklmnopqrstuvwxyz und mehr") === "abcdefghijklmnopqrstuvwxyz");
+  ok("ein langes Wort hart", keywordFromTitle("Donaudampfschifffahrtsgesellschaftskapitän") === "Donaudampfschifffahrtsgese" && keywordFromTitle("Donaudampfschifffahrtsgese").length === 26);
+  ok("leer bleibt leer", keywordFromTitle("") === "" && keywordFromTitle("   ") === "");
 }
 
 process.stdout.write(`\nResult: ${passes} pass, ${fails} fail\n`);
