@@ -24,6 +24,9 @@ type Props = {
     { ok: true; alt: string } | { ok: false; error: string }
   >;
   canGenerateAlt?: boolean;
+  // Hero Studio (PR 182): Button unter der Dropzone, Hinweis «veraltet» darunter.
+  onOpenHeroStudio?: () => void;
+  heroStaleText?: string | null;
 };
 
 function extractFilename(url: string): string | null {
@@ -39,6 +42,8 @@ export default function FeaturedImageBox({
   onMetadataChange,
   onGenerateAlt,
   canGenerateAlt,
+  onOpenHeroStudio,
+  heroStaleText,
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -91,6 +96,42 @@ export default function FeaturedImageBox({
           currentImageUrl={coverImageUrl || undefined}
           onUploadComplete={handleCoverUploaded}
         />
+        {onOpenHeroStudio && (
+          <>
+            <button
+              type="button"
+              onClick={onOpenHeroStudio}
+              style={{
+                marginTop: 10,
+                width: "100%",
+                background: "transparent",
+                color: "var(--da-green)",
+                border: "1px solid var(--da-green)",
+                padding: "7px 12px",
+                borderRadius: 4,
+                fontSize: 11,
+                fontFamily: "var(--da-font-mono)",
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+              }}
+            >
+              <span aria-hidden style={{ fontSize: 13, lineHeight: 1 }}>◧</span>
+              <span>Hero Studio öffnen</span>
+            </button>
+            {heroStaleText && (
+              <p role="status" style={{ color: "var(--da-orange)", fontSize: 11, marginTop: 8, lineHeight: 1.5 }}>
+                <span aria-hidden style={{ fontWeight: 700, marginRight: 6 }}>!</span>
+                {heroStaleText}
+              </p>
+            )}
+          </>
+        )}
         {coverImageUrl && (
           <>
             <button

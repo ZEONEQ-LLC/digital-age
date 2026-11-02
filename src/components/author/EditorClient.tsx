@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import AuthorStatusBadge from "@/components/author/AuthorStatusBadge";
 import EditorDetailsTab from "@/components/author/EditorDetailsTab";
@@ -69,8 +70,18 @@ import { tiptapToBlocks } from "@/lib/tiptap/tiptapToBlocks";
 import { contentWhitelistMatch, runEditorRoundtripGuard, runRoundtripGuard, stripAllMarkup, type GuardResult } from "@/lib/tiptap/roundtripGuard";
 import { cleanupMarkdown } from "@/lib/editor/mdCleanup";
 import { generateAbstract } from "@/lib/ai/abstractActions";
+import { heroStaleChanges, parseHeroRecipe, recipeFilePaths, recipeToJson, type HeroRecipe } from "@/lib/hero-studio/recipe";
+import { deleteHeroAssets, heroAssetPathFromUrl } from "@/lib/hero-studio/upload";
+import type { HeroApplyInput, HeroApplyResult, HeroArticleInput, HeroSession } from "@/lib/hero-studio/types";
 
-type Tab = "content" | "details" | "sources" | "preview" | "seo" | "revisions";
+// Hero Studio nur im Tab laden (Engine, Icon-Daten, Schriften): kein SSR, kein
+// Bundle-Anteil fuer die uebrige Suite.
+const HeroStudio = dynamic(() => import("@/components/author/hero-studio/HeroStudio"), {
+  ssr: false,
+  loading: () => <p style={{ color: "var(--da-muted)", fontSize: 13, padding: "48px 0", textAlign: "center" }}>Studio wird geladen …</p>,
+});
+
+type Tab = "content" | "details" | "hero" | "sources" | "preview" | "seo" | "revisions";
 
 type Props = {
   article: SuiteArticle;
@@ -118,6 +129,19 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     caption: article.cover_image_caption ?? "",
     source: article.cover_image_source ?? "",
   });
+  // Hero Studio (PR 182): Teilen-Bild, Animation, Rezept. Leer = kein Studio-Hero.
+  const [ogImageUrl, setOgImageUrl] = useState(article.og_image_url ?? "");
+  const [coverVideoUrl, setCoverVideoUrl] = useState<string | null>(article.cover_video_url ?? null);
+  const [coverVideoAlt, setCoverVideoAlt] = useState<string | null>(article.cover_video_alt ?? null);
+  const [coverRecipe, setCoverRecipe] = useState<HeroRecipe | null>(() => parseHeroRecipe(article.cover_recipe));
+  // Rezept-Stand nach dem letzten ERFOLGREICHEN Save: Dateien, die danach nicht
+  // mehr referenziert sind, werden geloescht (Aufraeumregel des Studios).
+  const savedRecipeRef = useRef<HeroRecipe | null>(parseHeroRecipe(article.cover_recipe));
+  // Zugewiesener Autor (Editor-Reassignment im Details-Tab), fuer die Studio-Daten.
+  const [assignedAuthorId, setAssignedAuthorId] = useState(article.author_id);
+  // Studio-Sitzung (Vorschlaege, Auswahl, letztes Ergebnis) ueberlebt den Tab-Wechsel.
+  const heroSessionRef = useRef<HeroSession | null>(null);
+  const onHeroSession = useCallback((s: HeroSession) => { heroSessionRef.current = s; }, []);
   const [categoryId, setCategoryId] = useState(article.category_id);
   const [subcategory, setSubcategory] = useState(article.subcategory ?? "");
   const [tagList, setTagList] = useState<string[]>(article.tags ?? []);
@@ -695,6 +719,10 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       seo_keywords_secondary: cleanSecondary,
       published_at: publishedAtIso,
       locale,
+      og_image_url: ogImageUrl || null,
+      cover_video_url: coverVideoUrl || null,
+      cover_video_alt: coverVideoAlt || null,
+      cover_recipe: coverRecipe ? recipeToJson(coverRecipe) : null,
       body_blocks: finalDoc,
     };
     if (seo.slug && seo.slug !== article.slug) {
@@ -816,6 +844,122 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     return { finalDoc, finalExcerpt };
   }
 
+  // ── Hero Studio ────────────────────────────────────────────────────────────
+  // Aufraeumen nach erfolgreichem Save: Studio-Dateien (hero-*, og-*) des
+  // vorher gespeicherten Rezepts, die das neue Rezept und das Cover nicht mehr
+  // referenzieren, best-effort loeschen. Erst NACH dem Speichern (Entscheid 02.11.2026).
+  async function cleanupHeroFiles(nextRecipe: HeroRecipe | null, coverNow: string) {
+    const prev = savedRecipeRef.current;
+    savedRecipeRef.current = nextRecipe;
+    if (!prev) return;
+    const keep = new Set<string>([...recipeFilePaths(nextRecipe), heroAssetPathFromUrl(coverNow) ?? ""]);
+    const drop = recipeFilePaths(prev).filter((path) => !keep.has(path));
+    if (drop.length) await deleteHeroAssets(article.id, drop);
+  }
+
+  // Beitragsbild ersetzt oder entfernt, waehrend ein Studio-Rezept besteht:
+  // Teilen-Bild, Animation und Rezept gehoeren zum alten Bild und werden geleert.
+  // Die Dateien raeumt cleanupHeroFiles nach dem naechsten erfolgreichen Save ab.
+  function handleCoverChange(v: string) {
+    markDirty();
+    setCover(v);
+    if (coverRecipe && heroAssetPathFromUrl(v) !== coverRecipe.files.hero) {
+      setOgImageUrl("");
+      setCoverVideoUrl(null);
+      setCoverVideoAlt(null);
+      setCoverRecipe(null);
+    }
+  }
+
+  // Tab-Wechsel: Lazy-Sync des Tiptap-Stands in `doc` vor Vorschau, SEO,
+  // Quellen und Hero Studio (das Studio braucht aktuellen Lead und Text).
+  // buildBlockDocumentFromEditor ist nebenwirkungsfrei (purer Read+Transform).
+  function switchTab(id: Tab) {
+    if (id === "preview" || id === "seo" || id === "sources" || id === "hero") {
+      try {
+        const next = buildBlockDocumentFromEditor();
+        setDoc(next);
+        setExcerpt(readExcerptFromAbstract());
+      } catch (e) {
+        console.error("Editor-Sync fehlgeschlagen:", e);
+      }
+    }
+    setTab(id);
+  }
+
+  // Uebernehmen aus dem Studio: EIN saveArticle mit explizit zusammengesetzten
+  // Werten (Setter sind asynchron, Muster Co-Pilot). Ungespeicherte Aenderungen
+  // im Editor gehen mit. Erfolg = eine Revision; dann State setzen und alte
+  // Studio-Dateien aufraeumen. Fehler = nichts gesetzt, das Studio loescht die
+  // eben hochgeladenen Dateien.
+  async function handleHeroApply(input: HeroApplyInput): Promise<HeroApplyResult> {
+    const prepared = prepareSave();
+    if (!prepared) {
+      return { ok: false, error: "Speichern durch den Roundtrip-Guard blockiert. Editor prüfen, manuell speichern, dann nochmals übernehmen." };
+    }
+    const { finalDoc, finalExcerpt } = prepared;
+    const patch: ArticlePatch = {
+      ...buildPatchUnchecked(finalDoc, finalExcerpt),
+      cover_image_url: input.coverUrl,
+      cover_image_alt: input.altStatic || null,
+      og_image_url: input.ogUrl,
+      cover_video_url: input.videoUrl,
+      cover_video_alt: input.altAnimated,
+      cover_recipe: recipeToJson(input.recipe),
+    };
+    try {
+      const updated = await saveArticle(article.id, patch);
+      setStatus(updated.status);
+      setSavedAt("Gespeichert (Hero Studio)");
+      setDirty(false);
+      setPendingCopilotReport(null);
+      setDoc(finalDoc);
+      setExcerpt(finalExcerpt);
+      setCover(input.coverUrl);
+      // Caption und Source bleiben, nur der ALT kommt aus dem Studio (kein resetMetadata).
+      setCoverMetadata((prev) => ({ ...prev, alt: input.altStatic }));
+      setOgImageUrl(input.ogUrl);
+      setCoverVideoUrl(input.videoUrl);
+      setCoverVideoAlt(input.altAnimated);
+      setCoverRecipe(input.recipe);
+      await cleanupHeroFiles(input.recipe, input.coverUrl);
+      router.refresh();
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : "Speichern fehlgeschlagen." };
+    }
+  }
+
+  const heroArticle = useMemo<HeroArticleInput>(() => {
+    const fmtDate = (ymd: string) => {
+      const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      return m ? `${m[3]}.${m[2]}.${m[1]}` : "";
+    };
+    const now = new Date();
+    const today = `${String(now.getDate()).padStart(2, "0")}.${String(now.getMonth() + 1).padStart(2, "0")}.${now.getFullYear()}`;
+    return {
+      articleId: article.id,
+      slug: seo.slug || article.slug,
+      headline: title,
+      rubrik: categories.find((c) => c.id === categoryId)?.name_de ?? article.category?.name_de ?? "",
+      author: allAuthors.find((a) => a.id === assignedAuthorId)?.display_name ?? article.author?.display_name ?? "",
+      date: fmtDate(publishedAtDate) || today,
+      readMin: readMinutes,
+      keyword: seo.keyword,
+      figure: "",
+      lead: excerpt,
+      body: stripAllMarkup(bodyText).trim(),
+      lang: locale === "en" ? "en" : "de",
+    };
+  }, [article.id, article.slug, article.category?.name_de, article.author?.display_name, seo.slug, seo.keyword, title, categories, categoryId, allAuthors, assignedAuthorId, publishedAtDate, readMinutes, excerpt, bodyText, locale]);
+
+  // «Veraltet» (Diagnose K): Rezept-Snapshot gegen den Live-State. Kein Publish-Blocker.
+  const heroStaleText = useMemo(() => {
+    if (!coverRecipe) return null;
+    const changes = heroStaleChanges(coverRecipe, { title: heroArticle.headline, author: heroArticle.author, date: heroArticle.date, category: heroArticle.rubrik });
+    return changes.length ? `Hero veraltet: ${changes.join(", ")} geändert. Im Hero Studio neu übernehmen.` : null;
+  }, [coverRecipe, heroArticle]);
+
   async function handleSave() {
     const prepared = prepareSave();
     if (!prepared) return;
@@ -829,6 +973,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         setPendingCopilotReport(null);
         setDoc(finalDoc);
         setExcerpt(finalExcerpt);
+        void cleanupHeroFiles(coverRecipe, cover);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Speichern fehlgeschlagen.");
@@ -845,6 +990,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         await saveArticle(article.id, buildPatchUnchecked(finalDoc, finalExcerpt));
         setDirty(false);
         setPendingCopilotReport(null);
+        await cleanupHeroFiles(coverRecipe, cover);
         const next = await submitForReview(article.id);
         setStatus(next.status);
         router.push("/autor/artikel");
@@ -894,6 +1040,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         setDirty(false);
         setDoc(finalDoc);
         setExcerpt(finalExcerpt);
+        void cleanupHeroFiles(coverRecipe, cover);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Publish fehlgeschlagen.");
@@ -1146,6 +1293,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         setPendingCopilotReport(null); // erfolgreich persistiert
         setDoc(finalDoc);
         setExcerpt(finalExcerpt);
+        void cleanupHeroFiles(coverRecipe, cover);
         router.refresh();
       } catch {
         // Save fehlgeschlagen: die LLM-Schritte + Highlights/Inline-ALTs sind
@@ -1573,6 +1721,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         {[
           { id: "content", label: "Inhalt" },
           { id: "details", label: "Details" },
+          { id: "hero", label: "Hero Studio" },
           { id: "sources", label: locale === "en" ? "Sources" : "Quellen" },
           { id: "preview", label: "Vorschau" },
           { id: "seo", label: "SEO & Meta" },
@@ -1582,27 +1731,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             key={t.id}
             type="button"
             className={`a-edit-tab${t.id === tab ? " a-edit-tab--active" : ""}`}
-            onClick={() => {
-              // Lazy-Sync vor Wechsel auf Vorschau ODER SEO-Tab: aktuellen
-              // Editor-State in `doc` schreiben.
-              //   - Preview: BlockReader rendert den aktuellen Stand.
-              //   - SEO:     headingsLevel2- und firstParagraph-Memos lesen
-              //              den aktuellen Stand für die seo_review-Analyse;
-              //              ohne Sync sehen sie nur den letzten gespeicherten
-              //              doc-Stand (Diagnose-Leck 1).
-              // buildBlockDocumentFromEditor ist nebenwirkungsfrei (purer
-              // Read+Transform, kein Save/Guard/Dirty-Trigger).
-              if (t.id === "preview" || t.id === "seo" || t.id === "sources") {
-                try {
-                  const next = buildBlockDocumentFromEditor();
-                  setDoc(next);
-                  setExcerpt(readExcerptFromAbstract());
-                } catch (e) {
-                  console.error("Editor-Sync fehlgeschlagen:", e);
-                }
-              }
-              setTab(t.id as Tab);
-            }}
+            onClick={() => switchTab(t.id as Tab)}
           >
             {t.label}
           </button>
@@ -1881,11 +2010,14 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         <EditorDetailsTab
           articleId={article.id}
           coverImageUrl={cover}
-          onCoverChange={(v) => { markDirty(); setCover(v); }}
+          onCoverChange={handleCoverChange}
           coverMetadata={coverMetadata}
           onCoverMetadataChange={(v) => { markDirty(); setCoverMetadata(v); }}
           onGenerateCoverAlt={generateCoverAlt}
           canGenerateCoverAlt={cover.trim().length > 0}
+          onOpenHeroStudio={() => switchTab("hero")}
+          heroStaleText={heroStaleText}
+          onAuthorAssigned={setAssignedAuthorId}
           publishedAtDate={publishedAtDate}
           onPublishedAtChange={(v) => { markDirty(); setPublishedAtDate(v); }}
           isEditor={isEditor}
@@ -1905,6 +2037,18 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           articleCategoryId={article.category_id}
         />
       </div>
+
+      {/* Hero Studio: bedingt gerendert (wie Vorschau), Sitzung lebt in heroSessionRef. */}
+      {tab === "hero" && (
+        <HeroStudio
+          article={heroArticle}
+          recipe={coverRecipe}
+          saved={coverRecipe ? { coverUrl: cover, ogUrl: ogImageUrl || cover, videoUrl: coverVideoUrl, alt: coverMetadata.alt } : null}
+          session={heroSessionRef.current}
+          onSessionChange={onHeroSession}
+          onApply={handleHeroApply}
+        />
+      )}
 
       <HighlightSuggestModal
         open={highlightModalOpen}
@@ -1987,6 +2131,11 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             }}
           >
             Vorschau · So sieht der Artikel auf der Public-Page aus
+            {coverVideoUrl && (
+              <span style={{ marginLeft: 10, padding: "2px 7px", border: "1px solid var(--da-green)", borderRadius: 4, color: "var(--da-green)", letterSpacing: "0.1em" }}>
+                Animation aktiv
+              </span>
+            )}
           </div>
           {cover && (
             // eslint-disable-next-line @next/next/no-img-element

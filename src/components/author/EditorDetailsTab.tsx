@@ -33,6 +33,11 @@ type Props = {
     { ok: true; alt: string } | { ok: false; error: string }
   >;
   canGenerateCoverAlt?: boolean;
+  // Hero Studio (PR 182): Button in der Beitragsbild-Box, Hinweis «veraltet»,
+  // Rueckmeldung der Autor-Zuweisung an den Editor-State.
+  onOpenHeroStudio?: () => void;
+  heroStaleText?: string | null;
+  onAuthorAssigned?: (authorId: string) => void;
 
   // Veroeffentlichungsdatum (YYYY-MM-DD, "" = unset)
   publishedAtDate: string;
@@ -70,6 +75,9 @@ export default function EditorDetailsTab({
   onCoverMetadataChange,
   onGenerateCoverAlt,
   canGenerateCoverAlt,
+  onOpenHeroStudio,
+  heroStaleText,
+  onAuthorAssigned,
   publishedAtDate,
   onPublishedAtChange,
   isEditor,
@@ -154,6 +162,7 @@ export default function EditorDetailsTab({
     if (newId === assignedAuthor) return;
     const prev = assignedAuthor;
     setAssignedAuthor(newId);
+    onAuthorAssigned?.(newId);
     startAuthorTransition(async () => {
       try {
         await updateArticleAuthor(articleId, newId);
@@ -161,6 +170,7 @@ export default function EditorDetailsTab({
         setTimeout(() => setAuthorToast(null), 2500);
       } catch (e) {
         setAssignedAuthor(prev);
+        onAuthorAssigned?.(prev);
         setAuthorToast(e instanceof Error ? e.message : "Fehler beim Speichern");
         setTimeout(() => setAuthorToast(null), 4000);
       }
@@ -263,6 +273,8 @@ export default function EditorDetailsTab({
           onMetadataChange={onCoverMetadataChange}
           onGenerateAlt={onGenerateCoverAlt}
           canGenerateAlt={canGenerateCoverAlt}
+          onOpenHeroStudio={onOpenHeroStudio}
+          heroStaleText={heroStaleText}
         />
 
         <div className="a-edit-details__row-2">
