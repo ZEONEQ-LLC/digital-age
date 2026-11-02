@@ -11,6 +11,7 @@ import { loadHeroEngine } from "@/lib/hero-studio/engine";
 import { loadHeroMemory } from "@/lib/hero-studio/memory";
 import { HERO_RECIPE_MAX_BYTES, buildHeroRecipe, heroStaleChanges, recipeByteLength, recipeToSpec } from "@/lib/hero-studio/recipe";
 import { deleteHeroAssets, uploadHeroAsset } from "@/lib/hero-studio/upload";
+import { HERO_VIDEO_MAX_BYTES, HERO_VIDEO_WIDTH, canRenderMp4, renderMp4 } from "@/lib/hero-studio/video";
 import type { HeroArticleInput, HeroSession, HeroStudioProps, HeroTakeResult } from "@/lib/hero-studio/types";
 import type { HeroEngine, HeroOptionValue, HeroSpec, HeroViewId } from "@/lib/hero-studio/vendor";
 import { HERO_STUDIO_CSS } from "./studioStyles";
@@ -68,6 +69,10 @@ export default function HeroStudio({ article, recipe, saved, session, onSessionC
   const [progress, setProgress] = useState<number | null>(null);
   const [playing, setPlaying] = useState(true);
   const [memCount, setMemCount] = useState<number | null>(null);
+  // Kann dieser Browser H.264 kodieren? null = wird geprueft (einmal beim Mount).
+  const [videoOk, setVideoOk] = useState<boolean | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const [encoding, setEncoding] = useState(false);
 
   const idSeq = useRef<number>(session?.propSeq ?? 0);
   const nextId = useCallback(() => { idSeq.current += 1; return "p" + idSeq.current; }, []);
@@ -171,6 +176,13 @@ export default function HeroStudio({ article, recipe, saved, session, onSessionC
     // Einmal pro Mount; Artikelaenderungen laufen ueber den Effekt darunter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [article.articleId]);
+
+  // Encoder-Pruefung einmal beim Mount (Diagnose F1).
+  useEffect(() => {
+    let cancelled = false;
+    canRenderMp4().then((ok) => { if (!cancelled) setVideoOk(ok); });
+    return () => { cancelled = true; };
+  }, []);
 
   // Artikelfelder geaendert (z. B. Titel): Engine informieren, Auto-Vorschlaege neu.
   const articleKeyRef = useRef(articleKey);
@@ -370,13 +382,21 @@ export default function HeroStudio({ article, recipe, saved, session, onSessionC
     return canvasBlob(c);
   }, []);
 
-  // Uebernehmen, statisch: Hero-PNG und OG-PNG rendern, hochladen, am Beitrag speichern.
+  // Uebernehmen: Hero-PNG und OG-PNG (plus Feed/Story fuer die Downloads) rendern,
+  // bei «animiert» zusaetzlich das Hero-MP4 1280×720 mit Mediabunny, dann Direkt-
+  // Upload und EIN Save am Beitrag. Ueber 5 MB: einmal mit 60 % Bitrate neu kodieren.
   const runTake = useCallback(async () => {
     const s = propsRef.current.find((p) => p.id === selIdRef.current);
-    if (!s || !engine || takeBusyRef.current) return;
+    if (!s || !engine) return;
+    if (takeBusyRef.current) {
+      // Laufende Kodierung abbrechen (Knopf zeigt «Abbrechen»).
+      abortRef.current?.abort();
+      return;
+    }
     takeBusyRef.current = true; setTakeBusy(true);
     const a = articleRef.current;
-    const key = takeKeyOf(s, animated, a);
+    const wantVideo = animated && videoOk === true;
+    const key = takeKeyOf(s, wantVideo, a);
     if (!chosen) setChosen(true);
     const spec = clone(s);
     engine.registerSpec(spec);
@@ -385,26 +405,57 @@ export default function HeroStudio({ article, recipe, saved, session, onSessionC
       const p = engine.heroP(spec);
       setProgress(0.02); setTakeStatus("Hero-Bild wird berechnet.", "busy");
       const hero = await renderPng(engine, spec, "hero", p);
-      setProgress(0.06); setTakeStatus("Bild zum Teilen wird berechnet.", "busy");
+      setProgress(0.05); setTakeStatus("Bild zum Teilen wird berechnet.", "busy");
       const og = await renderPng(engine, spec, "og", p);
-      setProgress(0.1); setTakeStatus("Feed und Story werden berechnet.", "busy");
+      setProgress(0.07); setTakeStatus("Feed und Story werden berechnet.", "busy");
       const portrait = await renderPng(engine, spec, "portrait", p);
       const story = await renderPng(engine, spec, "story", p);
-      setProgress(0.3); setTakeStatus("Dateien werden hochgeladen.", "busy");
+      let video: Blob | null = null;
+      let videoWarn: string | null = null;
+      if (wantVideo) {
+        const ctl = new AbortController();
+        abortRef.current = ctl;
+        setEncoding(true);
+        const encode = (scale: number) => renderMp4(engine, spec, "hero", HERO_VIDEO_WIDTH, {
+          signal: ctl.signal, bitrateScale: scale,
+          onProgress: (frac, label) => { setProgress(0.1 + 0.78 * frac); setTakeStatus(`Animation für die Beitragsseite: ${label}`, "busy"); },
+        });
+        let r = await encode(1);
+        if (!("error" in r) && r.bytes > HERO_VIDEO_MAX_BYTES) {
+          setTakeStatus("Animation ist zu gross, wird mit geringerer Bitrate neu berechnet.", "busy");
+          r = await encode(0.6);
+        }
+        setEncoding(false);
+        abortRef.current = null;
+        if ("error" in r) {
+          if (r.error === "cancelled") { setProgress(null); setTakeStatus("Abgebrochen."); return; }
+          videoWarn = r.error === "encoder"
+            ? "Dieser Browser kann hier kein MP4 erzeugen. Bild und OG-Bild sind fertig; die Animation in Chrome, Edge oder Safari erzeugen."
+            : "Die Animation konnte nicht berechnet werden. Bild und OG-Bild sind fertig.";
+        } else if (r.bytes > HERO_VIDEO_MAX_BYTES) {
+          setProgress(null);
+          setTakeStatus(`Die Animation ist auch mit geringerer Bitrate zu gross (${(r.bytes / 1048576).toFixed(1).replace(".", ",")} MB, erlaubt sind 5 MB). Ruhigere Animation oder kürzere Schleife wählen, oder statisch übernehmen.`, "warn");
+          return;
+        } else {
+          video = r.blob;
+        }
+      }
+      setProgress(0.9); setTakeStatus("Dateien werden hochgeladen.", "busy");
       const upHero = await uploadHeroAsset(a.articleId, hero, "hero"); uploaded.push(upHero.path);
-      setProgress(0.5);
       const upOg = await uploadHeroAsset(a.articleId, og, "og"); uploaded.push(upOg.path);
+      let upVideo: { path: string; url: string } | null = null;
+      if (video) { upVideo = await uploadHeroAsset(a.articleId, video, "video"); uploaded.push(upVideo.path); }
       const altStatic = engine.altStatic(spec, a.lang);
       const altAnim = engine.altAnimated(spec, a.lang);
       const slug = engine.articleKey();
       const recipeNext = buildHeroRecipe({
-        spec, animated: false, seedKey: slug, fp: engine.fingerprint(spec),
+        spec, animated: !!upVideo, seedKey: slug, fp: engine.fingerprint(spec),
         snapshot: { title: a.headline, author: a.author, date: a.date, category: a.rubrik },
-        files: { hero: upHero.path, og: upOg.path, video: null },
+        files: { hero: upHero.path, og: upOg.path, video: upVideo ? upVideo.path : null },
       });
       if (recipeByteLength(recipeNext) > HERO_RECIPE_MAX_BYTES) throw new Error("Rezept zu gross.");
-      setProgress(0.8); setTakeStatus("Wird am Beitrag gespeichert.", "busy");
-      const res = await onApply({ coverUrl: upHero.url, ogUrl: upOg.url, videoUrl: null, altStatic, altAnimated: null, recipe: recipeNext });
+      setProgress(0.96); setTakeStatus("Wird am Beitrag gespeichert.", "busy");
+      const res = await onApply({ coverUrl: upHero.url, ogUrl: upOg.url, videoUrl: upVideo ? upVideo.url : null, altStatic, altAnimated: upVideo ? altAnim : null, recipe: recipeNext });
       if (!res.ok) {
         await deleteHeroAssets(a.articleId, uploaded);
         setProgress(null); setTakeStatus(res.error, "warn");
@@ -414,23 +465,27 @@ export default function HeroStudio({ article, recipe, saved, session, onSessionC
       const altSocial = altStatic + (hl ? (a.lang === "en" ? ` With the headline "${hl}" and the digital age logo.` : ` Dazu die Headline «${hl}» und das Logo von digital age.`) : "");
       const prev = take;
       setTake({
-        spec, key, hero, og, video: null,
-        heroUrl: upHero.url, ogUrl: upOg.url, videoUrl: null,
+        spec, key: upVideo ? key : takeKeyOf(s, false, a), hero, og, video,
+        heroUrl: upHero.url, ogUrl: upOg.url, videoUrl: upVideo ? upVideo.url : null,
         altStatic, altAnim, altSocial, recipe: recipeNext, slug,
         posts: prev && prev.slug === slug ? prev.posts : null,
         social: { portrait: { png: portrait, mp4: null }, story: { png: story, mp4: null } },
       });
+      if (wantVideo && !upVideo) setAnimated(false);
       setProgress(null);
-      setTakeStatus("Übernommen und gespeichert. Die Dateien stehen unten bereit.", "ok");
+      if (videoWarn) setTakeStatus(videoWarn, "warn");
+      else setTakeStatus("Übernommen und gespeichert. Die Dateien stehen unten bereit.", "ok");
     } catch (err) {
       console.error(err);
       if (uploaded.length) await deleteHeroAssets(a.articleId, uploaded);
       setProgress(null);
       setTakeStatus(err instanceof Error && err.message.startsWith("Upload") ? err.message : "Übernehmen hat nicht geklappt. Nochmals versuchen.", "warn");
     } finally {
+      setEncoding(false);
+      abortRef.current = null;
       takeBusyRef.current = false; setTakeBusy(false);
     }
-  }, [engine, animated, chosen, onApply, renderPng, setTakeStatus, take]);
+  }, [engine, animated, videoOk, chosen, onApply, renderPng, setTakeStatus, take]);
 
   const onJump = useCallback(() => {
     const h = dlHeadRef.current;
@@ -438,8 +493,9 @@ export default function HeroStudio({ article, recipe, saved, session, onSessionC
   }, []);
 
   // ── Texte ────────────────────────────────────────────────────────────────
+  const animatedOn = animated && videoOk === true;
   const whatRows: [string, string][] = [
-    ["website/", animated ? "Hero-Bild, Bild zum Teilen und Hero-Animation" : "Hero-Bild und Bild zum Teilen"],
+    ["website/", animatedOn ? "Hero-Bild, Bild zum Teilen und Hero-Animation" : "Hero-Bild und Bild zum Teilen"],
     ["social/", "Feed 4:5 und Story 9:16, je als Bild und Video"],
     ["texte/", "ALT-Texte, auf Wunsch Posttexte für LinkedIn und Instagram"],
   ];
@@ -487,10 +543,10 @@ export default function HeroStudio({ article, recipe, saved, session, onSessionC
           )}
           {sel && (
             <HeroTake
-              animated={animated} animatedDisabled onAnimated={setAnimated}
-              animatedHint="Die Hero-Animation kommt mit der nächsten Stufe dieses Studios. Bis dahin ist das Hero überall ein stehendes Bild."
+              animated={animatedOn} animatedDisabled={videoOk !== true || takeBusy} onAnimated={setAnimated}
+              animatedHint={videoOk === false ? "Dieser Browser kann hier kein MP4 erzeugen. Bild und OG-Bild gehen trotzdem; die Animation in Chrome, Edge oder Safari erzeugen." : videoOk === null ? "Prüfe, ob dieser Browser MP4 erzeugen kann …" : null}
               onTake={runTake} takeBusy={takeBusy}
-              takeLabel={takeBusy ? "Übernehmen läuft …" : "Übernehmen und Dateien erstellen"}
+              takeLabel={encoding ? "Abbrechen" : takeBusy ? "Übernehmen läuft …" : "Übernehmen und Dateien erstellen"}
               status={status} progress={progress} whatRows={whatRows} fresh={fresh}
               result={take ? { heroUrl: take.heroUrl, ogUrl: take.ogUrl, videoUrl: take.videoUrl, altStatic: take.altStatic, altAnim: take.altAnim } : null}
               staleText={staleText}

@@ -11,7 +11,7 @@ im Studio ueber den Link «Lizenzen» erreichbar.
 | hersheytext 2.0.0 (Konverter/Quelle der Einstrich-Schrift) | github.com/techninja/hersheytext | MIT | nur als Build-Quelle (`scripts/hero-studio/build_font.py`) |
 | EMS Allure (Einstrich-Schreibschrift, 187 Glyphen) | hersheytext `svg_fonts/EMSAllure.svg`, Sheldon B. Michaels, Ableitung von Allura (Rob Leuschke, TypeSETit) | SIL Open Font License 1.1 | `src/lib/hero-studio/data/ems-allure.json` |
 | Space Grotesk, Roboto Mono, Inter (Canvas-Schriften «DA Grotesk», «DA Mono», «DA Inter») | Site-Schriften, Kopie aus `src/app/fonts/` | SIL Open Font License 1.1, siehe `src/app/fonts/OFL-SpaceGrotesk.txt`, `OFL-RobotoMono.txt`, `OFL-Inter.txt` | `public/fonts/*.woff2` |
-| Mediabunny (MP4-Muxer und WebCodecs-Pipeline, ab Stufe C) | npm `mediabunny` | MPL-2.0 (Nutzung erlaubt, Offenlegung nur bei Aenderungen an der Bibliothek selbst) | `node_modules/mediabunny` |
+| Mediabunny 1.65.0 (MP4-Muxer und WebCodecs-Pipeline, exakt gepinnt) | npm `mediabunny` | MPL-2.0 (Nutzung erlaubt, Offenlegung nur bei Aenderungen an der Bibliothek selbst) | `node_modules/mediabunny`, Lizenztext in `public/licenses/hero-studio.txt` |
 
 Eigene Symbole des Studios (`robot`, `coins-rim`, `coins-franc`, `digital-age-bot`) und die
 Engine selbst (`src/lib/hero-studio/vendor/`) sind Eigenentwicklung von ZEONEQ.
@@ -111,4 +111,5 @@ SIL Open Font License, Version 1.1.» (identischer OFL-1.1-Text, siehe `public/l
 ## Mediabunny (MPL-2.0)
 
 Mozilla Public License 2.0, Volltext: https://www.mozilla.org/MPL/2.0/ und
-`node_modules/mediabunny/LICENSE`. Die Bibliothek wird unveraendert verwendet.
+`node_modules/mediabunny/LICENSE` (Kopie in `public/licenses/hero-studio.txt`). Die Bibliothek
+wird unveraendert verwendet (Version 1.65.0, `src/lib/hero-studio/video.ts`).
