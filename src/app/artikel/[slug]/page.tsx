@@ -27,6 +27,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { buildSpeechChunks, resolveSpeechLang } from "@/lib/listen/speechText";
 import { getPodcastsByArticleSlug, type PodcastWithRecommender } from "@/lib/podcastApi";
 import ArticlePodcastBar from "@/components/ArticlePodcastBar";
+import ArticleCoverVideo from "@/components/ArticleCoverVideo";
 import ListenLinks, { type ListenLinksMap } from "@/components/ListenLinks";
 import {
   ARTICLE_PODCAST_ANCHOR,
@@ -107,14 +108,16 @@ const OG_FALLBACK_PATH = "/images/digital-age-og-fallback.jpg";
 const OG_IMAGE_WIDTH = 1200;
 const OG_IMAGE_HEIGHT = 630;
 
-// Liefert die absolute Bild-URL für OG/Twitter. Cover ist meistens
-// bereits absolut (Supabase-Storage), kann aber relativ sein. Bei
-// null/empty: dediziertes 1200×630-Fallback-Asset.
+// Liefert die absolute Bild-URL für OG/Twitter. Reihenfolge: og_image_url
+// (Teilen-Bild 1200×630 aus dem Hero Studio) → cover_image_url → Fallback.
+// Cover ist meistens bereits absolut (Supabase-Storage), kann aber relativ
+// sein. Bei null/empty: dediziertes 1200×630-Fallback-Asset. JSON-LD
+// `image` und Sitemap bleiben bewusst beim Cover.
 function resolveOgImage(
-  article: Pick<ArticleWithFullRelations, "cover_image_url">,
+  article: Pick<ArticleWithFullRelations, "cover_image_url" | "og_image_url">,
   baseUrl: string,
 ): string {
-  const c = article.cover_image_url?.trim();
+  const c = article.og_image_url?.trim() || article.cover_image_url?.trim();
   if (!c) return `${baseUrl}${OG_FALLBACK_PATH}`;
   if (/^https?:\/\//i.test(c)) return c;
   return `${baseUrl}${c.startsWith("/") ? "" : "/"}${c}`;
@@ -461,6 +464,11 @@ async function ArticleView({ article, moduleReserve }: { article: ArticleWithFul
               unoptimized
               style={{ width: "100%", height: "auto", maxHeight: "520px", objectFit: "cover", display: "block" }}
             />
+            {/* Hero-Animation (Hero Studio): dekorative Ebene ueber dem Bild,
+                das Bild bleibt LCP, Poster und Fallback. */}
+            {article.cover_video_url?.trim() && (
+              <ArticleCoverVideo src={article.cover_video_url.trim()} poster={getCoverUrl(article)} />
+            )}
             <div
               aria-hidden
               style={{

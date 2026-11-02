@@ -260,7 +260,9 @@ Retina-Variants oder Crop-Optionen — `uploadAvatar` müsste dann
 **Bucket `articles`** — public-read, RLS-geschützt write (Phase 8a).
 - Pfad-Konvention: `<article_id>/<filename>`, Filename-Pattern
   `<shortUuid>-<slugifiedOriginalName>.<ext>` (z.B. `a3f8c2e1-mountain-sunset.webp`)
-- Bucket-Limit: max 5 MB, JPEG/PNG/WebP/GIF
+- Bucket-Limit: max 5 MB, JPEG/PNG/WebP/GIF, plus video/mp4 (nur für
+  Hero-Studio-Animationen per Direkt-Upload aus dem Browser; die Server-
+  Whitelist in `uploadArticleImage` bleibt ein reiner Bild-Upload)
 - Compression: client-seitig via `browser-image-compression` (max 2400px,
   quality 0.85, Ziel-Output WebP < 500 KB; GIFs durchlaufen ohne Compression
   damit Animation erhalten bleibt)
@@ -1032,6 +1034,36 @@ Button «Suchen» über die Server Action `lookupActions.ts`. Spotify bewusst
 ohne API (Premium-Pflicht seit 2026, #178), Links manuell. Dubletten über
 `podcasts.apple_episode_id` / `apple_show_id` (partielle Unique-Indizes).
 Anleitung für den Kurzbefehl: `docs/podcast-kurzbefehl.md`.
+
+### Hero Studio, Teil 1: Daten und Ausspielung (PR 180)
+
+Migration `20261102150000_hero_studio_cover_fields.sql`, fünf nullable
+Spalten auf `articles`: `og_image_url` (Teilen-Bild 1200×630 für og:image
+und twitter:image, leer = Cover wie bisher), `cover_video_url` (Hero-Animation
+MP4, nur Beitragsseite), `cover_video_alt` (keine Publish-Pflicht, nicht
+gerendert), `cover_recipe` (Rezept des Studios, Pflicht nur numerisches
+`version`), `cover_proposals` (KI-Zwischenspeicher ab PR 3). Die ersten vier
+sind im Revisions-Snapshot und in der Trigger-Feldliste
+(`article_editorial_snapshot`, `create_article_revision`,
+`restore_article_revision` per `create or replace` erweitert, Spiegel
+`REVISION_SNAPSHOT_FIELDS`); `cover_proposals` bewusst ausserhalb der
+Revisionen wie `copilot_last_run`. Alte Snapshots ohne die Keys restaurieren
+die vier Felder auf NULL (damals kein Studio-Hero). Bucket `articles` erlaubt
+zusätzlich video/mp4. `ArticlePatch` kennt die vier Felder, `saveArticle`
+prüft sie serverseitig (`validateHeroFields`: https-URL max 1000 Zeichen,
+ALT max 1000, Rezept-Objekt mit `version` max 32 KB; Fehlertext landet im
+roten Editor-Banner). `database.types.ts` ist bis zum `db push` manuell
+ergänzt (Marker `HERO STUDIO`), danach `gen types`.
+
+Ausspielung: `resolveOgImage` in `artikel/[slug]/page.tsx` nimmt
+`og_image_url` → `cover_image_url` → Fallback; JSON-LD und Sitemap bleiben
+beim Cover. `src/components/ArticleCoverVideo.tsx` (Client) liegt nur bei
+gesetztem `cover_video_url` als dekorative Ebene über dem `<Image priority>`:
+SSR ohne autoPlay und unsichtbar, nach dem Mount `muted` als Property, play(),
+Einblenden bei `playing`; bei `prefers-reduced-motion` nichts (Bild bleibt,
+kein Knopf); Pause-Knopf unten rechts (WCAG 2.2.2), pausiert ausserhalb des
+Viewports und bei verstecktem Tab. Das Bild bleibt LCP, Poster und Fallback.
+Listen, Spotlight, Rubriken, Admin, Dashboard, Autorenprofil: immer statisch.
 
 ### Invite-Flow (PR B)
 

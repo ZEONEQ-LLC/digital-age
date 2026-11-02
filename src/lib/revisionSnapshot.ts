@@ -3,7 +3,8 @@
 //
 // REVISION_SNAPSHOT_FIELDS ist die Liste der redaktionellen articles-Spalten,
 // die in den Revision-Snapshot gehen. Sie MUSS mit dem jsonb_build_object in
-// public.article_editorial_snapshot (Migration 20260707170000) synchron
+// public.article_editorial_snapshot (Migration 20260707170000, erweitert in
+// 20261102150000) synchron
 // bleiben — die SQL-Seite ist die ausfuehrende Quelle, diese Konstante die
 // dokumentierte/testbare Spiegelung.
 //
@@ -14,6 +15,14 @@
 //   - published_at / word_count /
 //     reading_minutes / updated_at (abgeleitet bzw. Meta)
 //   - id / author_id / created_at  (Identitaet/Ownership)
+//   - copilot_last_run             (Co-Pilot-Report, kein redaktioneller Inhalt)
+//   - cover_proposals              (KI-Zwischenspeicher des Hero Studio: nicht
+//                                   redaktionell, wird ohne Editor-Save direkt
+//                                   geschrieben, loest keine Revision aus)
+//
+// Hero Studio (Migration 20261102150000): og_image_url, cover_video_url,
+// cover_video_alt und cover_recipe SIND enthalten — sie gehoeren zum Cover
+// und muessen mit cover_image_url zusammen restauriert werden.
 //
 // Ergaenzend zur Design-Liste sind subtitle + locale enthalten — beide sind
 // klar redaktioneller Inhalt; ein Restore ohne sie waere still verlustbehaftet.
@@ -27,6 +36,10 @@ export const REVISION_SNAPSHOT_FIELDS = [
   "cover_image_alt",
   "cover_image_caption",
   "cover_image_source",
+  "og_image_url",
+  "cover_video_url",
+  "cover_video_alt",
+  "cover_recipe",
   "category_id",
   "subcategory",
   "tags",
