@@ -20,6 +20,8 @@ import HeroProposals, { type HeroFilter, type ProposalCard } from "./HeroProposa
 import HeroStage from "./HeroStage";
 import HeroPanel from "./HeroPanel";
 import HeroTake, { type TakeStatus } from "./HeroTake";
+import HeroDownloads from "./HeroDownloads";
+import { renderPng as renderPngBlob } from "@/lib/hero-studio/render";
 
 const clone = <T,>(o: T): T => JSON.parse(JSON.stringify(o)) as T;
 
@@ -44,10 +46,6 @@ function visibleOf(list: HeroSpec[], filter: HeroFilter): HeroSpec[] {
     return [l[0], ty[0], l[1], ty[1]].filter((x): x is HeroSpec => !!x);
   }
   return list.filter((p) => p.engine === filter).slice(0, 4);
-}
-
-function canvasBlob(c: HTMLCanvasElement): Promise<Blob> {
-  return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("Bild-Export fehlgeschlagen."))), "image/png"));
 }
 
 export default function HeroStudio({ article, recipe, saved, session, onSessionChange, onApply }: HeroStudioProps) {
@@ -373,14 +371,7 @@ export default function HeroStudio({ article, recipe, saved, session, onSessionC
 
   const setTakeStatus = useCallback((msg: string, tone?: "ok" | "warn" | "busy") => setStatus(msg ? { msg, tone } : null), []);
 
-  const renderPng = useCallback(async (eng: HeroEngine, spec: HeroSpec, view: HeroViewId, p: number): Promise<Blob> => {
-    const f = eng.FORMATS[eng.VIEW_BY_ID[view].fmt];
-    const c = document.createElement("canvas"); c.width = f.w; c.height = f.h;
-    const ctx = c.getContext("2d");
-    if (!ctx) throw new Error("Canvas nicht verfügbar.");
-    eng.renderSpec(ctx, spec, { p }, view, 1);
-    return canvasBlob(c);
-  }, []);
+  const renderPng = useCallback((eng: HeroEngine, spec: HeroSpec, view: HeroViewId, p: number): Promise<Blob> => renderPngBlob(eng, spec, view, p), []);
 
   // Uebernehmen: Hero-PNG und OG-PNG (plus Feed/Story fuer die Downloads) rendern,
   // bei «animiert» zusaetzlich das Hero-MP4 1280×720 mit Mediabunny, dann Direkt-
@@ -487,6 +478,10 @@ export default function HeroStudio({ article, recipe, saved, session, onSessionC
     }
   }, [engine, animated, videoOk, chosen, onApply, renderPng, setTakeStatus, take]);
 
+  // Downloads: gerenderte Blobs in der Sitzung zwischenspeichern, Loop waehrenddessen anhalten.
+  const onTakeUpdate = useCallback((next: HeroTakeResult) => setTake(next), []);
+  const onDlBusy = useCallback((b: boolean) => { takeBusyRef.current = b; }, []);
+
   const onJump = useCallback(() => {
     const h = dlHeadRef.current;
     if (h) { h.scrollIntoView({ behavior: reducedRef.current ? "auto" : "smooth", block: "start" }); h.focus({ preventScroll: true }); }
@@ -552,6 +547,12 @@ export default function HeroStudio({ article, recipe, saved, session, onSessionC
               staleText={staleText}
               article={{ headline: article.headline, rubrik: article.rubrik, author: article.author, date: article.date }}
               reduceMotion={reduceMotion} dlHeadRef={dlHeadRef} onJump={onJump}
+              extra={take ? (
+                <HeroDownloads
+                  engine={engine} take={take} article={{ headline: article.headline, slug: article.slug }}
+                  canVideo={videoOk === true} disabled={takeBusy} onBusy={onDlBusy} onTakeUpdate={onTakeUpdate}
+                />
+              ) : null}
             />
           )}
         </>
