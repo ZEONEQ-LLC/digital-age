@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import AuthorCard from "./AuthorCard";
-import FeaturedImageBox, { type CoverMetadata } from "./FeaturedImageBox";
+import FeaturedImageBox, { type CoverMetadata, type HeroStudioStatus } from "./FeaturedImageBox";
 import MonoCaption from "./MonoCaption";
 import TagInput from "./TagInput";
 import { updateArticleAuthor, updateFeaturedStatus } from "@/lib/authorAdminActions";
@@ -37,6 +37,7 @@ type Props = {
   // Rueckmeldung der Autor-Zuweisung an den Editor-State.
   onOpenHeroStudio?: () => void;
   heroStaleText?: string | null;
+  heroStudioStatus?: HeroStudioStatus | null;
   onAuthorAssigned?: (authorId: string) => void;
 
   // Veroeffentlichungsdatum (YYYY-MM-DD, "" = unset)
@@ -77,6 +78,7 @@ export default function EditorDetailsTab({
   canGenerateCoverAlt,
   onOpenHeroStudio,
   heroStaleText,
+  heroStudioStatus,
   onAuthorAssigned,
   publishedAtDate,
   onPublishedAtChange,
@@ -275,6 +277,7 @@ export default function EditorDetailsTab({
           canGenerateAlt={canGenerateCoverAlt}
           onOpenHeroStudio={onOpenHeroStudio}
           heroStaleText={heroStaleText}
+          heroStudioStatus={heroStudioStatus}
         />
 
         <div className="a-edit-details__row-2">

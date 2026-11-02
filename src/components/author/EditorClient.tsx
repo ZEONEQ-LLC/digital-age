@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import AuthorStatusBadge from "@/components/author/AuthorStatusBadge";
 import EditorDetailsTab from "@/components/author/EditorDetailsTab";
+import type { HeroStudioStatus } from "@/components/author/FeaturedImageBox";
 import EditorRevisions from "@/components/author/EditorRevisions";
 import EditorSeoPanel, { type SeoState, type EditorSeoPanelHandle } from "@/components/author/EditorSeoPanel";
 import CopilotPanel from "@/components/author/CopilotPanel";
@@ -955,6 +956,13 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       lang: locale === "en" ? "en" : "de",
     };
   }, [article.id, article.slug, article.category?.name_de, article.author?.display_name, seo.slug, seo.keyword, title, categories, categoryId, allAuthors, assignedAuthorId, publishedAtDate, readMinutes, excerpt, bodyText, locale]);
+
+  // Aktives Studio-Hero fuer die Box «Beitragsbild»: Rezept vorhanden und Cover = Hero des Rezepts.
+  const heroStudioStatus = useMemo<HeroStudioStatus | null>(() => (
+    coverRecipe && heroAssetPathFromUrl(cover) === coverRecipe.files.hero
+      ? { engine: coverRecipe.engine, animated: coverRecipe.animated && !!coverVideoUrl }
+      : null
+  ), [coverRecipe, cover, coverVideoUrl]);
 
   // «Veraltet» (Diagnose K): Rezept-Snapshot gegen den Live-State. Kein Publish-Blocker.
   const heroStaleText = useMemo(() => {
@@ -2020,6 +2028,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           canGenerateCoverAlt={cover.trim().length > 0}
           onOpenHeroStudio={() => switchTab("hero")}
           heroStaleText={heroStaleText}
+          heroStudioStatus={heroStudioStatus}
           onAuthorAssigned={setAssignedAuthorId}
           publishedAtDate={publishedAtDate}
           onPublishedAtChange={(v) => { markDirty(); setPublishedAtDate(v); }}
