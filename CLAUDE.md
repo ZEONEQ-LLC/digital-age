@@ -1117,9 +1117,13 @@ Upload aus dem Browser (`upload.ts`, Muster Podcast) in den Bucket `articles`
 als `<articleId>/hero-<uuid8>.png`, `og-<uuid8>.png`, `hero-<uuid8>.mp4`,
 cacheControl 1 Jahr, upsert false. Dann EIN `saveArticle` mit explizit
 zusammengesetzten Werten (Muster Co-Pilot, ungespeicherte Editor-Änderungen
-gehen mit) = eine Revision: `cover_image_url`, `cover_image_alt` (Caption und
-Source bleiben), `og_image_url`, `cover_video_url`, `cover_video_alt`,
-`cover_recipe`. Scheitert das Speichern (RLS, Guard), setzt der Editor nichts
+gehen mit) = eine Revision: `cover_image_url`, `cover_image_alt`,
+`cover_image_source` (= «digital age», wenn leer oder noch der Studio-Wert;
+ein anderer Wert des Autors bleibt; Caption bleibt leer), `og_image_url`,
+`cover_video_url`, `cover_video_alt`, `cover_recipe`. ALT-Texte baut `alt.ts`
+aus Bausteinen der Engine (`altParts`): Standbild ohne Präfix, höchstens 125
+Zeichen (Stufen: mit Farbklang, ohne, kurzer Schlagwort-Teil, Wortgrenze),
+Animation höchstens 250 Zeichen; Test `__tests__/alt.manual.ts`. Scheitert das Speichern (RLS, Guard), setzt der Editor nichts
 und das Studio löscht die eben hochgeladenen Dateien.
 
 **Aufräumregel:** `cleanupHeroFiles` löscht nach jedem ERFOLGREICHEN Save

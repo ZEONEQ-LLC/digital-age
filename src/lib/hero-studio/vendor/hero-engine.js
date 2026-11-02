@@ -2799,6 +2799,22 @@ function specsFromKi(res) {
 function summary(spec) { return withSpec(spec, () => ENG[spec.engine].summary(ENG[spec.engine].effective())); }
 function altStatic(spec, lang) { return withSpec(spec, () => ENG[spec.engine].altStatic(ENG[spec.engine].effective(), lang)); }
 function altAnimated(spec, lang) { return withSpec(spec, () => ENG[spec.engine].altAnimated(ENG[spec.engine].effective(), lang)); }
+/* Bausteine fuer den kurzen ALT-Text des Standbilds (Zusammensetzen und Kuerzen in src/lib/hero-studio/alt.ts):
+   motif = Motiv-Phrase der Engine (Linie), color = Farbklang ohne fuehrendes «in», text = Schlagwort wie gezeichnet. */
+function altParts(spec, lang) {
+  return withSpec(spec, () => {
+    const E = ENG[spec.engine], e = E.effective(), L = lang === 'en' ? 'en' : 'de';
+    const color = (ALT_COLOR[L][e.color] || '').replace(/^in /, '');
+    const raw = (state.text || '').replace(/\s+/g, ' ').trim();
+    if (spec.engine === 'typo') {
+      const txt = raw || 'digital age';
+      return { engine: 'typo', motif: '', color, text: e.upper ? txt.toLocaleUpperCase('de-CH') : txt, anim: String(e.motion || ''), caption: '' };
+    }
+    const shown = e.anim === 'morph' ? (LINE.motifInfo(e.motif2) || LINE.motifInfo(e.motif)) : LINE.motifInfo(e.motif);
+    const motif = shown ? shown.alt[L] : (L === 'en' ? 'a motif' : 'ein Motiv');
+    return { engine: 'line', motif, color, text: raw, anim: String(e.anim || ''), caption: String(e.caption || '') };
+  });
+}
 function fingerprint(spec) { return withSpec(spec, () => ENG[spec.engine].fingerprint(ENG[spec.engine].effective())); }
 function checkFp(spec) { return withSpec(spec, () => { const E = ENG[spec.engine]; return E.checkFp(E.fingerprint(E.effective()), articleKey()); }); }
 function options(spec) { return withSpec(spec, () => ENG[spec.engine].options(ENG[spec.engine].effective())); }
@@ -2819,7 +2835,7 @@ return {
   ICON_DE: LINE.ICON_DE, EN_DE: LINE.EN_DE,
   setArticle, getArticle: () => ART, setKiKeyword: (s) => { kiKeyword = s || ''; }, getKiKeyword: () => kiKeyword,
   setMemory, recentHeroes, memoryEntry,
-  renderSpec, heroP, loopOf, fitCanvas, effective: effOf, summary, altStatic, altAnimated, fingerprint, checkFp, options,
+  renderSpec, heroP, loopOf, fitCanvas, effective: effOf, summary, altStatic, altAnimated, altParts, fingerprint, checkFp, options,
   motifTop, motifInfo: motifInfoFor, motifData: LINE.motifData, drawMotifThumb: LINE.drawMotifThumb,
   searchIcons: LINE.searchIcons, iconMotifId: LINE.iconMotifId, iconLabel: LINE.iconLabel,
   registerKi: LINE.registerKi, registerSpec, kiRecord: LINE.kiRecord, sanitizeKi: LINE.sanitizeKi, sanitizeRegie: TYPO.sanitizeRegie,

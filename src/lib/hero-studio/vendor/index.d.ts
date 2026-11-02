@@ -48,6 +48,19 @@ export interface HeroArticle {
 }
 
 export type HeroEffective = Record<string, string | number | boolean | null | undefined>;
+export interface HeroAltParts {
+  engine: HeroEngineId;
+  /** Motiv-Phrase der Engine mit Artikel, z. B. «das Symbol «Vernetzte Dinge»» (Linie), leer bei Typo */
+  motif: string;
+  /** Farbklang ohne fuehrendes «in», z. B. «dunkel auf grüner Fläche» */
+  color: string;
+  /** Schlagwort bzw. Schriftzug, wie gezeichnet */
+  text: string;
+  /** Animation (Linie) bzw. Bewegung (Typo) */
+  anim: string;
+  /** Schlagwort im Bild (Linie): keine | unten | gross */
+  caption: string;
+}
 export type HeroOptionValue = string | number | boolean;
 export interface HeroOption {
   k: string;
@@ -116,6 +129,8 @@ export interface HeroEngine {
   summary(spec: HeroSpec): HeroSummary;
   altStatic(spec: HeroSpec, lang: HeroLang): string;
   altAnimated(spec: HeroSpec, lang: HeroLang): string;
+  /** Bausteine des kurzen ALT-Texts (Zusammensetzen und Kuerzen in alt.ts) */
+  altParts(spec: HeroSpec, lang: HeroLang): HeroAltParts;
   fingerprint(spec: HeroSpec): HeroFingerprint;
   checkFp(spec: HeroSpec): HeroCheck;
   options(spec: HeroSpec): HeroOption[];

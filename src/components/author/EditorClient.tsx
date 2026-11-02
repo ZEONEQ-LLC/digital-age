@@ -73,6 +73,7 @@ import { cleanupMarkdown } from "@/lib/editor/mdCleanup";
 import { generateAbstract } from "@/lib/ai/abstractActions";
 import { heroStaleChanges, parseHeroRecipe, recipeFilePaths, recipeToJson, type HeroRecipe } from "@/lib/hero-studio/recipe";
 import { deleteHeroAssets, heroAssetPathFromUrl } from "@/lib/hero-studio/upload";
+import { HERO_IMAGE_SOURCE } from "@/lib/hero-studio/alt";
 import type { HeroApplyInput, HeroApplyResult, HeroArticleInput, HeroSession } from "@/lib/hero-studio/types";
 import { parseHeroProposalsStore } from "@/lib/ai/heroPrompts";
 
@@ -902,10 +903,15 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       return { ok: false, error: "Speichern durch den Roundtrip-Guard blockiert. Editor prüfen, manuell speichern, dann nochmals übernehmen." };
     }
     const { finalDoc, finalExcerpt } = prepared;
+    // Bildquelle: «digital age», wenn das Feld leer ist oder noch den Studio-Wert traegt;
+    // ein vom Autor gesetzter anderer Wert bleibt. Die Bildunterschrift bleibt leer bzw. unangetastet.
+    const sourceNow = coverMetadata.source.trim();
+    const nextSource = !sourceNow || sourceNow === HERO_IMAGE_SOURCE ? HERO_IMAGE_SOURCE : sourceNow;
     const patch: ArticlePatch = {
       ...buildPatchUnchecked(finalDoc, finalExcerpt),
       cover_image_url: input.coverUrl,
       cover_image_alt: input.altStatic || null,
+      cover_image_source: nextSource,
       og_image_url: input.ogUrl,
       cover_video_url: input.videoUrl,
       cover_video_alt: input.altAnimated,
@@ -920,8 +926,8 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       setDoc(finalDoc);
       setExcerpt(finalExcerpt);
       setCover(input.coverUrl);
-      // Caption und Source bleiben, nur der ALT kommt aus dem Studio (kein resetMetadata).
-      setCoverMetadata((prev) => ({ ...prev, alt: input.altStatic }));
+      // Caption bleibt; ALT und Bildquelle kommen aus dem Studio (kein resetMetadata).
+      setCoverMetadata((prev) => ({ ...prev, alt: input.altStatic, source: nextSource }));
       setOgImageUrl(input.ogUrl);
       setCoverVideoUrl(input.videoUrl);
       setCoverVideoAlt(input.altAnimated);

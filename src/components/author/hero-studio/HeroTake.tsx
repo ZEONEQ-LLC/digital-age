@@ -143,7 +143,7 @@ export default function HeroTake({ animated, animatedDisabled, animatedHint, onA
             </div>
             <div className="hs-field">
               <p className="hs-sub-h">Am Beitrag gespeichert</p>
-              <p className="hs-hint">Beitragsbild, ALT-Text, Bild zum Teilen{result.videoUrl ? ", Hero-Animation" : ""} und das Rezept liegen am Beitrag. Das Rezept erlaubt, das Hero jederzeit neu zu berechnen, in jedem Format.</p>
+              <p className="hs-hint">Beitragsbild, ALT-Text, Bildquelle «digital age», Bild zum Teilen{result.videoUrl ? ", Hero-Animation" : ""} und das Rezept liegen am Beitrag. Das Rezept erlaubt, das Hero jederzeit neu zu berechnen, in jedem Format.</p>
             </div>
           </div>
         </div>

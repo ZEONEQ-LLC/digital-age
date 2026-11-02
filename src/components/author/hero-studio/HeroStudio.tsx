@@ -25,6 +25,7 @@ import HeroPosts, { aiErrorText } from "./HeroPosts";
 import { generateHeroProposals, saveHeroProposals } from "@/lib/ai/heroActions";
 import { heroContentHash, type HeroProposalsPayload } from "@/lib/ai/heroPrompts";
 import { renderPng as renderPngBlob } from "@/lib/hero-studio/render";
+import { heroAltAnimated, heroAltStatic } from "@/lib/hero-studio/alt";
 
 const clone = <T,>(o: T): T => JSON.parse(JSON.stringify(o)) as T;
 
@@ -170,8 +171,8 @@ export default function HeroStudio({ article, recipe, proposals, saved, session,
         if (recipe && saved && !session?.take) {
           const savedSpec = recipeToSpec(recipe, "saved");
           const snapArt = { headline: recipe.snapshot.title, author: recipe.snapshot.author, date: recipe.snapshot.date, rubrik: recipe.snapshot.category };
-          const altStatic = saved.alt || e.altStatic(savedSpec, articleRef.current.lang);
-          const altAnim = e.altAnimated(savedSpec, articleRef.current.lang);
+          const altStatic = saved.alt || heroAltStatic(e, savedSpec, articleRef.current.lang);
+          const altAnim = heroAltAnimated(e, savedSpec, articleRef.current.lang);
           setTake({
             spec: savedSpec, key: takeKeyOf(savedSpec, recipe.animated, snapArt),
             hero: null, og: null, video: null,
@@ -302,7 +303,7 @@ export default function HeroStudio({ article, recipe, proposals, saved, session,
         spec,
         title: spec.source === "ki" ? (spec.titel ?? sm.main) : sm.main,
         why: spec.source === "ki" ? [spec.why, sm.tech].filter(Boolean).join(" · ") : spec.source === "saved" ? `Am Beitrag gespeichert · ${sm.reason}` : sm.reason,
-        alt: engine.altStatic(spec, article.lang),
+        alt: heroAltStatic(engine, spec, article.lang),
       };
     });
   }, [engine, visible, article.lang]);
@@ -455,8 +456,9 @@ export default function HeroStudio({ article, recipe, proposals, saved, session,
       const upOg = await uploadHeroAsset(a.articleId, og, "og"); uploaded.push(upOg.path);
       let upVideo: { path: string; url: string } | null = null;
       if (video) { upVideo = await uploadHeroAsset(a.articleId, video, "video"); uploaded.push(upVideo.path); }
-      const altStatic = engine.altStatic(spec, a.lang);
-      const altAnim = engine.altAnimated(spec, a.lang);
+      // Kurzer ALT fuers Standbild (≤ 125 Zeichen), laengerer fuer die Animation (≤ 250): alt.ts
+      const altStatic = heroAltStatic(engine, spec, a.lang);
+      const altAnim = heroAltAnimated(engine, spec, a.lang);
       const slug = engine.articleKey();
       const recipeNext = buildHeroRecipe({
         spec, animated: !!upVideo, seedKey: slug, fp: engine.fingerprint(spec),
