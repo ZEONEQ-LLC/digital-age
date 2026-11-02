@@ -1373,6 +1373,19 @@ ohne direkt eine async Server-Component zu importieren. AuthorShell holt den
 aktuellen Author via `authorApi.getCurrentAuthor` und reicht einen schlanken
 `AuthorChip`-View-Model an Sidebar/TopNav weiter.
 
+**Eine Inhalts-Instanz (PR 181):** AuthorShell rendert `{children}` genau
+einmal in einem einzigen `<main class="a-shell__main">`. Nur die Navigation
+wechselt rein per CSS (kein matchMedia, keine Hydration-Unterschiede):
+unter 768px Sperrbildschirm `AuthorMobileBlock` (`mobile="block"`, `<main>`
+per CSS ausgeblendet) bzw. `AuthorMobileBar` (`mobile="allow"`, z. B.
+Freigaben), 768–1023px `AuthorTopNav` (sticky), ab 1024px `AuthorSidebar`
+(fixed, `<main>` mit `margin-left: var(--sidebar-w)`). Breakpoints
+einheitlich 768/1024 (AuthorSidebar blendet sich bei `max-width: 1023px`
+aus, MobileEditorWarning greift bis 1023px). Frueher stand der Inhalt zwei-
+bis dreimal im DOM (doppelte Tiptap-Editoren, Effects, DOM-IDs); feste IDs
+in Suite-Komponenten sind seither unproblematisch, `useId()` bleibt dennoch
+die Regel.
+
 **Editor (`/autor/artikel/[id]`)** ist ein Server/Client-Split:
 - `page.tsx` (server) fetcht Article + Revisions + Categories + Current Author
 - `EditorClient.tsx` (client) trägt Form-State, ruft Server Actions auf
