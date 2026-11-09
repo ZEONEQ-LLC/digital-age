@@ -81,7 +81,8 @@ export type HeroStudioProps = {
   proposals: HeroProposalsStore | null;
   /** gespeicherte Dateien des Artikels, damit Schritt 3 den uebernommenen Stand zeigt */
   saved: { coverUrl: string; ogUrl: string; videoUrl: string | null; alt: string } | null;
-  session: HeroSession | null;
+  /** liefert die im Editor gehaltene Sitzung (Ref, damit Aenderungen den Editor nicht neu rendern) */
+  getSession: () => HeroSession | null;
   onSessionChange: (s: HeroSession) => void;
   onApply: (input: HeroApplyInput) => Promise<HeroApplyResult>;
 };

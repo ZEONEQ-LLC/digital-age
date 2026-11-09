@@ -20,9 +20,11 @@ export default function TagInput({ value, onChange, placeholder = "Tag hinzufüg
   const inputRef = useRef<HTMLInputElement | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
+  // Suche mit Debounce direkt aus dem Eingabe-Handler (kein setState im Effect).
+  function onQueryChange(v: string) {
+    setQuery(v);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    const q = query.trim();
+    const q = v.trim();
     if (q.length < 1) {
       setSuggestions([]);
       return;
@@ -32,10 +34,8 @@ export default function TagInput({ value, onChange, placeholder = "Tag hinzufüg
       setSuggestions(results);
       setHighlight(0);
     }, 200);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [query, value]);
+  }
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
   function addTag(name: string) {
     const trimmed = name.trim();
@@ -175,7 +175,7 @@ export default function TagInput({ value, onChange, placeholder = "Tag hinzufüg
           type="text"
           value={query}
           placeholder={value.length === 0 ? placeholder : ""}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => onQueryChange(e.target.value)}
           onKeyDown={onKeyDown}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 120)}
@@ -207,7 +207,7 @@ export default function TagInput({ value, onChange, placeholder = "Tag hinzufüg
                   addTag(query);
                 }}
               >
-                + Neuer Tag „{query.trim()}"
+                + Neuer Tag „{query.trim()}“
               </button>
             )}
         </div>

@@ -35,6 +35,8 @@ function args() {
   return { xmlPath, dryRun };
 }
 
+// Bleibt bewusst im Code (siehe CLAUDE.md, Excerpt-Strip-Logik aus PR #37), wird nicht mehr aufgerufen.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function extractExcerpt(markdown: string, max = 200): string | null {
   const firstPara = markdown
     .split(/\n\s*\n/)

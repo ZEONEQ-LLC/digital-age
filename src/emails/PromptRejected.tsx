@@ -15,7 +15,7 @@ export default function PromptRejected({ name, title, reason }: Props) {
       <Heading>Update zu deinem Vorschlag.</Heading>
       <Paragraph>Hallo {name},</Paragraph>
       <Paragraph>
-        danke für deinen Vorschlag <strong>„{title}"</strong>. Leider passt der
+        danke für deinen Vorschlag <strong>„{title}“</strong>. Leider passt der
         Prompt aktuell nicht in unsere Sammlung — wir freuen uns über weitere
         Einreichungen von dir in der Zukunft.
       </Paragraph>

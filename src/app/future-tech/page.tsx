@@ -92,7 +92,7 @@ export default async function FutureTechPage() {
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <script
         type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
+         
         dangerouslySetInnerHTML={{ __html: itemListJsonLd }}
       />
       <SpotlightSection articles={featured} />

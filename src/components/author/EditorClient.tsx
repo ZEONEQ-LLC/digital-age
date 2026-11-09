@@ -113,6 +113,12 @@ function collectRefNsFromTiptapJson(root: unknown): number[] {
   return ns;
 }
 
+// Block-IDs fuer neue Footer-Blocks (ausserhalb der Komponente: Date.now und
+// Math.random sind im Render nicht erlaubt).
+function makeBlockId(): string {
+  return `bl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
 export default function EditorClient({ article, revisions, categories, isEditor, allAuthors }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("content");
@@ -148,6 +154,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   // Studio-Sitzung (Vorschlaege, Auswahl, letztes Ergebnis) ueberlebt den Tab-Wechsel.
   const heroSessionRef = useRef<HeroSession | null>(null);
   const onHeroSession = useCallback((s: HeroSession) => { heroSessionRef.current = s; }, []);
+  const getHeroSession = useCallback(() => heroSessionRef.current, []);
   const [categoryId, setCategoryId] = useState(article.category_id);
   const [subcategory, setSubcategory] = useState(article.subcategory ?? "");
   const [tagList, setTagList] = useState<string[]>(article.tags ?? []);
@@ -526,10 +533,6 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     })),
   );
   const [guardResult, setGuardResult] = useState<GuardResult | null>(null);
-
-  function makeBlockId(): string {
-    return `bl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-  }
 
   // Serialisiert Tiptap-Body + Footer-State zu finalem BlockDocument.
   // Behält sources[] vom Original-Doc bei (kein Picker in Etappe A).
@@ -2064,7 +2067,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           recipe={coverRecipe}
           proposals={heroProposals}
           saved={coverRecipe ? { coverUrl: cover, ogUrl: ogImageUrl || cover, videoUrl: coverVideoUrl, alt: coverMetadata.alt } : null}
-          session={heroSessionRef.current}
+          getSession={getHeroSession}
           onSessionChange={onHeroSession}
           onApply={handleHeroApply}
         />

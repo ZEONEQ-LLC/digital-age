@@ -5,7 +5,7 @@
 // werden lokal aus dem Rezept gerendert (auch nach erneutem Oeffnen), Videos beim
 // ersten Klick, danach zwischengespeichert (im Session-Zustand des Editors).
 
-import { useCallback, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { renderPng, viewDims, articleUrl } from "@/lib/hero-studio/render";
 import { renderMp4 } from "@/lib/hero-studio/video";
 import { fmtSize, joinDe, makeZip, saveBlob, type ZipEntry } from "@/lib/hero-studio/zip";
@@ -32,6 +32,60 @@ type Props = {
 
 type DlButton = { k: string; label: string; sub: string; act: (setLabel: (s: string | null) => void) => Promise<void> };
 
+const sizeOf = (b: Blob | null | undefined, fallback = "") => (b ? fmtSize(b.size) : fallback);
+
+// Download-Knopf und -Zeile als Komponenten (nicht als Render-Helfer):
+// die uebergebenen Aktionen lesen Refs, was fuer Funktionsaufrufe im Render
+// nicht erlaubt ist, als Props an Komponenten aber schon.
+type DlBtnCtx = { busyKey: string | null; busyLabel: string | null; prog: number; disabled: boolean; onRun: (k: string, act: DlButton["act"]) => void };
+
+function DlBtn({ b, primary = false, busyKey, busyLabel, prog, disabled, onRun }: { b: DlButton; primary?: boolean } & DlBtnCtx) {
+  const busy = busyKey === b.k;
+  return (
+    <button
+      type="button" className={`hs-btn prog${primary ? " primary" : ""}`} data-k={b.k} data-busy={busy ? "true" : undefined}
+      style={{ ["--p" as string]: busy ? prog.toFixed(3) : 0 }}
+      disabled={disabled || (!!busyKey && !busy)}
+      aria-label={`${b.label}${b.sub ? ", " + b.sub : ""}`}
+      onClick={() => onRun(b.k, b.act)}
+    >
+      <span>{busy && busyLabel ? busyLabel : b.label}</span>
+      <small>{b.sub}</small>
+    </button>
+  );
+}
+
+function DlItem({ thumb, title, meta, buttons, ...ctx }: { thumb: React.ReactNode; title: string; meta: string; buttons: DlButton[] } & DlBtnCtx) {
+  return (
+    <div className="hs-dl-item">
+      <div className="hs-dl-thumb">{thumb}</div>
+      <div className="hs-dl-info">
+        <b>{title}</b>
+        <small>{meta}</small>
+        <div className="hs-dl-btns">{buttons.map((b) => <DlBtn key={b.k} b={b} {...ctx} />)}</div>
+      </div>
+    </div>
+  );
+}
+
+// Vorschau-Kachel aus der Engine (Komponente statt Render-Helfer, siehe DlBtn).
+function ThumbCanvas({ engine, spec, p0, view }: { engine: HeroEngine; spec: HeroTakeResult["spec"]; p0: number; view: HeroViewId }) {
+  return (
+    <canvas
+      aria-hidden="true"
+      style={{ maxWidth: "100%", maxHeight: "100%", display: "block" }}
+      ref={(c) => {
+        if (!c) return;
+        const f = engine.FORMATS[engine.VIEW_BY_ID[view].fmt];
+        const w = 192, h = Math.round((w * f.h) / f.w);
+        if (c.width !== w) { c.width = w; c.height = h; }
+        const ctx = c.getContext("2d");
+        if (ctx) engine.renderSpec(ctx, spec, { p: p0 }, view, w / f.w);
+      }}
+    />
+  );
+}
+
 export default function HeroDownloads({ engine, take, article, canVideo, disabled, onBusy, onTakeUpdate }: Props) {
   const zipId = useId();
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -41,7 +95,7 @@ export default function HeroDownloads({ engine, take, article, canVideo, disable
   const [zipVid, setZipVid] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
   const takeRef = useRef(take);
-  takeRef.current = take;
+  useEffect(() => { takeRef.current = take; }, [take]);
 
   const slug = article.slug;
   const secs = Math.round(engine.loopOf(take.spec));
@@ -111,14 +165,13 @@ export default function HeroDownloads({ engine, take, article, canVideo, disable
   const videoFailText = (e: "encoder" | "cancelled" | "failed") =>
     e === "cancelled" ? "Abgebrochen." : e === "encoder" ? "Dieser Browser kann hier kein MP4 erzeugen. In Chrome, Edge oder Safari öffnen." : "Das Video konnte nicht berechnet werden. Nochmals versuchen.";
 
-  const getSocialVideo = (sv: Social) => dlRun(sv.key + "-mp4", async (setLabel) => {
-    if (!takeRef.current.social[sv.view].mp4) {
-      setLabel("Abbrechen");
-      const r = await ensureVideo(sv.view, 0, 1);
-      setLabel(null);
-      if ("error" in r) { setStatus({ msg: videoFailText(r.error), tone: r.error === "cancelled" ? undefined : "warn" }); return; }
-    }
-    offer(takeRef.current.social[sv.view].mp4 as Blob, names.social(sv, "mp4"));
+  // ensureVideo liefert auch den zwischengespeicherten Blob; kein Ref-Zugriff noetig.
+  const getSocialVideo = (sv: Social, cached: boolean) => dlRun(sv.key + "-mp4", async (setLabel) => {
+    if (!cached) setLabel("Abbrechen");
+    const r = await ensureVideo(sv.view, 0, 1);
+    setLabel(null);
+    if ("error" in r) { setStatus({ msg: videoFailText(r.error), tone: r.error === "cancelled" ? undefined : "warn" }); return; }
+    offer(r.blob, names.social(sv, "mp4"));
   });
 
   const hasVideo = take.recipe.animated && (!!take.video || !!take.videoUrl);
@@ -187,47 +240,8 @@ export default function HeroDownloads({ engine, take, article, canVideo, disable
     setStatus({ msg: `Gespeichert: ${name}.${warn ? " " + warn : ""}`, tone: warn ? "warn" : "ok" });
   });
 
-  const btn = (b: DlButton, primary = false) => {
-    const busy = busyKey === b.k;
-    return (
-      <button
-        key={b.k} type="button" className={`hs-btn prog${primary ? " primary" : ""}`} data-k={b.k} data-busy={busy ? "true" : undefined}
-        style={{ ["--p" as string]: busy ? prog.toFixed(3) : 0 }}
-        disabled={disabled || (!!busyKey && !busy)}
-        aria-label={`${b.label}${b.sub ? ", " + b.sub : ""}`}
-        onClick={() => dlRun(b.k, b.act)}
-      >
-        <span>{busy && busyLabel ? busyLabel : b.label}</span>
-        <small>{b.sub}</small>
-      </button>
-    );
-  };
+  const btnProps = { busyKey, busyLabel, prog, disabled, onRun: dlRun };
 
-  const item = (thumb: React.ReactNode, title: string, meta: string, buttons: DlButton[]) => (
-    <div className="hs-dl-item">
-      <div className="hs-dl-thumb">{thumb}</div>
-      <div className="hs-dl-info">
-        <b>{title}</b>
-        <small>{meta}</small>
-        <div className="hs-dl-btns">{buttons.map((b) => btn(b))}</div>
-      </div>
-    </div>
-  );
-
-  const thumbCanvas = (view: HeroViewId) => (
-    <canvas
-      aria-hidden="true"
-      style={{ maxWidth: "100%", maxHeight: "100%", display: "block" }}
-      ref={(c) => {
-        if (!c) return;
-        const f = engine.FORMATS[engine.VIEW_BY_ID[view].fmt];
-        const w = 192, h = Math.round((w * f.h) / f.w);
-        if (c.width !== w) { c.width = w; c.height = h; }
-        const ctx = c.getContext("2d");
-        if (ctx) engine.renderSpec(ctx, take.spec, { p: p0 }, view, w / f.w);
-      }}
-    />
-  );
 
   const packRows: [string, string][] = [
     ["website/", joinDe(["Hero-Bild", "Bild zum Teilen"].concat(hasVideo ? ["Hero-Animation"] : []))],
@@ -250,7 +264,7 @@ export default function HeroDownloads({ engine, take, article, canVideo, disable
             </label>
           )}
         </div>
-        {btn({ k: "zip", label: "ZIP herunterladen", sub: "", act: async () => { await runZip(); } }, true)}
+        <DlBtn b={{ k: "zip", label: "ZIP herunterladen", sub: "", act: async () => { await runZip(); } }} primary {...btnProps} />
         <p className="hs-note" role="status" aria-live="polite" data-tone={status?.tone}>{status?.msg ?? ""}</p>
       </div>
       <div className="hs-dl-groups">
@@ -258,26 +272,24 @@ export default function HeroDownloads({ engine, take, article, canVideo, disable
           <p className="hs-sub-h">Website <span>am Beitrag gespeichert</span></p>
           <div className="hs-dl-items">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            {item(<img src={take.heroUrl} alt="" />, "Hero-Bild", `${viewDims(engine, "hero")} · Beitrag, Listen, Spotlight, Rubrikseite`, [
+            <DlItem thumb={<img src={take.heroUrl} alt="" />} title="Hero-Bild" meta={`${viewDims(engine, "hero")} · Beitrag, Listen, Spotlight, Rubrikseite`} buttons={[
               { k: "hero", label: "Bild PNG", sub: take.hero ? fmtSize(take.hero.size) : "", act: async () => { offer(await ensurePng("hero"), names.hero); } },
-            ])}
+            ]} {...btnProps} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            {item(<img src={take.ogUrl} alt="" />, "Bild zum Teilen", `${viewDims(engine, "og")} · Linkvorschau auf LinkedIn, WhatsApp, X`, [
+            <DlItem thumb={<img src={take.ogUrl} alt="" />} title="Bild zum Teilen" meta={`${viewDims(engine, "og")} · Linkvorschau auf LinkedIn, WhatsApp, X`} buttons={[
               { k: "og", label: "Bild PNG", sub: take.og ? fmtSize(take.og.size) : "", act: async () => { offer(await ensurePng("og"), names.og); } },
-            ])}
+            ]} {...btnProps} />
             {hasVideo ? (
               // eslint-disable-next-line @next/next/no-img-element
-              item(<img src={take.heroUrl} alt="" />, "Hero-Animation", `1280 × 720 · ${secs} s Loop · nur auf der Beitragsseite`, [
+              <DlItem thumb={<img src={take.heroUrl} alt="" />} title="Hero-Animation" meta={`1280 × 720 · ${secs} s Loop · nur auf der Beitragsseite`} buttons={[
                 { k: "herovid", label: "Video MP4", sub: take.video ? fmtSize(take.video.size) : `${secs} s`, act: async (setLabel) => {
-                  if (!takeRef.current.video) {
-                    setLabel("Abbrechen");
-                    const r = await ensureVideo("hero", 0, 1);
-                    setLabel(null);
-                    if ("error" in r) { setStatus({ msg: videoFailText(r.error), tone: r.error === "cancelled" ? undefined : "warn" }); return; }
-                  }
-                  offer(takeRef.current.video as Blob, names.video);
+                  if (!take.video) setLabel("Abbrechen");
+                  const r = await ensureVideo("hero", 0, 1);
+                  setLabel(null);
+                  if ("error" in r) { setStatus({ msg: videoFailText(r.error), tone: r.error === "cancelled" ? undefined : "warn" }); return; }
+                  offer(r.blob, names.video);
                 } },
-              ])
+              ]} {...btnProps} />
             ) : (
               <p className="hs-hint">Eine Hero-Animation entsteht, wenn oben «Im Beitrag animiert abspielen» aktiv ist und das Hero nochmals übernommen wird.</p>
             )}
@@ -286,14 +298,20 @@ export default function HeroDownloads({ engine, take, article, canVideo, disable
         <div className="hs-dl-group">
           <p className="hs-sub-h">Social Media <span>mit Logo, Headline und Signatur</span></p>
           <div className="hs-dl-items">
-            {SOCIAL.map((sv) => {
-              const slot = take.social[sv.view];
-              const buttons: DlButton[] = [
-                { k: sv.key + "-png", label: "Bild PNG", sub: slot.png ? fmtSize(slot.png.size) : "", act: async () => { offer(await ensurePng(sv.view), names.social(sv, "png")); } },
-              ];
-              if (canVideo) buttons.push({ k: sv.key + "-mp4", label: "Video MP4", sub: slot.mp4 ? fmtSize(slot.mp4.size) : `${secs} s`, act: async () => { await getSocialVideo(sv); } });
-              return <div key={sv.key}>{item(thumbCanvas(sv.view), sv.label, `${viewDims(engine, sv.view)} · ${sv.use}`, buttons)}</div>;
-            })}
+            {SOCIAL.map((sv) => (
+              <div key={sv.key}>
+                <DlItem
+                  thumb={<ThumbCanvas engine={engine} spec={take.spec} p0={p0} view={sv.view} />}
+                  title={sv.label}
+                  meta={`${viewDims(engine, sv.view)} · ${sv.use}`}
+                  buttons={[
+                    { k: sv.key + "-png", label: "Bild PNG", sub: sizeOf(take.social[sv.view].png), act: async () => { offer(await ensurePng(sv.view), names.social(sv, "png")); } },
+                    ...(canVideo ? [{ k: sv.key + "-mp4", label: "Video MP4", sub: sizeOf(take.social[sv.view].mp4, `${secs} s`), act: async () => { await getSocialVideo(sv, !!take.social[sv.view].mp4); } }] : []),
+                  ]}
+                  {...btnProps}
+                />
+              </div>
+            ))}
             {!canVideo && <p className="hs-hint">Videos lassen sich in diesem Browser nicht erzeugen. In Chrome, Edge oder Safari öffnen.</p>}
           </div>
         </div>

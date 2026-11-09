@@ -68,17 +68,19 @@ export default function CoverMetadataModal({
 
   // Initial-Sync beim Oeffnen: drei Felder von den aktuellen Article-
   // Werten neu seeden, damit ein vorheriges Abbrechen einer Edit-Session
-  // beim naechsten Open nicht den verworfenen Stand zeigt.
-  // setState-in-effect ist hier der bewusste Pattern fuer Modal-Reset;
-  // eine `key`-Prop-Variante am Caller wuerde das Modal zerstoeren und
-  // den Inline-Animations-Pfad brechen.
-  useEffect(() => {
+  // beim naechsten Open nicht den verworfenen Stand zeigt. Umgesetzt als
+  // State-Anpassung waehrend des Renderns (React-Muster «vorherige Prop
+  // merken»); eine `key`-Prop-Variante am Caller wuerde das Modal
+  // zerstoeren und den Inline-Animations-Pfad brechen.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setAlt(initialAlt);
       setCaption(initialCaption);
       setSource(initialSource);
     }
-  }, [open, initialAlt, initialCaption, initialSource]);
+  }
 
   useEffect(() => {
     if (!open) return;
