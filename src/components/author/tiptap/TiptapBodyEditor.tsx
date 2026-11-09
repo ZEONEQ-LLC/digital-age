@@ -29,6 +29,7 @@ import {
 } from "@/components/tiptap-ui-primitive/toolbar";
 import { Spacer } from "@/components/tiptap-ui-primitive/spacer";
 import { Button } from "@/components/tiptap-ui-primitive/button";
+import LineBreakButton from "@/components/author/tiptap/LineBreakButton";
 
 import { ImageUploadNode } from "@/components/tiptap-node/image-upload-node/image-upload-node-extension";
 import "@/components/tiptap-node/blockquote-node/blockquote-node.scss";
@@ -449,6 +450,7 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
               <MarkButton type="code" />
               <ColorHighlightPopover colors={BRAND_HIGHLIGHT_COLORS} />
               <LinkPopover />
+              <LineBreakButton />
             </ToolbarGroup>
             <ToolbarSeparator />
             <ToolbarGroup>
