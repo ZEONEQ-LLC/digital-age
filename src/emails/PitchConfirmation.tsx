@@ -13,7 +13,7 @@ export default function PitchConfirmation({ authorName, title }: Props) {
       <Heading>Danke für deinen Pitch.</Heading>
       <Paragraph>Hallo {authorName},</Paragraph>
       <Paragraph>
-        vielen Dank für deinen Beitrag zu <strong>„{title}"</strong>. Wir prüfen
+        vielen Dank für deinen Beitrag zu <strong>„{title}“</strong>. Wir prüfen
         jede Einreichung sorgfältig und melden uns innerhalb von 5 Werktagen
         bei dir mit Feedback — Annahme, Anpassungs-Vorschlag oder eine
         klare Ablehnung mit Begründung.

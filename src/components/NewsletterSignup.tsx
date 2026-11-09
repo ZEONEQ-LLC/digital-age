@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   subscribeToNewsletter,
   type SubscribeSource,
@@ -40,6 +41,7 @@ export default function NewsletterSignup({ variant = "compact" }: { variant?: Va
   const [state, setState] = useState<FormState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const router = useRouter();
 
   const emailValid = EMAIL_RE.test(email.trim());
   const canSubmit = emailValid && consent && state !== "submitting";
@@ -69,7 +71,7 @@ export default function NewsletterSignup({ variant = "compact" }: { variant?: Va
       }
       setState("success");
       if (redirectsOnSuccess) {
-        window.location.href = "/newsletter/danke";
+        router.push("/newsletter/danke");
       }
     });
   }

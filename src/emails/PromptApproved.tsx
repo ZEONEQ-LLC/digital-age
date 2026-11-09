@@ -14,7 +14,7 @@ export default function PromptApproved({ name, title, liveUrl }: Props) {
       <Heading>Dein Prompt ist live.</Heading>
       <Paragraph>Hallo {name},</Paragraph>
       <Paragraph>
-        gute Nachricht: dein Vorschlag <strong>„{title}"</strong> wurde in die
+        gute Nachricht: dein Vorschlag <strong>„{title}“</strong> wurde in die
         digital-age-Sammlung aufgenommen und ist ab sofort öffentlich
         erreichbar.
       </Paragraph>

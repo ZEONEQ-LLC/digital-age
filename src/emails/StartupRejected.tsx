@@ -19,7 +19,7 @@ export default function StartupRejected({
       <Heading>Update zu deinem Vorschlag.</Heading>
       <Paragraph>Hallo {name},</Paragraph>
       <Paragraph>
-        danke für deinen Vorschlag <strong>„{startupName}"</strong>. Leider
+        danke für deinen Vorschlag <strong>„{startupName}“</strong>. Leider
         passt der Eintrag aktuell nicht in unsere Swiss-AI-Landscape — wir
         freuen uns über weitere Einreichungen von dir.
       </Paragraph>

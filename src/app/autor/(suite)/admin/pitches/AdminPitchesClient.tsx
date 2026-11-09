@@ -84,9 +84,13 @@ export default function AdminPitchesClient({
     return () => clearTimeout(t);
   }, [toast]);
 
-  useEffect(() => {
+  // Neue focusId aus der URL uebernehmen: State waehrend des Renderns
+  // anpassen (React-Muster), kein setState im Effect.
+  const [prevFocusId, setPrevFocusId] = useState(focusId);
+  if (focusId !== prevFocusId) {
+    setPrevFocusId(focusId);
     setOpenId(focusId);
-  }, [focusId]);
+  }
 
   function setParam(key: string, value: string | null) {
     const params = new URLSearchParams(searchParams?.toString() ?? "");

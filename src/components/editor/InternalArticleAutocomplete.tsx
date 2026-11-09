@@ -30,17 +30,28 @@ export default function InternalArticleAutocomplete({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Beim Oeffnen zuruecksetzen: State waehrend des Renderns anpassen
+  // (React-Muster), Fokus im Effect.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setQuery("");
+      setResults([]);
+      setLoading(false);
+    }
+  }
   useEffect(() => {
     if (!open) return;
-    setQuery("");
-    setResults([]);
-    setTimeout(() => inputRef.current?.focus(), 50);
+    const t = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(t);
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
+  // Suche mit Debounce direkt aus dem Eingabe-Handler (kein setState im Effect).
+  function onQueryChange(v: string) {
+    setQuery(v);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (query.trim().length < 2) {
+    if (v.trim().length < 2) {
       setResults([]);
       setLoading(false);
       return;
@@ -48,16 +59,14 @@ export default function InternalArticleAutocomplete({
     setLoading(true);
     debounceRef.current = setTimeout(async () => {
       try {
-        const r = await searchPublishedArticles(query, { excludeId });
+        const r = await searchPublishedArticles(v, { excludeId });
         setResults(r);
       } finally {
         setLoading(false);
       }
     }, 300);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [query, open, excludeId]);
+  }
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
   if (!open) return null;
 
@@ -152,7 +161,7 @@ export default function InternalArticleAutocomplete({
               type="text"
               placeholder="Titel eingeben (min. 2 Zeichen)…"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => onQueryChange(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Escape") onClose();
               }}

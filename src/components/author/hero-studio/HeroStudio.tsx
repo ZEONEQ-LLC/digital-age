@@ -56,7 +56,10 @@ function visibleOf(list: HeroSpec[], filter: HeroFilter): HeroSpec[] {
   return list.filter((p) => p.engine === filter).slice(0, 4);
 }
 
-export default function HeroStudio({ article, recipe, proposals, saved, session, onSessionChange, onApply }: HeroStudioProps) {
+export default function HeroStudio({ article, recipe, proposals, saved, getSession, onSessionChange, onApply }: HeroStudioProps) {
+  // Sitzung einmal beim Mount vom Editor holen (lazy Initializer); spaetere
+  // Aenderungen gehen nur ueber onSessionChange zurueck.
+  const [session] = useState<HeroSession | null>(getSession);
   const reduceMotion = useSyncExternalStore(subscribeReduced, getReduced, getReducedServer);
 
   const [engine, setEngine] = useState<HeroEngine | null>(null);

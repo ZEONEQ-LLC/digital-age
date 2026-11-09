@@ -1,5 +1,5 @@
 import { Section } from "react-email";
-import Layout, { CtaButton, Heading, HintBox, Paragraph } from "./_layout";
+import Layout, { CtaButton, Heading, HintBox } from "./_layout";
 
 type Props = {
   id: string;

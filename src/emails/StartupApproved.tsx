@@ -18,7 +18,7 @@ export default function StartupApproved({
       <Heading>Willkommen in der Swiss-AI-Landscape.</Heading>
       <Paragraph>Hallo {name},</Paragraph>
       <Paragraph>
-        gute Nachricht: <strong>„{startupName}"</strong> ist ab sofort in der
+        gute Nachricht: <strong>„{startupName}“</strong> ist ab sofort in der
         digital-age Swiss-AI-Landscape gelistet und für alle Besucher sichtbar.
       </Paragraph>
       <CtaButton href={liveUrl}>Eintrag ansehen →</CtaButton>

@@ -220,7 +220,7 @@ function extractAndStripSourceList(doc: DocumentLike): {
     return null;
   };
 
-  let heading = findSourceHeading();
+  const heading = findSourceHeading();
   let ol: ElementLike | null = null;
 
   if (heading) {

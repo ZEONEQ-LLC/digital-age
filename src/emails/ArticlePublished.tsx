@@ -18,7 +18,7 @@ export default function ArticlePublished({
       <Heading>Dein Artikel ist live.</Heading>
       <Paragraph>Hallo {authorName},</Paragraph>
       <Paragraph>
-        gute Nachricht: dein Artikel <strong>„{title}"</strong> ist ab sofort
+        gute Nachricht: dein Artikel <strong>„{title}“</strong> ist ab sofort
         auf digital-age veröffentlicht und für alle Leser sichtbar.
       </Paragraph>
       <CtaButton href={liveUrl}>Artikel ansehen →</CtaButton>

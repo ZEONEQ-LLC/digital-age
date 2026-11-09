@@ -13,7 +13,7 @@ export default function PromptSubmissionConfirmation({ name, title }: Props) {
       <Heading>Danke für deinen Prompt-Vorschlag.</Heading>
       <Paragraph>Hallo {name},</Paragraph>
       <Paragraph>
-        danke für deinen Vorschlag <strong>„{title}"</strong>. Wir prüfen alle
+        danke für deinen Vorschlag <strong>„{title}“</strong>. Wir prüfen alle
         Einreichungen sorgfältig und melden uns, sobald die Redaktion eine
         Entscheidung getroffen hat.
       </Paragraph>

@@ -5,6 +5,15 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    rules: {
+      // Meldet, wo der React Compiler manuelle useMemo/useCallback nicht
+      // uebernehmen koennte. Der Compiler ist in next.config.ts nicht aktiv
+      // (kein reactCompiler), die Regel hat hier keinen Effekt auf den Build.
+      // Wieder einschalten, sobald der Compiler aktiviert wird.
+      "react-hooks/preserve-manual-memoization": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

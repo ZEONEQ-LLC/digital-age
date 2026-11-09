@@ -210,7 +210,7 @@ export default async function StartupDetailPage({ params }: { params: Params }) 
 
       <script
         type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
+         
         dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }}
       />
 

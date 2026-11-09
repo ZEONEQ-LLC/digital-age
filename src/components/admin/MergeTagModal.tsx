@@ -28,10 +28,11 @@ export default function MergeTagModal({ fromTag, onClose, onDone }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose, pending]);
 
-  useEffect(() => {
-    if (target) return;
+  // Suche mit Debounce direkt aus dem Eingabe-Handler (kein setState im Effect).
+  function onQueryChange(v: string) {
+    setQuery(v);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    const q = query.trim();
+    const q = v.trim();
     if (q.length < 1) {
       setSuggestions([]);
       return;
@@ -41,10 +42,8 @@ export default function MergeTagModal({ fromTag, onClose, onDone }: Props) {
       setSuggestions(results);
       setHighlight(0);
     }, 180);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [query, fromTag.name, target]);
+  }
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
   function pickTarget(t: TagSearchResult) {
     setTarget(t);
@@ -266,7 +265,7 @@ export default function MergeTagModal({ fromTag, onClose, onDone }: Props) {
                   className="tagmod-input"
                   placeholder="Tag suchen…"
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => onQueryChange(e.target.value)}
                   onKeyDown={onKeyDown}
                   autoFocus
                   disabled={pending}

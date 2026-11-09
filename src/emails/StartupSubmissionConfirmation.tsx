@@ -16,7 +16,7 @@ export default function StartupSubmissionConfirmation({
       <Heading>Danke für deinen Vorschlag.</Heading>
       <Paragraph>Hallo {name},</Paragraph>
       <Paragraph>
-        danke, dass du <strong>„{startupName}"</strong> für die digital-age
+        danke, dass du <strong>„{startupName}“</strong> für die digital-age
         Swiss-AI-Landscape eingereicht hast. Wir prüfen alle Einreichungen
         sorgfältig und melden uns mit Feedback.
       </Paragraph>
