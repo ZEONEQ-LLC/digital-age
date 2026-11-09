@@ -88,11 +88,17 @@ export type AdvertiserWithContacts = AdvertiserRow & { contacts: ContactRow[] };
 // Anteil an der Rotation, den die Kampagne HAETTE, wenn sie jetzt live waere (F1).
 export type BookingShare = { sharePct: number; othersCount: number; reason?: string };
 
+// Archiviertes Kreativ (archived_at gesetzt): wird nicht mehr ausgeliefert und
+// nicht mehr bearbeitet, bleibt aber mit seinen Zahlen im Report sichtbar.
+export type ArchivedCreative = CreativeRow & { impressions: number; clicks: number };
+
 export type CampaignDetail = {
   campaign: CampaignRow;
   advertiserName: string | null;
   bookings: (BookingRow & { placementLabel: string; placementCode: string; share: BookingShare })[];
+  /** aktive und inaktive Kreative ohne Archiv */
   creatives: CreativeRow[];
+  archivedCreatives: ArchivedCreative[];
 };
 
 // ── Buchungs-Lebenszyklus (paused_at / archived_at) ──

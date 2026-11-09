@@ -135,20 +135,22 @@ type RowsQuery = {
   impressions: number;
   clicks: number;
   placement: { label: string; code: string } | null;
-  creative: { kind: string; variant: string; headline: string | null; width: number | null; height: number | null } | null;
+  creative: { kind: string; variant: string; headline: string | null; width: number | null; height: number | null; archived_at: string | null } | null;
 };
 
 export async function getCampaignStatsRows(supabase: Sb, campaignId: string): Promise<CampaignStatsRow[]> {
   const { data } = await supabase
     .from("ad_stats_daily")
-    .select("day, impressions, clicks, placement:ad_placements(label, code), creative:ad_creatives(kind, variant, headline, width, height)")
+    .select("day, impressions, clicks, placement:ad_placements(label, code), creative:ad_creatives(kind, variant, headline, width, height, archived_at)")
     .eq("campaign_id", campaignId)
     .order("day", { ascending: true });
   return ((data ?? []) as unknown as RowsQuery[]).map((r) => ({
     day: r.day,
     placement_label: r.placement?.label ?? "?",
+    // Archivierte Kreative (entfernt, Zahlen bleiben) sind im Export markiert.
     creative_label: r.creative
-      ? r.creative.kind === "image" ? `Bild ${r.creative.width ?? "?"}x${r.creative.height ?? "?"}` : (r.creative.headline ?? "")
+      ? (r.creative.kind === "image" ? `Bild ${r.creative.width ?? "?"}x${r.creative.height ?? "?"}` : (r.creative.headline ?? ""))
+        + (r.creative.archived_at ? " (archiviert)" : "")
       : "?",
     variant: r.creative?.variant ?? "",
     // Verbindet unsere Zahlen mit GA4 (utm_content = Platzierung-Geraet).

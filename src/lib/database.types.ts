@@ -273,6 +273,7 @@ export type Database = {
       ad_creatives: {
         Row: {
           alt_text: string | null
+          archived_at: string | null
           bg_color: string | null
           body: string | null
           campaign_id: string
@@ -292,6 +293,7 @@ export type Database = {
         }
         Insert: {
           alt_text?: string | null
+          archived_at?: string | null
           bg_color?: string | null
           body?: string | null
           campaign_id: string
@@ -311,6 +313,7 @@ export type Database = {
         }
         Update: {
           alt_text?: string | null
+          archived_at?: string | null
           bg_color?: string | null
           body?: string | null
           campaign_id?: string

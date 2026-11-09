@@ -142,6 +142,9 @@ function mapDbError(error: { code?: string; message?: string } | null): string {
     return "Diese Buchung existiert bereits: gleiche Platzierung, gleicher Geltungsbereich, überlappender Zeitraum.";
   }
   if (error?.code === "23505") return "Eintrag bereits vorhanden.";
+  if (error?.code === "23503" && msg.includes("ad_stats_daily_creative_id_fkey")) {
+    return "Dieses Kreativ hat bereits Impressionen oder Klicks und kann nicht gelöscht werden. Es wird archiviert.";
+  }
   // Benannte Table-CHECKs auf ad_advertisers → spezifische Meldung.
   if (msg.includes("ad_advertisers_address_complete")) {
     return "Rechnungsadresse unvollständig: entweder Strasse + Nr. + PLZ + Ort oder Postfach + PLZ + Ort ausfüllen (oder Adresse ganz leer lassen).";
@@ -747,17 +750,47 @@ export async function updateCreative(
   } catch (e) { return fail(e); }
 }
 
+// Kreativ entfernen. Hat es Zahlen in ad_stats_daily, wird es archiviert
+// (is_active=false, archived_at), damit der Kundenreport stimmt; die Datei
+// bleibt fuer die Anzeige im Archiv. Ohne Zahlen: Zeile und Datei loeschen.
+// Die FK ad_stats_daily.creative_id ist ON DELETE NO ACTION (Migration
+// 20261109120000): ein Loeschen mit Zahlen scheitert auch ohne diesen Pfad.
+type RemovableCreative = { id: string; image_path: string | null };
+
+async function removeCreativeRow(
+  supabase: Awaited<ReturnType<typeof requireEditor>>["supabase"],
+  row: RemovableCreative,
+): Promise<{ archived: boolean; error?: string }> {
+  const { count, error: countError } = await supabase
+    .from("ad_stats_daily")
+    .select("id", { count: "exact", head: true })
+    .eq("creative_id", row.id);
+  if (countError) return { archived: false, error: mapDbError(countError) };
+  if ((count ?? 0) > 0) {
+    const { error } = await supabase
+      .from("ad_creatives")
+      .update({ is_active: false, archived_at: new Date().toISOString() })
+      .eq("id", row.id);
+    if (error) return { archived: true, error: mapDbError(error) };
+    return { archived: true };
+  }
+  const { error } = await supabase.from("ad_creatives").delete().eq("id", row.id);
+  if (error) return { archived: false, error: mapDbError(error) };
+  await removeModuleImage(supabase, row.image_path);
+  return { archived: false };
+}
+
 export async function deleteCreative(id: string, campaignId: string): Promise<ActionResult> {
   try {
     const { supabase } = await requireEditor();
     const { data: current } = await supabase
       .from("ad_creatives")
-      .select("image_path")
+      .select("id, campaign_id, image_path")
       .eq("id", id)
       .maybeSingle();
-    if (current?.image_path) await removeModuleImage(supabase, current.image_path);
-    const { error } = await supabase.from("ad_creatives").delete().eq("id", id);
-    if (error) return { ok: false, error: mapDbError(error) };
+    if (!current || current.campaign_id !== campaignId) return { ok: false, error: "Kreativ nicht gefunden." };
+    const res = await removeCreativeRow(supabase, current);
+    if (res.error) return { ok: false, error: res.error };
     revalidateAll(campaignId);
     return { ok: true };
   } catch (e) { return fail(e); }
@@ -846,12 +879,12 @@ export async function saveImageCreativePair(
       const mErr = await writeOne("mobile", input.mobile, input.existingMobileId);
       if (mErr) { revalidateAll(campaignId); return { ok: false, error: `Desktop gespeichert, Mobile nicht: ${mErr}` }; }
     } else if (input.existingMobileId) {
-      // Platzierung ohne Mobile oder Mobile im Formular entfernt: Zeile + Datei weg.
+      // Platzierung ohne Mobile oder Mobile im Formular entfernt: Zeile weg
+      // (mit Zahlen: archiviert, Datei bleibt).
       const cur = byId.get(input.existingMobileId);
       if (cur && cur.campaign_id === campaignId) {
-        if (cur.image_path) await removeModuleImage(supabase, cur.image_path);
-        const { error } = await supabase.from("ad_creatives").delete().eq("id", cur.id);
-        if (error) { revalidateAll(campaignId); return { ok: false, error: `Desktop gespeichert, Mobile nicht: ${mapDbError(error)}` }; }
+        const res = await removeCreativeRow(supabase, cur);
+        if (res.error) { revalidateAll(campaignId); return { ok: false, error: `Desktop gespeichert, Mobile nicht: ${res.error}` }; }
       }
     }
     revalidateAll(campaignId);
@@ -859,7 +892,8 @@ export async function saveImageCreativePair(
   } catch (e) { return fail(e); }
 }
 
-// Loescht beide Zeilen (kind='image') einer Platzierung inkl. Dateien.
+// Entfernt beide Zeilen (kind='image') einer Platzierung. Zeilen mit Zahlen
+// werden archiviert, die anderen inkl. Datei geloescht (removeCreativeRow).
 export async function deleteImageCreativePair(campaignId: string, placementId: string): Promise<ActionResult> {
   try {
     const { supabase } = await requireEditor();
@@ -868,17 +902,12 @@ export async function deleteImageCreativePair(campaignId: string, placementId: s
       .select("id, image_path")
       .eq("campaign_id", campaignId)
       .eq("placement_id", placementId)
-      .eq("kind", "image");
+      .eq("kind", "image")
+      .is("archived_at", null);
     for (const r of rows ?? []) {
-      if (r.image_path) await removeModuleImage(supabase, r.image_path);
+      const res = await removeCreativeRow(supabase, r);
+      if (res.error) { revalidateAll(campaignId); return { ok: false, error: res.error }; }
     }
-    const { error } = await supabase
-      .from("ad_creatives")
-      .delete()
-      .eq("campaign_id", campaignId)
-      .eq("placement_id", placementId)
-      .eq("kind", "image");
-    if (error) return { ok: false, error: mapDbError(error) };
     revalidateAll(campaignId);
     return { ok: true };
   } catch (e) { return fail(e); }
