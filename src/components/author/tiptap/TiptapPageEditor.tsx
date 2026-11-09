@@ -38,6 +38,7 @@ import { ColorHighlightPopover } from "@/components/tiptap-ui/color-highlight-po
 import type { HighlightColor } from "@/components/tiptap-ui/color-highlight-button/use-color-highlight";
 import { LinkPopover } from "@/components/tiptap-ui/link-popover";
 import { MarkButton } from "@/components/tiptap-ui/mark-button";
+import LineBreakButton from "@/components/author/tiptap/LineBreakButton";
 import { TextAlignButton } from "@/components/tiptap-ui/text-align-button";
 import { UndoRedoButton } from "@/components/tiptap-ui/undo-redo-button";
 
@@ -246,6 +247,7 @@ const TiptapPageEditor = forwardRef<TiptapPageEditorHandle, Props>(
               <MarkButton type="code" />
               <ColorHighlightPopover colors={BRAND_HIGHLIGHT_COLORS} />
               <LinkPopover />
+              <LineBreakButton />
             </ToolbarGroup>
             <ToolbarSeparator />
             <ToolbarGroup>

@@ -13,6 +13,7 @@ import { ColorHighlightPopover } from "@/components/tiptap-ui/color-highlight-po
 import type { HighlightColor } from "@/components/tiptap-ui/color-highlight-button/use-color-highlight";
 import { LinkPopover } from "@/components/tiptap-ui/link-popover";
 import { MarkButton } from "@/components/tiptap-ui/mark-button";
+import LineBreakButton from "@/components/author/tiptap/LineBreakButton";
 
 import { SourceRefInline } from "./customBlocks";
 import { InternalLinkMark, FontSizeMark } from "./passthroughMarks";
@@ -124,6 +125,7 @@ const TiptapAbstractEditor = forwardRef<TiptapAbstractEditorHandle, Props>(
               <MarkButton type="bold" />
               <LinkPopover />
               <ColorHighlightPopover colors={BRAND_HIGHLIGHT_COLORS} />
+              <LineBreakButton />
             </ToolbarGroup>
             {onGenerateAbstract && (
               <>

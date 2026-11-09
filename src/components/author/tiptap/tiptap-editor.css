@@ -122,3 +122,16 @@
 .tiptap-popover .tiptap-input::placeholder {
   color: rgba(0, 0, 0, 0.4);
 }
+
+/* ============================================================
+   Caret (Text-Cursor)
+   ============================================================
+   Vendor setzt caret-color auf --tt-cursor-color (brand-violett, 98 41 255).
+   Auf den dunklen Editor-Zonen ist das kaum sichtbar (Backlog 26.10.2026).
+   Gilt fuer alle Zonen: Titel, Abstract, Body, Footer. */
+.da-tiptap-editor {
+  --tt-cursor-color: var(--da-green, #32ff7e);
+}
+.da-tiptap-editor .tiptap.ProseMirror {
+  caret-color: var(--tt-cursor-color);
+}
