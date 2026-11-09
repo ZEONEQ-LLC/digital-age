@@ -46,6 +46,12 @@ const WEIGHT_HELP = "Anteil an der Rotation im Verhältnis zu den anderen Live-K
 // Ab diesen Status ist eine gesetzte Kampagnen-Kennung eingefroren (DB-Gate).
 const RUNNING = ["live", "paused", "ended"];
 
+// Entfernen: Kreative mit Zahlen werden archiviert (Zahlen bleiben im Report),
+// ohne Zahlen geloescht. Entscheidet der Server (removeCreativeRow).
+const REMOVE_NOTE = "Hat es schon Impressionen oder Klicks, wird es archiviert und die Zahlen bleiben im Report. Sonst wird es gelöscht.";
+const REMOVE_CONFIRM_PAIR = `Bild-Kreativ (Desktop und Mobile) entfernen? ${REMOVE_NOTE}`;
+const REMOVE_CONFIRM_TEXT = `Kreativ entfernen? ${REMOVE_NOTE}`;
+
 function shareText(s: BookingShare): { text: string; orange: boolean } {
   if (s.reason) return { text: `0 % · ${s.reason}`, orange: true };
   if (s.sharePct === 100 && s.othersCount === 0) return { text: "100 % · allein", orange: false };
@@ -853,7 +859,9 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
       <div style={{ ...card, display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={sectionTitle}>Kreative</div>
         {detail.creatives.length === 0 && (
-          <p style={{ color: "var(--da-muted)", fontSize: 14, margin: 0 }}>Keine Kreative.</p>
+          <p style={{ color: "var(--da-muted)", fontSize: 14, margin: 0 }}>
+            {detail.archivedCreatives.length > 0 ? "Keine aktiven Kreative." : "Keine Kreative."}
+          </p>
         )}
 
         {/* Bild-Kreative: eine Zeile pro Platzierung (Paar Desktop/Mobile). */}
@@ -883,7 +891,7 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
                       <td style={td}>{base.is_active ? "ja" : "nein"}</td>
                       <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
                         <button type="button" style={{ ...btnSmall, marginRight: 6 }} onClick={() => editPair(pair)}>Bearbeiten</button>
-                        <button type="button" style={btnSmall} disabled={pending} onClick={() => { if (confirm("Bild-Kreativ (Desktop und Mobile) löschen?")) run(() => deleteImageCreativePair(c.id, pair.placementId)); }}>Löschen</button>
+                        <button type="button" style={btnSmall} disabled={pending} onClick={() => { if (confirm(REMOVE_CONFIRM_PAIR)) run(() => deleteImageCreativePair(c.id, pair.placementId)); }}>Entfernen</button>
                       </td>
                     </tr>
                   );
@@ -924,7 +932,7 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
                       <td style={td}>{cr.is_active ? "ja" : "nein"}</td>
                       <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
                         <button type="button" style={{ ...btnSmall, marginRight: 6 }} onClick={() => editText(cr)}>Bearbeiten</button>
-                        <button type="button" style={btnSmall} disabled={pending} onClick={() => run(() => deleteCreative(cr.id, c.id))}>Löschen</button>
+                        <button type="button" style={btnSmall} disabled={pending} onClick={() => { if (confirm(REMOVE_CONFIRM_TEXT)) run(() => deleteCreative(cr.id, c.id)); }}>Entfernen</button>
                       </td>
                     </tr>
                   );
@@ -932,6 +940,44 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
               </tbody>
             </table>
           </div>
+        )}
+
+        {/* Archiv: entfernte Kreative mit Zahlen. Nicht ausgeliefert, nicht bearbeitbar, Zahlen bleiben im Report. */}
+        {detail.archivedCreatives.length > 0 && (
+          <details className="cd-archive">
+            <summary style={{ cursor: "pointer", color: "var(--da-muted)", fontSize: 13, fontWeight: 600 }}>
+              Archivierte Kreative · {detail.archivedCreatives.length}
+            </summary>
+            <p style={{ ...help, marginTop: 8 }}>Entfernt, aber mit Zahlen: Impressionen und Klicks bleiben im Kundenreport und im CSV-Export (dort als «archiviert» markiert). Wird nicht mehr ausgeliefert.</p>
+            <div style={{ overflowX: "auto" }}>
+              <table className="cd-table">
+                <thead>
+                  <tr>
+                    <th style={th}>Kreativ</th>
+                    <th style={th}>Variante</th>
+                    <th style={th}>Platzierung</th>
+                    <th style={th}>Impressionen</th>
+                    <th style={th}>Klicks</th>
+                    <th style={th}>Archiviert</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detail.archivedCreatives.map((cr) => (
+                    <tr key={cr.id}>
+                      <td style={{ ...td, color: "var(--da-text)" }}>
+                        {cr.kind === "image" ? thumb(cr, "Bild") : <span style={{ fontWeight: 600 }}>{cr.headline}</span>}
+                      </td>
+                      <td style={{ ...td, fontFamily: "var(--da-font-mono)", fontSize: 12, color: "var(--da-muted)" }}>{cr.variant}</td>
+                      <td style={{ ...td, whiteSpace: "nowrap" }}>{placementLabel(cr.placement_id)}</td>
+                      <td style={{ ...td, fontFamily: "var(--da-font-mono)", fontSize: 12 }}>{formatCount(cr.impressions)}</td>
+                      <td style={{ ...td, fontFamily: "var(--da-font-mono)", fontSize: 12 }}>{formatCount(cr.clicks)}</td>
+                      <td style={{ ...td, color: "var(--da-muted)", whiteSpace: "nowrap" }}>{cr.archived_at ? formatDate(cr.archived_at) : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
         )}
 
         {/* H3: Abdeckungs-Luecken proaktiv anzeigen (nur Kundenkampagnen). */}

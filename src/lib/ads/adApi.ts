@@ -5,6 +5,7 @@ import {
   isBookingActive,
   parsePeriod,
   type AdvertiserWithContacts,
+  type ArchivedCreative,
   type BookingShare,
   type CampaignDetail,
   type CampaignOverviewVM,
@@ -164,11 +165,37 @@ export async function getCampaignDetail(id: string): Promise<CampaignDetail | nu
     .eq("campaign_id", id)
     .order("created_at", { ascending: true });
 
-  const { data: creatives } = await supabase
-    .from("ad_creatives")
-    .select("*")
-    .eq("campaign_id", id)
-    .order("created_at", { ascending: true });
+  // Archivierte Kreative (Zahlen vorhanden, entfernt) getrennt, mit Summen.
+  const [{ data: creatives }, { data: archivedRows }, { data: archivedStats }] = await Promise.all([
+    supabase
+      .from("ad_creatives")
+      .select("*")
+      .eq("campaign_id", id)
+      .is("archived_at", null)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("ad_creatives")
+      .select("*")
+      .eq("campaign_id", id)
+      .not("archived_at", "is", null)
+      .order("archived_at", { ascending: false }),
+    supabase
+      .from("ad_stats_daily")
+      .select("creative_id, impressions, clicks")
+      .eq("campaign_id", id),
+  ]);
+  const sums = new Map<string, { impressions: number; clicks: number }>();
+  for (const r of archivedStats ?? []) {
+    const s = sums.get(r.creative_id) ?? { impressions: 0, clicks: 0 };
+    s.impressions += r.impressions;
+    s.clicks += r.clicks;
+    sums.set(r.creative_id, s);
+  }
+  const archivedCreatives: ArchivedCreative[] = (archivedRows ?? []).map((cr) => ({
+    ...cr,
+    impressions: sums.get(cr.id)?.impressions ?? 0,
+    clicks: sums.get(cr.id)?.clicks ?? 0,
+  }));
 
   type BookingQueryRow = Omit<CampaignDetail["bookings"][number], "share"> & {
     placement: { label: string; code: string } | null;
@@ -197,6 +224,7 @@ export async function getCampaignDetail(id: string): Promise<CampaignDetail | nu
       share: shares.get(b.id) ?? { sharePct: 100, othersCount: 0 },
     })),
     creatives: creatives ?? [],
+    archivedCreatives,
   };
 }
 
