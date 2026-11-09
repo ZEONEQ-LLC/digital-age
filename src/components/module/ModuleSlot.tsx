@@ -9,6 +9,8 @@ import ModuleCard from "./ModuleCard";
 // "internal" = Texthoehe, "image" = Bildhoehe — die Seite entscheidet das
 // serverseitig ueber getSlotReservation (G3). Leere Antwort gibt die Hoehe
 // wieder frei. Spezifitaet haengt nur an r/a. Karten-Markup: ModuleCard (F4).
+// "none": keine aktive Buchung, der Slot wird gar nicht gerendert (kein Loch,
+// kein Shift). "image-tall": Mobile-Motiv im alternativen, hoeheren Format.
 // Vorschau (G5): ?vorschau=<token> in der URL wird als p mitgeschickt; kein
 // useSearchParams, damit die ISR-Seiten nicht dynamisch werden (Diagnose C12).
 // Breitenwechsel ueber die 768px-Grenze (Fenster gezogen, Telefon gedreht):
@@ -18,7 +20,7 @@ import ModuleCard from "./ModuleCard";
 // als sendBeacon-POST mit dem Auslieferungs-Token k an denselben Pfad. Ohne k
 // (kein Service-Key) oder in der Vorschau wird nichts gezaehlt. Keine
 // Browser-Speicherung.
-export type SlotReserve = "image" | "internal";
+export type SlotReserve = "none" | "internal" | "image" | "image-tall";
 
 type Props = {
   code: PlacementCode;
@@ -72,14 +74,17 @@ function sendEvent(code: string, k: string, t: "v" | "c"): void {
 }
 
 export default function ModuleSlot({ code, ressortSlug, articleSlug, reserve = "internal", frame }: Props) {
-  const { internalHeight, imageHeight, minViewport, layout } = PLACEMENTS[code];
-  const height = reserve === "image" ? imageHeight : internalHeight;
+  const { internalHeight, imageHeight, imageHeightMobileAlt, minViewport, layout } = PLACEMENTS[code];
+  const height = reserve === "image" || reserve === "image-tall"
+    ? { desktop: imageHeight.desktop, mobile: reserve === "image-tall" && imageHeightMobileAlt ? imageHeightMobileAlt : imageHeight.mobile }
+    : internalHeight;
   const id = useId().replace(/[:]/g, "");
   const [state, setState] = useState<State>({ phase: "loading" });
   const anchorRef = useRef<HTMLAnchorElement | null>(null);
   const seqRef = useRef(0);
 
   useEffect(() => {
+    if (reserve === "none") return;
     let controller: AbortController | null = null;
 
     const load = () => {
@@ -121,7 +126,7 @@ export default function ModuleSlot({ code, ressortSlug, articleSlug, reserve = "
       mql.removeEventListener("change", onChange);
       controller?.abort();
     };
-  }, [code, ressortSlug, articleSlug, minViewport]);
+  }, [code, ressortSlug, articleSlug, minViewport, reserve]);
 
   // Sichtbare Einblendung zaehlen: Observer auf dem <a>, 50 % fuer 1 s, Tab sichtbar.
   const k = state.phase === "ready" ? state.data.k : undefined;
@@ -161,7 +166,10 @@ export default function ModuleSlot({ code, ressortSlug, articleSlug, reserve = "
     };
   }, [k, seq, code]);
 
-  // Leere Antwort -> nichts rendern, reservierte Hoehe freigeben.
+  // Keine aktive Buchung (serverseitig bekannt) -> gar kein Slot, kein Shift.
+  if (reserve === "none") return null;
+  // Leere Antwort (nur noch Fehler oder Wettlauf mit einer eben beendeten
+  // Buchung) -> nichts rendern, reservierte Hoehe freigeben.
   if (state.phase === "empty") return null;
 
   const cls = `mod-${id}`;

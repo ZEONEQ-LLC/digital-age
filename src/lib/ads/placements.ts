@@ -22,7 +22,13 @@ export type PlacementGeometry = {
   imageHeight: HeightPair;
   // Katalogformat aus dem Seed (desktop_size / mobile_size). Bild-Kreative
   // muessen dazu passen (G2): Seitenverhaeltnis +-2 %, Breite >= Nennbreite.
-  imageSize: { desktop: Size; mobile?: Size };
+  // Mobile als Liste erlaubter Formate: das erste ist das Katalogformat
+  // (Mediadaten, Reservierung), weitere sind Alternativen, der Kunde waehlt
+  // pro Kampagne (Backlog 23.09.: home_billboard zusaetzlich 300x250).
+  imageSize: { desktop: Size; mobile?: Size[] };
+  // Reservierte Mobile-Hoehe, wenn ein Kreativ im alternativen (hoeheren)
+  // Mobile-Format live ist (getSlotReservation "image-tall").
+  imageHeightMobileAlt?: number;
   // "wide": breite Flaeche, ab 768px horizontal (Text links, CTA rechts).
   // "stacked": Sidebar/Rail, gestapelt und oben ausgerichtet.
   layout: "wide" | "stacked";
@@ -41,22 +47,22 @@ export const BAND_EXTRA = 72;
 
 export const PLACEMENTS: Record<PlacementCode, PlacementGeometry> = {
   home_billboard: {
-    imageSize: { desktop: { w: 970, h: 250 }, mobile: { w: 320, h: 100 } },
-    internalHeight: { desktop: 132, mobile: 150 }, imageHeight: { desktop: 250, mobile: 100 },
+    imageSize: { desktop: { w: 970, h: 250 }, mobile: [{ w: 320, h: 100 }, { w: 300, h: 250 }] },
+    internalHeight: { desktop: 132, mobile: 150 }, imageHeight: { desktop: 250, mobile: 100 }, imageHeightMobileAlt: 250,
     layout: "wide", allowedScopes: ["global"],
   },
   hub_sidebar: {
-    imageSize: { desktop: { w: 300, h: 600 }, mobile: { w: 300, h: 250 } },
+    imageSize: { desktop: { w: 300, h: 600 }, mobile: [{ w: 300, h: 250 }] },
     internalHeight: { desktop: 168, mobile: 150 }, imageHeight: { desktop: 600, mobile: 250 },
     layout: "stacked", allowedScopes: ["global", "ressort"], allowedRessorts: ["ki-business", "future-tech"],
   },
   swiss_ai_sidebar: {
-    imageSize: { desktop: { w: 300, h: 250 }, mobile: { w: 300, h: 250 } },
+    imageSize: { desktop: { w: 300, h: 250 }, mobile: [{ w: 300, h: 250 }] },
     internalHeight: { desktop: 168, mobile: 150 }, imageHeight: { desktop: 250, mobile: 250 },
     layout: "stacked", allowedScopes: ["global", "ressort"], allowedRessorts: ["swiss-ai"],
   },
   article_inline: {
-    imageSize: { desktop: { w: 728, h: 90 }, mobile: { w: 300, h: 250 } },
+    imageSize: { desktop: { w: 728, h: 90 }, mobile: [{ w: 300, h: 250 }] },
     internalHeight: { desktop: 132 + BAND_EXTRA, mobile: 150 + BAND_EXTRA }, imageHeight: { desktop: 90 + BAND_EXTRA, mobile: 250 + BAND_EXTRA },
     layout: "wide", insertAfterBlock: 3, allowedScopes: ["global", "ressort", "article"],
   },
@@ -78,11 +84,26 @@ export function isPlacementCode(code: string): code is PlacementCode {
   return Object.prototype.hasOwnProperty.call(PLACEMENTS, code);
 }
 
-// Erwartetes Bildformat einer Platzierung je Variante; null = liefert in
-// dieser Variante nicht aus (Rails haben kein Mobile).
-export function expectedSize(code: PlacementCode, variant: "desktop" | "mobile"): Size | null {
+// Alle erlaubten Bildformate einer Platzierung je Variante; leer = liefert in
+// dieser Variante nicht aus (Rails haben kein Mobile). Das erste ist das
+// Katalogformat.
+export function expectedSizes(code: PlacementCode, variant: "desktop" | "mobile"): Size[] {
   const g = PLACEMENTS[code];
-  return variant === "mobile" ? g.imageSize.mobile ?? null : g.imageSize.desktop;
+  return variant === "mobile" ? g.imageSize.mobile ?? [] : [g.imageSize.desktop];
+}
+
+// Katalogformat (das erste erlaubte); null = liefert in dieser Variante nicht aus.
+export function expectedSize(code: PlacementCode, variant: "desktop" | "mobile"): Size | null {
+  return expectedSizes(code, variant)[0] ?? null;
+}
+
+// Erstes erlaubtes Format, zu dem die Masse passen; null = passt zu keinem.
+export function matchingExpectedSize(code: PlacementCode, variant: "desktop" | "mobile", w: number, h: number): Size | null {
+  return expectedSizes(code, variant).find((exp) => matchesExpectedSize(w, h, exp)) ?? null;
+}
+
+export function formatSizeList(sizes: Size[]): string {
+  return sizes.map((s) => `${s.w}×${s.h}`).join(" oder ");
 }
 
 // G2: Seitenverhaeltnis innerhalb 2 % des Katalogformats, Breite >= Nennbreite
