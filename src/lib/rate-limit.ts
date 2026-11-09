@@ -20,7 +20,8 @@ export type RateLimitAction =
   | "unsubscribe"
   | "contact"
   | "pitch"
-  | "podcast_ingest";
+  | "podcast_ingest"
+  | "module_event";
 
 type SbClient = SupabaseClient<Database>;
 

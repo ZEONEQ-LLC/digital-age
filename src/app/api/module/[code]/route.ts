@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { parsePeriod, isBookingActive } from "@/lib/ads/types";
 import { signDelivery, verifyDelivery } from "@/lib/ads/deliveryToken";
 import { buildTrackedUrl } from "@/lib/ads/utm";
+import { checkRateLimit, getRequestContext, logAttempt } from "@/lib/rate-limit";
 
 // Oeffentliche Auslieferung eines Platzierungs-Moduls. force-dynamic +
 // Service-Role (RLS-Bypass): Kundendaten/Preise/Laufzeiten sind ueber den
@@ -117,8 +118,17 @@ function respond(creative: CreativeCand, isHouse: boolean, href: string, publicU
 }
 
 // Ereignis-Eingang (J3/J4/J5): immer 204, nie Fehlertext. Reihenfolge:
-// Body-Groesse, Form, Bot-UA, Token, Pfad/Platzierung, dann RPC.
+// Body-Groesse, Form, Bot-UA, Token, IP-Rate-Limit, Pfad/Platzierung, dann RPC.
 const MAX_BODY = 1024;
+
+// IP-Rate-Limit (Backlog 23.09.): ein Skript mit gueltigem Token konnte
+// Impressionen und Klicks innerhalb der 6 h Token-Laufzeit aufblaehen. Fenster
+// pro IP-Hash in newsletter_signup_attempts (action module_event, Hash bleibt
+// hoechstens 24 h). Ein Leser erzeugt pro Seitenaufruf hoechstens sechs
+// Einblendungen plus Klicks; 240/h und 1500/Tag lassen Vielleser durch und
+// stoppen Skripte. Ohne NEWSLETTER_IP_HASH_SALT gilt kein Limit (wie bei den
+// Formularen). Ueber dem Limit: 204 ohne Zaehlung, kein Hinweis nach aussen.
+const EVENT_LIMIT = { perHour: 240, perDay: 1500 };
 
 export async function POST(
   request: Request,
@@ -139,6 +149,11 @@ export async function POST(
     if (!payload) return done();
 
     const supabase = createServiceClient();
+    const { ipHash } = await getRequestContext();
+    const limit = await checkRateLimit(supabase, ipHash, "module_event", EVENT_LIMIT);
+    if (!limit.allowed) return done();
+    await logAttempt(supabase, ipHash, "module_event");
+
     const { data: placement } = await supabase
       .from("ad_placements")
       .select("id")
