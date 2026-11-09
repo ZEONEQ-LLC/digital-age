@@ -1,5 +1,3 @@
-import { Suspense } from "react";
-
 import Footer from "@/components/Footer";
 import SpotlightSection from "@/components/SpotlightSection";
 import TopicListing from "@/components/TopicListing";
@@ -96,10 +94,9 @@ export default async function FutureTechPage() {
         dangerouslySetInnerHTML={{ __html: itemListJsonLd }}
       />
       <SpotlightSection articles={featured} />
-      {/* Suspense wegen useSearchParams in TopicListing — nötig damit
-          die Page static prerendered + via revalidate gecacht werden kann. */}
-      <Suspense fallback={null}>
-        <TopicListing
+      {/* Die Suspense-Grenze fuer useSearchParams liegt in TopicListing um
+          die Liste; Breadcrumb, H1 und Lead stehen im statischen HTML. */}
+      <TopicListing
           topicLabel="Future Tech"
           lead="Technologien von morgen — heute verstehen. GenAI, IoT, Blockchain und die Innovationen, die unsere Welt neu gestalten."
           articles={articles}
@@ -111,8 +108,7 @@ export default async function FutureTechPage() {
           accentColor="purple"
           ressortSlug="future-tech"
           moduleReserve={moduleReserve}
-        />
-      </Suspense>
+      />
       <div style={{ height: "var(--sp-20)" }} />
       <Footer />
     </main>

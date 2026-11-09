@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -62,52 +62,7 @@ export default function TopicListing({
   moduleReserve,
 }: TopicListingProps) {
   const accent = accentVar[accentColor];
-  const [activeCat, setActiveCat] = useState<string>(subcategories[0] ?? "Alle");
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const loaderRef = useRef<HTMLDivElement | null>(null);
-
-  // Author-Filter via URL-Param `?author=<slug>`. Bewusst URL-state statt
-  // React-state: Refresh, Browser-Back/-Forward und shareable Links
-  // funktionieren so out-of-the-box. Server-Component-Topic-Page bleibt
-  // generisch (lädt alle Artikel) — Filtern findet hier client-seitig
-  // statt, weil die Liste klein genug ist (max ~50 Artikel pro Kategorie).
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const authorFilter = searchParams.get("author");
-  const activeAuthor = authorFilter
-    ? authors.find((a) => a.slug === authorFilter) ?? null
-    : null;
-
-  const filtered = useMemo(() => {
-    let out = activeCat === "Alle" ? articles : articles.filter((a) => a.category === activeCat);
-    if (authorFilter) out = out.filter((a) => a.authorSlug === authorFilter);
-    return out;
-  }, [articles, activeCat, authorFilter]);
-  const shown = filtered.slice(0, visibleCount);
-  const progress = filtered.length === 0 ? 100 : Math.min(100, Math.round((visibleCount / filtered.length) * 100));
-
-  const handleCatChange = (cat: string) => {
-    setActiveCat(cat);
-    setVisibleCount(PAGE_SIZE);
-  };
-
-  useEffect(() => {
-    const el = loaderRef.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting && visibleCount < filtered.length) {
-          setVisibleCount((v) => Math.min(v + PAGE_INCREMENT, filtered.length));
-        }
-      },
-      { rootMargin: "200px" }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [visibleCount, filtered.length]);
-
-  const dotColorFor = (cat: string): string => categoryColors[cat] ?? accent;
 
   return (
     <>
@@ -388,6 +343,95 @@ export default function TopicListing({
         </div>
       </section>
 
+      {/* Nur dieser Teil liest useSearchParams (Autor-Filter). Die eigene
+          Suspense-Grenze haelt Breadcrumb, H1 und Lead im statischen HTML
+          (SEO N1: H1 fehlte im SSR, weil die Grenze um die ganze Liste lag). */}
+      <Suspense fallback={null}>
+        <TopicListingBody
+          articles={articles}
+          subcategories={subcategories}
+          categoryColors={categoryColors}
+          trendingTags={trendingTags}
+          authors={authors}
+          topTags={topTags}
+          ressortSlug={ressortSlug}
+          moduleReserve={moduleReserve}
+          accent={accent}
+          sidebarOpen={sidebarOpen}
+        />
+      </Suspense>
+    </>
+  );
+}
+
+type TopicListingBodyProps = Omit<TopicListingProps, "topicLabel" | "lead" | "accentColor" | "categoryColors" | "topTags"> & {
+  categoryColors: Record<string, string>;
+  topTags: TopTagItem[];
+  accent: string;
+  sidebarOpen: boolean;
+};
+
+// Liste, Sidebar und Autor-Filter. Liest useSearchParams und liegt deshalb
+// innerhalb einer Suspense-Grenze (siehe TopicListing).
+function TopicListingBody({
+  articles,
+  subcategories,
+  categoryColors,
+  trendingTags,
+  authors,
+  topTags,
+  ressortSlug,
+  moduleReserve,
+  accent,
+  sidebarOpen,
+}: TopicListingBodyProps) {
+  const [activeCat, setActiveCat] = useState<string>(subcategories[0] ?? "Alle");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const loaderRef = useRef<HTMLDivElement | null>(null);
+
+  // Author-Filter via URL-Param `?author=<slug>`. Bewusst URL-state statt
+  // React-state: Refresh, Browser-Back/-Forward und shareable Links
+  // funktionieren so out-of-the-box. Server-Component-Topic-Page bleibt
+  // generisch (lädt alle Artikel) — Filtern findet hier client-seitig
+  // statt, weil die Liste klein genug ist (max ~50 Artikel pro Kategorie).
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const authorFilter = searchParams.get("author");
+  const activeAuthor = authorFilter
+    ? authors.find((a) => a.slug === authorFilter) ?? null
+    : null;
+
+  const filtered = useMemo(() => {
+    let out = activeCat === "Alle" ? articles : articles.filter((a) => a.category === activeCat);
+    if (authorFilter) out = out.filter((a) => a.authorSlug === authorFilter);
+    return out;
+  }, [articles, activeCat, authorFilter]);
+  const shown = filtered.slice(0, visibleCount);
+  const progress = filtered.length === 0 ? 100 : Math.min(100, Math.round((visibleCount / filtered.length) * 100));
+
+  const handleCatChange = (cat: string) => {
+    setActiveCat(cat);
+    setVisibleCount(PAGE_SIZE);
+  };
+
+  useEffect(() => {
+    const el = loaderRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && visibleCount < filtered.length) {
+          setVisibleCount((v) => Math.min(v + PAGE_INCREMENT, filtered.length));
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [visibleCount, filtered.length]);
+
+  const dotColorFor = (cat: string): string => categoryColors[cat] ?? accent;
+
+  return (
       <div
         className={`tl-grid ${sidebarOpen ? "tl-grid--open" : "tl-grid--closed"}`}
         style={{ ["--accent" as string]: accent }}
@@ -537,6 +581,5 @@ export default function TopicListing({
           </div>
         </div>
       </div>
-    </>
   );
 }
