@@ -1816,6 +1816,30 @@ npx tsx migration/migrate-wp-images.ts   # interaktive JA-Bestätigung
 Erste Live-Migration: 91 Bilder migriert, 7 skip-existing, 1 failed
 (AVIF, Original-URL bleibt). 42 von 51 Artikeln aktualisiert.
 
+### Editor: Lektionen aus PRs 103, 104 und dem Roundtrip-Guard
+
+- **Tiptap-Paste frisst Zeilenumbrüche (PR 103).** Features mit rohem Markdown
+  oder Klartext dürfen nie über den Tiptap-Paste-Pfad laufen: ProseMirror nimmt
+  den HTML-Zweig und kollabiert `\n` zu Whitespace. Lösung ist immer ein
+  natives `<textarea>` als Eingabequelle, danach Konvertierung über
+  `markdownToBlocks`/`blocksToTiptap`.
+- **Body-Text für AI-Input über `stripAllMarkup` (PR 104).** Bevor Text an die
+  AI geht, müssen `[^N]`, `{{g}}`-Marker und ähnliche Tokens raus
+  (`stripAllMarkup` in `src/lib/`), sonst landen sie im Output. Gilt für alle
+  AI-Tasks, auch Hero Studio (Klartext des Body aus dem Editor-State).
+- **Guard-Grenze.** Der Self-Fixpoint-Guard (`roundtripGuard.ts`) prüft nur,
+  ob Blocks → Tiptap → Blocks wieder dasselbe ergibt. Einen Verlust, der schon
+  auf dem Weg Editor → `getJSON()` passiert (idempotente Verluste), kann er
+  nicht sehen. Unbekannte Inline-Nodes werden also nicht gemeldet, sondern
+  verschwinden still.
+- **Globaler `.tiptap-popover`-Selektor.** Liegt app-weit in
+  `src/components/author/tiptap/tiptap-editor.css` (nicht unter
+  `.da-tiptap-editor` gescoped), weil Popover in ein Portal rendern.
+- **Zeilenumbruch.** `hardBreak` ↔ `\n` ist in `blocksToTiptap` symmetrisch,
+  Shift-Enter und der Toolbar-Knopf «Zeilenumbruch» (`LineBreakButton`, für
+  das iPad) überleben Speichern und Neuladen. Caret-Farbe der Editor-Zonen:
+  `--tt-cursor-color` in `tiptap-editor.css` (grün statt Vendor-Violett).
+
 ## Sicherheit
 
 - Service-Role-Key NIEMALS client-seitig
