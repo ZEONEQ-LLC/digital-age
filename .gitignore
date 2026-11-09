@@ -170,6 +170,8 @@ migration/Artikel als MD.md
 migration/swiss_ai_startups update.json
 migration/extract_logos.py
 migration/responsive/
+migration/Wordpress-MD-Artikel/
+migration/export-articles-to-md.ts
 src/images/digital-age-og-fallback.jpg
 
 # Backfill-Skript-Ausgabe (User-lokal, kann generierte Abstracts enthalten)
