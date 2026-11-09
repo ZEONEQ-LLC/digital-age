@@ -5,7 +5,7 @@ import { imageSize } from "image-size";
 import { requireEditor } from "@/lib/ads/editorGate";
 import { isModuleImagePath } from "@/lib/ads/imagePath";
 import { MODULE_IMAGE_MAX_BYTES, MODULE_IMAGE_MIME_EXT } from "@/lib/ads/imageSpec";
-import { expectedSize, isPlacementCode, matchesExpectedSize } from "@/lib/ads/placements";
+import { expectedSizes, formatSizeList, isPlacementCode, matchingExpectedSize } from "@/lib/ads/placements";
 
 // Upload von Bild-Kreativen (G2/G4). Server Action mit FormData und ssr-Client
 // (Muster storageActions.uploadArticleImage). Keine client-seitige Kompression:
@@ -38,8 +38,8 @@ export async function uploadCreativeImage(
     if (!ext) return { ok: false, error: "Nur JPG, PNG, WebP oder GIF erlaubt." };
     if (file.size > MAX_BYTES) return { ok: false, error: "Datei zu gross (max 2 MB)." };
 
-    const exp = expectedSize(placementCode, variant);
-    if (!exp) return { ok: false, error: "Diese Platzierung liefert in dieser Variante nicht aus." };
+    const allowed = expectedSizes(placementCode, variant);
+    if (allowed.length === 0) return { ok: false, error: "Diese Platzierung liefert in dieser Variante nicht aus." };
 
     const buf = Buffer.from(await file.arrayBuffer());
     let dims: { width?: number; height?: number };
@@ -50,8 +50,8 @@ export async function uploadCreativeImage(
     }
     const w = dims.width ?? 0;
     const h = dims.height ?? 0;
-    if (!matchesExpectedSize(w, h, exp)) {
-      return { ok: false, error: `Motiv hat ${w}×${h}, erwartet ${exp.w}×${exp.h} (oder ein Vielfaches).` };
+    if (!matchingExpectedSize(placementCode, variant, w, h)) {
+      return { ok: false, error: `Motiv hat ${w}×${h}, erwartet ${formatSizeList(allowed)} (oder ein Vielfaches).` };
     }
 
     const path = `${campaignId}/${randomBytes(12).toString("hex")}.${ext}`;

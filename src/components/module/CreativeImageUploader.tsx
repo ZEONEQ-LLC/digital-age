@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { deleteCreativeImage, uploadCreativeImage } from "@/lib/ads/imageActions";
 import { moduleImageUrl } from "@/lib/ads/imagePath";
-import { expectedSize, type PlacementCode } from "@/lib/ads/placements";
+import { expectedSizes, type PlacementCode } from "@/lib/ads/placements";
 
 // Upload-Feld fuer Bild-Kreative (Admin). Drag-and-drop-UI und Zustands-
 // maschine aus editor/ImageUploader.tsx uebernommen, ohne Kompression (G4):
@@ -29,9 +29,10 @@ const MAX_BYTES = 2 * 1024 * 1024;
 
 export function formatHint(placementCode: PlacementCode | null, variant: "desktop" | "mobile"): string {
   if (!placementCode) return "Zuerst Platzierung wählen.";
-  const exp = expectedSize(placementCode, variant);
-  if (!exp) return "Diese Platzierung liefert in dieser Variante nicht aus.";
-  return `${exp.w} × ${exp.h} px (oder ${exp.w * 2} × ${exp.h * 2} für Retina), max 2 MB, JPG/PNG/WebP/GIF`;
+  const sizes = expectedSizes(placementCode, variant);
+  if (sizes.length === 0) return "Diese Platzierung liefert in dieser Variante nicht aus.";
+  const list = sizes.map((exp) => `${exp.w} × ${exp.h}`).join(" oder ");
+  return `${list} px (oder doppelt für Retina), max 2 MB, JPG/PNG/WebP/GIF`;
 }
 
 export default function CreativeImageUploader({ campaignId, variant, placementCode, value, onChange }: Props) {

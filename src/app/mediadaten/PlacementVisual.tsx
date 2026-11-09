@@ -266,7 +266,7 @@ export function PlacementMobileMotif({ code }: { code: PlacementCode }) {
     case "home_billboard":
       return (
         <div className="md-motif">
-          <MdFrame example="mobile" mark width={`min(100%, ${PLACEMENTS.home_billboard.imageSize.mobile?.w ?? 320}px)`} alt="Mobile-Motiv von handyabo.com" />
+          <MdFrame example="mobile" mark width={`min(100%, ${PLACEMENTS.home_billboard.imageSize.mobile?.[0]?.w ?? 320}px)`} alt="Mobile-Motiv von handyabo.com" />
         </div>
       );
     case "hub_sidebar":

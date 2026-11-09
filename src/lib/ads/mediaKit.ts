@@ -2,7 +2,7 @@
 // Masse kommen aus PLACEMENTS (placements.ts), Upload-Grenzen aus
 // imageSpec.ts, Farbwelten aus creativeTheme.ts — hier nichts doppelt.
 import {
-  ASPECT_TOLERANCE, PLACEMENTS, expectedSize, type PlacementCode, type Size,
+  ASPECT_TOLERANCE, PLACEMENTS, expectedSize, expectedSizes, type PlacementCode, type Size,
 } from "@/lib/ads/placements";
 import { CREATIVE_THEMES, type CreativeTheme } from "@/lib/ads/creativeTheme";
 import { MODULE_IMAGE_MAX_BYTES, MODULE_IMAGE_MIME_EXT } from "@/lib/ads/imageSpec";
@@ -84,9 +84,10 @@ export const MEDIA_PLACEMENTS: MediaPlacement[] = [
   },
 ];
 
-export function placementFormat(p: MediaPlacement): { desktop: Size; mobile: Size | null } {
+export function placementFormat(p: MediaPlacement): { desktop: Size; mobile: Size | null; mobileAlt: Size[] } {
   const code = p.codes[0];
-  return { desktop: expectedSize(code, "desktop") as Size, mobile: expectedSize(code, "mobile") };
+  const mobile = expectedSizes(code, "mobile");
+  return { desktop: expectedSize(code, "desktop") as Size, mobile: mobile[0] ?? null, mobileAlt: mobile.slice(1) };
 }
 
 export function fileSize(s: Size): Size {

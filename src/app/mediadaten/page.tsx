@@ -89,8 +89,12 @@ function SpecRows({ p }: { p: MediaPlacement }) {
           {f.mobile ? (
             <>
               {formatSize(f.mobile)}{"\u00a0"}px
+              {f.mobileAlt.map((alt) => (
+                <span key={`${alt.w}x${alt.h}`}> oder {formatSize(alt)}{"\u00a0"}px</span>
+              ))}
               <span className="md-spec__sub">
                 {sameSize(f.desktop, f.mobile) ? "dasselbe Motiv möglich" : `Datei ${formatSize(fileSize(f.mobile))}`}
+                {f.mobileAlt.length > 0 ? ", Format wählen Sie pro Kampagne" : ""}
               </span>
             </>
           ) : "wird nicht ausgespielt"}

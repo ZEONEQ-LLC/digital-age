@@ -11,6 +11,8 @@ import { startupToCardVM } from "@/lib/mappers/startupMappers";
 import StartupsBrowser from "./StartupsBrowser";
 import { buildListingMetadata } from "@/lib/listingMetadata";
 import { getSlotReservation } from "@/lib/ads/slotReservation";
+import { buildItemListJsonLd } from "@/lib/jsonLd";
+import { getBaseUrl } from "@/lib/siteUrl";
 
 export const revalidate = 300;
 
@@ -40,9 +42,16 @@ export default async function SwissAIPage() {
 
   const moduleReserve = await getSlotReservation("swiss_ai_sidebar");
 
+  // SEO N4: ItemList wie auf den anderen Listings (/ki-im-business, /tag).
+  const baseUrl = getBaseUrl();
+  const itemListJsonLd = buildItemListJsonLd({
+    name: "Swiss AI — Schweizer KI-Unternehmen",
+    items: all.map((s) => ({ url: `${baseUrl}/swiss-ai/${s.slug}`, name: s.name })),
+  });
+
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: itemListJsonLd }} />
 
       <style>{`
         .sa-hero {

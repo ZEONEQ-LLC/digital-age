@@ -10,7 +10,8 @@ import AuthorBox from "@/components/AuthorBox";
 import ArticleBody from "@/components/ArticleBody";
 import ArticleSection from "@/components/ArticleSection";
 import BlockReader from "@/components/BlockReader";
-import { getSlotReservation } from "@/lib/ads/slotReservation";
+import { getSlotReservation, type SlotReservation } from "@/lib/ads/slotReservation";
+import HtmlLang from "@/components/HtmlLang";
 import InlineText from "@/components/InlineText";
 import NewsletterSignup from "@/components/NewsletterSignup";
 import ReadingProgress from "@/components/ReadingProgress";
@@ -271,7 +272,7 @@ export default async function ArticlePage({ params }: PageProps) {
   return <ArticleView article={article} moduleReserve={moduleReserve} />;
 }
 
-async function ArticleView({ article, moduleReserve }: { article: ArticleWithFullRelations; moduleReserve: "image" | "internal" }) {
+async function ArticleView({ article, moduleReserve }: { article: ArticleWithFullRelations; moduleReserve: SlotReservation }) {
   const author = article.author!;
   const isExternal = author.role === "external";
   const subcategory = article.subcategory ?? article.category?.name_de ?? "";
@@ -289,6 +290,9 @@ async function ArticleView({ article, moduleReserve }: { article: ArticleWithFul
     doc,
   });
   const speechLang = resolveSpeechLang(article.locale);
+  // SEO N2: <html lang> ist im Root-Layout "de". Englische Artikel markieren
+  // ihren Inhalt am <article> und setzen das Dokument-lang im Client nach.
+  const htmlLang = article.locale === "en" ? "en" : "de";
   const authorHandle = author.handle ?? author.slug;
 
   // Verknuepfte Podcasts (fuers "Podcast zum Beitrag" direkt unter dem Header).
@@ -510,9 +514,10 @@ async function ArticleView({ article, moduleReserve }: { article: ArticleWithFul
       </div>
 
       <LinkedPodcastsSection podcasts={linkedPodcasts} />
+      {htmlLang !== "de" && <HtmlLang lang={htmlLang} />}
 
       <ArticleBodyGrid hasToc={tocItems.length > 0}>
-        <article>
+        <article lang={htmlLang}>
           <ArticleBody>
             <BlockReader doc={doc} articleSlug={article.slug} ressortSlug={categorySlug} moduleReserve={moduleReserve} locale={article.locale} />
           </ArticleBody>
