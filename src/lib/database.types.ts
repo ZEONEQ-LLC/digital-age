@@ -486,6 +486,99 @@ export type Database = {
           },
         ]
       }
+      ai_model_catalog: {
+        Row: {
+          checked_at: string | null
+          created_at: string
+          input_usd_per_mtok: number | null
+          input_usd_per_mtok_long: number | null
+          label: string
+          long_prompt_threshold: number | null
+          model_class: string
+          model_id: string
+          output_usd_per_mtok: number | null
+          output_usd_per_mtok_long: number | null
+          released_at: string | null
+          replacement_model_id: string | null
+          retirement_date: string | null
+          seen_in_api_at: string | null
+          source: string
+          status: string
+          updated_at: string
+          vision: boolean | null
+        }
+        Insert: {
+          checked_at?: string | null
+          created_at?: string
+          input_usd_per_mtok?: number | null
+          input_usd_per_mtok_long?: number | null
+          label?: string
+          long_prompt_threshold?: number | null
+          model_class?: string
+          model_id: string
+          output_usd_per_mtok?: number | null
+          output_usd_per_mtok_long?: number | null
+          released_at?: string | null
+          replacement_model_id?: string | null
+          retirement_date?: string | null
+          seen_in_api_at?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          vision?: boolean | null
+        }
+        Update: {
+          checked_at?: string | null
+          created_at?: string
+          input_usd_per_mtok?: number | null
+          input_usd_per_mtok_long?: number | null
+          label?: string
+          long_prompt_threshold?: number | null
+          model_class?: string
+          model_id?: string
+          output_usd_per_mtok?: number | null
+          output_usd_per_mtok_long?: number | null
+          released_at?: string | null
+          replacement_model_id?: string | null
+          retirement_date?: string | null
+          seen_in_api_at?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          vision?: boolean | null
+        }
+        Relationships: []
+      }
+      ai_model_check_runs: {
+        Row: {
+          errors: Json
+          id: string
+          items: Json
+          models_seen: string[]
+          notified: boolean
+          ran_at: string
+          trigger: string
+        }
+        Insert: {
+          errors?: Json
+          id?: string
+          items?: Json
+          models_seen?: string[]
+          notified?: boolean
+          ran_at?: string
+          trigger: string
+        }
+        Update: {
+          errors?: Json
+          id?: string
+          items?: Json
+          models_seen?: string[]
+          notified?: boolean
+          ran_at?: string
+          trigger?: string
+        }
+        Relationships: []
+      }
       ai_prompts: {
         Row: {
           author_id: string | null

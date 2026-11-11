@@ -5,10 +5,11 @@
 // (src/lib/ai/config.ts) und der Provider (src/lib/ai/providers/anthropic.ts)
 // reichen den String ungeprüft an `messages.create({ model, … })` weiter.
 //
-// **Pflege:** neues Modell = eine Zeile hier. Bewusst keine DB-Tabelle —
-// Anthropic-Modelle kommen wenige Male im Jahr neu, eine eigene Pflege-
-// Tabelle wäre Over-Engineering. Code-Review der einen Zeile ist klarer
-// als ein Migration-/Editor-UI-Roundtrip.
+// **Pflege:** neues Modell = eine Zeile hier. Die Auswahl bleibt bewusst im
+// Code (Review der einen Zeile statt Editor-UI). Preise, Status und
+// Abschaltdaten stehen seit PR 192 im Katalog `ai_model_catalog`; der
+// Modell-Check (/autor/admin/ai-config/modell-check) meldet neue Modelle aus
+// der Models API und schlaegt nur Modelle aus dieser Liste vor.
 //
 // Beim Entfernen einer ID: Bestandsdaten in ai_config per Migration auf
 // den Nachfolger mappen (Muster: supabase/migrations/*_ai_config_model_ids_*).

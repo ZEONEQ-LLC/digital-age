@@ -1,3 +1,4 @@
+import Link from "next/link";
 import PageTitle from "@/components/author/PageTitle";
 import { createClient } from "@/lib/supabase/server";
 import type { AiTask } from "@/lib/ai/types";
@@ -6,6 +7,7 @@ import {
   EDITABLE_DEFAULT_STRATEGIES,
   type EditablePromptId,
 } from "@/lib/ai/promptRegistry";
+import { TASK_LABELS } from "@/lib/ai/taskLabels";
 import AiConfigClient from "./AiConfigClient";
 
 // Editierbare Strategie-Prompts (Prompt-ID → UI-Label). Placeholder = der
@@ -17,23 +19,6 @@ const PROMPT_LABELS: Record<EditablePromptId, string> = {
   abstract_generate: "Abstract generieren",
   highlight_suggestions: "Highlight-Vorschläge",
   image_alt: "Bild-ALT-Texte",
-  hero_proposals: "Hero Studio — Vorschläge",
-  social_posts: "Hero Studio — Posttexte",
-};
-
-// Labels aller Tasks (volle AiTask-Breite, AI_TASKS in types.ts).
-const TASK_LABELS: Record<AiTask, string> = {
-  title_variants: "Titel-Varianten",
-  tone_check: "Stil & Tonalität prüfen",
-  summary: "Zusammenfassung",
-  closing_paragraph: "Schluss-Absatz",
-  seo_pipeline: "SEO-Pipeline (Master)",
-  seo_review: "SEO-Verbesserungsvorschläge",
-  news_item_generation: "News-Ticker Item-Generation",
-  abstract_generate: "Abstract generieren",
-  highlight_suggestions: "Highlight-Vorschläge",
-  image_alt: "Bild-ALT-Texte",
-  podcast_ingest: "Podcast-Empfehlung per Teilen",
   hero_proposals: "Hero Studio — Vorschläge",
   social_posts: "Hero Studio — Posttexte",
 };
@@ -119,6 +104,23 @@ export default async function AiConfigPage() {
       <PageTitle
         title="AI-Konfiguration"
         subtitle="Systemprompt, Standard-Modell, Modell pro Aufgabe und Task-Prompts. Änderungen wirken sofort, kein Redeploy nötig. Das Modell für den News-Ticker wählst du unter News-Ticker."
+        right={
+          <Link
+            href="/autor/admin/ai-config/modell-check"
+            style={{
+              color: "var(--da-green)",
+              border: "1px solid var(--da-green)",
+              borderRadius: 4,
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 700,
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Modell-Check: Kosten und Empfehlungen →
+          </Link>
+        }
       />
       <AiConfigClient
         initialSystemPrompt={initialSystemPrompt}
