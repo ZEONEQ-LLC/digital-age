@@ -5,23 +5,15 @@ import { createClient } from "@/lib/supabase/server";
 import { sendInviteMail } from "@/lib/newsletter/mail";
 import type { Database } from "@/lib/database.types";
 import { authorSlugFromName, escapeIlike } from "@/lib/authorSlug";
+import { FormError, actionFailure, runAction, type ActionResult } from "@/lib/actionResult";
 
 type InviteRow = Database["public"]["Tables"]["invites"]["Row"];
 type AuthorRow = Database["public"]["Tables"]["authors"]["Row"];
 type IntendedRole = "author" | "editor";
 
-// Erwartete Fehler (Validierung, E-Mail schon vergeben). In der Produktion
-// ersetzt Next.js den Text geworfener Fehler einer Server Action durch eine
-// generische Meldung; die Formular-Actions geben sie deshalb als Wert zurueck.
-class FormError extends Error {}
-
-export type AuthorFormResult<T> = { ok: true; value: T } | { ok: false; error: string };
-
-function formFailure(e: unknown): { ok: false; error: string } {
-  if (e instanceof FormError) return { ok: false, error: e.message };
-  console.error("[invite] unexpected failure:", e);
-  return { ok: false, error: "Das hat nicht geklappt. Bitte nochmals versuchen." };
-}
+// Erwartete Fehler (Validierung, E-Mail schon vergeben) kommen als Wert
+// zurueck, Muster und Begruendung in src/lib/actionResult.ts.
+export type AuthorFormResult<T> = ActionResult<T>;
 
 const DUPLICATE_AUTHOR_EMAIL = "Es existiert bereits ein Autor mit dieser E-Mail.";
 
@@ -221,7 +213,7 @@ export async function createAuthorWithInvite(input: {
     revalidateAdminPaths();
     return { ok: true, value: { author, invite, mailSent } };
   } catch (e) {
-    return formFailure(e);
+    return actionFailure(e, "invite");
   }
 }
 
@@ -246,7 +238,7 @@ export async function createAuthorPlaceholder(input: {
     revalidateAdminPaths();
     return { ok: true, value: author };
   } catch (e) {
-    return formFailure(e);
+    return actionFailure(e, "invite");
   }
 }
 
@@ -288,7 +280,11 @@ export async function inviteAuthorFromPitch(authorId: string): Promise<PitchInvi
   return mailSent ? "sent" : "mail_failed";
 }
 
-export async function revokeInvite(id: string): Promise<void> {
+export async function revokeInvite(id: string): Promise<ActionResult<void>> {
+  return runAction("revokeInvite", () => revokeInviteInner(id));
+}
+
+async function revokeInviteInner(id: string): Promise<void> {
   await requireEditor();
   const supabase = await createClient();
   const { error } = await supabase
@@ -300,7 +296,11 @@ export async function revokeInvite(id: string): Promise<void> {
   revalidateAdminPaths();
 }
 
-export async function resendInvite(id: string): Promise<InviteRow & { mailSent: boolean }> {
+export async function resendInvite(id: string): Promise<ActionResult<InviteRow & { mailSent: boolean }>> {
+  return runAction("resendInvite", () => resendInviteInner(id));
+}
+
+async function resendInviteInner(id: string): Promise<InviteRow & { mailSent: boolean }> {
   await requireEditor();
   const supabase = await createClient();
 
@@ -310,11 +310,11 @@ export async function resendInvite(id: string): Promise<InviteRow & { mailSent: 
     .eq("id", id)
     .maybeSingle();
   if (readErr) throw readErr;
-  if (!existing) throw new Error("Einladung nicht gefunden.");
+  if (!existing) throw new FormError("Einladung nicht gefunden.");
 
   const createdAuthor = (existing as unknown as { created_author: { user_id: string | null } | null }).created_author;
   if (existing.accepted_at && createdAuthor?.user_id) {
-    throw new Error("Einladung wurde bereits eingelöst — der Author ist aktiv und kann nicht erneut eingeladen werden.");
+    throw new FormError("Einladung wurde bereits eingelöst — der Author ist aktiv und kann nicht erneut eingeladen werden.");
   }
 
   const newExpiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
@@ -339,6 +339,12 @@ export async function resendInvite(id: string): Promise<InviteRow & { mailSent: 
 
 export async function generateInviteForExistingPlaceholder(
   authorId: string,
+): Promise<ActionResult<InviteRow & { mailSent: boolean }>> {
+  return runAction("generateInviteForExistingPlaceholder", () => generateInviteForExistingPlaceholderInner(authorId));
+}
+
+async function generateInviteForExistingPlaceholderInner(
+  authorId: string,
 ): Promise<InviteRow & { mailSent: boolean }> {
   const me = await requireEditor();
   const supabase = await createClient();
@@ -349,10 +355,10 @@ export async function generateInviteForExistingPlaceholder(
     .eq("id", authorId)
     .maybeSingle();
   if (readErr) throw readErr;
-  if (!author) throw new Error("Author nicht gefunden.");
-  if (author.user_id) throw new Error("Author ist bereits aktiv — keine Einladung mehr nötig.");
+  if (!author) throw new FormError("Author nicht gefunden.");
+  if (author.user_id) throw new FormError("Author ist bereits aktiv — keine Einladung mehr nötig.");
   if (author.role !== "author" && author.role !== "editor") {
-    throw new Error("Externe Authors können nicht eingeladen werden (Rolle muss author oder editor sein).");
+    throw new FormError("Externe Authors können nicht eingeladen werden (Rolle muss author oder editor sein).");
   }
 
   const { data: existingActive } = await supabase
@@ -364,7 +370,7 @@ export async function generateInviteForExistingPlaceholder(
     .gt("expires_at", new Date().toISOString())
     .maybeSingle();
   if (existingActive) {
-    throw new Error("Für diese E-Mail existiert bereits eine aktive Einladung.");
+    throw new FormError("Für diese E-Mail existiert bereits eine aktive Einladung.");
   }
 
   const invite = await insertInvite({

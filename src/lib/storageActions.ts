@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { FormError, runAction, type ActionResult } from "@/lib/actionResult";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp"];
@@ -21,37 +22,44 @@ const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp"];
 export async function uploadAvatar(
   authorId: string,
   formData: FormData,
+): Promise<ActionResult<{ url: string }>> {
+  return runAction("uploadAvatar", () => uploadAvatarInner(authorId, formData));
+}
+
+async function uploadAvatarInner(
+  authorId: string,
+  formData: FormData,
 ): Promise<{ url: string }> {
   const file = formData.get("file");
-  if (!(file instanceof File)) throw new Error("Keine Datei übermittelt.");
-  if (file.size > MAX_BYTES) throw new Error("Datei zu gross (max 2 MB).");
+  if (!(file instanceof File)) throw new FormError("Keine Datei übermittelt.");
+  if (file.size > MAX_BYTES) throw new FormError("Datei zu gross (max 2 MB).");
   if (!ALLOWED_MIMES.includes(file.type)) {
-    throw new Error("Nur JPEG, PNG oder WebP erlaubt.");
+    throw new FormError("Nur JPEG, PNG oder WebP erlaubt.");
   }
 
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht eingeloggt.");
+  if (!user) throw new FormError("Nicht eingeloggt.");
 
   const { data: target } = await supabase
     .from("authors")
     .select("id, avatar_url, handle")
     .eq("id", authorId)
     .maybeSingle();
-  if (!target) throw new Error("Author nicht gefunden.");
+  if (!target) throw new FormError("Author nicht gefunden.");
 
   const { data: me } = await supabase
     .from("authors")
     .select("id, role")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!me) throw new Error("Aktueller Author nicht gefunden.");
+  if (!me) throw new FormError("Aktueller Author nicht gefunden.");
 
   const isOwn = me.id === target.id;
   const isEditor = me.role === "editor";
   if (!isOwn && !isEditor) {
-    throw new Error("Keine Berechtigung für dieses Avatar.");
+    throw new FormError("Keine Berechtigung für dieses Avatar.");
   }
 
   const ext = (file.name.split(".").pop() ?? "jpg").toLowerCase();
@@ -62,7 +70,8 @@ export async function uploadAvatar(
     .from("avatars")
     .upload(path, file, { cacheControl: "3600", upsert: false });
   if (uploadErr) {
-    throw new Error(`Upload fehlgeschlagen: ${uploadErr.message}`);
+    console.error("[storage] avatar upload failed:", uploadErr);
+    throw new FormError("Upload fehlgeschlagen. Bitte nochmals versuchen.");
   }
 
   // Object-Endpoint statt Render-Endpoint: Image-Transformation-API ist ein
@@ -77,7 +86,7 @@ export async function uploadAvatar(
     .eq("id", authorId);
   if (updateErr) {
     await supabase.storage.from("avatars").remove([path]);
-    throw new Error(`DB-Update fehlgeschlagen: ${updateErr.message}`);
+    throw updateErr;
   }
 
   // Cleanup: altes File im Bucket entfernen, falls vorhanden.
@@ -136,14 +145,14 @@ async function requireArticleAccess(
   articleId: string,
 ): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht eingeloggt.");
+  if (!user) throw new FormError("Nicht eingeloggt.");
 
   const { data: me } = await supabase
     .from("authors")
     .select("id, role")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!me) throw new Error("Author-Profil nicht gefunden.");
+  if (!me) throw new FormError("Author-Profil nicht gefunden.");
 
   if (me.role === "editor") return;
 
@@ -152,10 +161,10 @@ async function requireArticleAccess(
     .select("author_id")
     .eq("id", articleId)
     .maybeSingle();
-  if (!article) throw new Error("Artikel nicht gefunden.");
+  if (!article) throw new FormError("Artikel nicht gefunden.");
 
   if (article.author_id !== me.id) {
-    throw new Error("Keine Berechtigung für dieses Artikel-Bild.");
+    throw new FormError("Keine Berechtigung für dieses Artikel-Bild.");
   }
 }
 
@@ -171,14 +180,21 @@ async function requireArticleAccess(
 export async function uploadArticleImage(
   articleId: string,
   formData: FormData,
+): Promise<ActionResult<{ url: string; path: string }>> {
+  return runAction("uploadArticleImage", () => uploadArticleImageInner(articleId, formData));
+}
+
+async function uploadArticleImageInner(
+  articleId: string,
+  formData: FormData,
 ): Promise<{ url: string; path: string }> {
   const file = formData.get("file");
-  if (!(file instanceof File)) throw new Error("Keine Datei übermittelt.");
+  if (!(file instanceof File)) throw new FormError("Keine Datei übermittelt.");
   if (file.size > ARTICLE_MAX_BYTES) {
-    throw new Error("Datei zu gross (max 5 MB).");
+    throw new FormError("Datei zu gross (max 5 MB).");
   }
   if (!ARTICLE_ALLOWED_MIMES.includes(file.type)) {
-    throw new Error("Nur JPEG, PNG, WebP oder GIF erlaubt.");
+    throw new FormError("Nur JPEG, PNG, WebP oder GIF erlaubt.");
   }
 
   const supabase = await createClient();
@@ -194,7 +210,8 @@ export async function uploadArticleImage(
     .from("articles")
     .upload(path, file, { cacheControl: "3600", upsert: false });
   if (uploadErr) {
-    throw new Error(`Upload fehlgeschlagen: ${uploadErr.message}`);
+    console.error("[storage] article image upload failed:", uploadErr);
+    throw new FormError("Upload fehlgeschlagen. Bitte nochmals versuchen.");
   }
 
   const { data: urlData } = supabase.storage

@@ -58,6 +58,7 @@ import {
   submitForReview,
   type ArticlePatch,
 } from "@/lib/authorActions";
+import { unwrapAction } from "@/lib/actionResult";
 import { validatePublishGate } from "@/lib/publishGate";
 import type { SuiteArticle, RevisionWithEditor, ArticleStatus } from "@/lib/authorApi";
 import { markdownToBlocks } from "@/lib/markdownBlocks";
@@ -978,7 +979,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       cover_recipe: recipeToJson(input.recipe),
     };
     try {
-      const updated = await saveArticle(article.id, patch);
+      const updated = unwrapAction(await saveArticle(article.id, patch));
       applySavedSlug(patch, updated);
       setStatus(updated.status);
       setSavedAt("Gespeichert (Hero Studio)");
@@ -1045,7 +1046,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     startTransition(async () => {
       try {
         const patch = buildPatchUnchecked(finalDoc, finalExcerpt);
-        const updated = await saveArticle(article.id, patch);
+        const updated = unwrapAction(await saveArticle(article.id, patch));
         applySavedSlug(patch, updated);
         setStatus(updated.status);
         setSavedAt("Gespeichert");
@@ -1067,11 +1068,11 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     const { finalDoc, finalExcerpt } = prepared;
     startTransition(async () => {
       try {
-        await saveArticle(article.id, buildPatchUnchecked(finalDoc, finalExcerpt));
+        unwrapAction(await saveArticle(article.id, buildPatchUnchecked(finalDoc, finalExcerpt)));
         setDirty(false);
         setPendingCopilotReport(null);
         await cleanupAfterSave(coverRecipe, cover);
-        const next = await submitForReview(article.id);
+        const next = unwrapAction(await submitForReview(article.id));
         setStatus(next.status);
         router.push("/autor/artikel");
       } catch (e) {
@@ -1113,10 +1114,10 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     startTransition(async () => {
       try {
         const patch = buildPatchUnchecked(finalDoc, finalExcerpt);
-        const updated = await saveArticle(article.id, patch);
+        const updated = unwrapAction(await saveArticle(article.id, patch));
         applySavedSlug(patch, updated);
         setPendingCopilotReport(null);
-        const next = await publishArticle(article.id);
+        const next = unwrapAction(await publishArticle(article.id));
         setStatus(next.status);
         setSavedAt("Publiziert");
         setDirty(false);
@@ -1134,7 +1135,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     setError(null);
     startTransition(async () => {
       try {
-        const next = await archiveArticle(article.id);
+        const next = unwrapAction(await archiveArticle(article.id));
         setStatus(next.status);
         router.refresh();
       } catch (e) {
@@ -1372,7 +1373,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         copilot_last_run: report as unknown as Json,
       };
       try {
-        const updated = await saveArticle(article.id, patch);
+        const updated = unwrapAction(await saveArticle(article.id, patch));
         applySavedSlug(patch, updated);
         setStatus(updated.status);
         setSavedAt("Gespeichert (Co-Pilot)");
@@ -1449,7 +1450,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     setError(null);
     startTransition(async () => {
       try {
-        await deleteArticle(article.id);
+        unwrapAction(await deleteArticle(article.id));
         router.push("/autor/artikel");
       } catch (e) {
         setError(e instanceof Error ? e.message : "Löschen fehlgeschlagen.");

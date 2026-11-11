@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRef, useState, useTransition } from "react";
 import { uploadAvatar } from "@/lib/storageActions";
+import { unwrapAction } from "@/lib/actionResult";
 
 // Avatar-Upload-Block — wiederverwendbar für Self-Edit (ProfileEditor) und
 // Editor-Edit (EditAuthorDrawer). Server-Action `uploadAvatar` prüft die
@@ -84,7 +85,7 @@ export default function AvatarUploadBlock({
         const resized = new File([blob], "avatar.jpg", { type: "image/jpeg" });
         const form = new FormData();
         form.append("file", resized);
-        const { url } = await uploadAvatar(authorId, form);
+        const { url } = unwrapAction(await uploadAvatar(authorId, form));
         // Cache-Bust damit Browser-Cache nicht das alte Bild zeigt
         const busted = `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`;
         setAvatarUrl(busted);

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRef, useState } from "react";
 import imageCompression from "browser-image-compression";
 import { uploadArticleImage } from "@/lib/storageActions";
+import { unwrapAction } from "@/lib/actionResult";
 
 const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -73,7 +74,7 @@ export default function ImageUploader({
       // Supabase JS-Client v2 hat kein eingebautes Progress-Event. Wir zeigen
       // einen indeterminierten Progress (50%) während der Upload läuft.
       setState({ kind: "uploading", progress: 50 });
-      const { url } = await uploadArticleImage(articleId, formData);
+      const { url } = unwrapAction(await uploadArticleImage(articleId, formData));
 
       // Das bisherige Bild bleibt im Storage: Der Artikel ist noch nicht
       // gespeichert, die Live-Seite zeigt weiter das alte Bild. Was weg darf,

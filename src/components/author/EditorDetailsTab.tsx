@@ -6,6 +6,7 @@ import FeaturedImageBox, { type CoverMetadata, type HeroStudioStatus } from "./F
 import MonoCaption from "./MonoCaption";
 import TagInput from "./TagInput";
 import { updateArticleAuthor, updateFeaturedStatus } from "@/lib/authorAdminActions";
+import { unwrapAction } from "@/lib/actionResult";
 
 // Details-Tab — sammelt alle Artikel-Setup-Felder, die frueher in der
 // rechten Sidebar bzw. der Meta-Row im Content-Tab verteilt waren:
@@ -167,7 +168,7 @@ export default function EditorDetailsTab({
     onAuthorAssigned?.(newId);
     startAuthorTransition(async () => {
       try {
-        await updateArticleAuthor(articleId, newId);
+        unwrapAction(await updateArticleAuthor(articleId, newId));
         setAuthorToast("Author geändert");
         setTimeout(() => setAuthorToast(null), 2500);
       } catch (e) {
