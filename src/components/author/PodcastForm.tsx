@@ -18,6 +18,7 @@ import {
 } from "@/lib/podcast/format";
 import type { PodcastWithRecommender } from "@/lib/podcastApi";
 import type { Database } from "@/lib/database.types";
+import { unwrapAction } from "@/lib/actionResult";
 
 type PodcastRow = Database["public"]["Tables"]["podcasts"]["Row"];
 
@@ -197,8 +198,8 @@ export default function PodcastForm({ initial, onSaved, onCancel }: Props) {
     startTransition(async () => {
       try {
         const saved = initial
-          ? await updatePodcast(initial.id, input)
-          : await createPodcast(input);
+          ? unwrapAction(await updatePodcast(initial.id, input))
+          : unwrapAction(await createPodcast(input));
         onSaved(saved);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Speichern fehlgeschlagen.");

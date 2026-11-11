@@ -12,6 +12,7 @@ import {
   deletePrompt,
 } from "@/lib/promptActions";
 import { PROMPT_CATEGORIES, PROMPT_TESTED_WITH } from "@/lib/mappers/promptMappers";
+import { unwrapAction } from "@/lib/actionResult";
 
 type Props = { initialPrompts: PromptWithAuthor[] };
 
@@ -80,7 +81,7 @@ export default function AdminPromptsClient({ initialPrompts }: Props) {
     // und der Submitter bekommt einen generischen Text in der Mail.
     const reason = rejectReason.trim();
     setRejectFor(null);
-    wrap(id, async () => { await rejectPrompt(id, reason || null); });
+    wrap(id, async () => { unwrapAction(await rejectPrompt(id, reason || null)); });
   }
 
   return (
@@ -225,27 +226,27 @@ export default function AdminPromptsClient({ initialPrompts }: Props) {
                   <button className="ap-btn" onClick={() => setPreview(p)}>Vorschau</button>
                   {p.status === "pending" && (
                     <>
-                      <button className="ap-btn ap-btn--ok" disabled={busy} onClick={() => wrap(p.id, async () => { await approvePrompt(p.id); })}>Approve</button>
-                      <button className="ap-btn ap-btn--feat" disabled={busy} onClick={() => wrap(p.id, async () => { await approvePrompt(p.id, { feature: true }); })}>Approve + Feature</button>
+                      <button className="ap-btn ap-btn--ok" disabled={busy} onClick={() => wrap(p.id, async () => { unwrapAction(await approvePrompt(p.id)); })}>Approve</button>
+                      <button className="ap-btn ap-btn--feat" disabled={busy} onClick={() => wrap(p.id, async () => { unwrapAction(await approvePrompt(p.id, { feature: true })); })}>Approve + Feature</button>
                       <button className="ap-btn ap-btn--danger" disabled={busy} onClick={() => openReject(p)}>Reject</button>
                     </>
                   )}
                   {(p.status === "published" || p.status === "featured") && (
                     <>
-                      <button className="ap-btn ap-btn--feat" disabled={busy} onClick={() => wrap(p.id, async () => { await toggleFeatured(p.id); })}>
+                      <button className="ap-btn ap-btn--feat" disabled={busy} onClick={() => wrap(p.id, async () => { unwrapAction(await toggleFeatured(p.id)); })}>
                         {p.status === "featured" ? "Unfeature" : "Feature"}
                       </button>
-                      <button className="ap-btn" disabled={busy} onClick={() => wrap(p.id, async () => { await archivePromptAsEditor(p.id); })}>Archive</button>
+                      <button className="ap-btn" disabled={busy} onClick={() => wrap(p.id, async () => { unwrapAction(await archivePromptAsEditor(p.id)); })}>Archive</button>
                     </>
                   )}
                   {(p.status === "rejected" || p.status === "archived") && (
                     <>
                       {p.status === "rejected" && (
-                        <button className="ap-btn" disabled={busy} onClick={() => wrap(p.id, async () => { await restoreToPending(p.id); })}>Re-Open</button>
+                        <button className="ap-btn" disabled={busy} onClick={() => wrap(p.id, async () => { unwrapAction(await restoreToPending(p.id)); })}>Re-Open</button>
                       )}
                       <button className="ap-btn ap-btn--danger" disabled={busy} onClick={() => {
                         if (!confirm(`Prompt „${p.title}" endgültig löschen?`)) return;
-                        wrap(p.id, async () => { await deletePrompt(p.id); });
+                        wrap(p.id, async () => { unwrapAction(await deletePrompt(p.id)); });
                       }}>Löschen</button>
                     </>
                   )}

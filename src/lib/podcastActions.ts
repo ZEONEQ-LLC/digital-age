@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { slugifyPodcast } from "@/lib/podcastSlug";
 import type { Database } from "@/lib/database.types";
+import { FormError, runAction, type ActionResult } from "@/lib/actionResult";
 
 type PodcastRow = Database["public"]["Tables"]["podcasts"]["Row"];
 type PodcastLanguage = "de" | "en" | "fr" | "it";
@@ -12,15 +13,15 @@ type PodcastSourceType = "external" | "self_hosted";
 async function requireInternalAuthor(): Promise<{ id: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht eingeloggt.");
+  if (!user) throw new FormError("Nicht eingeloggt.");
   const { data: author } = await supabase
     .from("authors")
     .select("id, role")
     .eq("user_id", user.id)
     .single();
-  if (!author) throw new Error("Author-Profil nicht gefunden.");
+  if (!author) throw new FormError("Author-Profil nicht gefunden.");
   if (author.role === "external") {
-    throw new Error("Externe Autoren können keine Podcast-Empfehlungen anlegen.");
+    throw new FormError("Externe Autoren können keine Podcast-Empfehlungen anlegen.");
   }
   return { id: author.id };
 }
@@ -51,7 +52,7 @@ export type PodcastInput = {
 function assertValidPodcast(input: PodcastInput): void {
   if (input.source_type === "self_hosted") {
     if (!input.audio_url || input.audio_url.trim() === "") {
-      throw new Error("Self-hosted Podcast braucht ein Audio-File.");
+      throw new FormError("Self-hosted Podcast braucht ein Audio-File.");
     }
   }
 }
@@ -82,7 +83,11 @@ async function nextPodcastSlug(
   return `${base}-${counter}`;
 }
 
-export async function createPodcast(input: PodcastInput): Promise<PodcastRow> {
+export async function createPodcast(input: PodcastInput): Promise<ActionResult<PodcastRow>> {
+  return runAction("podcast.createPodcast", () => createPodcastInner(input));
+}
+
+async function createPodcastInner(input: PodcastInput): Promise<PodcastRow> {
   const supabase = await createClient();
   const me = await requireInternalAuthor();
   assertValidPodcast(input);
@@ -131,10 +136,17 @@ export async function createPodcast(input: PodcastInput): Promise<PodcastRow> {
     }
     throw error;
   }
-  throw new Error("Konnte keinen eindeutigen Slug erzeugen.");
+  throw new FormError("Konnte keinen eindeutigen Slug erzeugen.");
 }
 
 export async function updatePodcast(
+  id: string,
+  patch: Partial<PodcastInput>,
+): Promise<ActionResult<PodcastRow>> {
+  return runAction("podcast.updatePodcast", () => updatePodcastInner(id, patch));
+}
+
+async function updatePodcastInner(
   id: string,
   patch: Partial<PodcastInput>,
 ): Promise<PodcastRow> {
@@ -157,7 +169,11 @@ export async function updatePodcast(
   return data;
 }
 
-export async function deletePodcast(id: string): Promise<void> {
+export async function deletePodcast(id: string): Promise<ActionResult<void>> {
+  return runAction("podcast.deletePodcast", () => deletePodcastInner(id));
+}
+
+async function deletePodcastInner(id: string): Promise<void> {
   const supabase = await createClient();
   await requireInternalAuthor();
 

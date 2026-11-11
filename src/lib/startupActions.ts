@@ -9,6 +9,7 @@ import {
   sendSubmissionRejected,
 } from "@/lib/submissions/mail";
 import type { Database } from "@/lib/database.types";
+import { FormError, runAction, type ActionResult } from "@/lib/actionResult";
 
 type StartupRow = Database["public"]["Tables"]["ai_startups"]["Row"];
 type StartupUpdate = Database["public"]["Tables"]["ai_startups"]["Update"];
@@ -19,14 +20,14 @@ type FundingStageCode = Database["public"]["Enums"]["funding_stage"];
 async function requireEditor(): Promise<{ id: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht eingeloggt.");
+  if (!user) throw new FormError("Nicht eingeloggt.");
   const { data: me } = await supabase
     .from("authors")
     .select("id, role")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!me) throw new Error("Author-Profil nicht gefunden.");
-  if (me.role !== "editor") throw new Error("Nur Editor:innen.");
+  if (!me) throw new FormError("Author-Profil nicht gefunden.");
+  if (me.role !== "editor") throw new FormError("Nur Editor:innen.");
   return { id: me.id };
 }
 
@@ -40,7 +41,7 @@ function revalidateAll(): void {
 function wrapSpotlightError(err: unknown): never {
   const msg = err instanceof Error ? err.message : String(err);
   if (msg.includes("Spotlight limit reached")) {
-    throw new Error(
+    throw new FormError(
       "Maximum 3 Spotlight-Startups erreicht. Bitte zuerst einen anderen entfernen.",
     );
   }
@@ -77,7 +78,11 @@ export type ExternalStartupSubmitInput = {
   submitter_role?: string | null;
 };
 
-export async function submitStartupExternal(input: ExternalStartupSubmitInput): Promise<void> {
+export async function submitStartupExternal(input: ExternalStartupSubmitInput): Promise<ActionResult<void>> {
+  return runAction("startup.submitStartupExternal", () => submitStartupExternalInner(input));
+}
+
+async function submitStartupExternalInner(input: ExternalStartupSubmitInput): Promise<void> {
   const name = input.name.trim();
   const tagline = input.tagline.trim();
   const description = input.description.trim();
@@ -87,26 +92,26 @@ export async function submitStartupExternal(input: ExternalStartupSubmitInput): 
   const submitterName = input.submitter_name.trim();
   const submitterEmail = input.submitter_email.trim();
 
-  if (!name) throw new Error("Name ist erforderlich.");
-  if (name.length > 80) throw new Error("Name zu lang (max 80 Zeichen).");
-  if (!tagline) throw new Error("Tagline ist erforderlich.");
-  if (tagline.length > 100) throw new Error("Tagline zu lang (max 100 Zeichen).");
-  if (!description) throw new Error("Beschreibung ist erforderlich.");
-  if (!website) throw new Error("Website ist erforderlich.");
-  if (!isUrl(website)) throw new Error("Website muss eine gültige URL sein (https://…).");
-  if (!industry) throw new Error("Branche ist erforderlich.");
-  if (!city) throw new Error("Stadt ist erforderlich.");
+  if (!name) throw new FormError("Name ist erforderlich.");
+  if (name.length > 80) throw new FormError("Name zu lang (max 80 Zeichen).");
+  if (!tagline) throw new FormError("Tagline ist erforderlich.");
+  if (tagline.length > 100) throw new FormError("Tagline zu lang (max 100 Zeichen).");
+  if (!description) throw new FormError("Beschreibung ist erforderlich.");
+  if (!website) throw new FormError("Website ist erforderlich.");
+  if (!isUrl(website)) throw new FormError("Website muss eine gültige URL sein (https://…).");
+  if (!industry) throw new FormError("Branche ist erforderlich.");
+  if (!city) throw new FormError("Stadt ist erforderlich.");
   if (!Number.isInteger(input.founded_year) || input.founded_year < 1990 || input.founded_year > 2030) {
-    throw new Error("Gründungsjahr muss zwischen 1990 und 2030 liegen.");
+    throw new FormError("Gründungsjahr muss zwischen 1990 und 2030 liegen.");
   }
-  if (!submitterName) throw new Error("Name ist erforderlich.");
-  if (!isEmail(submitterEmail)) throw new Error("E-Mail-Format ungültig.");
+  if (!submitterName) throw new FormError("Name ist erforderlich.");
+  if (!isEmail(submitterEmail)) throw new FormError("E-Mail-Format ungültig.");
 
   const supabase = await createClient();
 
   const { data: slug, error: slugError } = await supabase.rpc("suggest_startup_slug", { p_name: name });
   if (slugError) throw slugError;
-  if (!slug) throw new Error("Slug-Generierung fehlgeschlagen.");
+  if (!slug) throw new FormError("Slug-Generierung fehlgeschlagen.");
 
   // Bewusst KEIN .select().single() hier: anon hat keine SELECT-Policy für
   // status='pending'-Rows, der Return-Representation würde via RLS-Filter
@@ -159,7 +164,11 @@ export async function submitStartupExternal(input: ExternalStartupSubmitInput): 
   revalidatePath("/autor/admin/startups");
 }
 
-export async function approveStartup(id: string, opts?: { feature?: boolean }): Promise<void> {
+export async function approveStartup(id: string, opts?: { feature?: boolean }): Promise<ActionResult<void>> {
+  return runAction("startup.approveStartup", () => approveStartupInner(id, opts));
+}
+
+async function approveStartupInner(id: string, opts?: { feature?: boolean }): Promise<void> {
   const me = await requireEditor();
   const supabase = await createClient();
 
@@ -212,6 +221,13 @@ export async function approveStartup(id: string, opts?: { feature?: boolean }): 
 export async function rejectStartup(
   id: string,
   reason?: string | null,
+): Promise<ActionResult<void>> {
+  return runAction("startup.rejectStartup", () => rejectStartupInner(id, reason));
+}
+
+async function rejectStartupInner(
+  id: string,
+  reason?: string | null,
 ): Promise<void> {
   const me = await requireEditor();
   // Reason ist jetzt optional (Spec): leer/null → null in DB, Submitter
@@ -255,7 +271,11 @@ export async function rejectStartup(
   revalidateAll();
 }
 
-export async function toggleStartupFeatured(id: string): Promise<void> {
+export async function toggleStartupFeatured(id: string): Promise<ActionResult<void>> {
+  return runAction("startup.toggleStartupFeatured", () => toggleStartupFeaturedInner(id));
+}
+
+async function toggleStartupFeaturedInner(id: string): Promise<void> {
   await requireEditor();
   const supabase = await createClient();
   const { data: cur } = await supabase
@@ -263,7 +283,7 @@ export async function toggleStartupFeatured(id: string): Promise<void> {
     .select("status")
     .eq("id", id)
     .maybeSingle();
-  if (!cur) throw new Error("Startup nicht gefunden.");
+  if (!cur) throw new FormError("Startup nicht gefunden.");
   const next = cur.status === "featured" ? "published" : "featured";
   try {
     const { error } = await supabase
@@ -277,7 +297,11 @@ export async function toggleStartupFeatured(id: string): Promise<void> {
   revalidateAll();
 }
 
-export async function toggleInvestorReady(id: string): Promise<void> {
+export async function toggleInvestorReady(id: string): Promise<ActionResult<void>> {
+  return runAction("startup.toggleInvestorReady", () => toggleInvestorReadyInner(id));
+}
+
+async function toggleInvestorReadyInner(id: string): Promise<void> {
   await requireEditor();
   const supabase = await createClient();
   const { data: cur } = await supabase
@@ -285,7 +309,7 @@ export async function toggleInvestorReady(id: string): Promise<void> {
     .select("open_to_investment")
     .eq("id", id)
     .maybeSingle();
-  if (!cur) throw new Error("Startup nicht gefunden.");
+  if (!cur) throw new FormError("Startup nicht gefunden.");
   const { error } = await supabase
     .from("ai_startups")
     .update({ open_to_investment: !cur.open_to_investment })
@@ -314,55 +338,59 @@ export type UpdateStartupPatch = Partial<{
   founder_names: string[] | null;
 }>;
 
-export async function updateStartup(id: string, patch: UpdateStartupPatch): Promise<StartupRow> {
+export async function updateStartup(id: string, patch: UpdateStartupPatch): Promise<ActionResult<StartupRow>> {
+  return runAction("startup.updateStartup", () => updateStartupInner(id, patch));
+}
+
+async function updateStartupInner(id: string, patch: UpdateStartupPatch): Promise<StartupRow> {
   await requireEditor();
   const update: StartupUpdate = {};
 
   if (patch.slug !== undefined) {
     const s = patch.slug.trim();
     if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(s)) {
-      throw new Error("Slug muss kleingeschrieben, Zahlen und Bindestriche sein (z.B. deepjudge).");
+      throw new FormError("Slug muss kleingeschrieben, Zahlen und Bindestriche sein (z.B. deepjudge).");
     }
     update.slug = s;
   }
   if (patch.name !== undefined) {
     const n = patch.name.trim();
-    if (!n) throw new Error("Name ist erforderlich.");
-    if (n.length > 80) throw new Error("Name zu lang (max 80 Zeichen).");
+    if (!n) throw new FormError("Name ist erforderlich.");
+    if (n.length > 80) throw new FormError("Name zu lang (max 80 Zeichen).");
     update.name = n;
   }
   if (patch.tagline !== undefined) {
     const t = patch.tagline.trim();
-    if (!t) throw new Error("Tagline ist erforderlich.");
-    if (t.length > 100) throw new Error("Tagline zu lang (max 100 Zeichen).");
+    if (!t) throw new FormError("Tagline ist erforderlich.");
+    if (t.length > 100) throw new FormError("Tagline zu lang (max 100 Zeichen).");
     update.tagline = t;
   }
   if (patch.description !== undefined) {
     const d = patch.description.trim();
-    if (!d) throw new Error("Beschreibung ist erforderlich.");
+    if (!d) throw new FormError("Beschreibung ist erforderlich.");
     update.description = d;
   }
   if (patch.website !== undefined) {
     const w = patch.website.trim();
-    if (!isUrl(w)) throw new Error("Website muss eine gültige URL sein.");
+    if (!isUrl(w)) throw new FormError("Website muss eine gültige URL sein.");
     update.website = w;
   }
   if (patch.logo_url !== undefined) update.logo_url = patch.logo_url?.trim() || null;
   if (patch.swiss_status !== undefined) update.swiss_status = patch.swiss_status;
   if (patch.industry !== undefined) {
     const i = patch.industry.trim();
-    if (!i) throw new Error("Branche ist erforderlich.");
+    if (!i) throw new FormError("Branche ist erforderlich.");
     update.industry = i;
   }
   if (patch.city !== undefined) {
     const c = patch.city.trim();
-    if (!c) throw new Error("Stadt ist erforderlich.");
+    if (!c) throw new FormError("Stadt ist erforderlich.");
     update.city = c;
   }
   if (patch.employee_range !== undefined) update.employee_range = patch.employee_range;
   if (patch.founded_year !== undefined) {
     if (!Number.isInteger(patch.founded_year) || patch.founded_year < 1990 || patch.founded_year > 2030) {
-      throw new Error("Gründungsjahr muss zwischen 1990 und 2030 liegen.");
+      throw new FormError("Gründungsjahr muss zwischen 1990 und 2030 liegen.");
     }
     update.founded_year = patch.founded_year;
   }
@@ -385,7 +413,7 @@ export async function updateStartup(id: string, patch: UpdateStartupPatch): Prom
   if (error) {
     const msg = error.message ?? "";
     if (msg.includes("ai_startups_slug_key") || msg.includes("duplicate key") && msg.includes("slug")) {
-      throw new Error("Slug ist bereits vergeben. Bitte einen anderen wählen.");
+      throw new FormError("Slug ist bereits vergeben. Bitte einen anderen wählen.");
     }
     throw error;
   }
@@ -393,7 +421,11 @@ export async function updateStartup(id: string, patch: UpdateStartupPatch): Prom
   return data;
 }
 
-export async function archiveStartup(id: string): Promise<void> {
+export async function archiveStartup(id: string): Promise<ActionResult<void>> {
+  return runAction("startup.archiveStartup", () => archiveStartupInner(id));
+}
+
+async function archiveStartupInner(id: string): Promise<void> {
   await requireEditor();
   const supabase = await createClient();
   const { error } = await supabase
@@ -404,7 +436,11 @@ export async function archiveStartup(id: string): Promise<void> {
   revalidateAll();
 }
 
-export async function restoreStartupToPending(id: string): Promise<void> {
+export async function restoreStartupToPending(id: string): Promise<ActionResult<void>> {
+  return runAction("startup.restoreStartupToPending", () => restoreStartupToPendingInner(id));
+}
+
+async function restoreStartupToPendingInner(id: string): Promise<void> {
   await requireEditor();
   const supabase = await createClient();
   const { error } = await supabase
@@ -421,7 +457,11 @@ export async function restoreStartupToPending(id: string): Promise<void> {
   revalidateAll();
 }
 
-export async function restoreStartupToPublished(id: string): Promise<void> {
+export async function restoreStartupToPublished(id: string): Promise<ActionResult<void>> {
+  return runAction("startup.restoreStartupToPublished", () => restoreStartupToPublishedInner(id));
+}
+
+async function restoreStartupToPublishedInner(id: string): Promise<void> {
   const me = await requireEditor();
   const supabase = await createClient();
   const now = new Date().toISOString();
@@ -438,7 +478,11 @@ export async function restoreStartupToPublished(id: string): Promise<void> {
   revalidateAll();
 }
 
-export async function deleteStartup(id: string): Promise<void> {
+export async function deleteStartup(id: string): Promise<ActionResult<void>> {
+  return runAction("startup.deleteStartup", () => deleteStartupInner(id));
+}
+
+async function deleteStartupInner(id: string): Promise<void> {
   await requireEditor();
   const supabase = await createClient();
   const { error } = await supabase.from("ai_startups").delete().eq("id", id);

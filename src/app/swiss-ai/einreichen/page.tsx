@@ -17,6 +17,7 @@ import type {
   EmployeeRangeCode,
   FundingStageCode,
 } from "@/lib/startupApi";
+import { unwrapAction } from "@/lib/actionResult";
 
 type FormData = {
   name: string;
@@ -225,7 +226,7 @@ export default function EinreichenPage() {
           .split(",")
           .map((s) => s.trim())
           .filter(Boolean);
-        await submitStartupExternal({
+        unwrapAction(await submitStartupExternal({
           name: data.name,
           tagline: data.tagline,
           description: data.description,
@@ -245,7 +246,7 @@ export default function EinreichenPage() {
           submitter_name: data.contactName,
           submitter_email: data.email,
           submitter_role: data.role || null,
-        });
+        }));
         setSubmitted(true);
       } catch (err) {
         setSubmitError(err instanceof Error ? err.message : String(err));

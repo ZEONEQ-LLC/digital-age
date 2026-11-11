@@ -1,5 +1,5 @@
 // Manueller Test-Runner: npx tsx src/lib/__tests__/actionResult.manual.ts
-import { FormError, GENERIC_ACTION_ERROR, isUniqueViolation, runAction, unwrapAction } from "../actionResult";
+import { FormError, GENERIC_ACTION_ERROR, guardMessage, isUniqueViolation, runAction, unwrapAction } from "../actionResult";
 
 let pass = 0;
 let fail = 0;
@@ -22,6 +22,9 @@ async function main() {
     const pg = { code: "23505", message: 'duplicate key value violates unique constraint "articles_slug_key"' };
     eq("bekannter DB-Fehler", await runAction("t", async () => { throw pg; }, (e) => (isUniqueViolation(e, "articles_slug_key") ? "Slug vergeben." : null)), { ok: false, error: "Slug vergeben." });
     eq("unbekannter DB-Fehler", await runAction("t", async () => { throw pg; }, (e) => (isUniqueViolation(e, "idx_authors_handle") ? "x" : null)), { ok: false, error: GENERIC_ACTION_ERROR });
+    eq("guard ok", await guardMessage(async () => {}), null);
+    eq("guard FormError", await guardMessage(async () => { throw new FormError("Nicht eingeloggt."); }), "Nicht eingeloggt.");
+    eq("guard sonst", await guardMessage(async () => { throw new Error("boom"); }), GENERIC_ACTION_ERROR);
   } finally {
     console.error = quiet;
   }

@@ -9,6 +9,7 @@ import {
   sendSubmissionRejected,
 } from "@/lib/submissions/mail";
 import type { Database } from "@/lib/database.types";
+import { FormError, runAction, type ActionResult } from "@/lib/actionResult";
 
 type PromptRow = Database["public"]["Tables"]["ai_prompts"]["Row"];
 type PromptDifficulty = Database["public"]["Enums"]["prompt_difficulty"];
@@ -16,15 +17,15 @@ type PromptDifficulty = Database["public"]["Enums"]["prompt_difficulty"];
 async function requireInternalAuthor(): Promise<{ id: string; role: "author" | "editor" }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht eingeloggt.");
+  if (!user) throw new FormError("Nicht eingeloggt.");
   const { data: author } = await supabase
     .from("authors")
     .select("id, role")
     .eq("user_id", user.id)
     .single();
-  if (!author) throw new Error("Author-Profil nicht gefunden.");
+  if (!author) throw new FormError("Author-Profil nicht gefunden.");
   if (author.role === "external") {
-    throw new Error("Externe Autoren können keine Prompts anlegen.");
+    throw new FormError("Externe Autoren können keine Prompts anlegen.");
   }
   return { id: author.id, role: author.role as "author" | "editor" };
 }
@@ -32,14 +33,14 @@ async function requireInternalAuthor(): Promise<{ id: string; role: "author" | "
 async function requireEditor(): Promise<{ id: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht eingeloggt.");
+  if (!user) throw new FormError("Nicht eingeloggt.");
   const { data: me } = await supabase
     .from("authors")
     .select("id, role")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!me) throw new Error("Author-Profil nicht gefunden.");
-  if (me.role !== "editor") throw new Error("Nur Editor:innen.");
+  if (!me) throw new FormError("Author-Profil nicht gefunden.");
+  if (me.role !== "editor") throw new FormError("Nur Editor:innen.");
   return { id: me.id };
 }
 
@@ -61,15 +62,15 @@ function validateBasics(input: {
   const title = input.title.trim();
   const body = input.prompt_text.trim();
   const ctx = input.context.trim();
-  if (!title) throw new Error("Titel ist erforderlich.");
-  if (title.length > 80) throw new Error("Titel zu lang (max 80 Zeichen).");
-  if (body.length < 20) throw new Error("Prompt-Text zu kurz (min 20 Zeichen).");
-  if (body.length > 4000) throw new Error("Prompt-Text zu lang (max 4000 Zeichen).");
-  if (!ctx) throw new Error("Kontext ist erforderlich.");
-  if (!input.category) throw new Error("Kategorie ist erforderlich.");
-  if (!input.tested_with) throw new Error("Tool ist erforderlich.");
+  if (!title) throw new FormError("Titel ist erforderlich.");
+  if (title.length > 80) throw new FormError("Titel zu lang (max 80 Zeichen).");
+  if (body.length < 20) throw new FormError("Prompt-Text zu kurz (min 20 Zeichen).");
+  if (body.length > 4000) throw new FormError("Prompt-Text zu lang (max 4000 Zeichen).");
+  if (!ctx) throw new FormError("Kontext ist erforderlich.");
+  if (!input.category) throw new FormError("Kategorie ist erforderlich.");
+  if (!input.tested_with) throw new FormError("Tool ist erforderlich.");
   if (!["beginner", "intermediate", "expert"].includes(input.difficulty)) {
-    throw new Error("Schwierigkeit ungültig.");
+    throw new FormError("Schwierigkeit ungültig.");
   }
 }
 
@@ -83,7 +84,11 @@ export type CreatePromptInput = {
   difficulty: PromptDifficulty;
 };
 
-export async function createPrompt(input: CreatePromptInput): Promise<PromptRow> {
+export async function createPrompt(input: CreatePromptInput): Promise<ActionResult<PromptRow>> {
+  return runAction("prompt.createPrompt", () => createPromptInner(input));
+}
+
+async function createPromptInner(input: CreatePromptInput): Promise<PromptRow> {
   const me = await requireInternalAuthor();
   validateBasics(input);
   const supabase = await createClient();
@@ -120,7 +125,11 @@ export type UpdatePromptPatch = Partial<{
   status: "published" | "archived";
 }>;
 
-export async function updatePrompt(id: string, patch: UpdatePromptPatch): Promise<PromptRow> {
+export async function updatePrompt(id: string, patch: UpdatePromptPatch): Promise<ActionResult<PromptRow>> {
+  return runAction("prompt.updatePrompt", () => updatePromptInner(id, patch));
+}
+
+async function updatePromptInner(id: string, patch: UpdatePromptPatch): Promise<PromptRow> {
   await requireInternalAuthor();
   if (
     patch.title !== undefined ||
@@ -160,7 +169,11 @@ export async function updatePrompt(id: string, patch: UpdatePromptPatch): Promis
   return data;
 }
 
-export async function deletePrompt(id: string): Promise<void> {
+export async function deletePrompt(id: string): Promise<ActionResult<void>> {
+  return runAction("prompt.deletePrompt", () => deletePromptInner(id));
+}
+
+async function deletePromptInner(id: string): Promise<void> {
   await requireInternalAuthor();
   const supabase = await createClient();
   const { error } = await supabase.from("ai_prompts").delete().eq("id", id);
@@ -181,13 +194,17 @@ export type ExternalSubmitInput = {
   submitter_url?: string | null;
 };
 
-export async function submitPromptExternal(input: ExternalSubmitInput): Promise<void> {
+export async function submitPromptExternal(input: ExternalSubmitInput): Promise<ActionResult<void>> {
+  return runAction("prompt.submitPromptExternal", () => submitPromptExternalInner(input));
+}
+
+async function submitPromptExternalInner(input: ExternalSubmitInput): Promise<void> {
   validateBasics(input);
   const name = input.submitter_name.trim();
   const email = input.submitter_email.trim();
-  if (!name) throw new Error("Name ist erforderlich.");
-  if (!email) throw new Error("E-Mail ist erforderlich.");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("E-Mail-Format ungültig.");
+  if (!name) throw new FormError("Name ist erforderlich.");
+  if (!email) throw new FormError("E-Mail ist erforderlich.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new FormError("E-Mail-Format ungültig.");
 
   const title = input.title.trim();
   const supabase = await createClient();
@@ -232,7 +249,11 @@ export async function submitPromptExternal(input: ExternalSubmitInput): Promise<
   revalidatePath("/autor/admin/prompts");
 }
 
-export async function approvePrompt(id: string, opts?: { feature?: boolean }): Promise<void> {
+export async function approvePrompt(id: string, opts?: { feature?: boolean }): Promise<ActionResult<void>> {
+  return runAction("prompt.approvePrompt", () => approvePromptInner(id, opts));
+}
+
+async function approvePromptInner(id: string, opts?: { feature?: boolean }): Promise<void> {
   const me = await requireEditor();
   const supabase = await createClient();
   const targetStatus = opts?.feature ? "featured" : "published";
@@ -284,6 +305,13 @@ export async function approvePrompt(id: string, opts?: { feature?: boolean }): P
 export async function rejectPrompt(
   id: string,
   reason?: string | null,
+): Promise<ActionResult<void>> {
+  return runAction("prompt.rejectPrompt", () => rejectPromptInner(id, reason));
+}
+
+async function rejectPromptInner(
+  id: string,
+  reason?: string | null,
 ): Promise<void> {
   const me = await requireEditor();
   const supabase = await createClient();
@@ -328,7 +356,11 @@ export async function rejectPrompt(
   revalidateAll();
 }
 
-export async function toggleFeatured(id: string): Promise<void> {
+export async function toggleFeatured(id: string): Promise<ActionResult<void>> {
+  return runAction("prompt.toggleFeatured", () => toggleFeaturedInner(id));
+}
+
+async function toggleFeaturedInner(id: string): Promise<void> {
   await requireEditor();
   const supabase = await createClient();
   const { data: cur } = await supabase
@@ -336,7 +368,7 @@ export async function toggleFeatured(id: string): Promise<void> {
     .select("status")
     .eq("id", id)
     .maybeSingle();
-  if (!cur) throw new Error("Prompt nicht gefunden.");
+  if (!cur) throw new FormError("Prompt nicht gefunden.");
   const next = cur.status === "featured" ? "published" : "featured";
   const { error } = await supabase
     .from("ai_prompts")
@@ -346,7 +378,11 @@ export async function toggleFeatured(id: string): Promise<void> {
   revalidateAll();
 }
 
-export async function archivePromptAsEditor(id: string): Promise<void> {
+export async function archivePromptAsEditor(id: string): Promise<ActionResult<void>> {
+  return runAction("prompt.archivePromptAsEditor", () => archivePromptAsEditorInner(id));
+}
+
+async function archivePromptAsEditorInner(id: string): Promise<void> {
   await requireEditor();
   const supabase = await createClient();
   const { error } = await supabase
@@ -357,7 +393,11 @@ export async function archivePromptAsEditor(id: string): Promise<void> {
   revalidateAll();
 }
 
-export async function restoreToPending(id: string): Promise<void> {
+export async function restoreToPending(id: string): Promise<ActionResult<void>> {
+  return runAction("prompt.restoreToPending", () => restoreToPendingInner(id));
+}
+
+async function restoreToPendingInner(id: string): Promise<void> {
   await requireEditor();
   const supabase = await createClient();
   const { error } = await supabase

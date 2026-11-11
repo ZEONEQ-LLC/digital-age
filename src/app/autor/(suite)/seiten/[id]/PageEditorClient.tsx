@@ -11,6 +11,7 @@ import { BLOCK_SCHEMA_VERSION, emptyBlockDocument } from "@/types/blocks";
 import { blocksToTiptap } from "@/lib/tiptap/blocksToTiptap";
 import { tiptapToBlocks } from "@/lib/tiptap/tiptapToBlocks";
 import { runEditorRoundtripGuard, runRoundtripGuard, type GuardResult } from "@/lib/tiptap/roundtripGuard";
+import { unwrapAction } from "@/lib/actionResult";
 
 type PageRow = Database["public"]["Tables"]["pages"]["Row"];
 
@@ -149,7 +150,7 @@ export default function PageEditorClient({ page }: Props) {
     if (!finalDoc) return;
     startTransition(async () => {
       try {
-        await savePage(page.id, buildPatch(finalDoc));
+        unwrapAction(await savePage(page.id, buildPatch(finalDoc)));
         setDoc(finalDoc);
         setSavedHint("Gespeichert");
         router.refresh();
@@ -170,7 +171,7 @@ export default function PageEditorClient({ page }: Props) {
     setError(null);
     startTransition(async () => {
       try {
-        await savePage(page.id, { ...buildPatch(finalDoc), status: next });
+        unwrapAction(await savePage(page.id, { ...buildPatch(finalDoc), status: next }));
         setDoc(finalDoc);
         setSavedHint("Gespeichert");
         router.refresh();
@@ -188,7 +189,7 @@ export default function PageEditorClient({ page }: Props) {
     setError(null);
     startTransition(async () => {
       try {
-        await deletePage(page.id);
+        unwrapAction(await deletePage(page.id));
         router.push("/autor/seiten");
       } catch (e) {
         setError(e instanceof Error ? e.message : "Löschen fehlgeschlagen.");

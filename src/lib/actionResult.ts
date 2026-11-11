@@ -46,6 +46,17 @@ export async function runAction<T>(
   }
 }
 
+// Fuer Actions mit eigenem Ergebnis-Typ ({ ok: false, message }): Guard wie
+// requireEditor ausfuehren und die Meldung zurueckgeben statt zu werfen.
+export async function guardMessage(guard: () => Promise<unknown>): Promise<string | null> {
+  try {
+    await guard();
+    return null;
+  } catch (e) {
+    return actionFailure(e, "guard").error;
+  }
+}
+
 export function unwrapAction<T>(res: ActionResult<T>): T {
   if (res.ok) return res.value;
   throw new Error(res.error);

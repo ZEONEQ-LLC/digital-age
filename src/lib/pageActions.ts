@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { Database, Json } from "@/lib/database.types";
 import type { BlockDocument } from "@/types/blocks";
+import { FormError, runAction, type ActionResult } from "@/lib/actionResult";
 
 type PageRow = Database["public"]["Tables"]["pages"]["Row"];
 type PageInsert = Database["public"]["Tables"]["pages"]["Insert"];
@@ -12,14 +13,14 @@ type PageUpdate = Database["public"]["Tables"]["pages"]["Update"];
 async function requireEditor(): Promise<void> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht eingeloggt.");
+  if (!user) throw new FormError("Nicht eingeloggt.");
   const { data: me } = await supabase
     .from("authors")
     .select("role")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!me) throw new Error("Author-Profil nicht gefunden.");
-  if (me.role !== "editor") throw new Error("Nur Editor:innen dürfen Seiten verwalten.");
+  if (!me) throw new FormError("Author-Profil nicht gefunden.");
+  if (me.role !== "editor") throw new FormError("Nur Editor:innen dürfen Seiten verwalten.");
 }
 
 const SLUG_RE = /^[a-z0-9-]+$/;
@@ -41,10 +42,14 @@ export type PagePatch = {
   status?: "draft" | "published";
 };
 
-export async function createPage(args: { slug: string; title: string }): Promise<{ id: string }> {
+export async function createPage(args: { slug: string; title: string }): Promise<ActionResult<{ id: string }>> {
+  return runAction("page.createPage", () => createPageInner(args));
+}
+
+async function createPageInner(args: { slug: string; title: string }): Promise<{ id: string }> {
   await requireEditor();
   const slugErr = validateSlug(args.slug);
-  if (slugErr) throw new Error(slugErr);
+  if (slugErr) throw new FormError(slugErr);
 
   const supabase = await createClient();
   const insert: PageInsert = {
@@ -58,18 +63,22 @@ export async function createPage(args: { slug: string; title: string }): Promise
     .single();
 
   if (error) {
-    if (error.code === "23505") throw new Error("Slug ist bereits vergeben.");
+    if (error.code === "23505") throw new FormError("Slug ist bereits vergeben.");
     throw error;
   }
   revalidatePath("/autor/seiten");
   return { id: data.id };
 }
 
-export async function savePage(id: string, patch: PagePatch): Promise<PageRow> {
+export async function savePage(id: string, patch: PagePatch): Promise<ActionResult<PageRow>> {
+  return runAction("page.savePage", () => savePageInner(id, patch));
+}
+
+async function savePageInner(id: string, patch: PagePatch): Promise<PageRow> {
   await requireEditor();
   if (patch.slug !== undefined) {
     const slugErr = validateSlug(patch.slug);
-    if (slugErr) throw new Error(slugErr);
+    if (slugErr) throw new FormError(slugErr);
   }
 
   const supabase = await createClient();
@@ -91,7 +100,7 @@ export async function savePage(id: string, patch: PagePatch): Promise<PageRow> {
     .single();
 
   if (error) {
-    if (error.code === "23505") throw new Error("Slug ist bereits vergeben.");
+    if (error.code === "23505") throw new FormError("Slug ist bereits vergeben.");
     throw error;
   }
   revalidatePath("/autor/seiten");
@@ -100,7 +109,11 @@ export async function savePage(id: string, patch: PagePatch): Promise<PageRow> {
   return data;
 }
 
-export async function deletePage(id: string): Promise<void> {
+export async function deletePage(id: string): Promise<ActionResult<void>> {
+  return runAction("page.deletePage", () => deletePageInner(id));
+}
+
+async function deletePageInner(id: string): Promise<void> {
   await requireEditor();
   const supabase = await createClient();
   const { data: existing } = await supabase

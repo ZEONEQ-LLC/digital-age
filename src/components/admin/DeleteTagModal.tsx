@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { deleteTag } from "@/lib/admin/tagOperations";
+import { unwrapAction } from "@/lib/actionResult";
 
 type Props = {
   tag: { id: string; name: string; articleCount: number };
@@ -29,7 +30,7 @@ export default function DeleteTagModal({ tag, onClose, onDone }: Props) {
     setError(null);
     startTransition(async () => {
       try {
-        const result = await deleteTag(tag.id);
+        const result = unwrapAction(await deleteTag(tag.id));
         onDone({ affectedCount: result.affectedCount });
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));

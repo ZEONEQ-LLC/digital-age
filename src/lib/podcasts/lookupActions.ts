@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { parseAppleLink } from "@/lib/podcasts/appleLink";
 import { fetchApplePageMeta } from "@/lib/podcasts/appleMeta";
 import { findYouTubeUrl } from "@/lib/podcasts/platformLinks";
+import { FormError, guardMessage } from "@/lib/actionResult";
 
 // Button «Suchen» neben dem YouTube-Feld im Podcast-Formular. Gleiche Suche
 // wie die Anreicherung per Kurzbefehl; mit Apple-Link kommt der Show-Name
@@ -16,13 +17,14 @@ export type LookupResult =
 async function requireInternalAuthor(): Promise<void> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht eingeloggt.");
+  if (!user) throw new FormError("Nicht eingeloggt.");
   const { data: author } = await supabase.from("authors").select("role").eq("user_id", user.id).maybeSingle();
-  if (!author || author.role === "external") throw new Error("Keine Berechtigung.");
+  if (!author || author.role === "external") throw new FormError("Keine Berechtigung.");
 }
 
 export async function lookupYouTubeLink(input: { title: string; appleUrl?: string | null }): Promise<LookupResult> {
-  await requireInternalAuthor();
+  const denied = await guardMessage(requireInternalAuthor);
+  if (denied) return { ok: false, message: denied };
   if (!process.env.YOUTUBE_API_KEY) return { ok: false, message: "YouTube-Suche nicht konfiguriert (YOUTUBE_API_KEY fehlt)." };
 
   const title = input.title.trim();

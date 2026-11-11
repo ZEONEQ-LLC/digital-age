@@ -9,6 +9,7 @@ import {
   type SourcePatch,
 } from "@/lib/newsTickerActions";
 import type { Database } from "@/lib/database.types";
+import { unwrapAction } from "@/lib/actionResult";
 
 type NewsSourceRow = Database["public"]["Tables"]["news_sources"]["Row"];
 
@@ -84,9 +85,9 @@ export default function SourcesSection({ sources }: Props) {
     startTransition(async () => {
       try {
         if (editing.id === null) {
-          await createSource(editing.patch);
+          unwrapAction(await createSource(editing.patch));
         } else {
-          await updateSource(editing.id, editing.patch);
+          unwrapAction(await updateSource(editing.id, editing.patch));
         }
         setEditing(null);
         router.refresh();
@@ -103,7 +104,7 @@ export default function SourcesSection({ sources }: Props) {
     setError(null);
     startTransition(async () => {
       try {
-        await deleteSource(r.id);
+        unwrapAction(await deleteSource(r.id));
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Löschen fehlgeschlagen.");
