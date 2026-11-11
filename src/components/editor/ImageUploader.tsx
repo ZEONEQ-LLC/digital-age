@@ -3,10 +3,7 @@
 import Image from "next/image";
 import { useRef, useState } from "react";
 import imageCompression from "browser-image-compression";
-import {
-  uploadArticleImage,
-  deleteArticleImage,
-} from "@/lib/storageActions";
+import { uploadArticleImage } from "@/lib/storageActions";
 
 const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -24,13 +21,6 @@ type Props = {
   onUploadError?: (error: Error) => void;
   currentImageUrl?: string;
 };
-
-// Extrahiert den Filename aus einer Supabase-Public-URL des articles-Buckets.
-// Format: .../storage/v1/object/public/articles/<articleId>/<filename>
-function extractArticleImageFilename(url: string): string | null {
-  const match = url.match(/\/articles\/[^/]+\/([^?]+)$/);
-  return match ? match[1] : null;
-}
 
 export default function ImageUploader({
   articleId,
@@ -85,20 +75,9 @@ export default function ImageUploader({
       setState({ kind: "uploading", progress: 50 });
       const { url } = await uploadArticleImage(articleId, formData);
 
-      // Falls ein vorheriges Bild ersetzt wurde: alten File aus dem Bucket
-      // entfernen. Best-Effort — Fehler werden geschluckt, das neue Bild ist
-      // wichtiger als der Cleanup.
-      if (currentImageUrl && currentImageUrl !== url) {
-        const oldFilename = extractArticleImageFilename(currentImageUrl);
-        if (oldFilename) {
-          try {
-            await deleteArticleImage(articleId, oldFilename);
-          } catch {
-            // ignore
-          }
-        }
-      }
-
+      // Das bisherige Bild bleibt im Storage: Der Artikel ist noch nicht
+      // gespeichert, die Live-Seite zeigt weiter das alte Bild. Was weg darf,
+      // entscheidet der Editor nach dem Speichern (src/lib/coverUploads.ts).
       setState({ kind: "success", url });
       onUploadComplete(url);
     } catch (err) {

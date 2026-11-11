@@ -4,7 +4,6 @@ import { useState } from "react";
 import AuthorCard from "./AuthorCard";
 import MonoCaption from "./MonoCaption";
 import ImageUploader from "@/components/editor/ImageUploader";
-import { deleteArticleImage } from "@/lib/storageActions";
 import CoverMetadataModal from "./CoverMetadataModal";
 
 export type CoverMetadata = {
@@ -34,11 +33,6 @@ type Props = {
 
 export type HeroStudioStatus = { engine: "line" | "typo"; animated: boolean };
 
-function extractFilename(url: string): string | null {
-  const match = url.match(/\/articles\/[^/]+\/([^?]+)$/);
-  return match ? match[1] : null;
-}
-
 export default function FeaturedImageBox({
   articleId,
   coverImageUrl,
@@ -51,7 +45,6 @@ export default function FeaturedImageBox({
   heroStaleText,
   heroStudioStatus,
 }: Props) {
-  const [busy, setBusy] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
   // Status-Indikator nur fuer ALT — Caption/Source bleiben optional und
@@ -73,24 +66,13 @@ export default function FeaturedImageBox({
     resetMetadata();
   }
 
-  async function handleRemove() {
+  // Entfernen wirkt erst mit dem Speichern. Die Datei loescht der Editor nur,
+  // wenn sie nie gespeichert war (src/lib/coverUploads.ts).
+  function handleRemove() {
     if (!coverImageUrl) return;
     if (!confirm("Beitragsbild entfernen?")) return;
-    setBusy(true);
-    try {
-      const filename = extractFilename(coverImageUrl);
-      if (filename) {
-        try {
-          await deleteArticleImage(articleId, filename);
-        } catch {
-          // best-effort — Storage-Delete fehlschlag soll DB-Patch nicht blockieren
-        }
-      }
-      onCoverChange("");
-      resetMetadata();
-    } finally {
-      setBusy(false);
-    }
+    onCoverChange("");
+    resetMetadata();
   }
 
   return (
@@ -200,7 +182,6 @@ export default function FeaturedImageBox({
             <button
               type="button"
               onClick={handleRemove}
-              disabled={busy}
               style={{
                 marginTop: 8,
                 width: "100%",
@@ -211,11 +192,10 @@ export default function FeaturedImageBox({
                 borderRadius: 4,
                 fontSize: 11,
                 fontFamily: "var(--da-font-mono)",
-                cursor: busy ? "not-allowed" : "pointer",
-                opacity: busy ? 0.5 : 1,
+                cursor: "pointer",
               }}
             >
-              {busy ? "Entferne…" : "Bild entfernen"}
+              Bild entfernen
             </button>
           </>
         )}
