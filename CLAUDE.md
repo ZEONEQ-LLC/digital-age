@@ -1249,8 +1249,15 @@ die der Nutzer lesen soll, kommen als Rückgabewert. Muster seit PR 188 in
   (updateAuthorAsEditor, deleteAuthorAsEditor, updateArticleAuthor) und
   `createDraftFromPitch`. `createDraft` wirft weiter (Aufruf aus einem Route
   Handler, dort greift die Schwärzung nicht).
-- Offen (Backlog): `startupActions`, `promptActions`, `newsTickerActions`,
-  `pageActions`, `podcastActions` und kleinere Module.
+- PR 189: `startupActions`, `promptActions` (ohne `incrementPromptUses`,
+  fire-and-forget), `newsTickerActions`, `pageActions`, `podcastActions`,
+  `admin/tagOperations` ebenso. Actions mit eigenem Ergebnis-Typ
+  (`{ ok: false, message }`, z.B. Pitch-Status, Kontakt, Newsletter-Abmeldung,
+  YouTube-Suche) nutzen `guardMessage(requireEditor)`, damit auch «Nicht
+  eingeloggt.» als Wert zurückkommt.
+- Neue Action: Wrapper + `unwrapAction` im Client, eigene Meldungen als
+  `FormError`. Nie wieder `throw new Error("…")` für Texte, die der Nutzer
+  lesen soll.
 Prüfen geht nur gegen `npm run build` + `next start`, im Dev-Server kommt die
 Meldung durch.
 
@@ -1287,6 +1294,38 @@ Build, über `process.env.DA_BUILD_TIME` an die Worker vererbt, damit Server-
 und Client-Bundle denselben Wert haben). Formatierung in
 `src/lib/buildInfo.ts`: «Version 0.1.0 · Build 1ae69fe · Deploy 11.11.2026,
 13:45» (Europe/Zurich), lokal «Build lokal».
+
+### SEO-Review übernehmen, Vorschau, Bild-Guard (PR 189)
+
+**SEO-Analyse sieht H2 und H3.** `seoHeadingOutline` (`src/lib/ai/seoHeadings.ts`)
+liefert die Gliederung, `buildSeoReviewPrompt` schreibt sie eingerückt in den
+Input. Der Hinweis «H3 zu H2 anheben statt neue H2 erfinden» steht im Input,
+nicht in der Strategie, weil `seo_review` in der Prompt-Verwaltung
+überschrieben ist (DB-Override ohne H3-Wortlaut).
+
+**«Übernehmen» pro Vorschlag.** Das Schema (Code, nicht überschreibbar) hat
+`action: replace | insert_before | insert_after | none`; Alt-Reviews ohne das
+Feld bekommen keinen Knopf. `handleApplySuggestion` im EditorClient sucht das
+Zitat (Marker vorher per `stripAllMarkup` entfernt) zuerst im Titel (nur
+Ersetzen), dann im Abstract (ein Text-Knoten, `applySuggestionToDoc`), dann im
+Text (`TiptapBodyEditor.applyTextEdit`, eine Transaktion). Über Blockgrenzen,
+Quellenverweise oder Zeilenumbrüche hinweg wird nichts geändert («bitte von
+Hand»). Einfügen bei einer Überschrift = eigener Absatz davor/danach. Es wird
+nie automatisch gespeichert; der Vorschlag wird abgehakt (persistiert sofort).
+
+**Vorschau-Tab** in der Reihenfolge der Beitragsseite: Rubrik, Titel, Abstract,
+Autor-Zeile (Initiale statt Avatar, Anhören/Teilen nur angedeutet),
+Beitragsbild mit Bildunterschrift und Quelle, Text, Tags.
+
+**Bild-Guard beim Speichern.** `saveArticle` lehnt Bildblöcke und Cover mit
+`blob:`/`data:`-Adresse ab (`src/lib/editor/localImageUrls.ts`), Meldung im
+Editor-Banner.
+
+**Werbung `period`.** `PeriodValue` in `src/lib/ads/types.ts` ist der eine Typ
+für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
+`parsePeriod`. Generierte Typen nicht von Hand patchen.
+
+**Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
 ### Invite-Flow (PR B)
 
