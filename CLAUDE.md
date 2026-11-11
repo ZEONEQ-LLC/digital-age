@@ -1330,6 +1330,28 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+### Volltextsuche (PR 193)
+
+`/suche?q=…` (Server-Komponente, `noindex, follow`, nicht in der Sitemap),
+Lupe in der Navbar (Desktop rechts, Mobile neben dem Hamburger).
+- **DB** (`20261111230000_article_search.sql`): `article_search_document(title,
+  subtitle, excerpt, tags, body_md)` (immutable, `german`, Gewichte A/B/C),
+  GIN-Ausdrucksindex `articles_search_idx` nur für published, RPC
+  `search_articles(p_query, p_limit)` (INVOKER, `websearch_to_tsquery`:
+  "Phrase", `or`, `-wort`; max 50 Treffer; Ausschnitt per `ts_headline` mit
+  Markierungen ⟦…⟧). Bewusst keine generierte Spalte: `articles` wird oft mit
+  `select("*")` gelesen, ein tsvector würde jede Antwort aufblähen. Wer die
+  Suche ändert, muss Index-Ausdruck und Abfrage gleich halten.
+- **Seite:** `searchArticles` (`src/lib/search/articles.ts`) holt Rang und
+  Ausschnitt per RPC, dann die Artikel per `RELATIONS_SHORT`.
+  `snippetParts` (`src/lib/search/snippet.ts`, Test `__tests__/snippet.manual.ts`)
+  entfernt Markdown-Reste und liefert Teile, die als Text bzw. `<mark>`
+  gerendert werden, nie als HTML.
+- Nur Artikel. Prompts, Podcasts und Startups wären je eine weitere RPC.
+- **Navbar:** Unter 960 px Hamburger (vorher 768), bis 1180 px engere
+  Abstände und ohne «DE / EN» (Knopf ohne Funktion), Links mit `nowrap`.
+  Vorher brachen die Links zwischen 769 und 960 px zweizeilig um.
+
 ### Modell-Check (PR 192)
 
 Seite `/autor/admin/ai-config/modell-check` (Link oben auf der

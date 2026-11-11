@@ -22,7 +22,7 @@ export type ArticleWithFullRelations = ArticleRow & {
   author: AuthorRow | null;
 };
 
-const RELATIONS_SHORT =
+export const RELATIONS_SHORT =
   "*, category:categories(slug, name_de, name_en), author:authors(slug, display_name, avatar_url, handle, role)";
 
 const RELATIONS_FULL = "*, category:categories(*), author:authors(*)";

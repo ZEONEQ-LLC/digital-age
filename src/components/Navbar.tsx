@@ -27,6 +27,9 @@ export default function Navbar() {
         .nav-lang { color: var(--da-muted); font-size: 14px; cursor: pointer; background: none; border: none; }
         .nav-cta { background: var(--da-green); color: var(--da-dark); font-size: 15px; font-weight: 700; padding: 10px 20px; border-radius: 4px; text-decoration: none; }
         .nav-hamburger { display: none; background: none; border: none; color: var(--da-text); cursor: pointer; padding: 4px; }
+        .nav-search { color: var(--da-text-strong); display: inline-flex; align-items: center; padding: 4px; text-decoration: none; }
+        .nav-search:hover { color: var(--da-green); }
+        .nav-mobile-actions { display: none; align-items: center; gap: 12px; }
         .nav-dropdown { position: relative; }
         .nav-dropdown-btn { color: var(--da-text-strong); font-size: 15px; background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; }
         .nav-dropdown-btn:hover { color: var(--da-green); }
@@ -38,10 +41,19 @@ export default function Navbar() {
         .mobile-link { color: var(--da-text); text-decoration: none; font-size: 16px; font-weight: 500; padding: 14px 0; border-bottom: 1px solid var(--da-card); display: block; }
         .mobile-sublabel { color: var(--da-muted); font-size: 13px; padding: 8px 0 8px 12px; display: block; text-decoration: none; }
         .mobile-bottom { display: flex; align-items: center; justify-content: space-between; padding-top: 16px; margin-top: 8px; }
-        @media (max-width: 768px) {
+        .nav-desktop a, .nav-dropdown-btn, .nav-right a { white-space: nowrap; }
+        /* Mittlere Breiten: enger setzen, Sprachumschalter (noch ohne Funktion)
+           ausblenden, damit nichts umbricht. Unter 960 px Hamburger-Menue. */
+        @media (max-width: 1180px) {
+          .nav-desktop { gap: 22px; }
+          .nav-right { gap: 12px; }
+          .nav-right .nav-lang { display: none; }
+        }
+        @media (max-width: 960px) {
           .nav-desktop { display: none; }
           .nav-right { display: none; }
           .nav-hamburger { display: block; }
+          .nav-mobile-actions { display: flex; }
         }
       `}</style>
 
@@ -69,21 +81,29 @@ export default function Navbar() {
             </div>
           </div>
           <div className="nav-right">
+            <Link href="/suche" className="nav-search" aria-label="Suche" title="Suche">
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="7" strokeWidth={2} /><path strokeLinecap="round" strokeWidth={2} d="M20 20l-3.5-3.5" /></svg>
+            </Link>
             <Link href="/newsletter" style={{ color: "var(--da-text-strong)", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>📬 Newsletter</Link>
             <Link href="/login" style={{ color: "var(--da-text-strong)", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>Login</Link>
             <button className="nav-lang">DE / EN</button>
             <Link href="/artikel-pitchen" className="nav-cta">Publizieren</Link>
           </div>
-          <button
-            className="nav-hamburger"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Menü"
-          >
-            {menuOpen
-              ? <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
-              : <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16"/></svg>
-            }
-          </button>
+          <div className="nav-mobile-actions">
+            <Link href="/suche" className="nav-search" aria-label="Suche" title="Suche" onClick={() => setMenuOpen(false)}>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="7" strokeWidth={2} /><path strokeLinecap="round" strokeWidth={2} d="M20 20l-3.5-3.5" /></svg>
+            </Link>
+            <button
+              className="nav-hamburger"
+              onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Menü"
+            >
+              {menuOpen
+                ? <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+                : <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16"/></svg>
+              }
+            </button>
+          </div>
         </div>
       </nav>
 
