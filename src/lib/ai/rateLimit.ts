@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/service";
+import { BACKGROUND_TASKS } from "@/lib/ai/types";
 
 // Pragmatische Abweichung von `src/lib/rate-limit.ts`:
 //   - Identifier: Author-ID (authentifizierter Editor-Kontext) statt
@@ -19,7 +20,12 @@ import { createServiceClient } from "@/lib/supabase/service";
 // Retention-Politik (forever statt 24h), darum eigene Implementierung.
 
 // Limit: 20 AI-Calls pro Author pro Stunde. Konservativ. Anpassbar.
+// Hintergrund-Jobs (BACKGROUND_TASKS, z.B. News-Ticker) zaehlen nicht mit.
 const LIMIT_PER_HOUR = 20;
+
+// PostgREST-Liste fuer `not.in` — Task-Namen sind feste Bezeichner ohne
+// Kommas oder Klammern.
+const BACKGROUND_TASK_LIST = `(${BACKGROUND_TASKS.join(",")})`;
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -38,6 +44,7 @@ export async function checkAiRateLimit(
     .from("ai_usage_log")
     .select("id", { count: "exact", head: true })
     .eq("author_id", authorId)
+    .not("task", "in", BACKGROUND_TASK_LIST)
     .gte("created_at", oneHourAgo);
 
   if ((count ?? 0) < LIMIT_PER_HOUR) {
@@ -50,6 +57,7 @@ export async function checkAiRateLimit(
     .from("ai_usage_log")
     .select("created_at")
     .eq("author_id", authorId)
+    .not("task", "in", BACKGROUND_TASK_LIST)
     .gte("created_at", oneHourAgo)
     .order("created_at", { ascending: true })
     .limit(1)

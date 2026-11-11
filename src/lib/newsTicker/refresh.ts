@@ -1,29 +1,15 @@
 import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/service";
+import { resolveSystemAuthorId } from "@/lib/ai/systemAuthor";
 import { fetchAndParseFeed } from "./fetcher";
 import { generateNewsItem } from "./generator";
 import type { Database } from "@/lib/database.types";
+import { addRefreshError, emptyRefreshStats, type RefreshStats } from "./stats";
 
 type NewsSourceRow = Database["public"]["Tables"]["news_sources"]["Row"];
 
-export type RefreshError = {
-  source_id: string;
-  source_name: string;
-  message: string;
-};
-
-export type RefreshStats = {
-  sources_polled: number;
-  items_fetched: number;
-  items_generated: number;
-  items_skipped_dedup: number;
-  items_skipped_generation: number;
-  errors: RefreshError[];
-  // Wenn true, wurde der Run wegen `news_ticker_config.is_paused = true`
-  // sofort abgebrochen — alle Zähler bleiben 0.
-  paused?: boolean;
-};
+export type { RefreshError, RefreshStats } from "./stats";
 
 const PROMPT_FALLBACK =
   "Du analysierst RSS-Items für ein KI-Magazin. Gib JSON {title, teaser, summary, category} oder {skip: true} zurück.";
@@ -39,16 +25,9 @@ const PROMPT_FALLBACK =
  * Session) UND vom Cron-Endpoint (keine Session) gleich gerufen werden kann.
  * Caller-Gating (Editor-Check / Env-Flag-Check) passiert OBEN, nicht hier.
  */
-export async function runRefresh(): Promise<RefreshStats> {
+export async function runRefresh(opts: { authorId?: string } = {}): Promise<RefreshStats> {
   const supabase = createServiceClient();
-  const stats: RefreshStats = {
-    sources_polled: 0,
-    items_fetched: 0,
-    items_generated: 0,
-    items_skipped_dedup: 0,
-    items_skipped_generation: 0,
-    errors: [],
-  };
+  const stats: RefreshStats = emptyRefreshStats();
 
   // Config-Singleton zuerst laden — Pause-Check kommt vor allen Reads.
   const { data: cfg } = await supabase
@@ -75,6 +54,15 @@ export async function runRefresh(): Promise<RefreshStats> {
   const promptTemplate = cfg?.generation_prompt?.trim() || PROMPT_FALLBACK;
   const itemsPerSource = cfg?.items_per_source ?? 10;
 
+  // Wem die KI-Kosten zugeschrieben werden: dem Editor, der den Refresh im
+  // Admin ausloest, beim Cron dem System-Author (NEWS_TICKER_AUTHOR_ID, sonst
+  // aeltester Editor).
+  const authorId =
+    opts.authorId ?? (await resolveSystemAuthorId(supabase, "NEWS_TICKER_AUTHOR_ID"));
+  if (!authorId) {
+    throw new Error("Kein Editor gefunden, dem die KI-Kosten des Tickers zugeschrieben werden können.");
+  }
+
   // Aktive Quellen laden, sortiert nach name (deterministische Reihenfolge
   // im Log).
   const { data: sources, error: sourcesErr } = await supabase
@@ -88,7 +76,7 @@ export async function runRefresh(): Promise<RefreshStats> {
   }
 
   for (const source of sources ?? []) {
-    await processSource(supabase, source, promptTemplate, itemsPerSource, stats);
+    await processSource(supabase, source, promptTemplate, itemsPerSource, authorId, stats);
   }
 
   // Stats zurückschreiben — even bei 0 sources, damit der Editor sieht dass
@@ -109,6 +97,7 @@ async function processSource(
   source: NewsSourceRow,
   promptTemplate: string,
   itemsPerSource: number,
+  authorId: string,
   stats: RefreshStats,
 ): Promise<void> {
   stats.sources_polled += 1;
@@ -117,11 +106,7 @@ async function processSource(
   try {
     items = await fetchAndParseFeed(source, itemsPerSource);
   } catch (err) {
-    stats.errors.push({
-      source_id: source.id,
-      source_name: source.name,
-      message: err instanceof Error ? err.message : String(err),
-    });
+    addRefreshError(stats, source, err instanceof Error ? err.message : String(err));
     return;
   }
 
@@ -141,24 +126,26 @@ async function processSource(
       continue;
     }
 
-    let generated;
+    let outcome;
     try {
-      generated = await generateNewsItem(item, source, promptTemplate);
+      outcome = await generateNewsItem(item, source, promptTemplate, authorId);
     } catch (err) {
-      stats.items_skipped_generation += 1;
-      stats.errors.push({
-        source_id: source.id,
-        source_name: source.name,
+      outcome = {
+        kind: "error" as const,
         message: `Generator-Exception: ${err instanceof Error ? err.message : String(err)}`,
-      });
-      continue;
+      };
     }
 
-    if (!generated) {
-      // skip oder Schema-Drift — generator hat bereits geloggt.
+    if (outcome.kind === "skip") {
       stats.items_skipped_generation += 1;
       continue;
     }
+    if (outcome.kind === "error") {
+      stats.items_failed = (stats.items_failed ?? 0) + 1;
+      addRefreshError(stats, source, outcome.message);
+      continue;
+    }
+    const generated = outcome.item;
 
     const category = generated.category ?? source.default_category ?? null;
 
@@ -184,11 +171,8 @@ async function processSource(
         stats.items_skipped_dedup += 1;
         continue;
       }
-      stats.errors.push({
-        source_id: source.id,
-        source_name: source.name,
-        message: `Insert-Fehler: ${insErr.message}`,
-      });
+      stats.items_failed = (stats.items_failed ?? 0) + 1;
+      addRefreshError(stats, source, `Insert-Fehler: ${insErr.message}`);
       continue;
     }
 
