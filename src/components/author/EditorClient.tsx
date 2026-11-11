@@ -73,6 +73,7 @@ import { tiptapToBlocks } from "@/lib/tiptap/tiptapToBlocks";
 import { contentWhitelistMatch, runEditorRoundtripGuard, runRoundtripGuard, stripAllMarkup, type GuardResult } from "@/lib/tiptap/roundtripGuard";
 import { cleanupMarkdown } from "@/lib/editor/mdCleanup";
 import { normalizeArticleSlug, slugFollowsTitle, slugFromTitle } from "@/lib/articleSlug";
+import { seoHeadingOutline } from "@/lib/ai/seoHeadings";
 import { generateAbstract } from "@/lib/ai/abstractActions";
 import { heroStaleChanges, parseHeroRecipe, recipeFilePaths, recipeToJson, type HeroRecipe } from "@/lib/hero-studio/recipe";
 import { deleteHeroAssets, heroAssetPathFromUrl } from "@/lib/hero-studio/upload";
@@ -690,20 +691,10 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     return "";
   }, [excerpt, doc]);
 
-  // H2-Liste für die SEO-Review-Analyse. seo_review prüft, ob das
-  // Focus-Keyword in mindestens einer H2 vorkommt (claude-seo:
-  // 1 H1 + 1-2 H2-Mentions sind sufficient) — ohne H2-Daten kann
-  // das Modell den Punkt nicht bewerten.
-  const headingsLevel2 = useMemo(() => {
-    const blocks: Block[] = doc?.blocks ?? [];
-    const out: string[] = [];
-    for (const b of blocks) {
-      if (b.type === "heading" && b.level === 2 && b.content.trim() !== "") {
-        out.push(b.content);
-      }
-    }
-    return out;
-  }, [doc]);
+  // Gliederung (H2 und H3) für die SEO-Review-Analyse. seo_review prüft, ob
+  // das Focus-Keyword in mindestens einer H2 vorkommt, und kann mit den H3
+  // «H3 zu H2 anheben» empfehlen statt neue H2 zu erfinden.
+  const seoHeadings = useMemo(() => seoHeadingOutline(doc?.blocks), [doc]);
 
   const bodyText = useMemo(() => {
     const blocks: Block[] = doc?.blocks ?? [];
@@ -1228,7 +1219,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           const r = await analyzeSeoEntry({
             title,
             firstParagraph,
-            headingsLevel2,
+            headings: seoHeadings,
             focusKeyword: kw || null,
             secondaryKeywords: sec,
             locale,
@@ -2426,7 +2417,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           articleTitle={title}
           articleBodyText={bodyText}
           articleFirstParagraph={firstParagraph}
-          articleHeadingsLevel2={headingsLevel2}
+          articleHeadings={seoHeadings}
           locale={locale}
           initialReview={initialReview}
           initialReviewAt={article.seo_review_at ?? null}

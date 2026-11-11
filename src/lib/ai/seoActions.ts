@@ -11,6 +11,7 @@ import {
   buildSeoReviewSystem,
   buildSeoReviewPrompt,
 } from "@/lib/ai/seoPrompts";
+import type { SeoHeading } from "@/lib/ai/seoHeadings";
 
 // Liest die editierbaren Strategie-Overrides aus ai_config.task_prompt_overrides
 // (Muster wie news_ticker generation_prompt: DB-Wert + Code-Fallback). Nur
@@ -520,7 +521,7 @@ function parseSeoReview(raw: string): SeoReview | null {
 export async function analyzeSeoEntry(args: {
   title: string;
   firstParagraph: string;
-  headingsLevel2: string[];
+  headings: SeoHeading[];
   focusKeyword: string | null;
   secondaryKeywords: string[];
   locale: "de-CH" | "en";
@@ -532,7 +533,7 @@ export async function analyzeSeoEntry(args: {
     prompt: buildSeoReviewPrompt({
       title: args.title,
       firstParagraph: args.firstParagraph,
-      headingsLevel2: args.headingsLevel2,
+      headings: args.headings,
       focusKeyword: args.focusKeyword,
       secondaryKeywords: args.secondaryKeywords,
     }),

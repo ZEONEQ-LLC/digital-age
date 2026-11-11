@@ -19,6 +19,7 @@ import {
 import type { AiErrorKind } from "@/lib/ai/types";
 import { isReviewStale, truncateQuote } from "@/lib/ai/seoReview";
 import { normalizeArticleSlug } from "@/lib/articleSlug";
+import type { SeoHeading } from "@/lib/ai/seoHeadings";
 
 function formatReviewDate(iso: string): string {
   const d = new Date(iso);
@@ -65,7 +66,7 @@ type EditorSeoPanelProps = {
   articleTitle?: string;
   articleBodyText?: string;
   articleFirstParagraph?: string;
-  articleHeadingsLevel2?: string[];
+  articleHeadings?: SeoHeading[];
   locale: "de-CH" | "en";
   // Persistiertes Review + dessen Zeitstempel (aus article.seo_review[_at]).
   initialReview?: SeoReview | null;
@@ -288,7 +289,7 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
   articleTitle = "",
   articleBodyText = "",
   articleFirstParagraph = "",
-  articleHeadingsLevel2 = [],
+  articleHeadings = [],
   locale,
   initialReview = null,
   initialReviewAt = null,
@@ -560,7 +561,7 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
       const result = await analyzeSeoEntry({
         title: articleTitle,
         firstParagraph: articleFirstParagraph,
-        headingsLevel2: articleHeadingsLevel2,
+        headings: articleHeadings,
         focusKeyword: seo.keyword.trim() === "" ? null : seo.keyword,
         secondaryKeywords: seo.secondaryKeywords,
         locale,
