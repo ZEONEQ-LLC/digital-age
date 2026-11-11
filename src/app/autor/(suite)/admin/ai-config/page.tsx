@@ -14,6 +14,7 @@ const PROMPT_LABELS: Record<EditablePromptId, string> = {
   seo_keyword_candidates: "SEO — Keyword-Kandidaten (Stufe 1)",
   seo_derive: "SEO — Ableitung aus Keyword (Stufe 2)",
   seo_review: "SEO — Verbesserungsvorschläge (Analyse)",
+  abstract_generate: "Abstract generieren",
   highlight_suggestions: "Highlight-Vorschläge",
   image_alt: "Bild-ALT-Texte",
   hero_proposals: "Hero Studio — Vorschläge",
