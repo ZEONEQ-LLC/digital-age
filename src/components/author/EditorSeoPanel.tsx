@@ -13,12 +13,15 @@ import {
   type SeoFields,
   type SeoDerivedFields,
   type SeoReview,
+  type SeoReviewSuggestion,
   type SeoReviewSeverity,
   type SeoReviewCategory,
 } from "@/lib/ai/seoActions";
 import type { AiErrorKind } from "@/lib/ai/types";
 import { isReviewStale, truncateQuote } from "@/lib/ai/seoReview";
 import { normalizeArticleSlug } from "@/lib/articleSlug";
+import { isNoopSuggestion } from "@/lib/editor/suggestionEdit";
+import type { SeoHeading } from "@/lib/ai/seoHeadings";
 
 function formatReviewDate(iso: string): string {
   const d = new Date(iso);
@@ -65,7 +68,7 @@ type EditorSeoPanelProps = {
   articleTitle?: string;
   articleBodyText?: string;
   articleFirstParagraph?: string;
-  articleHeadingsLevel2?: string[];
+  articleHeadings?: SeoHeading[];
   locale: "de-CH" | "en";
   // Persistiertes Review + dessen Zeitstempel (aus article.seo_review[_at]).
   initialReview?: SeoReview | null;
@@ -74,7 +77,12 @@ type EditorSeoPanelProps = {
   articleUpdatedAt?: string | null;
   // "Im Text anzeigen": in den Inhalt-Tab wechseln + targetQuote highlighten.
   onShowInText?: (quote: string) => void;
+  // «Übernehmen»: proposedText im Editor einsetzen (Titel, Abstract oder Text),
+  // ohne zu speichern. Rueckgabe: wo eingesetzt wurde oder warum nicht.
+  onApplySuggestion?: (s: SeoReviewSuggestion) => ApplySuggestionResult;
 };
+
+export type ApplySuggestionResult = { ok: true; where: string } | { ok: false; message: string };
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -87,9 +95,9 @@ const inputStyle: React.CSSProperties = {
   fontFamily: "inherit",
 };
 
-// AiButton bleibt rückwärtskompatibel: ohne `onClick`-Prop disabled mit
-// Standard-Tooltip. Die sieben anderen AI-Stub-Buttons (4 in EditorSidebar,
-// 3 hier im Panel für Description/Slug/Keyword) lassen den Prop weg.
+// AiButton: ohne `onClick`-Prop disabled mit Standard-Tooltip. Alle vier
+// Buttons im Panel (Titel, Description, Slug, Keyword) sind verdrahtet; die
+// frueheren Stubs der EditorSidebar sind mit PR 130 weggefallen.
 const aiBtnStyleBase: React.CSSProperties = {
   background: "rgba(220,214,247,0.1)",
   color: "var(--da-purple)",
@@ -288,12 +296,13 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
   articleTitle = "",
   articleBodyText = "",
   articleFirstParagraph = "",
-  articleHeadingsLevel2 = [],
+  articleHeadings = [],
   locale,
   initialReview = null,
   initialReviewAt = null,
   articleUpdatedAt = null,
   onShowInText,
+  onApplySuggestion,
 }: EditorSeoPanelProps, ref) {
   // Master-Pipeline-State: Vorschläge + Loading + Error.
   // `dismissedKeys` trackt, welche Boxen der User per Verwerfen geschlossen
@@ -347,6 +356,8 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewPending, startReviewTransition] = useTransition();
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  // Rueckmeldung pro Vorschlag nach «Übernehmen» (Index → Text, ok/Fehler).
+  const [applyNotes, setApplyNotes] = useState<Record<number, { ok: boolean; text: string }>>({});
 
   // Einzel-Re-Generate pro Feld. Beide Pfade (Master "SEO generieren" und
   // die 4 Einzel-Buttons) rufen dieselbe Server-Action generateSeoFields —
@@ -556,11 +567,12 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
   function handleAnalyze() {
     setReviewError(null);
     setReview(null);
+    setApplyNotes({});
     startReviewTransition(async () => {
       const result = await analyzeSeoEntry({
         title: articleTitle,
         firstParagraph: articleFirstParagraph,
-        headingsLevel2: articleHeadingsLevel2,
+        headings: articleHeadings,
         focusKeyword: seo.keyword.trim() === "" ? null : seo.keyword,
         secondaryKeywords: seo.secondaryKeywords,
         locale,
@@ -584,6 +596,7 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
     setReviewAt(null);
     setReviewError(null);
     setCopiedIndex(null);
+    setApplyNotes({});
   }
 
   // Abhaken: done-Flag lokal togglen + sofort persistieren (fire-and-forget).
@@ -599,6 +612,21 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
     };
     setReview(next);
     void saveSeoReviewDone(articleId, next);
+  }
+
+  // «Übernehmen»: Editor aendert den Text (ohne Speichern); bei Erfolg wird der
+  // Vorschlag abgehakt, damit er nicht zweimal angewendet wird.
+  function handleApply(index: number) {
+    if (!review || !onApplySuggestion) return;
+    const s = review.suggestions[index];
+    const res = onApplySuggestion(s);
+    setApplyNotes((prev) => ({
+      ...prev,
+      [index]: res.ok
+        ? { ok: true, text: `Übernommen (${res.where}). Speichern nicht vergessen.` }
+        : { ok: false, text: res.message },
+    }));
+    if (res.ok && !s.done) handleToggleDone(index);
   }
 
   function handleCopyRecommendation(index: number, text: string) {
@@ -1078,7 +1106,7 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
           <div>
             <MonoCaption>Verbesserungsvorschläge</MonoCaption>
             <p style={{ color: "var(--da-muted)", fontSize: 13, marginTop: 6, lineHeight: 1.5 }}>
-              Analysiert H1, ersten Absatz und H2-Überschriften nach SEO-Kriterien. Ändert nichts.
+              Analysiert H1, ersten Absatz und Zwischentitel (H2, H3) nach SEO-Kriterien. Ändert nichts, ausser du übernimmst einen Vorschlag; gespeichert wird erst mit «Speichern».
             </p>
           </div>
           <button
@@ -1332,7 +1360,44 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
                             Im Text anzeigen
                           </button>
                         )}
+                        {onApplySuggestion &&
+                          s.action !== null &&
+                          s.targetQuote.trim() !== "" &&
+                          s.proposedText.trim() !== "" &&
+                          !isNoopSuggestion(s.targetQuote, s.proposedText) &&
+                          !s.done && (
+                            <button
+                              type="button"
+                              data-seo="apply"
+                              onClick={() => handleApply(i)}
+                              title={
+                                s.action === "replace"
+                                  ? "Ersetzt die Stelle durch den Vorschlag (ohne zu speichern)"
+                                  : s.action === "insert_before"
+                                    ? "Fügt den Vorschlag vor der Stelle ein (ohne zu speichern)"
+                                    : "Fügt den Vorschlag nach der Stelle ein (ohne zu speichern)"
+                              }
+                              style={{ ...reviewActionBtnStyle, background: "rgba(220,214,247,0.1)" }}
+                            >
+                              {s.action === "replace" ? "Übernehmen" : "Einfügen"}
+                            </button>
+                          )}
                       </div>
+                      {applyNotes[i] && (
+                        <p
+                          role="status"
+                          data-seo="apply-note"
+                          style={{
+                            margin: 0,
+                            fontSize: 12,
+                            lineHeight: 1.5,
+                            color: applyNotes[i].ok ? "var(--da-green)" : "#ff8e8e",
+                            fontFamily: "var(--da-font-mono)",
+                          }}
+                        >
+                          {applyNotes[i].text}
+                        </p>
+                      )}
                     </div>
                   );
                 })}

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { triggerRefresh } from "@/lib/newsTickerActions";
+import { unwrapAction } from "@/lib/actionResult";
 
 type RefreshError = { source_id: string; source_name: string; message: string };
 type RefreshStats = {
@@ -30,7 +31,7 @@ export default function RefreshSection({ lastRefreshLabel }: Props) {
     setStats(null);
     startTransition(async () => {
       try {
-        const result = await triggerRefresh();
+        const result = unwrapAction(await triggerRefresh());
         setStats(result);
         router.refresh();
       } catch (e) {

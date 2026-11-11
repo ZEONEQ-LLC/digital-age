@@ -2,6 +2,7 @@
 
 import { useId, useState, useTransition } from "react";
 import { saveTickerSettings, type TickerSettings } from "@/lib/newsTickerActions";
+import { unwrapAction } from "@/lib/actionResult";
 
 type Props = {
   initial: TickerSettings;
@@ -37,7 +38,7 @@ export default function SettingsSection({ initial }: Props) {
     setSavedHint(null);
     startTransition(async () => {
       try {
-        await saveTickerSettings(toSave);
+        unwrapAction(await saveTickerSettings(toSave));
         setSavedHint("Gespeichert");
       } catch (e) {
         setError(e instanceof Error ? e.message : "Speichern fehlgeschlagen.");

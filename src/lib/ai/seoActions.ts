@@ -11,6 +11,7 @@ import {
   buildSeoReviewSystem,
   buildSeoReviewPrompt,
 } from "@/lib/ai/seoPrompts";
+import type { SeoHeading } from "@/lib/ai/seoHeadings";
 
 // Liest die editierbaren Strategie-Overrides aus ai_config.task_prompt_overrides
 // (Muster wie news_ticker generation_prompt: DB-Wert + Code-Fallback). Nur
@@ -373,6 +374,10 @@ export type SeoReviewCategory =
   | "hook"
   | "readability";
 
+// Wie proposedText anzuwenden ist (Knopf «Übernehmen» im SEO-Tab). null =
+// unbekannt (Alt-Daten ohne das Feld) oder kein Textvorschlag: kein Knopf.
+export type SeoReviewAction = "replace" | "insert_before" | "insert_after";
+
 export type SeoReviewSuggestion = {
   severity: SeoReviewSeverity;
   category: SeoReviewCategory;
@@ -384,6 +389,7 @@ export type SeoReviewSuggestion = {
   // NUR der konkrete Ersatz-/Einfügetext (finaler Wortlaut). "" wenn es
   // keinen konkreten Textvorschlag gibt oder Alt-Daten ohne das Feld.
   proposedText: string;
+  action: SeoReviewAction | null;
   // Erklärung (was/warum/wo) — NICHT der Ersatztext selbst.
   recommendation: string;
   // Clientseitiger Abhak-Status, im seo_review-jsonb persistiert. Kommt NICHT
@@ -402,6 +408,10 @@ export type SeoReviewResult =
   // eines Nicht-Editors). Die Analyse gilt trotzdem als ok.
   | { ok: true; review: SeoReview; reviewedAt: string | null }
   | { ok: false; error: SeoPipelineErrorKind };
+
+function parseReviewAction(raw: unknown): SeoReviewAction | null {
+  return raw === "replace" || raw === "insert_before" || raw === "insert_after" ? raw : null;
+}
 
 const REVIEW_SEVERITIES: ReadonlySet<SeoReviewSeverity> = new Set([
   "critical",
@@ -508,6 +518,7 @@ function parseSeoReview(raw: string): SeoReview | null {
       // zu Alt-Reviews ohne diese Felder).
       targetQuote: typeof s.targetQuote === "string" ? s.targetQuote : "",
       proposedText: typeof s.proposedText === "string" ? s.proposedText : "",
+      action: parseReviewAction(s.action),
       recommendation: s.recommendation,
       // done kommt nie vom LLM — frische Analyse ist immer unabgehakt.
       done: false,
@@ -520,7 +531,7 @@ function parseSeoReview(raw: string): SeoReview | null {
 export async function analyzeSeoEntry(args: {
   title: string;
   firstParagraph: string;
-  headingsLevel2: string[];
+  headings: SeoHeading[];
   focusKeyword: string | null;
   secondaryKeywords: string[];
   locale: "de-CH" | "en";
@@ -532,7 +543,7 @@ export async function analyzeSeoEntry(args: {
     prompt: buildSeoReviewPrompt({
       title: args.title,
       firstParagraph: args.firstParagraph,
-      headingsLevel2: args.headingsLevel2,
+      headings: args.headings,
       focusKeyword: args.focusKeyword,
       secondaryKeywords: args.secondaryKeywords,
     }),

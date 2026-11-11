@@ -11,6 +11,7 @@ import {
   PROMPT_DIFFICULTIES,
   PROMPT_TESTED_WITH,
 } from "@/lib/mappers/promptMappers";
+import { unwrapAction } from "@/lib/actionResult";
 
 function codeForLabel(list: readonly { code: string; label: string }[], label: string): string {
   return list.find((it) => it.label === label)?.code ?? label.toLowerCase();
@@ -99,7 +100,7 @@ export default function PromptEinreichenPage() {
       | "expert";
     startSubmitting(async () => {
       try {
-        await submitPromptExternal({
+        unwrapAction(await submitPromptExternal({
           title: data.title,
           prompt_text: data.body,
           context: data.context,
@@ -110,7 +111,7 @@ export default function PromptEinreichenPage() {
           submitter_name: data.author,
           submitter_email: data.email,
           submitter_url: data.link || null,
-        });
+        }));
         setSubmitted(true);
       } catch (err) {
         setSubmitError(err instanceof Error ? err.message : String(err));

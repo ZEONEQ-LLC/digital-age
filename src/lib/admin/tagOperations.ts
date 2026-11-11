@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { FormError, runAction, type ActionResult } from "@/lib/actionResult";
 
 type OperationResult = {
   success: true;
@@ -12,14 +13,14 @@ type OperationResult = {
 async function requireEditor(): Promise<void> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht eingeloggt.");
+  if (!user) throw new FormError("Nicht eingeloggt.");
   const { data: author } = await supabase
     .from("authors")
     .select("role")
     .eq("user_id", user.id)
     .single();
   if (!author || author.role !== "editor") {
-    throw new Error("Nur Editoren dürfen Tags verwalten.");
+    throw new FormError("Nur Editoren dürfen Tags verwalten.");
   }
 }
 
@@ -28,21 +29,28 @@ function mapPgError(e: unknown): Error {
   // Wir mappen die wichtigsten Fälle auf verständliche DE-Messages.
   const msg = e instanceof Error ? e.message : String(e);
   if (msg.includes("23505") || msg.toLowerCase().includes("already exists")) {
-    return new Error("Slug ist bereits vergeben.");
+    return new FormError("Slug ist bereits vergeben.");
   }
   if (msg.includes("42501") || msg.toLowerCase().includes("permission denied")) {
-    return new Error("Nur Editoren dürfen Tags verwalten.");
+    return new FormError("Nur Editoren dürfen Tags verwalten.");
   }
   if (msg.includes("P0002") || msg.toLowerCase().includes("not found")) {
-    return new Error("Tag nicht gefunden.");
+    return new FormError("Tag nicht gefunden.");
   }
   if (msg.includes("22023") || msg.toLowerCase().includes("empty")) {
-    return new Error("Tag-Name darf nicht leer sein.");
+    return new FormError("Tag-Name darf nicht leer sein.");
   }
   return e instanceof Error ? e : new Error(msg);
 }
 
 export async function renameTag(
+  tagId: string,
+  newName: string,
+): Promise<ActionResult<OperationResult>> {
+  return runAction("tags.renameTag", () => renameTagInner(tagId, newName));
+}
+
+async function renameTagInner(
   tagId: string,
   newName: string,
 ): Promise<OperationResult> {
@@ -80,6 +88,13 @@ export async function renameTag(
 export async function mergeTag(
   fromId: string,
   toId: string,
+): Promise<ActionResult<OperationResult>> {
+  return runAction("tags.mergeTag", () => mergeTagInner(fromId, toId));
+}
+
+async function mergeTagInner(
+  fromId: string,
+  toId: string,
 ): Promise<OperationResult> {
   await requireEditor();
   const supabase = await createClient();
@@ -106,7 +121,11 @@ export async function mergeTag(
   };
 }
 
-export async function deleteTag(tagId: string): Promise<OperationResult> {
+export async function deleteTag(tagId: string): Promise<ActionResult<OperationResult>> {
+  return runAction("tags.deleteTag", () => deleteTagInner(tagId));
+}
+
+async function deleteTagInner(tagId: string): Promise<OperationResult> {
   await requireEditor();
   const supabase = await createClient();
 

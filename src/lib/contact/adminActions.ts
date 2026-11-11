@@ -2,18 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { FormError, guardMessage } from "@/lib/actionResult";
 
 async function requireEditor(): Promise<void> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht eingeloggt.");
+  if (!user) throw new FormError("Nicht eingeloggt.");
   const { data: author } = await supabase
     .from("authors")
     .select("role")
     .eq("user_id", user.id)
     .single();
   if (!author || author.role !== "editor") {
-    throw new Error("Nur Editoren dürfen Nachrichten verwalten.");
+    throw new FormError("Nur Editoren dürfen Nachrichten verwalten.");
   }
 }
 
@@ -23,7 +24,8 @@ export async function updateContactStatus(
   id: string,
   status: Status,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
-  await requireEditor();
+  const denied = await guardMessage(requireEditor);
+  if (denied) return { ok: false, message: denied };
   const supabase = await createClient();
   const patch: { status: Status; replied_at?: string | null } = { status };
   if (status === "replied") patch.replied_at = new Date().toISOString();
@@ -40,7 +42,8 @@ export async function updateContactNotes(
   id: string,
   notes: string,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
-  await requireEditor();
+  const denied = await guardMessage(requireEditor);
+  if (denied) return { ok: false, message: denied };
   const trimmed = notes.trim();
   if (trimmed.length > 1000) {
     return { ok: false, message: "Notiz zu lang (max. 1000 Zeichen)." };

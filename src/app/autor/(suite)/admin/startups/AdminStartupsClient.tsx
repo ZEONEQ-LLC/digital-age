@@ -28,6 +28,7 @@ import type {
   EmployeeRangeCode,
   FundingStageCode,
 } from "@/lib/startupApi";
+import { unwrapAction } from "@/lib/actionResult";
 
 type TabKey = "pending" | "published" | "featured" | "rejected" | "archived";
 
@@ -145,7 +146,7 @@ export default function AdminStartupsClient({ initialStartups }: Props) {
     // auf null normalisiert, Submitter bekommt generic-Mail.
     const reason = rejectReason.trim();
     setRejectFor(null);
-    wrap(id, async () => { await rejectStartup(id, reason || null); });
+    wrap(id, async () => { unwrapAction(await rejectStartup(id, reason || null)); });
   }
 
   function openEdit(s: StartupRow) {
@@ -164,7 +165,7 @@ export default function AdminStartupsClient({ initialStartups }: Props) {
     setEditFor(null);
     setDraft(null);
     wrap(id, async () => {
-      await updateStartup(id, {
+      unwrapAction(await updateStartup(id, {
         slug: draft.slug,
         name: draft.name,
         tagline: draft.tagline,
@@ -182,7 +183,7 @@ export default function AdminStartupsClient({ initialStartups }: Props) {
         open_to_investment: draft.open_to_investment,
         pitch_deck_url: draft.pitch_deck_url || null,
         founder_names: founders.length > 0 ? founders : null,
-      });
+      }));
     });
   }
 
@@ -372,7 +373,7 @@ export default function AdminStartupsClient({ initialStartups }: Props) {
                       <button
                         className="as-btn as-btn--ok"
                         disabled={busy}
-                        onClick={() => wrap(s.id, async () => { await approveStartup(s.id); })}
+                        onClick={() => wrap(s.id, async () => { unwrapAction(await approveStartup(s.id)); })}
                       >
                         Approve
                       </button>
@@ -380,7 +381,7 @@ export default function AdminStartupsClient({ initialStartups }: Props) {
                         className="as-btn as-btn--feat"
                         disabled={featureDisabled}
                         title={spotlightFull ? "Spotlight-Limit erreicht" : ""}
-                        onClick={() => wrap(s.id, async () => { await approveStartup(s.id, { feature: true }); })}
+                        onClick={() => wrap(s.id, async () => { unwrapAction(await approveStartup(s.id, { feature: true })); })}
                       >
                         + Feature
                       </button>
@@ -393,32 +394,32 @@ export default function AdminStartupsClient({ initialStartups }: Props) {
                         className="as-btn as-btn--feat"
                         disabled={s.status === "published" && spotlightFull ? true : busy}
                         title={s.status === "published" && spotlightFull ? "Spotlight-Limit erreicht" : ""}
-                        onClick={() => wrap(s.id, async () => { await toggleStartupFeatured(s.id); })}
+                        onClick={() => wrap(s.id, async () => { unwrapAction(await toggleStartupFeatured(s.id)); })}
                       >
                         {s.status === "featured" ? "Unfeature" : "Feature"}
                       </button>
-                      <button className="as-btn" disabled={busy} onClick={() => wrap(s.id, async () => { await toggleInvestorReady(s.id); })}>
+                      <button className="as-btn" disabled={busy} onClick={() => wrap(s.id, async () => { unwrapAction(await toggleInvestorReady(s.id)); })}>
                         {s.open_to_investment ? "✕ Investor" : "✓ Investor"}
                       </button>
                       <button className="as-btn" disabled={busy} onClick={() => openEdit(s)}>Edit</button>
-                      <button className="as-btn" disabled={busy} onClick={() => wrap(s.id, async () => { await archiveStartup(s.id); })}>Archive</button>
+                      <button className="as-btn" disabled={busy} onClick={() => wrap(s.id, async () => { unwrapAction(await archiveStartup(s.id)); })}>Archive</button>
                     </>
                   )}
                   {s.status === "rejected" && (
                     <>
-                      <button className="as-btn" disabled={busy} onClick={() => wrap(s.id, async () => { await restoreStartupToPending(s.id); })}>Re-Open</button>
+                      <button className="as-btn" disabled={busy} onClick={() => wrap(s.id, async () => { unwrapAction(await restoreStartupToPending(s.id)); })}>Re-Open</button>
                       <button className="as-btn as-btn--danger" disabled={busy} onClick={() => {
                         if (!confirm(`Startup „${s.name}" endgültig löschen?`)) return;
-                        wrap(s.id, async () => { await deleteStartup(s.id); });
+                        wrap(s.id, async () => { unwrapAction(await deleteStartup(s.id)); });
                       }}>Löschen</button>
                     </>
                   )}
                   {s.status === "archived" && (
                     <>
-                      <button className="as-btn as-btn--ok" disabled={busy} onClick={() => wrap(s.id, async () => { await restoreStartupToPublished(s.id); })}>Restore</button>
+                      <button className="as-btn as-btn--ok" disabled={busy} onClick={() => wrap(s.id, async () => { unwrapAction(await restoreStartupToPublished(s.id)); })}>Restore</button>
                       <button className="as-btn as-btn--danger" disabled={busy} onClick={() => {
                         if (!confirm(`Startup „${s.name}" endgültig löschen?`)) return;
-                        wrap(s.id, async () => { await deleteStartup(s.id); });
+                        wrap(s.id, async () => { unwrapAction(await deleteStartup(s.id)); });
                       }}>Löschen</button>
                     </>
                   )}

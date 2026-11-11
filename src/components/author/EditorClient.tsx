@@ -9,7 +9,8 @@ import ArticleCoverVideo from "@/components/ArticleCoverVideo";
 import EditorDetailsTab from "@/components/author/EditorDetailsTab";
 import type { HeroStudioStatus } from "@/components/author/FeaturedImageBox";
 import EditorRevisions from "@/components/author/EditorRevisions";
-import EditorSeoPanel, { type SeoState, type EditorSeoPanelHandle } from "@/components/author/EditorSeoPanel";
+import EditorSeoPanel, { type ApplySuggestionResult, type SeoState, type EditorSeoPanelHandle } from "@/components/author/EditorSeoPanel";
+import type { SeoReviewSuggestion } from "@/lib/ai/seoActions";
 import CopilotPanel from "@/components/author/CopilotPanel";
 import { normalizeStoredReview } from "@/lib/ai/seoReview";
 import HighlightSuggestModal from "@/components/editor/HighlightSuggestModal";
@@ -73,6 +74,8 @@ import { tiptapToBlocks } from "@/lib/tiptap/tiptapToBlocks";
 import { contentWhitelistMatch, runEditorRoundtripGuard, runRoundtripGuard, stripAllMarkup, type GuardResult } from "@/lib/tiptap/roundtripGuard";
 import { cleanupMarkdown } from "@/lib/editor/mdCleanup";
 import { normalizeArticleSlug, slugFollowsTitle, slugFromTitle } from "@/lib/articleSlug";
+import { seoHeadingOutline } from "@/lib/ai/seoHeadings";
+import { applySuggestionToDoc, applySuggestionToString } from "@/lib/editor/suggestionEdit";
 import { generateAbstract } from "@/lib/ai/abstractActions";
 import { heroStaleChanges, parseHeroRecipe, recipeFilePaths, recipeToJson, type HeroRecipe } from "@/lib/hero-studio/recipe";
 import { deleteHeroAssets, heroAssetPathFromUrl } from "@/lib/hero-studio/upload";
@@ -317,6 +320,50 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   // wenn die Stelle nicht (mehr) gefunden wird.
   const [pendingHighlight, setPendingHighlight] = useState<string | null>(null);
   const [highlightMiss, setHighlightMiss] = useState(false);
+
+  // «Übernehmen» eines SEO-Review-Vorschlags: zuerst Titel (nur Ersetzen),
+  // dann Abstract, dann Text. Aendert nur den Editor, gespeichert wird wie
+  // immer per Knopf (Roundtrip-Guard aktiv). Marker (**, {{g}}, [^N]) aus dem
+  // Analyse-Input werden vor der Suche entfernt.
+  function handleApplySuggestion(s: SeoReviewSuggestion): ApplySuggestionResult {
+    const quote = stripAllMarkup(s.targetQuote).trim();
+    const text = stripAllMarkup(s.proposedText).trim();
+    if (!s.action || !quote || !text) return { ok: false, message: "Kein anwendbarer Vorschlag." };
+    if (s.action === "replace") {
+      const nextTitle = applySuggestionToString(title, quote, text, "replace");
+      if (nextTitle !== null) {
+        handleTitleChange(nextTitle);
+        return { ok: true, where: "Titel" };
+      }
+    }
+    const abstractJson = abstractEditorRef.current?.getJSON();
+    if (abstractJson) {
+      const nextAbstract = applySuggestionToDoc(abstractJson, quote, text, s.action);
+      if (nextAbstract) {
+        abstractEditorRef.current?.setContent(nextAbstract);
+        markDirty();
+        setExcerpt(readExcerptFromAbstract());
+        return { ok: true, where: "Abstract" };
+      }
+    }
+    const res = bodyEditorRef.current?.applyTextEdit(quote, text, s.action) ?? "not_found";
+    if (res === "ok") {
+      markDirty();
+      try {
+        setDoc(buildBlockDocumentFromEditor());
+      } catch (e) {
+        console.error("Editor-Sync fehlgeschlagen:", e);
+      }
+      return { ok: true, where: "Text" };
+    }
+    if (res === "complex") {
+      return {
+        ok: false,
+        message: "Die Stelle enthält einen Quellenverweis oder Zeilenumbruch oder geht über mehrere Absätze. Bitte von Hand anpassen.",
+      };
+    }
+    return { ok: false, message: "Stelle nicht gefunden, der Text wurde wohl seit der Analyse geändert. Bitte von Hand anpassen." };
+  }
 
   function handleShowInText(quote: string) {
     if (!quote.trim()) return;
@@ -690,20 +737,10 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     return "";
   }, [excerpt, doc]);
 
-  // H2-Liste für die SEO-Review-Analyse. seo_review prüft, ob das
-  // Focus-Keyword in mindestens einer H2 vorkommt (claude-seo:
-  // 1 H1 + 1-2 H2-Mentions sind sufficient) — ohne H2-Daten kann
-  // das Modell den Punkt nicht bewerten.
-  const headingsLevel2 = useMemo(() => {
-    const blocks: Block[] = doc?.blocks ?? [];
-    const out: string[] = [];
-    for (const b of blocks) {
-      if (b.type === "heading" && b.level === 2 && b.content.trim() !== "") {
-        out.push(b.content);
-      }
-    }
-    return out;
-  }, [doc]);
+  // Gliederung (H2 und H3) für die SEO-Review-Analyse. seo_review prüft, ob
+  // das Focus-Keyword in mindestens einer H2 vorkommt, und kann mit den H3
+  // «H3 zu H2 anheben» empfehlen statt neue H2 zu erfinden.
+  const seoHeadings = useMemo(() => seoHeadingOutline(doc?.blocks), [doc]);
 
   const bodyText = useMemo(() => {
     const blocks: Block[] = doc?.blocks ?? [];
@@ -1025,6 +1062,21 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     };
   }, [article.id, article.slug, article.category?.name_de, article.author?.display_name, seo.slug, seo.keyword, title, categories, categoryId, allAuthors, assignedAuthorId, publishedAtDate, readMinutes, excerpt, bodyText, locale]);
 
+  // Vorschau-Tab: Rubrik und Autor-Zeile wie auf der Beitragsseite. Rubrik =
+  // Subkategorie, sonst Kategorie; Datum = gesetztes Veroeffentlichungsdatum,
+  // sonst heute (wie beim ersten Publizieren).
+  const previewMeta = useMemo(() => {
+    const assigned = allAuthors.find((a) => a.id === assignedAuthorId);
+    const author = assigned?.display_name ?? article.author?.display_name ?? "";
+    return {
+      rubric: subcategory.trim() || heroArticle.rubrik,
+      author,
+      initial: author.trim().charAt(0).toUpperCase() || "?",
+      external: assigned?.role === "external",
+      date: heroArticle.date,
+    };
+  }, [allAuthors, assignedAuthorId, article.author?.display_name, subcategory, heroArticle.rubrik, heroArticle.date]);
+
   // Aktives Studio-Hero fuer die Box «Beitragsbild»: Rezept vorhanden und Cover = Hero des Rezepts.
   const heroStudioStatus = useMemo<HeroStudioStatus | null>(() => (
     coverRecipe && heroAssetPathFromUrl(cover) === coverRecipe.files.hero
@@ -1228,7 +1280,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           const r = await analyzeSeoEntry({
             title,
             firstParagraph,
-            headingsLevel2,
+            headings: seoHeadings,
             focusKeyword: kw || null,
             secondaryKeywords: sec,
             locale,
@@ -2227,57 +2279,116 @@ export default function EditorClient({ article, revisions, categories, isEditor,
               </span>
             )}
           </div>
-          {cover && (
-            // Wie auf der Beitragsseite: Bild als Poster, bei gesetzter Animation
-            // dieselbe Komponente ArticleCoverVideo darueber (Pause-Knopf, reduced motion).
-            <div
+          {/* Gleiche Reihenfolge wie die Beitragsseite (src/app/artikel/[slug]/page.tsx):
+              Rubrik, Titel, Abstract, Autor-Zeile, dann Beitragsbild mit
+              Bildunterschrift und Quelle, dann Text. Anhören/Teilen nur angedeutet. */}
+          <nav
+            aria-label="Breadcrumb (Vorschau)"
+            data-preview="rubric"
+            style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24 }}
+          >
+            <span style={{ color: "var(--da-muted)", fontSize: "var(--fs-body-sm)" }}>Home</span>
+            <span style={{ color: "var(--da-faint)", fontSize: "var(--fs-body-sm)" }}>/</span>
+            <span
               style={{
-                position: "relative",
-                width: "100%",
-                aspectRatio: "16/9",
-                borderRadius: 8,
-                overflow: "hidden",
-                marginBottom: 24,
-                background: "var(--da-dark)",
+                color: "var(--da-green)",
+                fontFamily: "var(--da-font-mono)",
+                fontSize: "var(--fs-body-sm)",
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
               }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={cover}
-                alt=""
-                style={{
-                  display: "block",
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                }}
-              />
-              {coverVideoUrl && <ArticleCoverVideo src={coverVideoUrl} poster={cover} />}
-            </div>
-          )}
+              {previewMeta.rubric}
+            </span>
+          </nav>
           <h1
             style={{
               color: "var(--da-text)",
               fontFamily: "var(--da-font-display)",
-              fontSize: 36,
-              fontWeight: 800,
+              fontSize: "clamp(30px, 4vw, 48px)",
+              fontWeight: 700,
               lineHeight: 1.15,
-              marginBottom: 12,
+              letterSpacing: "-0.02em",
+              marginBottom: 24,
             }}
           >
             {title || "(Ohne Titel)"}
           </h1>
           {excerpt && (
-            <p
-              style={{
-                color: "var(--da-muted)",
-                fontSize: 18,
-                lineHeight: 1.55,
-                marginBottom: 28,
-              }}
-            >
+            <p style={{ color: "#c0c0c0", fontSize: 20, lineHeight: 1.65, marginBottom: 36, fontWeight: 300 }}>
               <InlineText content={excerpt} sources={doc?.sources ?? []} />
             </p>
+          )}
+          <div
+            data-preview="byline"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 16,
+              paddingBottom: 28,
+              marginBottom: 28,
+              borderBottom: "1px solid var(--da-card)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <span
+                aria-hidden
+                style={{
+                  width: 44,
+                  height: 44,
+                  flexShrink: 0,
+                  borderRadius: "50%",
+                  border: `2px solid ${previewMeta.external ? "var(--da-orange)" : "var(--da-green)"}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "var(--da-muted)",
+                  fontWeight: 700,
+                  fontSize: 15,
+                }}
+              >
+                {previewMeta.initial}
+              </span>
+              <div>
+                <div style={{ color: "var(--da-text)", fontSize: "var(--fs-body)", fontWeight: 600 }}>
+                  {previewMeta.author || "(Kein Autor)"}
+                </div>
+                <p style={{ color: "var(--da-muted)", fontFamily: "var(--da-font-mono)", fontSize: "var(--fs-body-sm)", margin: 0 }}>
+                  {previewMeta.date} · {readMinutes} min Lesezeit
+                </p>
+              </div>
+            </div>
+            <span style={{ color: "var(--da-faint)", fontFamily: "var(--da-font-mono)", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              Anhören · Teilen
+            </span>
+          </div>
+          {cover && (
+            // Wie auf der Beitragsseite: Bild als Poster, bei gesetzter Animation
+            // dieselbe Komponente ArticleCoverVideo darueber (Pause-Knopf, reduced motion).
+            <figure style={{ margin: "0 0 32px" }} data-preview="cover">
+              <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", background: "var(--da-dark)" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={cover}
+                  alt={coverMetadata.alt}
+                  style={{ display: "block", width: "100%", height: "auto", maxHeight: 520, objectFit: "cover" }}
+                />
+                {coverVideoUrl && <ArticleCoverVideo src={coverVideoUrl} poster={cover} />}
+              </div>
+              {coverMetadata.caption.trim() && (
+                <figcaption style={{ marginTop: 10, color: "var(--da-text)", fontSize: 14, fontWeight: 600, textAlign: "center" }}>
+                  {coverMetadata.caption}
+                </figcaption>
+              )}
+              {coverMetadata.source.trim() && (
+                <small style={{ display: "block", marginTop: 4, color: "var(--da-muted-soft)", fontSize: 12, fontStyle: "italic", textAlign: "center" }}>
+                  {coverMetadata.source}
+                </small>
+              )}
+            </figure>
           )}
           <ArticleBody>
             <BlockReader
@@ -2426,12 +2537,13 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           articleTitle={title}
           articleBodyText={bodyText}
           articleFirstParagraph={firstParagraph}
-          articleHeadingsLevel2={headingsLevel2}
+          articleHeadings={seoHeadings}
           locale={locale}
           initialReview={initialReview}
           initialReviewAt={article.seo_review_at ?? null}
           articleUpdatedAt={article.updated_at ?? null}
           onShowInText={handleShowInText}
+          onApplySuggestion={handleApplySuggestion}
         />
       </div>
 

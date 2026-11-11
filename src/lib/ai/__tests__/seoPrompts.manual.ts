@@ -21,9 +21,12 @@ import {
   SEO_DERIVE_STRATEGY,
   SEO_DERIVE_SCHEMA,
   buildSeoReviewSystem,
+  buildSeoReviewPrompt,
   SEO_REVIEW_STRATEGY,
   SEO_REVIEW_SCHEMA,
 } from "../seoPrompts";
+import { seoHeadingOutline } from "../seoHeadings";
+import type { Block } from "@/types/blocks";
 import {
   EDITABLE_PROMPT_IDS,
   EDITABLE_DEFAULT_STRATEGIES,
@@ -188,6 +191,29 @@ section("Prompt-Builder (Body-Cap unveraendert)");
   ok(`Body auf MAX_BODY_CHARS (${MAX_BODY_CHARS}) gekappt`, (p.match(/y/g) ?? []).length === MAX_BODY_CHARS);
   const d = buildSeoDerivePrompt({ title: "T", bodyText: "B", chosenKeyword: "KI Compliance" });
   ok("Derive-Prompt enthaelt gewaehltes Keyword", d.includes("KI Compliance"));
+}
+
+section("Review-Prompt: Gliederung mit H2 und H3 (PR 189)");
+{
+  const blocks = [
+    { id: "a", type: "heading", level: 2, content: "Warum Agenten" },
+    { id: "b", type: "paragraph", content: "Text" },
+    { id: "c", type: "heading", level: 3, content: "KI im Treuhandbüro" },
+    { id: "d", type: "heading", level: 4, content: "Detail" },
+    { id: "e", type: "heading", level: 2, content: "  " },
+  ] as Block[];
+  const outline = seoHeadingOutline(blocks);
+  ok("Outline: H2 + H3, H4 und leere weg", JSON.stringify(outline) === JSON.stringify([{ level: 2, text: "Warum Agenten" }, { level: 3, text: "KI im Treuhandbüro" }]));
+  ok("Outline: null -> leer", seoHeadingOutline(null).length === 0);
+  const p = buildSeoReviewPrompt({ title: "T", firstParagraph: "L", headings: outline, focusKeyword: "KI", secondaryKeywords: [] });
+  ok("H2-Zeile", p.includes("  H2: Warum Agenten"));
+  ok("H3-Zeile eingerueckt", p.includes("    H3: KI im Treuhandbüro"));
+  ok("H3-Hinweis bei vorhandenen H3", p.includes("H3 zu H2 anheben"));
+  const p2 = buildSeoReviewPrompt({ title: "T", firstParagraph: "L", headings: [{ level: 2, text: "Nur H2" }], focusKeyword: null, secondaryKeywords: [] });
+  ok("kein H3-Hinweis ohne H3", !p2.includes("anheben"));
+  const p3 = buildSeoReviewPrompt({ title: "T", firstParagraph: "L", headings: [], focusKeyword: null, secondaryKeywords: [] });
+  ok("leere Gliederung", p3.includes("(keine Zwischentitel im Artikel)"));
+  ok("Schema erlaubt H3-Zitat", SEO_REVIEW_SCHEMA.includes("H1/Lead/H2/H3"));
 }
 
 process.stdout.write(`\nResult: ${passes} pass, ${fails} fail\n`);

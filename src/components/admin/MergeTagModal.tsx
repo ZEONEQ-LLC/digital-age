@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { searchTags, type TagSearchResult } from "@/lib/tagSearchActions";
 import { mergeTag } from "@/lib/admin/tagOperations";
+import { unwrapAction } from "@/lib/actionResult";
 
 type Props = {
   fromTag: { id: string; name: string; slug: string; articleCount: number };
@@ -78,7 +79,7 @@ export default function MergeTagModal({ fromTag, onClose, onDone }: Props) {
     setError(null);
     startTransition(async () => {
       try {
-        const result = await mergeTag(fromTag.id, target.id);
+        const result = unwrapAction(await mergeTag(fromTag.id, target.id));
         onDone({ affectedCount: result.affectedCount, toName: target.name });
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));

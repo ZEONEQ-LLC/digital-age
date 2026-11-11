@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { saveGenerationPrompt } from "@/lib/newsTickerActions";
+import { unwrapAction } from "@/lib/actionResult";
 
 type Props = {
   initialPrompt: string;
@@ -21,7 +22,7 @@ export default function PromptSection({ initialPrompt, lastRefreshLabel }: Props
     setSavedHint(null);
     startTransition(async () => {
       try {
-        await saveGenerationPrompt(prompt);
+        unwrapAction(await saveGenerationPrompt(prompt));
         setSavedHint("Gespeichert");
       } catch (e) {
         setError(e instanceof Error ? e.message : "Speichern fehlgeschlagen.");

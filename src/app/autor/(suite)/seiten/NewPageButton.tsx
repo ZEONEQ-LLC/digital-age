@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { createPage } from "@/lib/pageActions";
+import { unwrapAction } from "@/lib/actionResult";
 
 export default function NewPageButton() {
   const router = useRouter();
@@ -16,7 +17,7 @@ export default function NewPageButton() {
     setError(null);
     startTransition(async () => {
       try {
-        const res = await createPage({ slug: slug.trim(), title: title.trim() });
+        const res = unwrapAction(await createPage({ slug: slug.trim(), title: title.trim() }));
         setOpen(false);
         router.push(`/autor/seiten/${res.id}`);
       } catch (e) {

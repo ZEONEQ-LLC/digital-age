@@ -14,6 +14,7 @@ import { checkSourcesUrls } from "@/lib/editor/urlCheck";
 import { validatePublishGate } from "@/lib/publishGate";
 import { isArticleSlugConflict } from "@/lib/articleSlug";
 import { FormError, isUniqueViolation, runAction, type ActionResult } from "@/lib/actionResult";
+import { countLocalImages, isLocalImageUrl, localImageMessage } from "@/lib/editor/localImageUrls";
 import type { Database, Json } from "@/lib/database.types";
 
 type ArticleRow = Database["public"]["Tables"]["articles"]["Row"];
@@ -161,6 +162,12 @@ async function saveArticleInner(id: string, patch: ArticlePatch): Promise<Articl
   const supabase = await createClient();
   await requireCurrentAuthor();
   validateHeroFields(patch);
+  // Bilder mit blob:/data:-Adresse gingen nach dem Speichern auf der Live-Seite kaputt.
+  const localImages = countLocalImages(patch.body_blocks);
+  if (localImages > 0) throw new FormError(localImageMessage(localImages));
+  if (isLocalImageUrl(patch.cover_image_url)) {
+    throw new FormError("Das Beitragsbild ist nicht hochgeladen. Bitte neu hochladen, dann speichern.");
+  }
 
   // Visual-Editor ist Source-of-Truth: wenn body_blocks im Patch, regeneriert
   // der Server body_md daraus (überschreibt ggf. einen mitgesendeten body_md-

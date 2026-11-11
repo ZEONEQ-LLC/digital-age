@@ -78,6 +78,10 @@ export function normalizeStoredReview(raw: unknown): SeoReview | null {
       targetQuote: typeof s.targetQuote === "string" ? s.targetQuote : "",
       // Alt-Daten ohne die neuen Felder → Defaults.
       proposedText: typeof s.proposedText === "string" ? s.proposedText : "",
+      action:
+        s.action === "replace" || s.action === "insert_before" || s.action === "insert_after"
+          ? s.action
+          : null,
       recommendation: s.recommendation,
       done: s.done === true,
     });

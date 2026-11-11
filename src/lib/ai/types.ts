@@ -6,9 +6,11 @@
 // hinzukommen — KEINE Provider-Registry, solange es nur einen gibt.
 
 // Logisches Task-Tag. Wird in `ai_usage_log.task` persistiert für spätere
-// Auswertung (Kosten pro Use-Case). Die acht Werte korrespondieren 1:1
-// mit den AI-Buttons im Author-Editor (vier in der EditorSidebar + vier
-// im EditorSeoPanel) und werden in A1b-1 an die Buttons verdrahtet.
+// Auswertung (Kosten pro Use-Case). title_variants, tone_check, summary und
+// closing_paragraph gehoerten zu Buttons der EditorSidebar, die mit PR 130
+// weggefallen ist; sie haben heute keinen Aufrufer (nur Modellwahl in der
+// AI-Konfiguration). Ob sie wiederkommen oder entfernt werden, ist offen
+// (Backlog «AI 1b»).
 export type AiTask =
   | "title_variants"
   | "tone_check"

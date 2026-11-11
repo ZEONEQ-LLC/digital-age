@@ -121,5 +121,18 @@ section("normalizeStoredReview — Salvage + null-Faelle");
     normalizeStoredReview({ overallAssessment: "x", suggestions: [{ severity: "x" }] }) === null);
 }
 
+section("action (Knopf «Übernehmen», PR 189)");
+{
+  const base = { severity: "important", category: "keyword", finding: "f", recommendation: "r", targetQuote: "a", proposedText: "b" };
+  const pick = (action: unknown) =>
+    normalizeStoredReview({ overallAssessment: "x", suggestions: [{ ...base, action }] })?.suggestions[0].action;
+  ok("replace bleibt", pick("replace") === "replace");
+  ok("insert_before bleibt", pick("insert_before") === "insert_before");
+  ok("insert_after bleibt", pick("insert_after") === "insert_after");
+  ok("none → null", pick("none") === null);
+  ok("fehlend (Alt-Daten) → null", pick(undefined) === null);
+  ok("Unsinn → null", pick("delete") === null);
+}
+
 process.stdout.write(`\nResult: ${passes} pass, ${fails} fail\n`);
 if (fails > 0) process.exit(1);

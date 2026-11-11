@@ -8,6 +8,7 @@ import {
   type Editor,
 } from "@tiptap/react";
 import type { Node as PMNode } from "@tiptap/pm/model";
+import type { SuggestionAction } from "@/lib/editor/suggestionEdit";
 import { BubbleMenu } from "@tiptap/react/menus";
 
 import { displayNumberByRefN } from "@/components/blockReader/sources";
@@ -92,6 +93,11 @@ export type TiptapBodyEditorHandle = {
   // Zitat in EINER Transaktion → EIN Undo-Schritt. Returnt die Zahl der
   // tatsaechlich markierten Stellen (nicht gefundene werden uebersprungen).
   applyHighlights: (quotes: string[]) => number;
+  // «Übernehmen» aus dem SEO-Review: ersetzt das erste Vorkommen von `query`
+  // durch `text` oder fuegt `text` davor/danach ein. Eine Transaktion, ein
+  // Undo-Schritt. "complex" = Stelle geht ueber mehrere Bloecke oder enthaelt
+  // einen Quellenverweis/Zeilenumbruch; dann aendert sich nichts.
+  applyTextEdit: (query: string, text: string, action: SuggestionAction) => "ok" | "not_found" | "complex";
   // Alle Inline-Bilder (src + aktueller alt) — fuer den Co-Pilot, um Bilder
   // ohne ALT zu finden.
   getImages: () => { url: string; alt: string }[];
@@ -391,6 +397,39 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
         }
         chain.run();
         return ranges.length;
+      },
+      applyTextEdit: (query, text, action) => {
+        if (!editor) return "not_found";
+        const insert = text.trim();
+        const range = findTextRange(editor.state.doc, query);
+        if (!range || !insert) return "not_found";
+        const doc = editor.state.doc;
+        const $from = doc.resolve(range.from);
+        const $to = doc.resolve(range.to);
+        if (!$from.sameParent($to)) return "complex";
+        let atom = false;
+        doc.nodesBetween(range.from, range.to, (node) => {
+          if (node.isInline && !node.isText) atom = true;
+        });
+        if (atom) return "complex";
+        const parent = $from.parent;
+        if (action === "replace") {
+          editor.chain().focus().insertContentAt(range, { type: "text", text: insert }).run();
+          return "ok";
+        }
+        // Einfuegen bei einer Ueberschrift: eigener Absatz davor bzw. danach,
+        // sonst als Satz im selben Absatz.
+        if (parent.type.name === "heading") {
+          const pos = action === "insert_before" ? $from.before() : $from.after();
+          editor.chain().focus().insertContentAt(pos, { type: "paragraph", content: [{ type: "text", text: insert }] }).run();
+          return "ok";
+        }
+        if (action === "insert_before") {
+          editor.chain().focus().insertContentAt(range.from, { type: "text", text: `${insert} ` }).run();
+        } else {
+          editor.chain().focus().insertContentAt(range.to, { type: "text", text: ` ${insert}` }).run();
+        }
+        return "ok";
       },
       getImages: () => {
         if (!editor) return [];

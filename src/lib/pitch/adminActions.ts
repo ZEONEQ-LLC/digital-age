@@ -8,18 +8,19 @@ import { isArticleSlugConflict, slugFromTitle } from "@/lib/articleSlug";
 import { authorSlugFromName, escapeIlike } from "@/lib/authorSlug";
 import { pitchCategorySlug, pitchToDocument, pitchWebsite } from "@/lib/pitch/draftFromPitch";
 import type { Json } from "@/lib/database.types";
+import { FormError, guardMessage } from "@/lib/actionResult";
 
 async function requireEditor(): Promise<void> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht eingeloggt.");
+  if (!user) throw new FormError("Nicht eingeloggt.");
   const { data: author } = await supabase
     .from("authors")
     .select("role")
     .eq("user_id", user.id)
     .single();
   if (!author || author.role !== "editor") {
-    throw new Error("Nur Editoren dürfen Pitches verwalten.");
+    throw new FormError("Nur Editoren dürfen Pitches verwalten.");
   }
 }
 
@@ -29,7 +30,8 @@ export async function updatePitchStatus(
   id: string,
   status: Status,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
-  await requireEditor();
+  const denied = await guardMessage(requireEditor);
+  if (denied) return { ok: false, message: denied };
   const supabase = await createClient();
   const patch: { status: Status; reviewed_at?: string } = { status };
   if (status !== "new") {
@@ -48,7 +50,8 @@ export async function updatePitchNotes(
   id: string,
   notes: string,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
-  await requireEditor();
+  const denied = await guardMessage(requireEditor);
+  if (denied) return { ok: false, message: denied };
   const trimmed = notes.trim();
   if (trimmed.length > 2000) {
     return { ok: false, message: "Notiz zu lang (max. 2000 Zeichen)." };

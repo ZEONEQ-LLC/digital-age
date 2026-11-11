@@ -14,10 +14,13 @@
 // Das Schema bleibt die technische Vertragsgrundlage fuers JSON-Parsing und
 // steht bewusst am ENDE (Last-Word-Position gegen Format-Drift).
 
+import type { SeoHeading } from "@/lib/ai/seoHeadings";
+
 // Body-Cap fuer den Pipeline-Input. 12000 Zeichen ≈ 1800 dt. Woerter und
 // decken die laengsten DB-Artikel weitgehend ab (frueherer 4000-Cap zeigte
 // dem Modell bei langen Artikeln nur ~25 % des Texts). Token-Aufschlag pro
 // Call gegenueber 4000 ist vernachlaessigbar (~0.2 ¢ Haiku-Input).
+
 export const MAX_BODY_CHARS = 12000;
 
 type Locale = "de-CH" | "en";
@@ -208,7 +211,9 @@ export const SEO_REVIEW_STRATEGY = [
   "  2. Keyword in H2: Kommt das Focus-Keyword in mindestens EINER H2-",
   "     Überschrift vor? Anti-Pattern: das Keyword in JEDER H2 (heading",
   "     stuffing) — wenn das im Text zu sehen ist, das als Risiko",
-  "     anmerken. Ideal: 1–2 H2-Mentions.",
+  "     anmerken. Ideal: 1–2 H2-Mentions. Fehlt es in allen H2 oder gibt",
+  "     es keine H2, prüfe zuerst die gelieferten H3: Taugt eine davon als",
+  "     H2, empfiehl, sie anzuheben, statt eine neue H2 zu erfinden.",
   "  3. Sekundär-Keywords im Body: Sind die gesetzten Sekundär-Keywords",
   "     im sichtbaren Text (Lead, H2s) erkennbar? Ideal: mindestens 2-3",
   "     der gesetzten Sekundär-Keywords kommen erkennbar vor (auch in",
@@ -271,8 +276,9 @@ export const SEO_REVIEW_SCHEMA = [
   '      "severity": "critical" | "important" | "nice_to_have",',
   '      "category": "keyword" | "length" | "numbers" | "powerwords" | "hook" | "readability",',
   '      "finding": string,        // 1 Satz: was beobachtet wurde (z.B. "Focus-Keyword fehlt im ersten Absatz")',
-  '      "targetQuote": string,    // EXAKTES wörtliches Zitat der betroffenen Stelle aus H1/Lead/H2. Bei ERSETZEN: der zu ändernde Text. Bei EINFÜGEN: der wörtliche ANKER (Anfang der Stelle, vor/nach der eingefügt wird). "" nur wenn wirklich kein sinnvoller Anker existiert.',
+  '      "targetQuote": string,    // EXAKTES wörtliches Zitat der betroffenen Stelle aus H1/Lead/H2/H3. Bei ERSETZEN: der zu ändernde Text. Bei EINFÜGEN: der wörtliche ANKER (Anfang der Stelle, vor/nach der eingefügt wird). "" nur wenn wirklich kein sinnvoller Anker existiert.',
   '      "proposedText": string,   // NUR der konkrete, direkt einsetzbare Ersatz- bzw. Einfügetext (finaler Wortlaut), OHNE erklärende Prosa ("Ergänze …", "— stärkt SEO") und OHNE Anführungszeichen drumherum. "" wenn es keinen konkreten Textvorschlag gibt.',
+  '      "action": "replace" | "insert_before" | "insert_after" | "none",  // replace: targetQuote wird durch proposedText ersetzt. insert_before/insert_after: proposedText kommt vor/nach den Anker targetQuote. none: kein Textvorschlag.',
   '      "recommendation": string  // Erklärung: was/warum/wo (bei Einfügungen die Platzierung explizit nennen). NICHT der Ersatztext selbst — der steht in proposedText.',
   "    }",
   "  ]",
@@ -280,7 +286,7 @@ export const SEO_REVIEW_SCHEMA = [
   "",
   "REGELN für targetQuote — STRIKT EINHALTEN:",
   "  (a) targetQuote MUSS wörtlich (Zeichen für Zeichen) aus dem gelieferten",
-  "      Text (H1, Lead-Absatz oder einer H2) stammen — kein Paraphrasieren,",
+  "      Text (H1, Lead-Absatz, einer H2 oder einer H3) stammen — kein Paraphrasieren,",
   "      keine Auslassungen, keine erfundenen Zitate. Passt kein konkreter",
   "      Textausschnitt (z.B. Finding 'keine H2 vorhanden'), setze",
   '      targetQuote = "".',
@@ -297,6 +303,10 @@ export const SEO_REVIEW_SCHEMA = [
   "      Platzierung explizit nennen (z.B. \"vor dem Absatz, der beginnt mit",
   "      '…'\"). targetQuote = \"\" nur noch, wenn wirklich kein sinnvoller Anker",
   "      existiert.",
+  "  (e) action passt zu (c)/(d): Ersetzen = \"replace\", Einfügen vor bzw. nach",
+  "      dem Anker = \"insert_before\" bzw. \"insert_after\". Ohne proposedText",
+  "      oder ohne targetQuote = \"none\". Der Redakteur kann den Vorschlag mit",
+  "      einem Klick übernehmen; ein falsches action-Feld zerstört den Text.",
   "",
   "BEISPIEL für den gewünschten Stil (en) — proposedText trennt Wortlaut von Erklärung;",
   "die dritte Suggestion zeigt eine EINFÜGUNG mit Anker:",
@@ -309,6 +319,7 @@ export const SEO_REVIEW_SCHEMA = [
   '      "finding": "Focus-Keyword fehlt im ersten Absatz komplett.",',
   '      "targetQuote": "Banks are increasingly turning to automation for compliance.",',
   '      "proposedText": "AI Co-Pilots in Banking verkürzen Compliance-Reviews von Stunden auf Minuten — und entlasten Berater von Routine-Recherche.",',
+  '      "action": "replace",',
   '      "recommendation": "Ersetze den ersten Satz, um das Focus-Keyword in den Lead zu ziehen."',
   "    },",
   "    {",
@@ -317,6 +328,7 @@ export const SEO_REVIEW_SCHEMA = [
   '      "finding": "H1 ist mit 82 Zeichen zu lang, wird in SERP abgeschnitten.",',
   '      "targetQuote": "How AI Co-Pilots Are Transforming Compliance Workflows in Modern Banking",',
   '      "proposedText": "AI Co-Pilots in Banking: Less Routine, More Insight",',
+  '      "action": "replace",',
   '      "recommendation": "Kürze die H1 auf ~58 Zeichen, damit sie in der SERP nicht abgeschnitten wird."',
   "    },",
   "    {",
@@ -325,6 +337,7 @@ export const SEO_REVIEW_SCHEMA = [
   '      "finding": "Der Abschnitt zur Regulierung nennt keine konkrete Zahl.",',
   '      "targetQuote": "The regulatory landscape is shifting fast.",',
   '      "proposedText": "Bereits 63 % der Schweizer Banken testen 2026 KI-gestützte Compliance-Tools.",',
+  '      "action": "insert_before",',
   '      "recommendation": "Füge vor dem Absatz, der mit \'The regulatory landscape …\' beginnt, einen Satz mit einer konkreten Zahl ein."',
   "    }",
   "  ]",
@@ -346,14 +359,24 @@ export function buildSeoReviewSystem(
 export function buildSeoReviewPrompt(args: {
   title: string;
   firstParagraph: string;
-  headingsLevel2: string[];
+  headings: SeoHeading[];
   focusKeyword: string | null;
   secondaryKeywords: string[];
 }): string {
-  const h2List =
-    args.headingsLevel2.length === 0
-      ? "(keine H2-Überschriften im Artikel)"
-      : args.headingsLevel2.map((h, i) => `  ${i + 1}. ${h}`).join("\n");
+  const outline =
+    args.headings.length === 0
+      ? ["(keine Zwischentitel im Artikel)"]
+      : args.headings.map((h) => (h.level === 2 ? `  H2: ${h.text}` : `    H3: ${h.text}`));
+  // Steht im Input statt in der Strategie, damit der Hinweis auch mit einer
+  // in der Prompt-Verwaltung ueberschriebenen Strategie gilt.
+  const h3Hint = args.headings.some((h) => h.level === 3)
+    ? [
+        "Hinweis: H3 sind Unter-Zwischentitel. Fehlt das Focus-Keyword in allen H2",
+        "oder gibt es keine H2, prüfe zuerst, ob eine vorhandene H3 als H2 taugt",
+        "(Empfehlung «H3 zu H2 anheben», targetQuote = die H3 wörtlich), statt eine",
+        "neue H2 zu erfinden.",
+      ]
+    : [];
   const secList =
     args.secondaryKeywords.length === 0
       ? "(keine Sekundär-Keywords gesetzt)"
@@ -363,8 +386,9 @@ export function buildSeoReviewPrompt(args: {
     "",
     `Erster Absatz: ${args.firstParagraph.trim()}`,
     "",
-    "H2-Überschriften:",
-    h2List,
+    "Zwischentitel (H2 und H3 in der Reihenfolge des Artikels):",
+    ...outline,
+    ...(h3Hint.length ? ["", ...h3Hint] : []),
     "",
     `Focus-Keyword: ${args.focusKeyword?.trim() || "nicht gesetzt"}`,
     "",

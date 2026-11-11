@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/database.types";
+import { FormError, runAction, type ActionResult } from "@/lib/actionResult";
 
 type NewsSourceRow = Database["public"]["Tables"]["news_sources"]["Row"];
 type NewsSourceInsert = Database["public"]["Tables"]["news_sources"]["Insert"];
@@ -11,14 +12,14 @@ type NewsSourceUpdate = Database["public"]["Tables"]["news_sources"]["Update"];
 async function requireEditor(): Promise<void> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht eingeloggt.");
+  if (!user) throw new FormError("Nicht eingeloggt.");
   const { data: me } = await supabase
     .from("authors")
     .select("role")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!me) throw new Error("Author-Profil nicht gefunden.");
-  if (me.role !== "editor") throw new Error("Nur Editor:innen dürfen den News-Ticker verwalten.");
+  if (!me) throw new FormError("Author-Profil nicht gefunden.");
+  if (me.role !== "editor") throw new FormError("Nur Editor:innen dürfen den News-Ticker verwalten.");
 }
 
 const URL_RE = /^https?:\/\/[^\s]+$/i;
@@ -62,10 +63,14 @@ function validatePatch(p: SourcePatch): string | null {
   return null;
 }
 
-export async function createSource(patch: SourcePatch): Promise<{ id: string }> {
+export async function createSource(patch: SourcePatch): Promise<ActionResult<{ id: string }>> {
+  return runAction("newsTicker.createSource", () => createSourceInner(patch));
+}
+
+async function createSourceInner(patch: SourcePatch): Promise<{ id: string }> {
   await requireEditor();
   const err = validatePatch(patch);
-  if (err) throw new Error(err);
+  if (err) throw new FormError(err);
 
   const supabase = await createClient();
   const insert: NewsSourceInsert = {
@@ -85,7 +90,7 @@ export async function createSource(patch: SourcePatch): Promise<{ id: string }> 
     .single();
 
   if (error) {
-    if (error.code === "23505") throw new Error("Diese URL ist bereits als Quelle angelegt.");
+    if (error.code === "23505") throw new FormError("Diese URL ist bereits als Quelle angelegt.");
     throw error;
   }
   revalidatePath("/autor/news-ticker");
@@ -95,10 +100,17 @@ export async function createSource(patch: SourcePatch): Promise<{ id: string }> 
 export async function updateSource(
   id: string,
   patch: SourcePatch,
+): Promise<ActionResult<NewsSourceRow>> {
+  return runAction("newsTicker.updateSource", () => updateSourceInner(id, patch));
+}
+
+async function updateSourceInner(
+  id: string,
+  patch: SourcePatch,
 ): Promise<NewsSourceRow> {
   await requireEditor();
   const err = validatePatch(patch);
-  if (err) throw new Error(err);
+  if (err) throw new FormError(err);
 
   const supabase = await createClient();
   const update: NewsSourceUpdate = {
@@ -119,14 +131,18 @@ export async function updateSource(
     .single();
 
   if (error) {
-    if (error.code === "23505") throw new Error("Diese URL ist bereits als Quelle angelegt.");
+    if (error.code === "23505") throw new FormError("Diese URL ist bereits als Quelle angelegt.");
     throw error;
   }
   revalidatePath("/autor/news-ticker");
   return data;
 }
 
-export async function deleteSource(id: string): Promise<void> {
+export async function deleteSource(id: string): Promise<ActionResult<void>> {
+  return runAction("newsTicker.deleteSource", () => deleteSourceInner(id));
+}
+
+async function deleteSourceInner(id: string): Promise<void> {
   await requireEditor();
   const supabase = await createClient();
   const { error } = await supabase.from("news_sources").delete().eq("id", id);
@@ -134,9 +150,13 @@ export async function deleteSource(id: string): Promise<void> {
   revalidatePath("/autor/news-ticker");
 }
 
-export async function saveGenerationPrompt(prompt: string): Promise<void> {
+export async function saveGenerationPrompt(prompt: string): Promise<ActionResult<void>> {
+  return runAction("newsTicker.saveGenerationPrompt", () => saveGenerationPromptInner(prompt));
+}
+
+async function saveGenerationPromptInner(prompt: string): Promise<void> {
   await requireEditor();
-  if (!prompt.trim()) throw new Error("Der Prompt darf nicht leer sein.");
+  if (!prompt.trim()) throw new FormError("Der Prompt darf nicht leer sein.");
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -148,7 +168,11 @@ export async function saveGenerationPrompt(prompt: string): Promise<void> {
   revalidatePath("/autor/news-ticker");
 }
 
-export async function triggerRefresh(): Promise<
+export async function triggerRefresh(): Promise<ActionResult<import("./newsTicker/refresh").RefreshStats>> {
+  return runAction("newsTicker.triggerRefresh", () => triggerRefreshInner());
+}
+
+async function triggerRefreshInner(): Promise<
   import("./newsTicker/refresh").RefreshStats
 > {
   await requireEditor();
@@ -175,20 +199,24 @@ export type TickerSettings = {
   scheduled_hour_cet: number;
 };
 
-export async function saveTickerSettings(s: TickerSettings): Promise<void> {
+export async function saveTickerSettings(s: TickerSettings): Promise<ActionResult<void>> {
+  return runAction("newsTicker.saveTickerSettings", () => saveTickerSettingsInner(s));
+}
+
+async function saveTickerSettingsInner(s: TickerSettings): Promise<void> {
   await requireEditor();
   if (!TICKER_SPEEDS.includes(s.ticker_speed)) {
-    throw new Error("Ungültige Geschwindigkeit.");
+    throw new FormError("Ungültige Geschwindigkeit.");
   }
   if (!Number.isInteger(s.items_per_source) || s.items_per_source < 1 || s.items_per_source > 30) {
-    throw new Error("Items pro Quelle muss zwischen 1 und 30 liegen.");
+    throw new FormError("Items pro Quelle muss zwischen 1 und 30 liegen.");
   }
   if (
     !Number.isInteger(s.scheduled_hour_cet) ||
     s.scheduled_hour_cet < 0 ||
     s.scheduled_hour_cet > 23
   ) {
-    throw new Error("Scheduler-Stunde muss zwischen 0 und 23 liegen.");
+    throw new FormError("Scheduler-Stunde muss zwischen 0 und 23 liegen.");
   }
 
   const supabase = await createClient();

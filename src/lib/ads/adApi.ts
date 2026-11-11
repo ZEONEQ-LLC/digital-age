@@ -11,8 +11,7 @@ import {
   type CampaignOverviewVM,
   type CampaignRow,
   type ContactRow,
-  type PlacementRow,
-} from "@/lib/ads/types";
+  type PlacementRow, type PeriodValue } from "@/lib/ads/types";
 
 // Admin-Lesepfade. Editor-only durch RLS (ad_*_editor_all) gegatet; die
 // Admin-Seiten liegen zusaetzlich hinter dem (suite)/admin-Layout-Gate.
@@ -50,7 +49,7 @@ export async function getCampaignsOverview(): Promise<CampaignOverviewVM[]> {
 
 // Laufzeit ueber alle Buchungen (H8): min(lower) bis max(upper); eine offene
 // Obergrenze macht das Ganze unbefristet. Zuercher Kalendertage, Ende inklusiv.
-function overviewPeriodLabel(periods: unknown[]): string {
+function overviewPeriodLabel(periods: PeriodValue[]): string {
   let from: string | null = null;
   let to: string | null = null;
   let open = false;
@@ -77,7 +76,7 @@ function overviewPeriodLabel(periods: unknown[]): string {
 // ── Anteil an der Rotation (F1) ──────────────────────────────────────────
 type Bound = { lower: number; upper: number };
 
-function toBound(period: unknown): Bound | null {
+function toBound(period: PeriodValue): Bound | null {
   const p = parsePeriod(period);
   if (!p) return null;
   const lower = p.lower ? new Date(p.lower).getTime() : Number.NEGATIVE_INFINITY;
@@ -96,7 +95,7 @@ type ShareCandidateRow = {
   placement_id: string;
   scope: string;
   scope_ref: string | null;
-  period: unknown;
+  period: PeriodValue;
   paused_at: string | null;
   archived_at: string | null;
   campaign: { id: string; status: string; is_house: boolean; weight: number } | null;
@@ -109,7 +108,7 @@ type ShareCandidateRow = {
 // Kampagne nur einmal (Gewicht der Kampagne, nicht pro Buchung).
 // Nicht-House schlaegt House — wie route.ts.
 function computeShares(
-  own: { id: string; placement_id: string; scope: string; scope_ref: string | null; period: unknown }[],
+  own: { id: string; placement_id: string; scope: string; scope_ref: string | null; period: PeriodValue }[],
   ownCampaignId: string,
   ownIsHouse: boolean,
   ownWeight: number,

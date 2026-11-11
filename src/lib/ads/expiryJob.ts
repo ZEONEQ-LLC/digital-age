@@ -3,7 +3,7 @@ import { Resend } from "resend";
 import { render } from "@react-email/render";
 import CampaignExpiry, { subjectFor } from "@/emails/CampaignExpiry";
 import { createServiceClient } from "@/lib/supabase/service";
-import { parsePeriod } from "@/lib/ads/types";
+import { parsePeriod, type PeriodValue } from "@/lib/ads/types";
 import { getBaseUrl } from "@/lib/siteUrl";
 
 // Ablaufwarnung (J7/J8): Buchungen, die in den naechsten 7 Tagen enden,
@@ -18,7 +18,7 @@ const WINDOW_DAYS = 7;
 
 type BookingRow = {
   id: string;
-  period: unknown;
+  period: PeriodValue;
   placement: { label: string } | null;
   campaign: {
     id: string;

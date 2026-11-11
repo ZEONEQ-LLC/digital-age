@@ -15,6 +15,7 @@ import {
   PROMPT_TESTED_WITH,
   PROMPT_DIFFICULTIES,
 } from "@/lib/mappers/promptMappers";
+import { unwrapAction } from "@/lib/actionResult";
 
 type Mode = "list" | "create" | { type: "edit"; id: string };
 
@@ -54,7 +55,7 @@ export default function PromptsManager({ initialPrompts, isEditor, myAuthorId }:
     setError(null);
     startTransition(async () => {
       try {
-        await deletePrompt(p.id);
+        unwrapAction(await deletePrompt(p.id));
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -67,7 +68,7 @@ export default function PromptsManager({ initialPrompts, isEditor, myAuthorId }:
     const next = p.status === "archived" ? "published" : "archived";
     startTransition(async () => {
       try {
-        await updatePrompt(p.id, { status: next });
+        unwrapAction(await updatePrompt(p.id, { status: next }));
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -222,7 +223,7 @@ function PromptFormDrawer({ initial, onClose, onSaved }: DrawerProps) {
             tested_with: tool,
             difficulty,
           };
-          await updatePrompt(initial.id, patch);
+          unwrapAction(await updatePrompt(initial.id, patch));
         } else {
           const input: CreatePromptInput = {
             title,
@@ -233,7 +234,7 @@ function PromptFormDrawer({ initial, onClose, onSaved }: DrawerProps) {
             tested_with: tool,
             difficulty,
           };
-          await createPrompt(input);
+          unwrapAction(await createPrompt(input));
         }
         onSaved();
       } catch (e) {

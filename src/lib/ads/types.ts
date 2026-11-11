@@ -114,7 +114,7 @@ export const BOOKING_STATE_LABELS: Record<BookingState, string> = {
 };
 
 export function bookingState(
-  b: { period: unknown; paused_at: string | null; archived_at: string | null },
+  b: { period: PeriodValue; paused_at: string | null; archived_at: string | null },
   now: number = Date.now(),
 ): BookingState {
   if (b.archived_at) return "archived";
@@ -257,9 +257,16 @@ function normalizeBound(raw: string): string | null {
     .replace(/([+-]\d{2})$/, "$1:00");
 }
 
+// ad_bookings.period ist eine tstzrange. `supabase gen types` kennt den Typ
+// nicht und schreibt `unknown`; PostgREST liefert ein Textliteral. Alle Stellen
+// nutzen diesen Alias statt eines eigenen `unknown`, und gelesen wird nur ueber
+// parsePeriod (Laufzeit-Pruefung). Typisiert gen types den Wert spaeter als
+// string, folgt der Code automatisch. Generierte Datei nicht von Hand patchen.
+export type PeriodValue = Database["public"]["Tables"]["ad_bookings"]["Row"]["period"];
+
 // Parst ein tstzrange-Textliteral wie ["2026-09-30 22:00:00+00","2026-10-31 23:00:00+00")
 // in ISO-Grenzen. Leere Grenze -> null (offen). Nicht-String -> null.
-export function parsePeriod(period: unknown): { lower: string | null; upper: string | null } | null {
+export function parsePeriod(period: PeriodValue | null | undefined): { lower: string | null; upper: string | null } | null {
   if (typeof period !== "string") return null;
   const m = period.match(/^[[(]([^,]*),([^\])]*)[\])]$/);
   if (!m) return null;
@@ -276,7 +283,7 @@ const ZURICH_DATE: Intl.DateTimeFormatOptions = {
 // tstzrange -> lesbares Label in Zuercher Kalendertagen (E1). Obere Grenze ist
 // exklusiv (24:00) und wird inklusiv angezeigt: (upper - 1 ms) formatieren.
 // timeZone fest -> SSR-Ausgabe == Client-Ausgabe, kein Hydration-Mismatch.
-export function formatPeriod(period: unknown): string {
+export function formatPeriod(period: PeriodValue | null | undefined): string {
   const parsed = parsePeriod(period);
   if (!parsed) return typeof period === "string" ? period : "";
   const fmt = (iso: string | null, minusMs: number): string | null => {

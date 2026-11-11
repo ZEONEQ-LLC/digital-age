@@ -7,6 +7,7 @@ import PodcastForm from "@/components/author/PodcastForm";
 import { deletePodcast } from "@/lib/podcastActions";
 import { PODCAST_LANGUAGES } from "@/lib/mappers/podcastMappers";
 import type { PodcastWithRecommender } from "@/lib/podcastApi";
+import { unwrapAction } from "@/lib/actionResult";
 
 type Mode = "list" | "create" | { type: "edit"; id: string };
 
@@ -52,7 +53,7 @@ export default function PodcastsManager({
     setError(null);
     startTransition(async () => {
       try {
-        await deletePodcast(p.id);
+        unwrapAction(await deletePodcast(p.id));
         setPodcasts((prev) => prev.filter((x) => x.id !== p.id));
         setToast("✓ Empfehlung gelöscht");
       } catch (e) {

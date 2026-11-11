@@ -1,7 +1,7 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/service";
 import { PLACEMENTS, matchingExpectedSize, type PlacementCode } from "@/lib/ads/placements";
-import { isBookingActive, parsePeriod } from "@/lib/ads/types";
+import { isBookingActive, parsePeriod, type PeriodValue } from "@/lib/ads/types";
 
 // G3: Die Seite entscheidet serverseitig, was ein Slot reserviert. Service-
 // Client ohne cookies() => cache-neutral in ISR-Seiten (Diagnose B8). Keine
@@ -19,7 +19,7 @@ export type SlotReservation = "none" | "internal" | "image" | "image-tall";
 
 type Row = {
   placement_id: string;
-  period: unknown;
+  period: PeriodValue;
   paused_at: string | null;
   archived_at: string | null;
   campaign: {
@@ -29,7 +29,7 @@ type Row = {
   } | null;
 };
 
-function nowInPeriod(period: unknown, now: number): boolean {
+function nowInPeriod(period: PeriodValue, now: number): boolean {
   const p = parsePeriod(period);
   if (!p) return false;
   const lowerOk = p.lower === null || new Date(p.lower).getTime() <= now;

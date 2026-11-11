@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { renameTag } from "@/lib/admin/tagOperations";
 import { slugifyTag } from "@/lib/tagSlug";
+import { unwrapAction } from "@/lib/actionResult";
 
 type Props = {
   tag: { id: string; name: string; slug: string };
@@ -36,7 +37,7 @@ export default function RenameTagModal({ tag, onClose, onDone }: Props) {
     setError(null);
     startTransition(async () => {
       try {
-        await renameTag(tag.id, trimmed);
+        unwrapAction(await renameTag(tag.id, trimmed));
         onDone();
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));

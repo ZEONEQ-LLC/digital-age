@@ -1,6 +1,7 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/service";
 import { isPlacementCode, type PlacementCode } from "@/lib/ads/placements";
+import type { PeriodValue } from "@/lib/ads/types";
 
 // Lesepfad fuer /vorschau/[token] (G5): Service-Client, Lookup per Token.
 // Nach aussen nur, was der Kunde sehen soll: Kampagnenname, Kundenname,
@@ -30,7 +31,7 @@ export type PreviewBooking = {
   placementLabel: string;
   scope: string;
   scope_ref: string | null;
-  period: unknown;
+  period: PeriodValue;
   desktop: PreviewCreative | null;
   mobile: PreviewCreative | null;
   viewHref: string;
@@ -67,7 +68,7 @@ type Row = {
     placement_id: string;
     scope: string;
     scope_ref: string | null;
-    period: unknown;
+    period: PeriodValue;
     archived_at: string | null;
     placement: { code: string; label: string } | null;
   }[];
