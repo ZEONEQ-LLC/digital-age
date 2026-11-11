@@ -28,7 +28,7 @@ const textSwatches: Swatch[] = [
   { token: "--da-text-strong", hex: "#e0e0e0", note: "Secondary body" },
   { token: "--da-muted", hex: "#b0b0b0", note: "Muted body" },
   { token: "--da-muted-soft", hex: "#888888", note: "Captions" },
-  { token: "--da-faint", hex: "#555555", note: "Placeholder, disabled" },
+  { token: "--da-faint", hex: "#888888", note: "Alias auf --da-muted-soft" },
 ];
 
 function SwatchRow({ swatches }: { swatches: Swatch[] }) {
