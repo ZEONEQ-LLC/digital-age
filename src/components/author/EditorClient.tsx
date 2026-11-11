@@ -71,7 +71,7 @@ import { blocksToTiptap } from "@/lib/tiptap/blocksToTiptap";
 import { tiptapToBlocks } from "@/lib/tiptap/tiptapToBlocks";
 import { contentWhitelistMatch, runEditorRoundtripGuard, runRoundtripGuard, stripAllMarkup, type GuardResult } from "@/lib/tiptap/roundtripGuard";
 import { cleanupMarkdown } from "@/lib/editor/mdCleanup";
-import { slugFollowsTitle, slugFromTitle } from "@/lib/articleSlug";
+import { normalizeArticleSlug, slugFollowsTitle, slugFromTitle } from "@/lib/articleSlug";
 import { generateAbstract } from "@/lib/ai/abstractActions";
 import { heroStaleChanges, parseHeroRecipe, recipeFilePaths, recipeToJson, type HeroRecipe } from "@/lib/hero-studio/recipe";
 import { deleteHeroAssets, heroAssetPathFromUrl } from "@/lib/hero-studio/upload";
@@ -1187,12 +1187,16 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           pushStep("seo", "failed", aiAbstractErrorMessage(r.error));
         } else {
           const f = r.fields;
-          const applySlug = shouldApplyCopilotSlug(article.published_at);
+          // Gleiche Normalisierung wie der Slug-Knopf im SEO-Tab; leerer
+          // Vorschlag laesst den Slug stehen.
+          const copilotSlug = normalizeArticleSlug(f.slugSuggestion);
+          const slugAllowed = shouldApplyCopilotSlug(article.published_at);
+          const applySlug = slugAllowed && copilotSlug !== "";
           seoResult = {
             title: f.titleCandidates[0],
             description: f.metaDescription,
             keyword: f.focusKeyword,
-            slug: applySlug ? f.slugSuggestion : seo.slug,
+            slug: applySlug ? copilotSlug : seo.slug,
             secondary: f.semanticTerms,
           };
           setSeo((prev) => ({
@@ -1200,13 +1204,13 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             title: f.titleCandidates[0],
             description: f.metaDescription,
             keyword: f.focusKeyword,
-            slug: applySlug ? f.slugSuggestion : prev.slug,
+            slug: applySlug ? copilotSlug : prev.slug,
             secondaryKeywords: f.semanticTerms,
           }));
           pushStep(
             "seo",
             "ok",
-            `Keyword „${f.focusKeyword}"${applySlug ? "" : ", Slug unverändert (publiziert)"}`,
+            `Keyword „${f.focusKeyword}"${applySlug ? "" : slugAllowed ? ", kein Slug-Vorschlag" : ", Slug unverändert (publiziert)"}`,
           );
         }
       } catch (e) {
