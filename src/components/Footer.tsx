@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { isAuthorSuitePath } from "@/lib/siteChrome";
+import { buildInfoText } from "@/lib/buildInfo";
 import NewsletterSignup from "./NewsletterSignup";
 
 function openCookieSettings() {
@@ -118,6 +119,17 @@ export default function Footer() {
             </p>
             <p style={{ color: "var(--da-muted-soft)", fontSize: "13px", lineHeight: 1.7 }}>
               Die Inhalte dieser Webseite sind urheberrechtlich geschützt. Ohne ausdrückliche Zustimmung von digital-age.ch dürfen Inhalte weder kopiert, verändert, verbreitet noch anderweitig genutzt werden.
+            </p>
+            {/* Version und letzter Deploy, Werte aus next.config.ts (env). */}
+            <p
+              data-footer="build"
+              style={{ color: "var(--da-muted-soft)", fontSize: "11px", lineHeight: 1.7, marginTop: "12px", fontFamily: "var(--da-font-mono)" }}
+            >
+              {buildInfoText(
+                process.env.NEXT_PUBLIC_APP_VERSION,
+                process.env.NEXT_PUBLIC_BUILD_COMMIT,
+                process.env.NEXT_PUBLIC_BUILD_TIME,
+              )}
             </p>
           </div>
         </div>

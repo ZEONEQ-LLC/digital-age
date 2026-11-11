@@ -1,11 +1,18 @@
 import type { NextConfig } from "next";
 import redirectMap from "./migration/redirect-map.json";
+import packageJson from "./package.json";
 
 // WP→Vercel-Migration: 76 statische 301-Redirects. Quelle ist
 // `migration/redirect-map.json` (separat gepflegt). Alle Einträge sind
 // permanent (301), damit Google + Social-Media-Crawler langfristig die
 // neuen Ziele lernen. Pre-Domain-Switch zwingend, sonst brechen alle
 // eingehenden Links.
+// Build-Info fuer den Footer (Version, Commit, Zeitpunkt des Deploys). Der
+// Zeitpunkt wird einmal pro Build festgelegt; Build-Worker erben ihn ueber
+// process.env, damit Server- und Client-Bundle denselben Wert tragen.
+const buildTime = (process.env.DA_BUILD_TIME ??= new Date().toISOString());
+const buildCommit = (process.env.VERCEL_GIT_COMMIT_SHA ?? "").slice(0, 7);
+
 type RedirectEntry = {
   source: string;
   destination: string;
@@ -15,6 +22,11 @@ type RedirectEntry = {
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["claude-box.orb.local"],
+  env: {
+    NEXT_PUBLIC_APP_VERSION: packageJson.version,
+    NEXT_PUBLIC_BUILD_TIME: buildTime,
+    NEXT_PUBLIC_BUILD_COMMIT: buildCommit,
+  },
   // Vercel-Default-Body-Limit fuer Server Actions ist 1 MB. Cover-Bild-
   // Uploads (ImageUploader komprimiert mit Ziel 0.5 MB, das wird aber
   // nicht garantiert) reissen das regelmaessig — der Browser zeigt dann
