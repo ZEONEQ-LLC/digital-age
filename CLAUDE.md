@@ -1330,6 +1330,49 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+### Startup «Kontakt aufnehmen», Datenschutz Startups, Hausanzeigen-Band, AI 1b (PR 194)
+
+**«Kontakt aufnehmen»** auf `/swiss-ai/<slug>` (Entscheid Ali 11.11.2026):
+Anfragen gehen direkt ans Startup, aber nur mit dessen ausdrücklichem
+Einverständnis; die Redaktion sieht nur Metadaten, nie den Inhalt.
+- **DB** (`20261112090000_startup_contact.sql`): `startup_contacts` (Adresse,
+  `consent_at`, `consent_source` submission|editor, `consent_note`,
+  `optout_token`, `revoked_at`; nur Editoren/Service-Role, nie öffentlich),
+  `startup_contact_requests` (nur startup_id, purpose, delivered, created_at),
+  Rate-Limit-Aktion `startup_contact`.
+- **Ablauf** (`src/lib/startupContact/`): Knopf nur, wenn ein aktiver Kontakt
+  existiert (`startupAcceptsContact`, Service-Client; lokal ohne Key nie).
+  `sendStartupContact`: validieren → Honeypot/Zeitcheck (still «Erfolg») →
+  3/h und 10/Tag pro IP → max 20/Tag pro Startup → Mail ans Startup mit
+  Reply-To = Absender und Link «Weiterleitung beenden» → nur Metadaten
+  speichern. Keine Bestätigungsmail an Absender (sonst Spam an fremde
+  Adressen möglich). Beenden: `/startup-kontakt/beenden/<token>` mit Knopf
+  (Link-Scanner lösen nichts aus).
+- **Einverständnis:** im Einreichformular (Schritt 3, optional, Häkchen
+  Pflicht wenn Adresse) oder im Admin «Kontakt» (Häkchen «hat ausdrücklich
+  zugestimmt», Notiz woher). Admin-Liste «Kontaktanfragen · ohne Inhalt».
+- Test: `src/lib/startupContact/__tests__/validate.manual.ts`.
+
+**Datenschutz Startups:** anon konnte `submitter_name/_email/_role`
+publizierter Startups über die REST-API lesen (RLS filtert Zeilen, nicht
+Spalten). Public-Reads in `startupApi.ts` nutzen jetzt `PUBLIC_STARTUP_COLUMNS`
+(Typ `PublicStartupRow`); Migration `20261112100000_startup_public_columns.sql`
+entzieht anon das Tabellen-SELECT und gibt es nur für diese Spalten zurück.
+Nicht additiv: erst nach dem Deploy pushen. Neue öffentliche Spalte in
+`ai_startups` = in beiden Listen ergänzen.
+
+**Hausanzeigen im Artikel** (`ModuleCard`, `frame="band"`): House-Kreative
+stehen jetzt auch im Band, Kopfzeile «In eigener Sache · Angebot von digital
+age» (gleiche Höhe wie «Anzeige», BAND_EXTRA bleibt), kein Leerraum mehr.
+
+**AI 1b:** `title_variants`, `tone_check`, `summary`, `closing_paragraph`
+entfernt (keine Aufrufer seit PR 130). Alte Overrides in
+`ai_config.task_model_overrides` werden ignoriert und fallen beim nächsten
+Speichern der AI-Konfiguration weg.
+
+**Related Podcasts** brauchte keinen Code: Der Artikel zeigt Podcasts mit
+`related_article_slug` bereits unter dem Titelbild («Podcast zum Beitrag»).
+
 ### Volltextsuche (PR 193)
 
 `/suche?q=…` (Server-Komponente, `noindex, follow`, nicht in der Sitemap),
