@@ -1330,6 +1330,37 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+### Modell-Check (PR 192)
+
+Seite `/autor/admin/ai-config/modell-check` (Link oben auf der
+AI-Konfiguration), Cron `/api/cron/model-check` montags 05:00 UTC
+(`vercel.json`, CRON_SECRET wie `/api/module/daily`).
+- **Daten:** `ai_model_catalog` (Preise USD/MTok, Long-Prompt-Stufe, Status,
+  Abschaltdatum, Erscheinungsdatum, Vision; Editoren lesen und pflegen Preise
+  und Status), `ai_model_check_runs` (Läufe mit Punkten, Fehlern, gesehenen
+  Modellen). Editoren dürfen jetzt `ai_usage_log` lesen (Policy).
+- **Rechnung** (`src/lib/ai/modelCheck/report.ts`, rein, Test
+  `__tests__/report.manual.ts`): pro Aufgabe die letzten 60 Tage, auf 30 Tage
+  hochgerechnet. Fehlversuche (0/0) zählen nicht. Ab 3 Aufrufen mit dem
+  aktuellen Modell gilt der Schnitt als gemessen, sonst «Prognose» aus allen
+  Aufrufen. Andere Modelle: gleiche Tokens × deren Preis, darum immer «ca.».
+- **Regeln:** Pflicht (Modell abgekündigt/abgeschaltet → Nachfolger),
+  Gratis-Upgrade (neueres Modell derselben Klasse, nicht teurer), Qualität
+  (`JUDGMENT_TASKS` auf Haiku → Sonnet), Sparen (Ø Output unter 100 Tokens
+  auf Sonnet/Opus/Fable → Haiku; bei `VISION_TASKS` nur Vision-Modelle).
+  Vorgeschlagen werden nur Modelle aus `KNOWN_MODELS` (models.ts).
+- **Lauf** (`run.ts`, Service-Role): Models API (`client.models.list`,
+  Datums-Suffix wird abgeschnitten) → Katalog abgleichen, neue Modelle mit
+  leerem Preis anlegen, wählbare Modelle ohne API-Eintrag melden; Bericht;
+  Mail an `NEWSLETTER_REPLY_TO` nur beim Cron und nur bei Neuem gegenüber dem
+  letzten Lauf (Template `src/emails/ModelCheckReport.tsx`). Fehler stehen im
+  Lauf, im Admin und machen den Cron zu 500.
+- **Wechseln** (`switchTaskModel` in configActions.ts) schreibt nur den einen
+  Schlüssel in `task_model_overrides`, wie `saveNewsTickerModel`. Kein
+  Auto-Wechsel. «Jetzt prüfen» = gleicher Lauf ohne Mail.
+- Lokal nicht lauffähig: `.env.local` hat weder Service-Role- noch
+  Anthropic-Key. Teil 2 (Vergleich auf echten Inputs per Klick) ist offen.
+
 ### News-Ticker-Cron repariert, DB-Härtung (PR 191)
 
 **Ticker-Cron lief nie.** `generateNewsItem` rief `callLLM` (client.ts), das
