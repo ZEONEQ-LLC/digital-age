@@ -1,5 +1,5 @@
 import type {
-  StartupRow,
+  PublicStartupRow,
   SwissStatusCode,
   EmployeeRangeCode,
   FundingStageCode,
@@ -97,7 +97,7 @@ export function lookupFundingStage(code: FundingStageCode): string {
   return FUNDING_STAGES.find((f) => f.code === code)?.label ?? code;
 }
 
-export function startupToCardVM(row: StartupRow): StartupCardVM {
+export function startupToCardVM(row: PublicStartupRow): StartupCardVM {
   const swiss = lookupSwissStatus(row.swiss_status);
   return {
     id: row.id,
