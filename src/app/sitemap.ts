@@ -23,7 +23,22 @@ const STATIC_ROUTES: StaticEntry[] = [
   { path: "/newsletter", priority: 0.5, changeFrequency: "monthly" },
   { path: "/tags", priority: 0.5, changeFrequency: "weekly" },
   { path: "/mediadaten", priority: 0.5, changeFrequency: "monthly" },
+  { path: "/artikel-pitchen", priority: 0.4, changeFrequency: "yearly" },
+  { path: "/ai-prompts/einreichen", priority: 0.3, changeFrequency: "yearly" },
+  { path: "/swiss-ai/einreichen", priority: 0.3, changeFrequency: "yearly" },
+  { path: "/kontakt", priority: 0.3, changeFrequency: "yearly" },
 ];
+
+// CMS-Seiten mit eigener Route (src/app/<slug>/page.tsx). Sie kommen nur in die
+// Sitemap, wenn sie publiziert sind und im Seiten-Editor nicht auf noindex stehen.
+const CMS_PAGE_SLUGS = [
+  "ueber-uns",
+  "redaktion",
+  "ki-transparenz",
+  "community-richtlinien",
+  "impressum",
+  "datenschutzerklaerung",
+] as const;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = getBaseUrl();
@@ -46,12 +61,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return staticEntries;
   }
 
-  const [articles, tags, authors, prompts, startups] = await Promise.all([
+  const [articles, tags, authors, prompts, startups, podcasts, pages] = await Promise.all([
     fetchArticleEntries(supabase, base),
     fetchTagEntries(supabase, base),
     fetchAuthorEntries(supabase, base),
     fetchPromptEntries(supabase, base),
     fetchStartupEntries(supabase, base),
+    fetchPodcastEntries(supabase, base),
+    fetchCmsPageEntries(supabase, base),
   ]);
 
   return [
@@ -61,6 +78,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...authors,
     ...prompts,
     ...startups,
+    ...podcasts,
+    ...pages,
   ];
 }
 
@@ -247,6 +266,71 @@ async function fetchStartupEntries(
   } catch (err) {
     console.error(
       "[sitemap] startups threw:",
+      err instanceof Error ? err.message : String(err),
+    );
+    return [];
+  }
+}
+
+async function fetchPodcastEntries(
+  supabase: SupabaseClient<Database>,
+  base: string,
+): Promise<MetadataRoute.Sitemap> {
+  // /podcast/<slug>. RLS laesst anon nur is_published durch
+  // (podcasts_public_read_published), der Filter steht trotzdem hier.
+  try {
+    const { data, error } = await supabase
+      .from("podcasts")
+      .select("slug, updated_at")
+      .eq("is_published", true);
+    if (error) {
+      console.error("[sitemap] podcasts error:", error.message);
+      return [];
+    }
+    return (data ?? [])
+      .filter((p) => typeof p.slug === "string" && p.slug.length > 0)
+      .map((p) => ({
+        url: `${base}/podcast/${p.slug}`,
+        lastModified: p.updated_at ? new Date(p.updated_at) : undefined,
+        changeFrequency: "monthly" as const,
+        priority: 0.5,
+      }));
+  } catch (err) {
+    console.error(
+      "[sitemap] podcasts threw:",
+      err instanceof Error ? err.message : String(err),
+    );
+    return [];
+  }
+}
+
+async function fetchCmsPageEntries(
+  supabase: SupabaseClient<Database>,
+  base: string,
+): Promise<MetadataRoute.Sitemap> {
+  // Nur Slugs mit eigener Route; noindex-Seiten bleiben draussen, sonst
+  // widerspraeche die Sitemap dem robots-Meta der Seite.
+  try {
+    const { data, error } = await supabase
+      .from("pages")
+      .select("slug, updated_at, noindex")
+      .eq("status", "published")
+      .in("slug", [...CMS_PAGE_SLUGS]);
+    if (error) {
+      console.error("[sitemap] pages error:", error.message);
+      return [];
+    }
+    return (data ?? [])
+      .filter((p) => !p.noindex)
+      .map((p) => ({
+        url: `${base}/${p.slug}`,
+        lastModified: p.updated_at ? new Date(p.updated_at) : undefined,
+        changeFrequency: "yearly" as const,
+        priority: 0.3,
+      }));
+  } catch (err) {
+    console.error(
+      "[sitemap] pages threw:",
       err instanceof Error ? err.message : String(err),
     );
     return [];

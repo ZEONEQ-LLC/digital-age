@@ -14,6 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: page.title,
     description: page.meta_description ?? undefined,
+    alternates: { canonical: `/${SLUG}` },
     robots: page.noindex ? { index: false, follow: true } : undefined,
   };
 }

@@ -1,6 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import Footer from "@/components/Footer";
+
+// Status- und Hilfsseite: nicht in den Suchindex.
+export const metadata: Metadata = {
+  title: "Abgemeldet — Newsletter",
+  robots: { index: false, follow: true },
+};
 
 export default function Page() {
   return (

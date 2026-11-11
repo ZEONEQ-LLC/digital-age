@@ -1,6 +1,13 @@
+import type { Metadata } from "next";
 
 import Footer from "@/components/Footer";
 import LoginForm from "@/components/LoginForm";
+
+// Status- und Hilfsseite: nicht in den Suchindex.
+export const metadata: Metadata = {
+  title: "Login — digital age",
+  robots: { index: false, follow: true },
+};
 
 type SearchParams = Promise<{ error?: string }>;
 
