@@ -14,18 +14,14 @@ const PROMPT_LABELS: Record<EditablePromptId, string> = {
   seo_keyword_candidates: "SEO — Keyword-Kandidaten (Stufe 1)",
   seo_derive: "SEO — Ableitung aus Keyword (Stufe 2)",
   seo_review: "SEO — Verbesserungsvorschläge (Analyse)",
+  abstract_generate: "Abstract generieren",
   highlight_suggestions: "Highlight-Vorschläge",
   image_alt: "Bild-ALT-Texte",
   hero_proposals: "Hero Studio — Vorschläge",
   social_posts: "Hero Studio — Posttexte",
 };
 
-// TASK_LABELS enthält alle Tasks, für die das UI ein Override-Dropdown
-// anbietet (= KNOWN_TASKS aus config.ts/configActions.ts). Nach dem
-// (b)-Umbau (kein Einzel-Server-Action pro SEO-Feld mehr — alle 4
-// Einzel-Buttons im SEO-Tab nutzen wieder die seo_pipeline) gibt es im
-// AiTask-Enum keine SEO-Einzel-Tasks mehr; TASK_LABELS deckt damit
-// die volle Enum-Breite ab.
+// Labels aller Tasks (volle AiTask-Breite, AI_TASKS in types.ts).
 const TASK_LABELS: Record<AiTask, string> = {
   title_variants: "Titel-Varianten",
   tone_check: "Stil & Tonalität prüfen",
@@ -42,9 +38,10 @@ const TASK_LABELS: Record<AiTask, string> = {
   social_posts: "Hero Studio — Posttexte",
 };
 
-// Visuelle Gruppierung der UI-sichtbaren Tasks. Reihenfolge im Array =
-// Reihenfolge in der UI; jeder Key in TASK_LABELS muss genau einer Gruppe
-// angehören.
+// Visuelle Gruppierung der Tasks auf dieser Seite. Reihenfolge im Array =
+// Reihenfolge in der UI. Jede Task gehört genau einer Gruppe an, ausser den
+// Tasks mit eigener Modellwahl (TASKS_WITH_OWN_MODEL_SETTING: News-Ticker,
+// gewählt unter /autor/news-ticker).
 type TaskGroup = { id: string; label: string; tasks: AiTask[] };
 
 const TASK_GROUPS: TaskGroup[] = [
@@ -65,11 +62,6 @@ const TASK_GROUPS: TaskGroup[] = [
       "image_alt",
       "closing_paragraph",
     ],
-  },
-  {
-    id: "news",
-    label: "News",
-    tasks: ["news_item_generation"],
   },
   {
     id: "podcasts",
@@ -126,7 +118,7 @@ export default async function AiConfigPage() {
     <>
       <PageTitle
         title="AI-Konfiguration"
-        subtitle="Systemprompt + Modell-Default + optionale Overrides pro AI-Task. Wird zur Laufzeit von callLLM gelesen — Änderungen wirken sofort, kein Redeploy nötig."
+        subtitle="Systemprompt, Standard-Modell, Modell pro Aufgabe und Task-Prompts. Änderungen wirken sofort, kein Redeploy nötig. Das Modell für den News-Ticker wählst du unter News-Ticker."
       />
       <AiConfigClient
         initialSystemPrompt={initialSystemPrompt}

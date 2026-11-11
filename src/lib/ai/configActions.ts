@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import type { AiTask } from "@/lib/ai/types";
+import type { Json } from "@/lib/database.types";
+import { isAiTask, TASKS_WITH_OWN_MODEL_SETTING, type AiTask } from "@/lib/ai/types";
+import { isKnownModel } from "@/lib/ai/models";
+import { FormError, runAction, type ActionResult } from "@/lib/actionResult";
 import {
   cleanPromptOverrides,
   type EditablePromptId,
@@ -15,38 +18,18 @@ import {
 async function requireEditorAuthor(): Promise<{ id: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht eingeloggt.");
+  if (!user) throw new FormError("Nicht eingeloggt.");
   const { data: author } = await supabase
     .from("authors")
     .select("id, role")
     .eq("user_id", user.id)
     .single();
-  if (!author) throw new Error("Author-Profil nicht gefunden.");
+  if (!author) throw new FormError("Author-Profil nicht gefunden.");
   if (author.role !== "editor") {
-    throw new Error("Nur Editoren dürfen die AI-Konfiguration ändern.");
+    throw new FormError("Nur Editoren dürfen die AI-Konfiguration ändern.");
   }
   return { id: author.id };
 }
-
-// Tasks, die das Editor-UI als Override-Dropdown anbietet. Spiegelt
-// KNOWN_TASKS aus src/lib/ai/config.ts — beide Listen müssen synchron
-// gehalten werden. Bei Save werden Overrides für Tasks ausserhalb dieser
-// Liste rausgefiltert (Self-Cleanup-Pfad für stale Werte).
-const KNOWN_TASKS: ReadonlySet<AiTask> = new Set<AiTask>([
-  "title_variants",
-  "tone_check",
-  "summary",
-  "closing_paragraph",
-  "seo_pipeline",
-  "seo_review",
-  "news_item_generation",
-  "abstract_generate",
-  "highlight_suggestions",
-  "image_alt",
-  "podcast_ingest",
-  "hero_proposals",
-  "social_posts",
-]);
 
 export type SaveAiConfigInput = {
   systemPrompt: string;
@@ -81,14 +64,24 @@ export async function saveAiConfig(
   }
 
   // Overrides säubern: leere Strings → Key weglassen; unbekannte Tasks
-  // ignorieren (defensiv, kein Throw — die UI verhindert das eh).
+  // ignorieren (defensiv, kein Throw — die UI verhindert das eh). Tasks mit
+  // eigener Modellwahl (News-Ticker) kommen unverändert aus der DB, damit ein
+  // Speichern hier deren Einstellung nicht mit einem alten Stand überschreibt.
+  const supabase = await createClient();
+  const current = await readTaskModelOverrides(supabase);
+  const ownSetting = new Set<AiTask>(TASKS_WITH_OWN_MODEL_SETTING);
   const cleaned: Record<string, string> = {};
   for (const [task, model] of Object.entries(input.taskModelOverrides)) {
-    if (!KNOWN_TASKS.has(task as AiTask)) continue;
+    if (!isAiTask(task) || ownSetting.has(task)) continue;
     if (typeof model !== "string") continue;
     const trimmed = model.trim();
     if (trimmed === "") continue;
     cleaned[task] = trimmed;
+  }
+  for (const task of ownSetting) {
+    // DB nicht lesbar: lieber den Stand der Seite als den Override verlieren.
+    const v = current ? current[task] : input.taskModelOverrides[task];
+    if (typeof v === "string" && v.trim() !== "") cleaned[task] = v.trim();
   }
 
   // Strategie-Prompt-Overrides säubern (gleiche Politik: leer/whitespace →
@@ -96,7 +89,6 @@ export async function saveAiConfig(
   // sie mit dem Prompt-ID-Schlüsselraum an einer Stelle lebt.
   const cleanedPrompts = cleanPromptOverrides(input.taskPromptOverrides);
 
-  const supabase = await createClient();
   const { error } = await supabase
     .from("ai_config")
     .update({
@@ -115,4 +107,53 @@ export async function saveAiConfig(
 
   revalidatePath("/autor/admin/ai-config");
   return { ok: true };
+}
+
+type ServerClient = Awaited<ReturnType<typeof createClient>>;
+
+// Aktuelle task_model_overrides (null, wenn die Row nicht lesbar ist).
+async function readTaskModelOverrides(
+  supabase: ServerClient,
+): Promise<Record<string, unknown> | null> {
+  const { data, error } = await supabase
+    .from("ai_config")
+    .select("task_model_overrides")
+    .eq("id", "global")
+    .single();
+  if (error || !data) return null;
+  const raw = data.task_model_overrides;
+  return raw && typeof raw === "object" && !Array.isArray(raw)
+    ? (raw as Record<string, unknown>)
+    : {};
+}
+
+// Modell für den News-Ticker (Task news_item_generation), gewählt auf der
+// News-Ticker-Seite. Ändert nur diesen einen Schlüssel in
+// task_model_overrides; "" = Standard (default_model der AI-Konfiguration).
+export async function saveNewsTickerModel(model: string): Promise<ActionResult<null>> {
+  return runAction("ai.saveNewsTickerModel", async () => {
+    const editor = await requireEditorAuthor();
+    const next = model.trim();
+    if (next !== "" && !isKnownModel(next)) {
+      throw new FormError("Unbekanntes Modell. Bitte eines aus der Liste wählen.");
+    }
+    const supabase = await createClient();
+    const current = await readTaskModelOverrides(supabase);
+    if (!current) throw new FormError("Die KI-Konfiguration konnte nicht gelesen werden.");
+    const overrides: Record<string, unknown> = { ...current };
+    if (next === "") delete overrides.news_item_generation;
+    else overrides.news_item_generation = next;
+    const { error } = await supabase
+      .from("ai_config")
+      .update({
+        task_model_overrides: overrides as Json,
+        updated_at: new Date().toISOString(),
+        updated_by: editor.id,
+      })
+      .eq("id", "global");
+    if (error) throw error;
+    revalidatePath("/autor/news-ticker");
+    revalidatePath("/autor/admin/ai-config");
+    return null;
+  });
 }

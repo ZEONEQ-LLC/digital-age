@@ -7,6 +7,7 @@ import { catColor, diffColor, toolColor, type AiTool, type Difficulty } from "@/
 
 export type Prompt = {
   id: string;
+  slug: string;
   title: string;
   body: string;
   contextSnippet?: string;
@@ -158,7 +159,7 @@ export default function PromptCard({ prompt, accent = "var(--da-green)" }: Promp
         .pcard__author { color: var(--da-muted); font-size: 11px; }
       `}</style>
       <Link
-        href={`/ai-prompts/${prompt.id}`}
+        href={`/ai-prompts/${prompt.slug}`}
         className="pcard"
         style={{
           ["--cc" as string]: cc,

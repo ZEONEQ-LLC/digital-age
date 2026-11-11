@@ -17,11 +17,13 @@ import {
 import { HIGHLIGHT_SUGGESTIONS_STRATEGY } from "@/lib/ai/highlightPrompts";
 import { IMAGE_ALT_STRATEGY } from "@/lib/ai/imageAltPrompts";
 import { HERO_PROPOSALS_STRATEGY, SOCIAL_POSTS_STRATEGY } from "@/lib/ai/heroPrompts";
+import { ABSTRACT_STRATEGY } from "@/lib/ai/abstractPrompts";
 
 export const EDITABLE_PROMPT_IDS = [
   "seo_keyword_candidates",
   "seo_derive",
   "seo_review",
+  "abstract_generate",
   "highlight_suggestions",
   "image_alt",
   "hero_proposals",
@@ -36,6 +38,7 @@ export const EDITABLE_DEFAULT_STRATEGIES: Record<EditablePromptId, string> = {
   seo_keyword_candidates: SEO_KEYWORD_CANDIDATES_STRATEGY,
   seo_derive: SEO_DERIVE_STRATEGY,
   seo_review: SEO_REVIEW_STRATEGY,
+  abstract_generate: ABSTRACT_STRATEGY,
   highlight_suggestions: HIGHLIGHT_SUGGESTIONS_STRATEGY,
   image_alt: IMAGE_ALT_STRATEGY,
   hero_proposals: HERO_PROPOSALS_STRATEGY,

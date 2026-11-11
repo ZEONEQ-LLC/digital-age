@@ -77,8 +77,8 @@ import { normalizeArticleSlug, slugFollowsTitle, slugFromTitle } from "@/lib/art
 import { seoHeadingOutline } from "@/lib/ai/seoHeadings";
 import { applySuggestionToDoc, applySuggestionToString } from "@/lib/editor/suggestionEdit";
 import { generateAbstract } from "@/lib/ai/abstractActions";
-import { heroStaleChanges, parseHeroRecipe, recipeFilePaths, recipeToJson, type HeroRecipe } from "@/lib/hero-studio/recipe";
-import { deleteHeroAssets, heroAssetPathFromUrl } from "@/lib/hero-studio/upload";
+import { heroStaleChanges, parseHeroRecipe, recipeToJson, type HeroRecipe } from "@/lib/hero-studio/recipe";
+import { heroAssetPathFromUrl } from "@/lib/hero-studio/upload";
 import { deleteArticleImage } from "@/lib/storageActions";
 import { discardableCoverUploads } from "@/lib/coverUploads";
 import { HERO_IMAGE_SOURCE } from "@/lib/hero-studio/alt";
@@ -167,9 +167,6 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   const [coverRecipe, setCoverRecipe] = useState<HeroRecipe | null>(() => parseHeroRecipe(article.cover_recipe));
   // KI-Vorschlaege des Studios (cover_proposals): eigener Schreibpfad ohne Revision.
   const heroProposals = useMemo(() => parseHeroProposalsStore(article.cover_proposals), [article.cover_proposals]);
-  // Rezept-Stand nach dem letzten ERFOLGREICHEN Save: Dateien, die danach nicht
-  // mehr referenziert sind, werden geloescht (Aufraeumregel des Studios).
-  const savedRecipeRef = useRef<HeroRecipe | null>(parseHeroRecipe(article.cover_recipe));
   // Beitragsbild-Uploads aus diesem Editor-Besuch, die noch nie gespeichert
   // wurden, und das aktuelle Cover fuer Aufraeumen nach asynchronen Saves.
   // Regel: src/lib/coverUploads.ts.
@@ -934,31 +931,21 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   }
 
   // ── Hero Studio ────────────────────────────────────────────────────────────
-  // Aufraeumen nach erfolgreichem Save: Studio-Dateien (hero-*, og-*) des
-  // vorher gespeicherten Rezepts, die das neue Rezept und das Cover nicht mehr
-  // referenzieren, best-effort loeschen. Erst NACH dem Speichern (Entscheid 02.11.2026).
-  async function cleanupHeroFiles(nextRecipe: HeroRecipe | null, coverNow: string) {
-    const prev = savedRecipeRef.current;
-    savedRecipeRef.current = nextRecipe;
-    if (!prev) return;
-    const keep = new Set<string>([...recipeFilePaths(nextRecipe), heroAssetPathFromUrl(coverNow) ?? ""]);
-    const drop = recipeFilePaths(prev).filter((path) => !keep.has(path));
-    if (drop.length) await deleteHeroAssets(article.id, drop);
-  }
-
   // Nach jedem erfolgreichen Save: das gespeicherte Cover gilt als gespeichert
   // und bleibt (Revisionen verweisen darauf). Andere nie gespeicherte Uploads
   // fallen weg, ausser dem Bild, das der Editor gerade zeigt (Upload waehrend
-  // des Saves). Danach die Studio-Dateien des alten Rezepts.
-  async function cleanupAfterSave(nextRecipe: HeroRecipe | null, savedCover: string) {
+  // des Saves). Studio-Dateien (hero-*, og-*) eines einmal gespeicherten
+  // Rezepts bleiben ebenso liegen: Revisionen verweisen darauf, ein Restore
+  // braeuchte sie (seit PR 190; vorher wurden sie nach dem naechsten Save
+  // geloescht). Nie gespeicherte Studio-Uploads raeumt das Studio selbst ab.
+  function cleanupAfterSave(savedCover: string) {
     unsavedCoverUploadsRef.current.delete(savedCover);
     discardCoverUploads(article.id, unsavedCoverUploadsRef.current, [coverRef.current]);
-    await cleanupHeroFiles(nextRecipe, savedCover);
   }
 
   // Beitragsbild ersetzt oder entfernt, waehrend ein Studio-Rezept besteht:
   // Teilen-Bild, Animation und Rezept gehoeren zum alten Bild und werden geleert.
-  // Die Dateien raeumt cleanupAfterSave nach dem naechsten erfolgreichen Save ab.
+  // Die Studio-Dateien bleiben im Storage (Revisionen verweisen darauf).
   // v kommt nur aus der Box «Beitragsbild»: ein neuer Upload oder "" (entfernt).
   // Das bisherige Bild bleibt bis zum Speichern im Storage, die Live-Seite
   // zeigt es weiter.
@@ -1031,7 +1018,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       setCoverVideoUrl(input.videoUrl);
       setCoverVideoAlt(input.altAnimated);
       setCoverRecipe(input.recipe);
-      await cleanupAfterSave(input.recipe, input.coverUrl);
+      cleanupAfterSave(input.coverUrl);
       router.refresh();
       return { ok: true };
     } catch (e) {
@@ -1106,7 +1093,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         setPendingCopilotReport(null);
         setDoc(finalDoc);
         setExcerpt(finalExcerpt);
-        void cleanupAfterSave(coverRecipe, cover);
+        cleanupAfterSave(cover);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Speichern fehlgeschlagen.");
@@ -1123,7 +1110,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         unwrapAction(await saveArticle(article.id, buildPatchUnchecked(finalDoc, finalExcerpt)));
         setDirty(false);
         setPendingCopilotReport(null);
-        await cleanupAfterSave(coverRecipe, cover);
+        cleanupAfterSave(cover);
         const next = unwrapAction(await submitForReview(article.id));
         setStatus(next.status);
         router.push("/autor/artikel");
@@ -1175,7 +1162,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         setDirty(false);
         setDoc(finalDoc);
         setExcerpt(finalExcerpt);
-        void cleanupAfterSave(coverRecipe, cover);
+        cleanupAfterSave(cover);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Publish fehlgeschlagen.");
@@ -1433,7 +1420,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         setPendingCopilotReport(null); // erfolgreich persistiert
         setDoc(finalDoc);
         setExcerpt(finalExcerpt);
-        void cleanupAfterSave(coverRecipe, cover);
+        cleanupAfterSave(cover);
         router.refresh();
       } catch {
         // Save fehlgeschlagen: die LLM-Schritte + Highlights/Inline-ALTs sind

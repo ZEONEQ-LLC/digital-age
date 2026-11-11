@@ -7,13 +7,14 @@ import {
   cleanAbstractText,
 } from "@/lib/ai/abstractPrompts";
 import type { AiResult } from "@/lib/ai/types";
+import { getPromptOverride } from "@/lib/ai/promptOverrides";
 
 // Prompt-Bau-Logik (System-Prompt, User-Prompt, Output-Cleanup) lebt seit
 // dem Excerpt-Backfill in @/lib/ai/abstractPrompts (nebenwirkungsfrei,
 // keine "use server"-Markierung), damit das einmalige Backfill-Skript
 // dieselbe Quelle nutzen kann. Diese Action ist nur noch der duenne
-// Editor-Pfad: Sprach-/Keyword-Resolution → callLLM (Auth + Rate-Limit +
-// Usage-Log) → Cleanup.
+// Editor-Pfad: Sprach-/Keyword-Resolution + Strategie-Override → callLLM
+// (Auth + Rate-Limit + Usage-Log) → Cleanup.
 
 export async function generateAbstract(args: {
   title: string;
@@ -22,8 +23,9 @@ export async function generateAbstract(args: {
   focusKeyword?: string | null;
 }): Promise<AiResult> {
   const trimmedKeyword = args.focusKeyword?.trim() || null;
+  const override = await getPromptOverride("abstract_generate");
   const result = await callLLM({
-    system: buildAbstractSystem(args.locale, trimmedKeyword),
+    system: buildAbstractSystem(args.locale, trimmedKeyword, override),
     prompt: buildAbstractPrompt(args),
     maxTokens: 300,
     task: "abstract_generate",

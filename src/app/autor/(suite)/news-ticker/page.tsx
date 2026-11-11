@@ -5,6 +5,7 @@ import SourcesSection from "./SourcesSection";
 import PromptSection from "./PromptSection";
 import RefreshSection from "./RefreshSection";
 import SettingsSection from "./SettingsSection";
+import { createClient } from "@/lib/supabase/server";
 
 const DEFAULT_SETTINGS: TickerSettings = {
   ticker_speed: "normal",
@@ -14,10 +15,29 @@ const DEFAULT_SETTINGS: TickerSettings = {
   scheduled_hour_cet: 7,
 };
 
+// Modellwahl des News-Tickers (Task news_item_generation) liegt seit PR 190
+// hier statt in der AI-Konfiguration. Gespeichert wird weiter in
+// ai_config.task_model_overrides; "" = Standard-Modell der AI-Konfiguration.
+async function getNewsTickerModel(): Promise<{ model: string; defaultModel: string }> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("ai_config")
+    .select("default_model, task_model_overrides")
+    .eq("id", "global")
+    .maybeSingle();
+  const raw = data?.task_model_overrides;
+  const v =
+    raw && typeof raw === "object" && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>).news_item_generation
+      : undefined;
+  return { model: typeof v === "string" ? v : "", defaultModel: data?.default_model ?? "" };
+}
+
 export default async function NewsTickerAdminPage() {
-  const [sources, config] = await Promise.all([
+  const [sources, config, modelInfo] = await Promise.all([
     getAllSources(),
     getNewsTickerConfig(),
+    getNewsTickerModel(),
   ]);
 
   const lastRefreshLabel = config?.last_refresh_at
@@ -47,7 +67,7 @@ export default async function NewsTickerAdminPage() {
     <>
       <PageTitle
         title="News-Ticker"
-        subtitle="RSS-Quellen + Generation-Prompt für den AI-News-Ticker. Editor-only."
+        subtitle="RSS-Quellen, Prompt und Modell für den KI-News-Ticker. Nur für Editoren."
       />
 
       <RefreshSection lastRefreshLabel={lastRefreshLabel} />
@@ -65,6 +85,8 @@ export default async function NewsTickerAdminPage() {
       <PromptSection
         initialPrompt={config?.generation_prompt ?? ""}
         lastRefreshLabel={lastRefreshLabel}
+        initialModel={modelInfo.model}
+        defaultModel={modelInfo.defaultModel}
       />
     </>
   );

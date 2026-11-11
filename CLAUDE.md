@@ -787,7 +787,7 @@ Migration** in diesem PR.
 
 - **Mail-Templates** (`src/emails/`):
   - `PromptSubmissionConfirmation.tsx`, `PromptApproved.tsx` (CTA-Link
-    auf `/ai-prompts/[id]` — Prompts sind ID-based, nicht slug-based),
+    auf `/ai-prompts/<slug>`, seit PR 190; vorher UUID),
     `PromptRejected.tsx`.
   - `StartupSubmissionConfirmation.tsx`, `StartupApproved.tsx` (CTA-Link
     auf `/swiss-ai/[slug]`), `StartupRejected.tsx`.
@@ -1135,10 +1135,13 @@ und das Studio löscht die eben hochgeladenen Dateien.
 Startseite und Rubrikseiten bleiben beim ISR. Der Vorschau-Tab zeigt bei
 gesetzter Animation dieselbe `ArticleCoverVideo` über dem Bild.
 
-**Aufräumregel:** `cleanupHeroFiles` löscht nach jedem ERFOLGREICHEN Save
-(manuell, Einreichen, Publizieren, Co-Pilot, Studio) die Dateien `hero-*`/`og-*`
-des zuvor gespeicherten Rezepts, die weder das neue Rezept noch das Cover
-referenzieren (`deleteHeroAssets`, nur eigene Pfade, best-effort). Wird das
+**Aufräumregel (seit PR 190):** Studio-Dateien `hero-*`/`og-*` eines einmal
+gespeicherten Rezepts bleiben im Storage, denn Revisionen verweisen auf
+`cover_image_url`, `og_image_url`, `cover_video_url` und `cover_recipe` und ein
+Restore braucht die Dateien (bis PR 189 löschte `cleanupHeroFiles` sie nach dem
+nächsten Save; zwei Revisionen von `einfuehrung-in-iot` vom 02.11.2026 zeigen
+deshalb auf gelöschte Dateien). `deleteHeroAssets` läuft nur noch im Studio für
+eben hochgeladene Dateien, wenn das Speichern scheitert. Wird das
 Beitragsbild im Details-Tab ersetzt oder entfernt, leert `handleCoverChange`
 Teilen-Bild, Animation und Rezept im State. «Veraltet» (`heroStaleChanges`:
 Rezept-Snapshot gegen Titel, Autor, Datum, Rubrik) erscheint orange im
@@ -1272,8 +1275,8 @@ Datei. Gelöscht werden nur Uploads, die nie gespeichert wurden:
 gespeicherten und dem aktuell angezeigten Bild) und beim bestätigten
 Verlassen über «← Zurück». Schliesst jemand den Tab ohne Speichern, bleibt
 die Datei verwaist. Regel und Helfer in `src/lib/coverUploads.ts`
-(Hero-Studio-Dateien `hero-*`/`og-*` sind ausgenommen, die räumt
-`cleanupHeroFiles` ab), Test `__tests__/coverUploads.manual.ts`.
+(Hero-Studio-Dateien `hero-*`/`og-*` sind ausgenommen, gespeicherte bleiben
+ebenso liegen), Test `__tests__/coverUploads.manual.ts`.
 
 **SEO-Metadaten.** Client-Seiten (`"use client"`) können keine Metadaten
 exportieren und erben sonst Titel und Beschreibung der Startseite. Dafür gibt
@@ -1326,6 +1329,30 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 `parsePeriod`. Generierte Typen nicht von Hand patchen.
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
+
+### KI-Konfiguration aufgeräumt, Prompt-Slugs, Hero-Dateien (PR 190)
+
+**Tasks an einer Stelle.** `AI_TASKS` / `isAiTask` in `src/lib/ai/types.ts`
+(Record über alle `AiTask`-Werte, der Compiler meldet fehlende). Resolver und
+`saveAiConfig` nutzen sie; die doppelten `KNOWN_TASKS`-Listen sind weg.
+
+**Strategie-Overrides** liest `getPromptOverride(s)` in
+`src/lib/ai/promptOverrides.ts` (server-only) für alle KI-Actions. Neu
+editierbar: `abstract_generate` (Drei-Teiler: Sprache und Focus-Keyword-Block
+im Code, Strategie `ABSTRACT_STRATEGY` sprachneutral, Ausgabeformat im Code).
+
+**News-Ticker-Modell** wählt man unter `/autor/news-ticker` («Prompt &
+Modell», speichert sofort über `saveNewsTickerModel`, ändert nur den Schlüssel
+`news_item_generation` in `task_model_overrides`). Die AI-Konfiguration zeigt
+die Task nicht mehr; `saveAiConfig` übernimmt deren Wert unverändert aus der DB
+(`TASKS_WITH_OWN_MODEL_SETTING`). Der Seitenname «AI-Konfiguration» bleibt, weil
+dort auch Content, Podcasts und Hero Studio stehen.
+
+**Aufgeräumt:** `BentoGrid`/`BentoCard`, `PagePlaceholder`, `FeedbackBanner`,
+die Tiptap-Vorlage `simple-editor` samt Hooks. `node-background-extension.ts`
+bleibt, obwohl nichts sie importiert: Sie erweitert die Tiptap-Command-Typen,
+die `use-color-highlight` braucht. `tsc` ist inkrementell; nach dem Löschen
+von Dateien `npx tsc --noEmit --incremental false` laufen lassen.
 
 ### Invite-Flow (PR B)
 
@@ -1430,15 +1457,22 @@ ruft fire-and-forget beim Copy.
 
 **Routes:**
 - Public: `/ai-prompts` (Server Component + Client Filter-Browser),
-  `/ai-prompts/[id]` (Detail-Page mit vollem Kontext, Beispiel-Output,
+  `/ai-prompts/[slug]` (Detail-Page mit vollem Kontext, Beispiel-Output,
   Author-Block; RLS-gated — nur published/featured, sonst 404 via `notFound()`,
-  `generateMetadata` für SEO),
+  `generateMetadata` für SEO; alte UUID-Adressen leiten mit 308 um),
   `/ai-prompts/einreichen` (Client Form + Server-Action-Submit)
 - Author-Suite: `/autor/prompts` — eigene CRUD via Drawer-Form
 - Editor-Admin: `/autor/admin/prompts` — Tabs (Pending default) + Vorschau-Modal
   + Reject-Reason-Modal
 
-**Card-Navigation:** `PromptCard` ist ein `<Link>`-Wrapper auf `/ai-prompts/[id]`.
+**Slug (PR 190):** `ai_prompts.slug` (unique, Format wie Artikel-Slugs) setzt
+der Trigger `ai_prompts_set_slug` aus dem Titel (`slugify_title`: ae/oe/ue/ss,
+Wortgrenze bis 60 Zeichen; Konflikt → `-2`, `-3` über `unique_ai_prompt_slug`,
+SECURITY DEFINER, damit auch anon beim Einreichen eindeutige Slugs bekommt).
+Solange `published_at` null ist, folgt der Slug dem Titel, danach bleibt er.
+Kein Feld im UI.
+
+**Card-Navigation:** `PromptCard` ist ein `<Link>`-Wrapper auf `/ai-prompts/<slug>`.
 Copy-Button bleibt funktional via `e.preventDefault()` + `e.stopPropagation()` —
 sonst würde der Click auf Copy auch die Link-Navigation feuern.
 

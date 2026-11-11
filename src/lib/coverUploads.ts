@@ -5,7 +5,9 @@
 // cover_image_url und ein Restore braucht die Datei. Geloescht werden nur
 // Uploads, die nie gespeichert wurden: sobald sie ersetzt oder entfernt
 // werden, nach dem naechsten erfolgreichen Save und beim bestaetigten
-// Verlassen des Editors. Hero-Studio-Dateien raeumt cleanupHeroFiles auf.
+// Verlassen des Editors. Hero-Studio-Dateien sind ausgenommen: gespeicherte
+// bleiben aus demselben Grund liegen (seit PR 190), nie gespeicherte loescht
+// das Studio selbst.
 //
 // Bewusst ohne Imports: Editor und manueller Test nutzen dieselbe Funktion.
 

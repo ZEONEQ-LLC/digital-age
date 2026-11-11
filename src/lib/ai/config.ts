@@ -4,28 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { resolveTaskModel } from "@/lib/ai/taskModel";
-import type { AiTask, LLMParams } from "@/lib/ai/types";
-
-// Runtime-Set der Tasks, für die das Editor-UI in /autor/admin/ai-config
-// Override-Dropdowns rendert. Spiegelt aktuell die volle AiTask-Union
-// (Source-of-Truth in types.ts). Keys in task_model_overrides, die hier
-// nicht stehen, werden vom Resolver ignoriert (Self-Cleanup-Pfad für
-// stale Werte aus früheren Schema-Ständen).
-const KNOWN_TASKS: ReadonlySet<AiTask> = new Set<AiTask>([
-  "title_variants",
-  "tone_check",
-  "summary",
-  "closing_paragraph",
-  "seo_pipeline",
-  "seo_review",
-  "news_item_generation",
-  "abstract_generate",
-  "highlight_suggestions",
-  "image_alt",
-  "podcast_ingest",
-  "hero_proposals",
-  "social_posts",
-]);
+import { isAiTask, type LLMParams } from "@/lib/ai/types";
 
 // Schema der Row (deckt sich mit Database["public"]["Tables"]["ai_config"]
 // — bewusst lokal getypt, damit dieses Modul nicht hart von der gen-types
@@ -79,12 +58,12 @@ export async function resolveLLMConfig(
     dbSystem + (dbSystem && callerSystem ? "\n\n" : "") + callerSystem;
 
   // Modell-Auflösung (resolveTaskModel): (a) gueltiger Admin-Override [nur wenn
-  // Key in KNOWN_TASKS + bekanntes Modell], sonst (b) hartkodierter Task-Default
+  // Key ist ein AiTask + bekanntes Modell], sonst (b) hartkodierter Task-Default
   // [z.B. image_alt → Vision-Modell], sonst (c) genereller default_model. Ist
   // auch der unbekannt, greift zuletzt der Env-Fallback im Provider.
   const overrides = row.task_model_overrides ?? {};
   const candidate =
-    KNOWN_TASKS.has(params.task as AiTask) ? overrides[params.task] : undefined;
+    isAiTask(params.task) ? overrides[params.task] : undefined;
   const effectiveModel = resolveTaskModel(
     params.task,
     candidate,
