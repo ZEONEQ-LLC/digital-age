@@ -5,6 +5,7 @@ import { useRef, useState, useTransition } from "react";
 import AuthorCard from "@/components/author/AuthorCard";
 import MonoCaption from "@/components/author/MonoCaption";
 import { updateAuthorProfile } from "@/lib/authorActions";
+import { unwrapAction } from "@/lib/actionResult";
 import { HANDLE_RULE_TEXT, normalizeAuthorHandle } from "@/lib/siteChrome";
 import { uploadAvatar } from "@/lib/storageActions";
 import type { AuthorRow } from "@/lib/authorApi";
@@ -111,7 +112,7 @@ export default function ProfileEditor({ initial }: { initial: AuthorRow }) {
       try {
         // avatar_url wird separat via uploadAvatar-Flow gepflegt — hier
         // bewusst nicht im Patch, damit der Upload-Flow autoritativ bleibt.
-        await updateAuthorProfile({
+        unwrapAction(await updateAuthorProfile({
           display_name: displayName.trim(),
           handle: h.handle,
           job_title: jobTitle.trim() || null,
@@ -123,7 +124,7 @@ export default function ProfileEditor({ initial }: { initial: AuthorRow }) {
             website: website.trim() || null,
             mastodon: mastodon.trim() || null,
           },
-        });
+        }));
         setSavedAt(new Date().toLocaleTimeString("de-CH"));
       } catch (e) {
         setError(e instanceof Error ? e.message : "Speichern fehlgeschlagen.");
@@ -154,7 +155,7 @@ export default function ProfileEditor({ initial }: { initial: AuthorRow }) {
         const fd = new FormData();
         // Original-Filename behalten für extension/inhalt; Blob ist JPEG.
         fd.append("file", resized, file.name.replace(/\.[^.]+$/, ".jpg"));
-        const { url } = await uploadAvatar(initial.id, fd);
+        const { url } = unwrapAction(await uploadAvatar(initial.id, fd));
         setAvatarUrl(url);
       } catch (err) {
         setUploadError(err instanceof Error ? err.message : "Upload fehlgeschlagen.");

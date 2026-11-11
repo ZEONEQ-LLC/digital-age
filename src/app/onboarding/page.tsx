@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import Footer from "@/components/Footer";
 import { createClient } from "@/lib/supabase/server";
 import OnboardingMagicLink from "./OnboardingMagicLink";
+
+// Status- und Hilfsseite: nicht in den Suchindex.
+export const metadata: Metadata = {
+  title: "Einladung — digital age",
+  robots: { index: false, follow: true },
+};
 
 type SearchParams = Promise<{ token?: string }>;
 

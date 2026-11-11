@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/database.types";
 import { normalizeAuthorHandle } from "@/lib/siteChrome";
+import { FormError, runAction, type ActionResult } from "@/lib/actionResult";
 
 type AuthorRow = Database["public"]["Tables"]["authors"]["Row"];
 type AuthorUpdate = Database["public"]["Tables"]["authors"]["Update"];
@@ -11,14 +12,14 @@ type AuthorUpdate = Database["public"]["Tables"]["authors"]["Update"];
 async function requireEditor(): Promise<void> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht eingeloggt.");
+  if (!user) throw new FormError("Nicht eingeloggt.");
   const { data: me } = await supabase
     .from("authors")
     .select("role")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!me) throw new Error("Author-Profil nicht gefunden.");
-  if (me.role !== "editor") throw new Error("Nur Editor:innen dürfen Author-Management nutzen.");
+  if (!me) throw new FormError("Author-Profil nicht gefunden.");
+  if (me.role !== "editor") throw new FormError("Nur Editor:innen dürfen Author-Management nutzen.");
 }
 
 function revalidateAdminPaths(): void {
@@ -38,25 +39,29 @@ export type AuthorAdminPatch = {
   social_links?: Record<string, string> | null;
 };
 
-export async function updateAuthorAsEditor(id: string, patch: AuthorAdminPatch): Promise<AuthorRow> {
+export async function updateAuthorAsEditor(id: string, patch: AuthorAdminPatch): Promise<ActionResult<AuthorRow>> {
+  return runAction("updateAuthorAsEditor", () => updateAuthorAsEditorInner(id, patch));
+}
+
+async function updateAuthorAsEditorInner(id: string, patch: AuthorAdminPatch): Promise<AuthorRow> {
   await requireEditor();
   const supabase = await createClient();
 
   const update: AuthorUpdate = {};
   if (patch.display_name !== undefined) {
     const v = patch.display_name.trim();
-    if (!v) throw new Error("Anzeigename darf nicht leer sein.");
+    if (!v) throw new FormError("Anzeigename darf nicht leer sein.");
     update.display_name = v;
   }
   if (patch.email !== undefined) {
     const v = patch.email.trim();
-    if (!v) throw new Error("E-Mail darf nicht leer sein.");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) throw new Error("E-Mail-Format ungültig.");
+    if (!v) throw new FormError("E-Mail darf nicht leer sein.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) throw new FormError("E-Mail-Format ungültig.");
     update.email = v;
   }
   if (patch.handle !== undefined) {
     const h = normalizeAuthorHandle(patch.handle);
-    if (!h.ok) throw new Error(h.error);
+    if (!h.ok) throw new FormError(h.error);
     update.handle = h.handle;
   }
   if (patch.job_title !== undefined) update.job_title = patch.job_title ?? null;
@@ -76,7 +81,7 @@ export async function updateAuthorAsEditor(id: string, patch: AuthorAdminPatch):
     .single();
   if (error) {
     if (error.code === "23505") {
-      throw new Error("Slug oder E-Mail bereits vergeben.");
+      throw new FormError("Slug oder E-Mail bereits vergeben.");
     }
     throw error;
   }
@@ -197,6 +202,13 @@ export async function updateFeaturedStatus(
 export async function updateArticleAuthor(
   articleId: string,
   newAuthorId: string,
+): Promise<ActionResult<void>> {
+  return runAction("updateArticleAuthor", () => updateArticleAuthorInner(articleId, newAuthorId));
+}
+
+async function updateArticleAuthorInner(
+  articleId: string,
+  newAuthorId: string,
 ): Promise<void> {
   await requireEditor();
   const supabase = await createClient();
@@ -206,19 +218,23 @@ export async function updateArticleAuthor(
     .select("id")
     .eq("id", newAuthorId)
     .maybeSingle();
-  if (!targetAuthor) throw new Error("Ziel-Author existiert nicht.");
+  if (!targetAuthor) throw new FormError("Ziel-Author existiert nicht.");
 
   const { error } = await supabase
     .from("articles")
     .update({ author_id: newAuthorId })
     .eq("id", articleId);
-  if (error) throw new Error(`Author-Zuweisung fehlgeschlagen: ${error.message}`);
+  if (error) throw error;
 
   revalidatePath(`/autor/artikel/${articleId}`);
   revalidatePath("/autor/admin/artikel");
 }
 
-export async function deleteAuthorAsEditor(id: string): Promise<void> {
+export async function deleteAuthorAsEditor(id: string): Promise<ActionResult<void>> {
+  return runAction("deleteAuthorAsEditor", () => deleteAuthorAsEditorInner(id));
+}
+
+async function deleteAuthorAsEditorInner(id: string): Promise<void> {
   await requireEditor();
   const supabase = await createClient();
 
@@ -228,7 +244,7 @@ export async function deleteAuthorAsEditor(id: string): Promise<void> {
     .eq("author_id", id);
   if (countErr) throw countErr;
   if ((articleCount ?? 0) > 0) {
-    throw new Error(
+    throw new FormError(
       `Author hat ${articleCount} Artikel und kann nicht gelöscht werden. Bitte Artikel zuerst archivieren oder einem anderen Author zuordnen.`,
     );
   }

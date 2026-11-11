@@ -17,6 +17,7 @@ import {
 import { HANDLE_RULE_TEXT, normalizeAuthorHandle } from "@/lib/siteChrome";
 import { buildInviteMessage } from "@/lib/inviteTextTemplate";
 import AvatarUploadBlock from "@/components/author/AvatarUploadBlock";
+import { unwrapAction } from "@/lib/actionResult";
 
 type Props = { initialAuthors: AuthorWithCount[]; inviterName: string };
 
@@ -449,7 +450,7 @@ function EditAuthorDrawer({ author, inviterName, onClose, onSaved, onDeleted }: 
 
     startTransition(async () => {
       try {
-        await updateAuthorAsEditor(author.id, patch);
+        unwrapAction(await updateAuthorAsEditor(author.id, patch));
         onSaved();
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -462,7 +463,7 @@ function EditAuthorDrawer({ author, inviterName, onClose, onSaved, onDeleted }: 
     setError(null);
     startTransition(async () => {
       try {
-        await deleteAuthorAsEditor(author.id);
+        unwrapAction(await deleteAuthorAsEditor(author.id));
         onDeleted();
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -474,7 +475,7 @@ function EditAuthorDrawer({ author, inviterName, onClose, onSaved, onDeleted }: 
     setError(null);
     startTransition(async () => {
       try {
-        const invite = await generateInviteForExistingPlaceholder(author.id);
+        const invite = unwrapAction(await generateInviteForExistingPlaceholder(author.id));
         setGeneratedInviteToken(invite.token);
         setGeneratedInviteMailSent(invite.mailSent);
       } catch (e) {

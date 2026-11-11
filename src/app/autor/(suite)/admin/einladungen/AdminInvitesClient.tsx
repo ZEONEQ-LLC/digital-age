@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { InviteWithInviter, InviteStatus } from "@/lib/editorAdminApi";
 import { revokeInvite, resendInvite } from "@/lib/inviteActions";
 import { buildInviteMessage } from "@/lib/inviteTextTemplate";
+import { unwrapAction } from "@/lib/actionResult";
 
 type Props = { initialInvites: InviteWithInviter[] };
 
@@ -79,7 +80,7 @@ export default function AdminInvitesClient({ initialInvites }: Props) {
     setPendingId(id);
     startTransition(async () => {
       try {
-        await revokeInvite(id);
+        unwrapAction(await revokeInvite(id));
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -95,7 +96,7 @@ export default function AdminInvitesClient({ initialInvites }: Props) {
     setPendingId(id);
     startTransition(async () => {
       try {
-        const result = await resendInvite(id);
+        const result = unwrapAction(await resendInvite(id));
         if (result.mailSent) {
           setInfo(`Einladung an ${result.email} versendet.`);
         } else {

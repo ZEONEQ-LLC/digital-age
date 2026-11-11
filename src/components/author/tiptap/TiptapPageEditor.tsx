@@ -44,6 +44,7 @@ import { UndoRedoButton } from "@/components/tiptap-ui/undo-redo-button";
 
 import { MAX_FILE_SIZE } from "@/lib/tiptap-utils";
 import { uploadArticleImage } from "@/lib/storageActions";
+import { unwrapAction } from "@/lib/actionResult";
 
 // Bestand-Schutz: SourceRef + Internal-Link + FontSize-Marks werden im
 // Toolbar nicht angeboten (Seiten haben kein Quellen-System und keine
@@ -143,7 +144,7 @@ const TiptapPageEditor = forwardRef<TiptapPageEditorHandle, Props>(
       // (UUID) ist formatgleich und kommt im Storage unter
       // articles/{pageId}/{filename} an. Bei Etappe C kann ein neutralerer
       // Storage-Wrapper folgen — out-of-scope für A2.
-      const { url } = await uploadArticleImage(pageId, formData);
+      const { url } = unwrapAction(await uploadArticleImage(pageId, formData));
       onProgress?.({ progress: 100 });
       return url;
     };

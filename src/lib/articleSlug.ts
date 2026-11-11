@@ -1,27 +1,29 @@
 // Slug-Normalisierung für Article-Slugs (articles.slug).
 //
-// Wird auf zwei Pfaden verwendet:
-//   1. "SEO generieren"-Master-Pfad: nimmt fields.slugSuggestion vom LLM
-//      entgegen und garantiert das Format (Modell ist nicht 100%
-//      zuverlässig bei der Slug-Konvention).
-//   2. Slug-AI-Button: nutzt dieselbe Pipeline + Normalisierung — beide
-//      Pfade liefern damit identisch normalisierte Slugs.
-//
-// Konvention für diese beiden AI-Pfade: nur a-z0-9 und Bindestriche, Umlaute
-// zu einfacher Kleinschreibung (ä→a, ö→o, ü→u, ß→ss). Der Slug aus dem Titel
-// (slugFromTitle unten) transliteriert dagegen ae/oe/ue wie die meisten
-// bestehenden Slugs (Backlog 04.06.2026).
+// Eine Transliteration fuer alle Wege (PR 188): ä→ae, ö→oe, ü→ue, ß→ss,
+// andere Akzente fallen weg, sonst nur a-z0-9 und Bindestriche. So sind auch
+// die meisten bestehenden Slugs geschrieben. Bestehende Slugs bleiben, wie
+// sie sind; die Regel gilt nur fuer neu gebildete.
 
-export function normalizeArticleSlug(input: string): string {
+function transliterateSlug(input: string): string {
   return input
+    .normalize("NFC")
     .trim()
     .toLowerCase()
-    .replace(/ä/g, "a")
-    .replace(/ö/g, "o")
-    .replace(/ü/g, "u")
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
     .replace(/ß/g, "ss")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+// KI-Pfade: Slug-Vorschlag aus «SEO generieren» und dem Slug-Knopf. Das Modell
+// haelt die Konvention nicht immer ein, deshalb wird hier normalisiert.
+export function normalizeArticleSlug(input: string): string {
+  return transliterateSlug(input);
 }
 
 // Platzhalter aus createDraft, solange der Artikel keinen echten Slug hat.
@@ -36,18 +38,7 @@ const TITLE_SLUG_MAX = 60; // Obergrenze der Slug-Pruefung im SEO-Tab
 // Slug aus dem Artikel-Titel. Deterministisch: slugFollowsTitle vergleicht das
 // Ergebnis mit dem aktuellen Slug. Lange Titel enden an einer Wortgrenze.
 export function slugFromTitle(title: string): string {
-  const s = title
-    .normalize("NFC")
-    .trim()
-    .toLowerCase()
-    .replace(/ä/g, "ae")
-    .replace(/ö/g, "oe")
-    .replace(/ü/g, "ue")
-    .replace(/ß/g, "ss")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  const s = transliterateSlug(title);
   if (s.length <= TITLE_SLUG_MAX) return s;
   const head = s.slice(0, TITLE_SLUG_MAX + 1);
   const boundary = head.lastIndexOf("-");

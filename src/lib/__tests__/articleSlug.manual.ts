@@ -1,5 +1,5 @@
 // Manueller Test-Runner: npx tsx src/lib/__tests__/articleSlug.manual.ts
-import { isArticleSlugConflict, isDraftSlug, slugFollowsTitle, slugFromTitle } from "../articleSlug";
+import { isArticleSlugConflict, isDraftSlug, normalizeArticleSlug, slugFollowsTitle, slugFromTitle } from "../articleSlug";
 
 let pass = 0;
 let fail = 0;
@@ -21,6 +21,14 @@ eq("lang <= 60", long.length <= 60, true);
 eq("lang an Wortgrenze", long, "warum-die-schweizer-banken-ihre-kundenbeziehung-an-autonome");
 eq("lang ohne Trenner", slugFromTitle("a".repeat(80)).length, 60);
 eq("genau 60", slugFromTitle(`${"a".repeat(30)} ${"b".repeat(29)}`).length, 60);
+
+// normalizeArticleSlug (KI-Pfade): gleiche Transliteration wie der Titel, ohne Kuerzen
+eq("ki umlaute", normalizeArticleSlug("KI-Agenten für Größere Büros"), "ki-agenten-fuer-groessere-bueros");
+eq("ki akzente", normalizeArticleSlug("Café Économie"), "cafe-economie");
+eq("ki schon normal", normalizeArticleSlug("ki-im-treuhandbuero"), "ki-im-treuhandbuero");
+eq("ki raender", normalizeArticleSlug("  -Agenten & Co.-  "), "agenten-co");
+eq("ki leer", normalizeArticleSlug("   "), "");
+eq("ki wie titel", normalizeArticleSlug("Künstliche Intelligenz"), slugFromTitle("Künstliche Intelligenz"));
 
 // isDraftSlug
 eq("draft ja", isDraftSlug("draft-1783429699290-rukrng"), true);

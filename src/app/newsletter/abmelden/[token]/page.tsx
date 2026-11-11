@@ -1,9 +1,16 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import Footer from "@/components/Footer";
 import { createServiceClient } from "@/lib/supabase/service";
 import UnsubscribeConfirmButton from "./UnsubscribeConfirmButton";
+
+// Status- und Hilfsseite: nicht in den Suchindex.
+export const metadata: Metadata = {
+  title: "Newsletter abmelden",
+  robots: { index: false, follow: true },
+};
 
 type PageProps = { params: Promise<{ token: string }> };
 

@@ -58,6 +58,7 @@ import {
   submitForReview,
   type ArticlePatch,
 } from "@/lib/authorActions";
+import { unwrapAction } from "@/lib/actionResult";
 import { validatePublishGate } from "@/lib/publishGate";
 import type { SuiteArticle, RevisionWithEditor, ArticleStatus } from "@/lib/authorApi";
 import { markdownToBlocks } from "@/lib/markdownBlocks";
@@ -71,10 +72,12 @@ import { blocksToTiptap } from "@/lib/tiptap/blocksToTiptap";
 import { tiptapToBlocks } from "@/lib/tiptap/tiptapToBlocks";
 import { contentWhitelistMatch, runEditorRoundtripGuard, runRoundtripGuard, stripAllMarkup, type GuardResult } from "@/lib/tiptap/roundtripGuard";
 import { cleanupMarkdown } from "@/lib/editor/mdCleanup";
-import { slugFollowsTitle, slugFromTitle } from "@/lib/articleSlug";
+import { normalizeArticleSlug, slugFollowsTitle, slugFromTitle } from "@/lib/articleSlug";
 import { generateAbstract } from "@/lib/ai/abstractActions";
 import { heroStaleChanges, parseHeroRecipe, recipeFilePaths, recipeToJson, type HeroRecipe } from "@/lib/hero-studio/recipe";
 import { deleteHeroAssets, heroAssetPathFromUrl } from "@/lib/hero-studio/upload";
+import { deleteArticleImage } from "@/lib/storageActions";
+import { discardableCoverUploads } from "@/lib/coverUploads";
 import { HERO_IMAGE_SOURCE } from "@/lib/hero-studio/alt";
 import type { HeroApplyInput, HeroApplyResult, HeroArticleInput, HeroSession } from "@/lib/hero-studio/types";
 import { parseHeroProposalsStore } from "@/lib/ai/heroPrompts";
@@ -120,6 +123,20 @@ function makeBlockId(): string {
   return `bl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+// Nie gespeicherte Beitragsbilder ausser `keep` best-effort loeschen und aus
+// der Liste nehmen (Regel: src/lib/coverUploads.ts).
+function discardCoverUploads(articleId: string, unsaved: Set<string>, keep: string[]) {
+  const names = discardableCoverUploads(articleId, unsaved, keep);
+  for (const url of [...unsaved]) {
+    if (!keep.includes(url)) unsaved.delete(url);
+  }
+  for (const name of names) {
+    deleteArticleImage(articleId, name).catch(() => {
+      // best-effort, eine verwaiste Datei stoert niemanden
+    });
+  }
+}
+
 export default function EditorClient({ article, revisions, categories, isEditor, allAuthors }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("content");
@@ -150,6 +167,14 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   // Rezept-Stand nach dem letzten ERFOLGREICHEN Save: Dateien, die danach nicht
   // mehr referenziert sind, werden geloescht (Aufraeumregel des Studios).
   const savedRecipeRef = useRef<HeroRecipe | null>(parseHeroRecipe(article.cover_recipe));
+  // Beitragsbild-Uploads aus diesem Editor-Besuch, die noch nie gespeichert
+  // wurden, und das aktuelle Cover fuer Aufraeumen nach asynchronen Saves.
+  // Regel: src/lib/coverUploads.ts.
+  const unsavedCoverUploadsRef = useRef<Set<string>>(new Set());
+  const coverRef = useRef(cover);
+  useEffect(() => {
+    coverRef.current = cover;
+  }, [cover]);
   // Zugewiesener Autor (Editor-Reassignment im Details-Tab), fuer die Studio-Daten.
   const [assignedAuthorId, setAssignedAuthorId] = useState(article.author_id);
   // Studio-Sitzung (Vorschlaege, Auswahl, letztes Ergebnis) ueberlebt den Tab-Wechsel.
@@ -612,16 +637,20 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   // zeigt generischen Browser-Text (H2) — dieser Text erscheint dort nicht.
   const confirmLeaveIfDirty = useCallback(
     (e: { preventDefault: () => void }) => {
+      if (!dirty) return;
       if (
-        dirty &&
         !window.confirm(
           "Ungespeicherte Änderungen gehen verloren. Möchtest du die Seite trotzdem verlassen?",
         )
       ) {
         e.preventDefault();
+        return;
       }
+      // Verlassen bestaetigt: nie gespeicherte Beitragsbilder entfernen. Nicht
+      // waehrend eines laufenden Saves, der eines davon gerade speichern koennte.
+      if (!pending) discardCoverUploads(article.id, unsavedCoverUploadsRef.current, []);
     },
-    [dirty],
+    [dirty, pending, article.id],
   );
 
   // beforeunload nur registrieren, solange ungespeicherte Aenderungen
@@ -880,11 +909,25 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     if (drop.length) await deleteHeroAssets(article.id, drop);
   }
 
+  // Nach jedem erfolgreichen Save: das gespeicherte Cover gilt als gespeichert
+  // und bleibt (Revisionen verweisen darauf). Andere nie gespeicherte Uploads
+  // fallen weg, ausser dem Bild, das der Editor gerade zeigt (Upload waehrend
+  // des Saves). Danach die Studio-Dateien des alten Rezepts.
+  async function cleanupAfterSave(nextRecipe: HeroRecipe | null, savedCover: string) {
+    unsavedCoverUploadsRef.current.delete(savedCover);
+    discardCoverUploads(article.id, unsavedCoverUploadsRef.current, [coverRef.current]);
+    await cleanupHeroFiles(nextRecipe, savedCover);
+  }
+
   // Beitragsbild ersetzt oder entfernt, waehrend ein Studio-Rezept besteht:
   // Teilen-Bild, Animation und Rezept gehoeren zum alten Bild und werden geleert.
-  // Die Dateien raeumt cleanupHeroFiles nach dem naechsten erfolgreichen Save ab.
+  // Die Dateien raeumt cleanupAfterSave nach dem naechsten erfolgreichen Save ab.
+  // v kommt nur aus der Box «Beitragsbild»: ein neuer Upload oder "" (entfernt).
+  // Das bisherige Bild bleibt bis zum Speichern im Storage, die Live-Seite
+  // zeigt es weiter.
   function handleCoverChange(v: string) {
     markDirty();
+    if (v) unsavedCoverUploadsRef.current.add(v);
     setCover(v);
     if (coverRecipe && heroAssetPathFromUrl(v) !== coverRecipe.files.hero) {
       setOgImageUrl("");
@@ -936,7 +979,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       cover_recipe: recipeToJson(input.recipe),
     };
     try {
-      const updated = await saveArticle(article.id, patch);
+      const updated = unwrapAction(await saveArticle(article.id, patch));
       applySavedSlug(patch, updated);
       setStatus(updated.status);
       setSavedAt("Gespeichert (Hero Studio)");
@@ -951,7 +994,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       setCoverVideoUrl(input.videoUrl);
       setCoverVideoAlt(input.altAnimated);
       setCoverRecipe(input.recipe);
-      await cleanupHeroFiles(input.recipe, input.coverUrl);
+      await cleanupAfterSave(input.recipe, input.coverUrl);
       router.refresh();
       return { ok: true };
     } catch (e) {
@@ -1003,7 +1046,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     startTransition(async () => {
       try {
         const patch = buildPatchUnchecked(finalDoc, finalExcerpt);
-        const updated = await saveArticle(article.id, patch);
+        const updated = unwrapAction(await saveArticle(article.id, patch));
         applySavedSlug(patch, updated);
         setStatus(updated.status);
         setSavedAt("Gespeichert");
@@ -1011,7 +1054,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         setPendingCopilotReport(null);
         setDoc(finalDoc);
         setExcerpt(finalExcerpt);
-        void cleanupHeroFiles(coverRecipe, cover);
+        void cleanupAfterSave(coverRecipe, cover);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Speichern fehlgeschlagen.");
@@ -1025,11 +1068,11 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     const { finalDoc, finalExcerpt } = prepared;
     startTransition(async () => {
       try {
-        await saveArticle(article.id, buildPatchUnchecked(finalDoc, finalExcerpt));
+        unwrapAction(await saveArticle(article.id, buildPatchUnchecked(finalDoc, finalExcerpt)));
         setDirty(false);
         setPendingCopilotReport(null);
-        await cleanupHeroFiles(coverRecipe, cover);
-        const next = await submitForReview(article.id);
+        await cleanupAfterSave(coverRecipe, cover);
+        const next = unwrapAction(await submitForReview(article.id));
         setStatus(next.status);
         router.push("/autor/artikel");
       } catch (e) {
@@ -1071,16 +1114,16 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     startTransition(async () => {
       try {
         const patch = buildPatchUnchecked(finalDoc, finalExcerpt);
-        const updated = await saveArticle(article.id, patch);
+        const updated = unwrapAction(await saveArticle(article.id, patch));
         applySavedSlug(patch, updated);
         setPendingCopilotReport(null);
-        const next = await publishArticle(article.id);
+        const next = unwrapAction(await publishArticle(article.id));
         setStatus(next.status);
         setSavedAt("Publiziert");
         setDirty(false);
         setDoc(finalDoc);
         setExcerpt(finalExcerpt);
-        void cleanupHeroFiles(coverRecipe, cover);
+        void cleanupAfterSave(coverRecipe, cover);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Publish fehlgeschlagen.");
@@ -1092,7 +1135,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     setError(null);
     startTransition(async () => {
       try {
-        const next = await archiveArticle(article.id);
+        const next = unwrapAction(await archiveArticle(article.id));
         setStatus(next.status);
         router.refresh();
       } catch (e) {
@@ -1145,12 +1188,16 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           pushStep("seo", "failed", aiAbstractErrorMessage(r.error));
         } else {
           const f = r.fields;
-          const applySlug = shouldApplyCopilotSlug(article.published_at);
+          // Gleiche Normalisierung wie der Slug-Knopf im SEO-Tab; leerer
+          // Vorschlag laesst den Slug stehen.
+          const copilotSlug = normalizeArticleSlug(f.slugSuggestion);
+          const slugAllowed = shouldApplyCopilotSlug(article.published_at);
+          const applySlug = slugAllowed && copilotSlug !== "";
           seoResult = {
             title: f.titleCandidates[0],
             description: f.metaDescription,
             keyword: f.focusKeyword,
-            slug: applySlug ? f.slugSuggestion : seo.slug,
+            slug: applySlug ? copilotSlug : seo.slug,
             secondary: f.semanticTerms,
           };
           setSeo((prev) => ({
@@ -1158,13 +1205,13 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             title: f.titleCandidates[0],
             description: f.metaDescription,
             keyword: f.focusKeyword,
-            slug: applySlug ? f.slugSuggestion : prev.slug,
+            slug: applySlug ? copilotSlug : prev.slug,
             secondaryKeywords: f.semanticTerms,
           }));
           pushStep(
             "seo",
             "ok",
-            `Keyword „${f.focusKeyword}"${applySlug ? "" : ", Slug unverändert (publiziert)"}`,
+            `Keyword „${f.focusKeyword}"${applySlug ? "" : slugAllowed ? ", kein Slug-Vorschlag" : ", Slug unverändert (publiziert)"}`,
           );
         }
       } catch (e) {
@@ -1326,7 +1373,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         copilot_last_run: report as unknown as Json,
       };
       try {
-        const updated = await saveArticle(article.id, patch);
+        const updated = unwrapAction(await saveArticle(article.id, patch));
         applySavedSlug(patch, updated);
         setStatus(updated.status);
         setSavedAt("Gespeichert (Co-Pilot)");
@@ -1334,7 +1381,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
         setPendingCopilotReport(null); // erfolgreich persistiert
         setDoc(finalDoc);
         setExcerpt(finalExcerpt);
-        void cleanupHeroFiles(coverRecipe, cover);
+        void cleanupAfterSave(coverRecipe, cover);
         router.refresh();
       } catch {
         // Save fehlgeschlagen: die LLM-Schritte + Highlights/Inline-ALTs sind
@@ -1403,7 +1450,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     setError(null);
     startTransition(async () => {
       try {
-        await deleteArticle(article.id);
+        unwrapAction(await deleteArticle(article.id));
         router.push("/autor/artikel");
       } catch (e) {
         setError(e instanceof Error ? e.message : "Löschen fehlgeschlagen.");

@@ -1,3 +1,11 @@
+import type { Metadata } from "next";
+
+// Status- und Hilfsseite: nicht in den Suchindex.
+export const metadata: Metadata = {
+  title: "Design-Tokens (intern)",
+  robots: { index: false, follow: true },
+};
+
 type Swatch = { token: string; hex: string; note?: string };
 
 const brandSwatches: Swatch[] = [

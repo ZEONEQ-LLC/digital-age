@@ -53,6 +53,7 @@ import { UndoRedoButton } from "@/components/tiptap-ui/undo-redo-button";
 
 import { MAX_FILE_SIZE } from "@/lib/tiptap-utils";
 import { uploadArticleImage } from "@/lib/storageActions";
+import { unwrapAction } from "@/lib/actionResult";
 
 import { StatBoxBlock, DaDividerBlock, SourceRefInline } from "./customBlocks";
 
@@ -258,7 +259,7 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
       if (abortSignal?.aborted) throw new Error("Upload abgebrochen.");
       const formData = new FormData();
       formData.append("file", file);
-      const { url } = await uploadArticleImage(articleId, formData);
+      const { url } = unwrapAction(await uploadArticleImage(articleId, formData));
       onProgress?.({ progress: 100 });
       return url;
     };

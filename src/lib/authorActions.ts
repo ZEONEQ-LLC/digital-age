@@ -13,6 +13,7 @@ import { emptyBlockDocument, type BlockDocument } from "@/types/blocks";
 import { checkSourcesUrls } from "@/lib/editor/urlCheck";
 import { validatePublishGate } from "@/lib/publishGate";
 import { isArticleSlugConflict } from "@/lib/articleSlug";
+import { FormError, isUniqueViolation, runAction, type ActionResult } from "@/lib/actionResult";
 import type { Database, Json } from "@/lib/database.types";
 
 type ArticleRow = Database["public"]["Tables"]["articles"]["Row"];
@@ -21,14 +22,27 @@ type AuthorRow = Database["public"]["Tables"]["authors"]["Row"];
 async function requireCurrentAuthor(): Promise<{ id: string; role: AuthorRow["role"] }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Nicht eingeloggt.");
+  if (!user) throw new FormError("Nicht eingeloggt.");
   const { data: author } = await supabase
     .from("authors")
     .select("id, role")
     .eq("user_id", user.id)
     .single();
-  if (!author) throw new Error("Author-Profil nicht gefunden.");
+  if (!author) throw new FormError("Author-Profil nicht gefunden.");
   return author;
+}
+
+// Bekannte DB-Fehler mit eigener Meldung (Muster: src/lib/actionResult.ts).
+function articleError(e: unknown): string | null {
+  if (isArticleSlugConflict(e as { code?: string; message?: string })) {
+    return "Dieser Slug ist schon vergeben. Bitte einen anderen wählen.";
+  }
+  return null;
+}
+
+function profileError(e: unknown): string | null {
+  if (isUniqueViolation(e, "idx_authors_handle")) return "Dieser Handle ist schon vergeben.";
+  return null;
 }
 
 export async function createDraft(input?: {
@@ -112,10 +126,10 @@ const HERO_RECIPE_MAX_BYTES = 32 * 1024;
 function assertHeroUrl(value: string | null | undefined, label: string): void {
   if (value == null) return;
   if (typeof value !== "string" || !value.startsWith("https://")) {
-    throw new Error(`${label}: nur https-URLs erlaubt.`);
+    throw new FormError(`${label}: nur https-URLs erlaubt.`);
   }
   if (value.length > HERO_URL_MAX) {
-    throw new Error(`${label}: URL zu lang (max ${HERO_URL_MAX} Zeichen).`);
+    throw new FormError(`${label}: URL zu lang (max ${HERO_URL_MAX} Zeichen).`);
   }
 }
 
@@ -123,23 +137,27 @@ function validateHeroFields(patch: Pick<ArticlePatch, "og_image_url" | "cover_vi
   assertHeroUrl(patch.og_image_url, "Teilen-Bild");
   assertHeroUrl(patch.cover_video_url, "Hero-Animation");
   if (patch.cover_video_alt != null) {
-    if (typeof patch.cover_video_alt !== "string") throw new Error("Animations-Beschreibung: ungültiger Wert.");
+    if (typeof patch.cover_video_alt !== "string") throw new FormError("Animations-Beschreibung: ungültiger Wert.");
     if (patch.cover_video_alt.length > HERO_ALT_MAX) {
-      throw new Error(`Animations-Beschreibung zu lang (max ${HERO_ALT_MAX} Zeichen).`);
+      throw new FormError(`Animations-Beschreibung zu lang (max ${HERO_ALT_MAX} Zeichen).`);
     }
   }
   if (patch.cover_recipe != null) {
     const r = patch.cover_recipe;
     if (typeof r !== "object" || Array.isArray(r) || typeof (r as { version?: unknown }).version !== "number") {
-      throw new Error("Hero-Rezept: Objekt mit numerischem `version` erwartet.");
+      throw new FormError("Hero-Rezept: Objekt mit numerischem `version` erwartet.");
     }
     if (JSON.stringify(r).length > HERO_RECIPE_MAX_BYTES) {
-      throw new Error("Hero-Rezept zu gross (max 32 KB).");
+      throw new FormError("Hero-Rezept zu gross (max 32 KB).");
     }
   }
 }
 
-export async function saveArticle(id: string, patch: ArticlePatch): Promise<ArticleRow> {
+export async function saveArticle(id: string, patch: ArticlePatch): Promise<ActionResult<ArticleRow>> {
+  return runAction("saveArticle", () => saveArticleInner(id, patch), articleError);
+}
+
+async function saveArticleInner(id: string, patch: ArticlePatch): Promise<ArticleRow> {
   const supabase = await createClient();
   await requireCurrentAuthor();
   validateHeroFields(patch);
@@ -303,7 +321,11 @@ async function syncArticleTags(
   if (insErr) throw new Error(`Junction-Insert: ${insErr.message}`);
 }
 
-export async function submitForReview(id: string): Promise<ArticleRow> {
+export async function submitForReview(id: string): Promise<ActionResult<ArticleRow>> {
+  return runAction("submitForReview", () => submitForReviewInner(id), articleError);
+}
+
+async function submitForReviewInner(id: string): Promise<ArticleRow> {
   const supabase = await createClient();
   await requireCurrentAuthor();
 
@@ -317,7 +339,7 @@ export async function submitForReview(id: string): Promise<ArticleRow> {
     .eq("id", id)
     .single();
   if (current?.status !== "draft") {
-    throw new Error("Nur Drafts können zur Review eingereicht werden.");
+    throw new FormError("Nur Drafts können zur Review eingereicht werden.");
   }
 
   // URL-Quellen-Check beim Weiterreichen zur Review: prueft die Erreichbarkeit
@@ -375,10 +397,14 @@ export async function submitForReview(id: string): Promise<ArticleRow> {
   return data;
 }
 
-export async function publishArticle(id: string): Promise<ArticleRow> {
+export async function publishArticle(id: string): Promise<ActionResult<ArticleRow>> {
+  return runAction("publishArticle", () => publishArticleInner(id), articleError);
+}
+
+async function publishArticleInner(id: string): Promise<ArticleRow> {
   const supabase = await createClient();
   const me = await requireCurrentAuthor();
-  if (me.role !== "editor") throw new Error("Nur Editors können publishen.");
+  if (me.role !== "editor") throw new FormError("Nur Editors können publishen.");
 
   // Idempotenz-Signal: published_at wird nur beim ersten Publish gesetzt
   // (bestehende Logik). Wenn es vorher schon einen Wert hatte, war der
@@ -413,7 +439,7 @@ export async function publishArticle(id: string): Promise<ArticleRow> {
       cover_image_alt: current.cover_image_alt,
     });
     if (!gate.ok) {
-      throw new Error(
+      throw new FormError(
         `Publizieren nicht möglich — es fehlen: ${gate.missing.join(", ")}.`,
       );
     }
@@ -461,10 +487,14 @@ export async function publishArticle(id: string): Promise<ArticleRow> {
   return data;
 }
 
-export async function archiveArticle(id: string): Promise<ArticleRow> {
+export async function archiveArticle(id: string): Promise<ActionResult<ArticleRow>> {
+  return runAction("archiveArticle", () => archiveArticleInner(id), articleError);
+}
+
+async function archiveArticleInner(id: string): Promise<ArticleRow> {
   const supabase = await createClient();
   const me = await requireCurrentAuthor();
-  if (me.role !== "editor") throw new Error("Nur Editors können archivieren.");
+  if (me.role !== "editor") throw new FormError("Nur Editors können archivieren.");
 
   // Beim Archivieren wird Featured/Hero gleich mit zurückgesetzt — ein
   // archivierter Artikel hat in den Spotlight-Sections nichts verloren.
@@ -481,7 +511,11 @@ export async function archiveArticle(id: string): Promise<ArticleRow> {
   return data;
 }
 
-export async function deleteArticle(id: string): Promise<void> {
+export async function deleteArticle(id: string): Promise<ActionResult<void>> {
+  return runAction("deleteArticle", () => deleteArticleInner(id));
+}
+
+async function deleteArticleInner(id: string): Promise<void> {
   const supabase = await createClient();
   await requireCurrentAuthor();
 
@@ -505,12 +539,16 @@ export type AuthorProfilePatch = {
   social_links?: Record<string, string | null | undefined> | null;
 };
 
-export async function updateAuthorProfile(patch: AuthorProfilePatch): Promise<AuthorRow> {
+export async function updateAuthorProfile(patch: AuthorProfilePatch): Promise<ActionResult<AuthorRow>> {
+  return runAction("updateAuthorProfile", () => updateAuthorProfileInner(patch), profileError);
+}
+
+async function updateAuthorProfileInner(patch: AuthorProfilePatch): Promise<AuthorRow> {
   const supabase = await createClient();
   const me = await requireCurrentAuthor();
   if (patch.handle !== undefined) {
     const h = normalizeAuthorHandle(patch.handle);
-    if (!h.ok) throw new Error(h.error);
+    if (!h.ok) throw new FormError(h.error);
     patch = { ...patch, handle: h.handle };
   }
   const { data, error } = await supabase
