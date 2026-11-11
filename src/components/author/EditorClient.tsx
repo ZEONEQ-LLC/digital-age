@@ -9,7 +9,8 @@ import ArticleCoverVideo from "@/components/ArticleCoverVideo";
 import EditorDetailsTab from "@/components/author/EditorDetailsTab";
 import type { HeroStudioStatus } from "@/components/author/FeaturedImageBox";
 import EditorRevisions from "@/components/author/EditorRevisions";
-import EditorSeoPanel, { type SeoState, type EditorSeoPanelHandle } from "@/components/author/EditorSeoPanel";
+import EditorSeoPanel, { type ApplySuggestionResult, type SeoState, type EditorSeoPanelHandle } from "@/components/author/EditorSeoPanel";
+import type { SeoReviewSuggestion } from "@/lib/ai/seoActions";
 import CopilotPanel from "@/components/author/CopilotPanel";
 import { normalizeStoredReview } from "@/lib/ai/seoReview";
 import HighlightSuggestModal from "@/components/editor/HighlightSuggestModal";
@@ -74,6 +75,7 @@ import { contentWhitelistMatch, runEditorRoundtripGuard, runRoundtripGuard, stri
 import { cleanupMarkdown } from "@/lib/editor/mdCleanup";
 import { normalizeArticleSlug, slugFollowsTitle, slugFromTitle } from "@/lib/articleSlug";
 import { seoHeadingOutline } from "@/lib/ai/seoHeadings";
+import { applySuggestionToDoc, applySuggestionToString } from "@/lib/editor/suggestionEdit";
 import { generateAbstract } from "@/lib/ai/abstractActions";
 import { heroStaleChanges, parseHeroRecipe, recipeFilePaths, recipeToJson, type HeroRecipe } from "@/lib/hero-studio/recipe";
 import { deleteHeroAssets, heroAssetPathFromUrl } from "@/lib/hero-studio/upload";
@@ -318,6 +320,50 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   // wenn die Stelle nicht (mehr) gefunden wird.
   const [pendingHighlight, setPendingHighlight] = useState<string | null>(null);
   const [highlightMiss, setHighlightMiss] = useState(false);
+
+  // «Übernehmen» eines SEO-Review-Vorschlags: zuerst Titel (nur Ersetzen),
+  // dann Abstract, dann Text. Aendert nur den Editor, gespeichert wird wie
+  // immer per Knopf (Roundtrip-Guard aktiv). Marker (**, {{g}}, [^N]) aus dem
+  // Analyse-Input werden vor der Suche entfernt.
+  function handleApplySuggestion(s: SeoReviewSuggestion): ApplySuggestionResult {
+    const quote = stripAllMarkup(s.targetQuote).trim();
+    const text = stripAllMarkup(s.proposedText).trim();
+    if (!s.action || !quote || !text) return { ok: false, message: "Kein anwendbarer Vorschlag." };
+    if (s.action === "replace") {
+      const nextTitle = applySuggestionToString(title, quote, text, "replace");
+      if (nextTitle !== null) {
+        handleTitleChange(nextTitle);
+        return { ok: true, where: "Titel" };
+      }
+    }
+    const abstractJson = abstractEditorRef.current?.getJSON();
+    if (abstractJson) {
+      const nextAbstract = applySuggestionToDoc(abstractJson, quote, text, s.action);
+      if (nextAbstract) {
+        abstractEditorRef.current?.setContent(nextAbstract);
+        markDirty();
+        setExcerpt(readExcerptFromAbstract());
+        return { ok: true, where: "Abstract" };
+      }
+    }
+    const res = bodyEditorRef.current?.applyTextEdit(quote, text, s.action) ?? "not_found";
+    if (res === "ok") {
+      markDirty();
+      try {
+        setDoc(buildBlockDocumentFromEditor());
+      } catch (e) {
+        console.error("Editor-Sync fehlgeschlagen:", e);
+      }
+      return { ok: true, where: "Text" };
+    }
+    if (res === "complex") {
+      return {
+        ok: false,
+        message: "Die Stelle enthält einen Quellenverweis oder Zeilenumbruch oder geht über mehrere Absätze. Bitte von Hand anpassen.",
+      };
+    }
+    return { ok: false, message: "Stelle nicht gefunden, der Text wurde wohl seit der Analyse geändert. Bitte von Hand anpassen." };
+  }
 
   function handleShowInText(quote: string) {
     if (!quote.trim()) return;
@@ -2497,6 +2543,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           initialReviewAt={article.seo_review_at ?? null}
           articleUpdatedAt={article.updated_at ?? null}
           onShowInText={handleShowInText}
+          onApplySuggestion={handleApplySuggestion}
         />
       </div>
 
