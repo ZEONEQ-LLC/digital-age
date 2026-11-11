@@ -500,6 +500,7 @@ export type Database = {
           rejection_reason: string | null
           reviewed_at: string | null
           reviewed_by_id: string | null
+          slug: string
           status: Database["public"]["Enums"]["prompt_status"]
           submitter_email: string | null
           submitter_name: string | null
@@ -522,6 +523,7 @@ export type Database = {
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by_id?: string | null
+          slug?: string
           status?: Database["public"]["Enums"]["prompt_status"]
           submitter_email?: string | null
           submitter_name?: string | null
@@ -544,6 +546,7 @@ export type Database = {
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by_id?: string | null
+          slug?: string
           status?: Database["public"]["Enums"]["prompt_status"]
           submitter_email?: string | null
           submitter_name?: string | null
@@ -1677,7 +1680,15 @@ export type Database = {
         Args: { p_article_id: string; p_review: Json }
         Returns: string
       }
+      slugify_title: {
+        Args: { p_max?: number; p_title: string }
+        Returns: string
+      }
       suggest_startup_slug: { Args: { p_name: string }; Returns: string }
+      unique_ai_prompt_slug: {
+        Args: { p_id: string; p_title: string }
+        Returns: string
+      }
       update_seo_review_done: {
         Args: { p_article_id: string; p_review: Json }
         Returns: boolean

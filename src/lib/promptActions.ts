@@ -263,7 +263,7 @@ async function approvePromptInner(id: string, opts?: { feature?: boolean }): Pro
   // Klick-Schutz).
   const { data: current } = await supabase
     .from("ai_prompts")
-    .select("status, submitter_email, submitter_name, title")
+    .select("status, submitter_email, submitter_name, title, slug")
     .eq("id", id)
     .maybeSingle();
   const alreadyApproved =
@@ -295,7 +295,7 @@ async function approvePromptInner(id: string, opts?: { feature?: boolean }): Pro
       email: current.submitter_email,
       name: current.submitter_name,
       title: current.title,
-      liveUrl: `/ai-prompts/${id}`,
+      liveUrl: `/ai-prompts/${current.slug}`,
     });
   }
 

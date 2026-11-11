@@ -216,19 +216,19 @@ async function fetchPromptEntries(
   supabase: SupabaseClient<Database>,
   base: string,
 ): Promise<MetadataRoute.Sitemap> {
-  // /ai-prompts/<id> — UUID-based, kein slug. RLS lässt anon nur
+  // /ai-prompts/<slug> (seit PR 190, vorher UUID). RLS lässt anon nur
   // published+featured durch (siehe ai_prompts_public_read).
   try {
     const { data, error } = await supabase
       .from("ai_prompts")
-      .select("id, updated_at, status")
+      .select("slug, updated_at, status")
       .in("status", ["published", "featured"]);
     if (error) {
       console.error("[sitemap] prompts error:", error.message);
       return [];
     }
     return (data ?? []).map((p) => ({
-      url: `${base}/ai-prompts/${p.id}`,
+      url: `${base}/ai-prompts/${p.slug}`,
       lastModified: p.updated_at ? new Date(p.updated_at) : undefined,
       changeFrequency: "monthly" as const,
       priority: 0.5,

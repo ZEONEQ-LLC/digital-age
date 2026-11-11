@@ -33,6 +33,7 @@ function snippet(text: string, max = 120): string {
 function toLegacy(row: PromptWithAuthor): Prompt {
   return {
     id: row.id,
+    slug: row.slug,
     title: row.title,
     body: row.prompt_text,
     contextSnippet: snippet(row.context),

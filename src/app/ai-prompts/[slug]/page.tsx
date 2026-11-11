@@ -1,10 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import Footer from "@/components/Footer";
 import { catColor, diffColor, toolColor, type AiTool, type Difficulty } from "@/components/promptColors";
-import { getPublishedPromptById } from "@/lib/promptApi";
+import { getPublishedPromptById, getPublishedPromptBySlug } from "@/lib/promptApi";
 import {
   PROMPT_CATEGORIES,
   PROMPT_DIFFICULTIES,
@@ -16,20 +16,21 @@ import { buildBreadcrumbJsonLd } from "@/lib/jsonLd";
 import { getBaseUrl } from "@/lib/siteUrl";
 import { createPublicClient } from "@/lib/supabase/public";
 
-type Params = Promise<{ id: string }>;
+type Params = Promise<{ slug: string }>;
 
 export const revalidate = 300;
 
-// SSG: published/featured Prompt-IDs vorab generieren (analog Sitemap-
-// Filter aus #112). Param-Name ist `id` (UUID), nicht slug.
+// SSG: published/featured Prompt-Slugs vorab generieren (analog Sitemap-
+// Filter aus #112). Seit PR 190 Slug statt UUID; alte UUID-URLs leitet die
+// Seite dauerhaft auf den Slug um.
 export async function generateStaticParams() {
   try {
     const supabase = createPublicClient();
     const { data } = await supabase
       .from("ai_prompts")
-      .select("id")
+      .select("slug")
       .in("status", ["published", "featured"]);
-    return (data ?? []).map((p) => ({ id: p.id }));
+    return (data ?? []).map((p) => ({ slug: p.slug }));
   } catch {
     return [];
   }
@@ -45,18 +46,20 @@ function lookup(list: readonly { code: string; label: string }[], code: string):
   return list.find((it) => it.code === code)?.label ?? code;
 }
 
-function visiblePrompt(id: string) {
-  // getPublishedPromptById filtert bereits auf published+featured am
-  // Anon-Client — kein cookies(), Page kann static prerendern.
-  return getPublishedPromptById(id);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function visiblePrompt(slug: string) {
+  // filtert bereits auf published+featured am Anon-Client — kein cookies(),
+  // Page kann static prerendern.
+  return getPublishedPromptBySlug(slug);
 }
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const { id } = await params;
-  const row = await visiblePrompt(id);
+  const { slug } = await params;
+  const row = await visiblePrompt(slug);
   if (!row) return { title: "Prompt nicht gefunden — digital-age" };
   return buildListingMetadata({
-    path: `/ai-prompts/${id}`,
+    path: `/ai-prompts/${row.slug}`,
     title: `${row.title} — AI Prompts · digital age`,
     description: truncateForMeta(
       row.context ||
@@ -66,9 +69,16 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 }
 
 export default async function PromptDetailPage({ params }: { params: Params }) {
-  const { id } = await params;
-  const row = await visiblePrompt(id);
-  if (!row) notFound();
+  const { slug } = await params;
+  const row = await visiblePrompt(slug);
+  if (!row) {
+    // Alte Adresse /ai-prompts/<uuid> (bis PR 190): dauerhaft umleiten.
+    if (UUID_RE.test(slug)) {
+      const legacy = await getPublishedPromptById(slug);
+      if (legacy) permanentRedirect(`/ai-prompts/${legacy.slug}`);
+    }
+    notFound();
+  }
 
   const cat = lookup(PROMPT_CATEGORIES, row.category);
   const tool = lookup(PROMPT_TESTED_WITH, row.tested_with) as AiTool;
