@@ -50,7 +50,7 @@ export type AiTask =
   // Podcast-Empfehlung per Teilen (api/podcasts/ingest): Kurzbeschreibung,
   // Kategorie und Sprache aus Apple-Metadaten. Laeuft ohne Session ueber
   // callLLMForAuthor (systemCall.ts).
-  | "podcast_ingest" // (Registrierung in config.ts/configActions.ts KNOWN_TASKS + Admin)
+  | "podcast_ingest"
   // Hero Studio (PR 182): vier Hero-Vorschlaege (2 Linie, 2 Typo) aus dem
   // Beitrag als JSON, auf Knopfdruck im Tab «Hero Studio», gespeichert in
   // articles.cover_proposals (keine Revision). v1 nur Symbol-Motive.
@@ -58,6 +58,36 @@ export type AiTask =
   // Hero Studio: Posttexte fuer LinkedIn und Instagram zum Beitrag (JSON),
   // nur Anzeige und ZIP-Paket, nicht gespeichert.
   | "social_posts";
+
+// Laufzeit-Liste aller Tasks (Resolver, Speichern der Konfiguration). Der
+// Record erzwingt beim Kompilieren, dass jeder AiTask-Wert hier steht; eine
+// neue Task braucht nur diese Zeile plus Label und Gruppe im Admin.
+const AI_TASK_FLAGS: Record<AiTask, true> = {
+  title_variants: true,
+  tone_check: true,
+  summary: true,
+  closing_paragraph: true,
+  seo_pipeline: true,
+  seo_review: true,
+  news_item_generation: true,
+  abstract_generate: true,
+  highlight_suggestions: true,
+  image_alt: true,
+  podcast_ingest: true,
+  hero_proposals: true,
+  social_posts: true,
+};
+
+export const AI_TASKS = Object.keys(AI_TASK_FLAGS) as AiTask[];
+
+export function isAiTask(value: unknown): value is AiTask {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(AI_TASK_FLAGS, value);
+}
+
+// Tasks, deren Modell nicht auf der Seite AI-Konfiguration, sondern in ihrem
+// eigenen Bereich gewaehlt wird (News-Ticker seit PR 190). saveAiConfig
+// uebernimmt deren Override unveraendert aus der DB.
+export const TASKS_WITH_OWN_MODEL_SETTING: readonly AiTask[] = ["news_item_generation"];
 
 // Minimaler Image-Input fuer Vision-Tasks. Aktuell nur URL-Source (die
 // Bild-URLs sind public Supabase-Storage-URLs, die Anthropic selbst laden

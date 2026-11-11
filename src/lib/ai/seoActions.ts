@@ -12,38 +12,7 @@ import {
   buildSeoReviewPrompt,
 } from "@/lib/ai/seoPrompts";
 import type { SeoHeading } from "@/lib/ai/seoHeadings";
-
-// Liest die editierbaren Strategie-Overrides aus ai_config.task_prompt_overrides
-// (Muster wie news_ticker generation_prompt: DB-Wert + Code-Fallback). Nur
-// nicht-leere String-Werte werden zurueckgegeben; alles andere → Key fehlt,
-// der Builder faellt auf den Code-Default. Bei jedem Fehler (Tabelle/Spalte
-// fehlt, RLS, 0 Rows) → {} (graceful, Code-Default greift). Kein Cache —
-// frisch pro Call, konsistent mit resolveLLMConfig.
-async function getTaskPromptOverrides(): Promise<Record<string, string>> {
-  try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("ai_config")
-      .select("task_prompt_overrides")
-      .eq("id", "global")
-      .single();
-    if (error || !data) return {};
-    const raw = (data as { task_prompt_overrides?: unknown })
-      .task_prompt_overrides;
-    if (!raw || typeof raw !== "object") return {};
-    const out: Record<string, string> = {};
-    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-      if (typeof v === "string" && v.trim() !== "") out[k] = v;
-    }
-    return out;
-  } catch (err) {
-    console.warn(
-      "[seo] task_prompt_overrides read failed, using code defaults:",
-      err instanceof Error ? err.message : String(err),
-    );
-    return {};
-  }
-}
+import { getPromptOverrides } from "@/lib/ai/promptOverrides";
 
 // ─────────────────────────────────────────────────────────────────────────
 // Zweistufige SEO-Pipeline.
@@ -258,7 +227,7 @@ export async function generateSeoKeywordCandidates(args: {
   articleId: string;
   rejectedKeywords: string[];
 }): Promise<SeoKeywordCandidatesResult> {
-  const overrides = await getTaskPromptOverrides();
+  const overrides = await getPromptOverrides();
   const result = await callLLM({
     system: buildSeoKeywordCandidatesSystem(
       args.locale,
@@ -296,7 +265,7 @@ export async function generateSeoFromKeyword(args: {
   locale: "de-CH" | "en";
   articleId: string;
 }): Promise<SeoDeriveResult> {
-  const overrides = await getTaskPromptOverrides();
+  const overrides = await getPromptOverrides();
   const result = await callLLM({
     system: buildSeoDeriveSystem(args.locale, overrides["seo_derive"]),
     prompt: buildSeoDerivePrompt({
@@ -537,7 +506,7 @@ export async function analyzeSeoEntry(args: {
   locale: "de-CH" | "en";
   articleId: string;
 }): Promise<SeoReviewResult> {
-  const overrides = await getTaskPromptOverrides();
+  const overrides = await getPromptOverrides();
   const result = await callLLM({
     system: buildSeoReviewSystem(args.locale, overrides["seo_review"]),
     prompt: buildSeoReviewPrompt({
