@@ -10,15 +10,24 @@ const DEPLOY_FORMAT = new Intl.DateTimeFormat("de-CH", {
   minute: "2-digit",
 });
 
-export function buildInfoText(
+// Einzelteile, damit der Footer nur zwischen ihnen umbricht (nie im Datum).
+export function buildInfoParts(
   version: string | undefined,
   commit: string | undefined,
   builtAt: string | undefined,
-): string {
+): string[] {
   const parts: string[] = [];
   if (version) parts.push(`Version ${version}`);
   parts.push(commit ? `Build ${commit}` : "Build lokal");
   const at = builtAt ? new Date(builtAt) : null;
   if (at && !Number.isNaN(at.getTime())) parts.push(`Deploy ${DEPLOY_FORMAT.format(at)}`);
-  return parts.join(" · ");
+  return parts;
+}
+
+export function buildInfoText(
+  version: string | undefined,
+  commit: string | undefined,
+  builtAt: string | undefined,
+): string {
+  return buildInfoParts(version, commit, builtAt).join(" · ");
 }

@@ -2,8 +2,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Fragment } from "react";
 import { isAuthorSuitePath } from "@/lib/siteChrome";
-import { buildInfoText } from "@/lib/buildInfo";
+import { buildInfoParts } from "@/lib/buildInfo";
 import NewsletterSignup from "./NewsletterSignup";
 
 function openCookieSettings() {
@@ -125,11 +126,16 @@ export default function Footer() {
               data-footer="build"
               style={{ color: "var(--da-muted-soft)", fontSize: "11px", lineHeight: 1.7, marginTop: "12px", fontFamily: "var(--da-font-mono)" }}
             >
-              {buildInfoText(
+              {buildInfoParts(
                 process.env.NEXT_PUBLIC_APP_VERSION,
                 process.env.NEXT_PUBLIC_BUILD_COMMIT,
                 process.env.NEXT_PUBLIC_BUILD_TIME,
-              )}
+              ).map((part, i) => (
+                <Fragment key={part}>
+                  {i > 0 && " · "}
+                  <span style={{ whiteSpace: "nowrap" }}>{part}</span>
+                </Fragment>
+              ))}
             </p>
           </div>
         </div>
