@@ -14,6 +14,8 @@ import { buildListingMetadata } from "@/lib/listingMetadata";
 import { buildBreadcrumbJsonLd } from "@/lib/jsonLd";
 import { getBaseUrl } from "@/lib/siteUrl";
 import { createPublicClient } from "@/lib/supabase/public";
+import StartupContactForm from "@/components/StartupContactForm";
+import { startupAcceptsContact } from "@/lib/startupContact/data";
 
 type Params = Promise<{ slug: string }>;
 
@@ -73,6 +75,8 @@ export default async function StartupDetailPage({ params }: { params: Params }) 
   const lastRoundFormatted = formatDate(row.last_round_at);
   const hasInvestorBlock = row.open_to_investment || fundingLabel || row.total_funding_range || lastRoundFormatted || row.pitch_deck_url;
   const isFeatured = row.status === "featured";
+  // «Kontakt aufnehmen» nur mit Einverstaendnis des Startups (startup_contacts).
+  const acceptsContact = await startupAcceptsContact(row.id);
 
   const baseUrl = getBaseUrl();
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
@@ -339,6 +343,7 @@ export default async function StartupDetailPage({ params }: { params: Params }) 
           <a href={row.website} target="_blank" rel="noreferrer noopener" className="sd-cta">
             Website besuchen →
           </a>
+          {acceptsContact && <StartupContactForm startupSlug={row.slug} startupName={row.name} />}
         </div>
 
         <Link href="/swiss-ai" className="sd-back">← Zurück zum Verzeichnis</Link>

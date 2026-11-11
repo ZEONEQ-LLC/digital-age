@@ -1630,6 +1630,82 @@ export type Database = {
           },
         ]
       }
+      startup_contact_requests: {
+        Row: {
+          created_at: string
+          delivered: boolean
+          id: string
+          purpose: string
+          startup_id: string
+        }
+        Insert: {
+          created_at?: string
+          delivered?: boolean
+          id?: string
+          purpose: string
+          startup_id: string
+        }
+        Update: {
+          created_at?: string
+          delivered?: boolean
+          id?: string
+          purpose?: string
+          startup_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "startup_contact_requests_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "ai_startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      startup_contacts: {
+        Row: {
+          consent_at: string
+          consent_note: string | null
+          consent_source: string
+          created_at: string
+          email: string
+          optout_token: string
+          revoked_at: string | null
+          startup_id: string
+          updated_at: string
+        }
+        Insert: {
+          consent_at?: string
+          consent_note?: string | null
+          consent_source: string
+          created_at?: string
+          email: string
+          optout_token?: string
+          revoked_at?: string | null
+          startup_id: string
+          updated_at?: string
+        }
+        Update: {
+          consent_at?: string
+          consent_note?: string | null
+          consent_source?: string
+          created_at?: string
+          email?: string
+          optout_token?: string
+          revoked_at?: string | null
+          startup_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "startup_contacts_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: true
+            referencedRelation: "ai_startups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tag_audit_log: {
         Row: {
           affected_article_ids: string[] | null
