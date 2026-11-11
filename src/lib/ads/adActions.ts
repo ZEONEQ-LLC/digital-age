@@ -23,8 +23,7 @@ import {
   type CampaignStatus,
   type ContactInput,
   type CreativeInput,
-  type UidLookupResult,
-} from "@/lib/ads/types";
+  type UidLookupResult, type PeriodValue } from "@/lib/ads/types";
 import { PLACEMENTS, isPlacementCode } from "@/lib/ads/placements";
 import { isCreativeTheme, isHex } from "@/lib/ads/creativeTheme";
 
@@ -433,7 +432,7 @@ export async function createBooking(input: BookingInput): Promise<ActionResult> 
 // Konflikt trotzdem sichtbar ist.
 type LifecycleRow = {
   id: string;
-  period: unknown;
+  period: PeriodValue;
   paused_at: string | null;
   archived_at: string | null;
   placement: { label: string } | null;
@@ -472,14 +471,14 @@ function labelOf(r: LifecycleRow): string {
 
 // Neuer Zeitraum: Startgrenze bleibt, Ende = Zuercher Kalendertag inklusiv
 // (24:00 exklusiv, wie createBooking). Ende vor Start -> null.
-function periodWithNewEnd(period: unknown, to: string): string | null {
+function periodWithNewEnd(period: PeriodValue, to: string): string | null {
   const p = parsePeriod(period);
   if (!p?.lower) return null;
   if (to < zurichDay(p.lower)) return null;
   return `[${p.lower},${to} 24:00 Europe/Zurich)`;
 }
 
-function isExpired(period: unknown, now: number): boolean {
+function isExpired(period: PeriodValue, now: number): boolean {
   const p = parsePeriod(period);
   return !!p?.upper && new Date(p.upper).getTime() <= now;
 }

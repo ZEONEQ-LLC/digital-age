@@ -17,8 +17,7 @@ import { moduleImageUrl } from "@/lib/ads/imagePath";
 import {
   BOOKING_STATE_LABELS, CAMPAIGN_STATUSES, CREATIVE_THEMES, RESSORT_SLUGS, SCOPE_KINDS, allowedStatusTargets, bookingState, formatPeriod, parsePeriod, statusLabel,
   type BookingShare, type BookingState, type BulkBookingResult, type CampaignDetail, type CampaignStatus, type CreativeKind, type CreativeRow,
-  type PlacementRow, type ScopeKind,
-} from "@/lib/ads/types";
+  type PlacementRow, type ScopeKind, type PeriodValue } from "@/lib/ads/types";
 import { PLACEMENTS, isPlacementCode, type PlacementCode } from "@/lib/ads/placements";
 import { isHex, resolveTheme } from "@/lib/ads/creativeTheme";
 import { TEXT_LIMITS } from "@/lib/ads/mediaKit";
@@ -81,7 +80,7 @@ function CharCount({ value, max }: { value: string; max: number }) {
 }
 
 // Enddatum bereits erreicht (obere Grenze exklusiv) — auch fuer archivierte Zeilen.
-function isPastEnd(period: unknown, now: number): boolean {
+function isPastEnd(period: PeriodValue, now: number): boolean {
   const p = parsePeriod(period);
   return !!p?.upper && new Date(p.upper).getTime() <= now;
 }

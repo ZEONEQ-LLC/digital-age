@@ -111,7 +111,7 @@ export async function getCampaignStats(supabase: Sb, campaignId: string, days = 
   let to: number | null = null;
   let open = false;
   for (const b of bookings ?? []) {
-    const p = parsePeriod((b as { period: unknown }).period);
+    const p = parsePeriod(b.period);
     if (!p) continue;
     if (p.lower) { const t = new Date(p.lower).getTime(); if (from === null || t < from) from = t; }
     if (p.upper) { const t = new Date(p.upper).getTime(); if (to === null || t > to) to = t; } else { open = true; }
