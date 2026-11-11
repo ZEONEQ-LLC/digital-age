@@ -1187,6 +1187,60 @@ prüfbar). `ImageUploader` löscht das Vorgängerbild sofort beim Hochladen
 (bekannt, eigener Punkt). `cover_video_alt` ist keine Publish-Pflicht. Eigene
 KI-Zeichnungen (`d`) und Vision-Bildkontrolle sind in v1 aus.
 
+### Pitch → Artikel-Entwurf, Slug aus dem Titel (PR 187)
+
+**Pitch → Entwurf.** Im Pitch-Modal (`/autor/admin/pitches`) gibt es den
+Abschnitt «Artikel-Entwurf» mit «Entwurf erstellen» und optional «Zusätzlich
+per E-Mail zum Login einladen». Server Action `createDraftFromPitch(id,
+{ invite })` in `src/lib/pitch/adminActions.ts`, Editor-only, alles über den
+Server-Client (RLS `articles_editor_all`, `authors_editor_insert`,
+`article_pitches_editor_update`, `invites_editor_all`):
+- Gast-Autor per E-Mail suchen (`ilike`, eingeloggte Rows zuerst), sonst neu
+  als `external` ohne Login anlegen (Name, Bio, `job_title` aus «Rolle»,
+  Website als `social_links.website`, nur http(s)).
+- Volltext: `normalizePitchMarkdown` (erste H1 gleich dem Titel fällt weg,
+  andere H1 werden H2) und danach dieselbe Pipeline wie der Knopf «MD-Cleanup»
+  (`cleanupMarkdown`, Quellen inklusive). Reine Helfer in
+  `src/lib/pitch/draftFromPitch.ts`, Test `__tests__/draftFromPitch.manual.ts`.
+- Artikel `draft` mit Titel, Abstract, Kategorie (unbekannt → `ki-business`),
+  `body_blocks` und `body_md`, Slug aus dem Titel.
+- Migration `20261109180000_article_pitches_article_id.sql`: Spalte
+  `article_pitches.article_id` (FK, `on delete set null`). Ein Pitch mit
+  Entwurf liefert diesen zurück, statt einen zweiten anzulegen; das Modal
+  zeigt dann «Entwurf öffnen». Pitch-Status wird `accepted`, keine Mail an den
+  Pitcher. Schlägt die Verknüpfung fehl, wird der eben angelegte Artikel
+  wieder gelöscht.
+- Einladung: `inviteAuthorFromPitch` (`inviteActions.ts`) überspringt Autoren
+  mit Login und solche mit aktiver Einladung; sonst Invite mit
+  `intended_role = author`, beim ersten Login hebt `handle_new_user` die Rolle
+  von `external` an. Ohne Einladung bleibt der Gast ohne Login.
+- Beim ersten Publizieren schickt `publishArticle` wie bei jedem Autor die
+  Mail «Artikel veröffentlicht» an die Pitch-Adresse.
+
+**Slug aus dem Titel** (`src/lib/articleSlug.ts`): `slugFromTitle` (NFC,
+ä→ae, ö→oe, ü→ue, ß→ss, übrige Akzente weg, Wortgrenze bis 60 Zeichen).
+Der Editor setzt den Slug bei jeder Titeländerung neu, solange der Artikel nie
+publiziert war (`published_at` null) und `slugFollowsTitle` gilt (Slug leer,
+Platzhalter `draft-<ts>-<rand>`, gleich dem Titel-Slug oder Titel-Slug mit
+Zahlen-Suffix). Hinweis im SEO-Tab unter dem Feld. Wer den Slug von Hand oder
+per KI-Knopf ändert, beendet das Nachführen. Publizierte Artikel behalten
+ihre URL. `saveArticle` hängt bei nie publizierten Artikeln und
+`articles_slug_key`-Konflikt `-2` … `-20` an; der Editor übernimmt den
+gespeicherten Slug (`applySavedSlug`). Bekannte Abweichung: der KI-Knopf
+nutzt `normalizeArticleSlug` mit ä→a.
+
+**Server Actions: erwartete Fehler zurückgeben, nicht werfen.** Next.js
+ersetzt in Production die Meldung jedes geworfenen Fehlers aus einer Server
+Action durch einen generischen Text («omitted in production builds»). Fehler,
+die der Nutzer lesen soll, kommen als Rückgabewert (`{ ok: false, error }`).
+Muster in `inviteActions.ts`: `FormError` für eigene Meldungen, `formFailure`
+mappt alles andere auf «Das hat nicht geklappt …» und loggt; Typ
+`AuthorFormResult<T>`. Umgestellt sind `createAuthorWithInvite`,
+`createAuthorPlaceholder` (doppelte E-Mail → «Es existiert bereits ein Autor
+mit dieser E-Mail.» als rote Zeile im Modal) und `createDraftFromPitch`.
+Viele ältere Actions werfen noch (eigener Backlog-Punkt). Prüfen geht nur
+gegen `npm run build` + `next start`, im Dev-Server kommt die Meldung durch.
+
 ### Invite-Flow (PR B)
 
 **Pragma:** Editor generiert Token, kopiert URL und versendet sie manuell
