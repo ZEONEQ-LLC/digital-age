@@ -1330,6 +1330,48 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+### News-Ticker-Cron repariert, DB-Härtung (PR 191)
+
+**Ticker-Cron lief nie.** `generateNewsItem` rief `callLLM` (client.ts), das
+eine eingeloggte Session braucht. Der Cron hat keine, also endete jedes Item
+mit «not authenticated» und zählte still als «übersprungen». Alle Einträge bis
+PR 191 stammen aus zwei Handläufen im Admin (22.05. und 07.07.2026).
+- Der Generator nutzt jetzt `callLLMForAuthor` (systemCall.ts). Kosten trägt
+  beim Klick im Admin der Editor, beim Cron der System-Author:
+  `NEWS_TICKER_AUTHOR_ID` (optional), sonst der älteste Editor
+  (`resolveSystemAuthorId`, src/lib/ai/systemAuthor.ts, auch für den
+  Podcast-Ingest).
+- **Hintergrund-Tasks** (`BACKGROUND_TASKS` in types.ts, heute nur
+  `news_item_generation`) zählen nicht ins Stundenlimit der Autoren und werden
+  davon nicht gebremst. Sonst sperrt ein Ticker-Lauf (bis Quellen ×
+  items_per_source Aufrufe) dem Editor eine Stunde lang die KI-Knöpfe.
+- **Fehler sind sichtbar:** Der Generator liefert `item | skip | error`
+  (`src/lib/newsTicker/parse.ts`). `items_skipped_generation` zählt nur noch
+  Aussortiertes, Fehler zählen in `items_failed` und stehen zusammengefasst
+  (`count`) in `errors`. Der Admin zeigt den letzten gespeicherten Lauf und
+  das Datum des neuesten Eintrags (orange ab 3 Tagen). Der Cron antwortet mit
+  500, wenn Items scheiterten und keines durchkam.
+- `callLLM` loggt Fehlversuche jetzt mit dem aufgelösten Modell statt
+  `ANTHROPIC_MODEL` (daher kam «seo_review auf Haiku 4.5 mit 0 Tokens»).
+- Test: `src/lib/newsTicker/__tests__/ticker.manual.ts`.
+
+**DB-Härtung** (`20261111210000_function_execute_hardening.sql`): EXECUTE auf
+Funktionen im public-Schema eingegrenzt (Supabase-Advisor 0028/0029/0011).
+Trigger-Funktionen und `ad_campaign_coverage_gap` für keine API-Rolle mehr,
+Editor-RPCs, RLS-Helfer und SEO-Review-RPCs nur noch `authenticated`,
+`get_top_tags` als SECURITY INVOKER, `search_path` gesetzt. Bewusst öffentlich
+bleiben `get_invite_by_token`, `increment_prompt_uses`, `suggest_startup_slug`
+(der Advisor meldet sie weiter, ebenso die RLS-Helfer und Editor-RPCs für
+`authenticated`).
+
+**Neue DB-Funktionen** (Regel seit PR 191): Postgres gibt EXECUTE an PUBLIC,
+Supabase zusätzlich an anon und authenticated. Darum in derselben Migration
+`revoke execute on function … from public, anon, authenticated;` und dann
+gezielt `grant … to authenticated` (oder anon), nur wo der Code die Funktion
+per `.rpc()` mit dieser Rolle aufruft. Trigger-Funktionen brauchen kein Grant
+(Postgres prüft EXECUTE nur beim CREATE TRIGGER). Funktionen, die in Policies
+für anon/public stehen, müssen für anon ausführbar bleiben.
+
 ### KI-Konfiguration aufgeräumt, Prompt-Slugs, Hero-Dateien (PR 190)
 
 **Tasks an einer Stelle.** `AI_TASKS` / `isAiTask` in `src/lib/ai/types.ts`
