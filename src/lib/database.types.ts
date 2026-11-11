@@ -714,6 +714,7 @@ export type Database = {
       }
       article_pitches: {
         Row: {
+          article_id: string | null
           author_bio: string
           author_email: string
           author_name: string
@@ -731,6 +732,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          article_id?: string | null
           author_bio: string
           author_email: string
           author_name: string
@@ -748,6 +750,7 @@ export type Database = {
           title: string
         }
         Update: {
+          article_id?: string | null
           author_bio?: string
           author_email?: string
           author_name?: string
@@ -764,7 +767,15 @@ export type Database = {
           status?: string
           title?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "article_pitches_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       article_tags: {
         Row: {

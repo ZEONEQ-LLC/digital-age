@@ -73,7 +73,8 @@ export default function AdminAuthorsClient({ initialAuthors, inviterName }: Prop
     setModalError(null);
     startModalTransition(async () => {
       try {
-        await createAuthorPlaceholder(modalForm);
+        const res = await createAuthorPlaceholder(modalForm);
+        if (!res.ok) { setModalError(res.error); return; }
         closeModal();
         router.refresh();
       } catch (e) {
@@ -86,7 +87,9 @@ export default function AdminAuthorsClient({ initialAuthors, inviterName }: Prop
     setModalError(null);
     startModalTransition(async () => {
       try {
-        const { invite, mailSent } = await createAuthorWithInvite(modalForm);
+        const res = await createAuthorWithInvite(modalForm);
+        if (!res.ok) { setModalError(res.error); return; }
+        const { invite, mailSent } = res.value;
         setModalSuccess({
           token: invite.token,
           email: invite.email,
@@ -182,7 +185,7 @@ export default function AdminAuthorsClient({ initialAuthors, inviterName }: Prop
         }
         .a-adm-modal {
           background: var(--da-darker); border: 1px solid var(--da-border);
-          border-radius: 8px; max-width: 480px; width: 100%;
+          border-radius: 8px; max-width: 520px; width: 100%;
           padding: 28px;
         }
         .a-adm-modal h3 {
@@ -210,6 +213,7 @@ export default function AdminAuthorsClient({ initialAuthors, inviterName }: Prop
         .a-adm-modal-actions {
           display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px;
         }
+        .a-adm-modal-actions button { white-space: nowrap; }
 
         .a-adm-url-box {
           background: var(--da-dark); border: 1px solid var(--da-border);

@@ -59,7 +59,7 @@ export default async function AdminPitchesPage({
   let query = supabase
     .from("article_pitches")
     .select(
-      "id, title, excerpt, category, body_md, author_name, author_email, author_role, author_bio, author_website, status, created_at, reviewed_at, editor_notes",
+      "id, title, excerpt, category, body_md, author_name, author_email, author_role, author_bio, author_website, status, created_at, reviewed_at, editor_notes, article_id",
     )
     .order("created_at", { ascending: false })
     .limit(1000);
@@ -81,6 +81,7 @@ export default async function AdminPitchesPage({
     createdAt: r.created_at,
     reviewedAt: r.reviewed_at,
     editorNotes: r.editor_notes,
+    articleId: r.article_id,
   }));
 
   return (

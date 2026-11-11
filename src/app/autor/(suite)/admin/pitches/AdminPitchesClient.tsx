@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import {
+  createDraftFromPitch,
   updatePitchNotes,
   updatePitchStatus,
+  type PitchDraftResult,
 } from "@/lib/pitch/adminActions";
 
 export type StatusFilter = "all" | "new" | "reviewing" | "accepted" | "rejected";
@@ -24,6 +27,7 @@ export type PitchRow = {
   createdAt: string;
   reviewedAt: string | null;
   editorNotes: string | null;
+  articleId: string | null;
 };
 
 type Props = {
@@ -61,6 +65,17 @@ function formatDateDE(iso: string | null): string {
   });
 }
 
+// Ergebnis als ein Satz im Modal: Autor, Einladung, Hinweise der Quellen-Pipeline.
+function draftSummary(r: Extract<PitchDraftResult, { ok: true }>): string {
+  const parts = [r.authorCreated ? "Entwurf erstellt, Gast-Autor neu angelegt." : "Entwurf erstellt, bestehendem Autor zugeordnet."];
+  if (r.invite === "sent") parts.push("Einladung versendet.");
+  if (r.invite === "mail_failed") parts.push("Einladung angelegt, Mail nicht versendet (Link unter Einladungen).");
+  if (r.invite === "has_login") parts.push("Keine Einladung nötig, Login besteht.");
+  if (r.invite === "already_invited") parts.push("Einladung läuft bereits.");
+  if (r.invite === "failed") parts.push("Einladung fehlgeschlagen.");
+  return [...parts, ...r.warnings].join(" ");
+}
+
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
   return `${s.slice(0, max - 1)}…`;
@@ -77,6 +92,9 @@ export default function AdminPitchesClient({
   const [openId, setOpenId] = useState<string | null>(focusId);
   const [toast, setToast] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const [draftPending, startDraft] = useTransition();
+  const [inviteAuthor, setInviteAuthor] = useState(false);
+  const [draftNote, setDraftNote] = useState<{ pitchId: string; text: string; error: boolean } | null>(null);
 
   useEffect(() => {
     if (!toast) return;
@@ -109,6 +127,24 @@ export default function AdminPitchesClient({
       } else {
         setToast(`Status: ${STATUS_LABEL[status as StatusFilter] ?? status}`);
         router.refresh();
+      }
+    });
+  }
+
+  function handleCreateDraft(id: string) {
+    setDraftNote(null);
+    startDraft(async () => {
+      try {
+        const result = await createDraftFromPitch(id, { invite: inviteAuthor });
+        if (!result.ok) {
+          setDraftNote({ pitchId: id, text: result.message, error: true });
+          return;
+        }
+        setDraftNote({ pitchId: id, text: draftSummary(result), error: false });
+        setInviteAuthor(false);
+        router.refresh();
+      } catch {
+        setDraftNote({ pitchId: id, text: "Der Entwurf konnte nicht erstellt werden. Bitte nochmals versuchen.", error: true });
       }
     });
   }
@@ -290,6 +326,25 @@ export default function AdminPitchesClient({
         .pi-adm-btn:hover { border-color: var(--da-muted-soft); }
         .pi-adm-btn--primary { background: var(--da-green); color: var(--da-dark); border-color: var(--da-green); }
         .pi-adm-btn--danger:hover { color: #ff8e8e; border-color: #ff6b6b; }
+
+        .pi-adm-draft {
+          background: var(--da-dark);
+          border-radius: 6px;
+          padding: 14px 16px;
+          margin-bottom: 16px;
+          display: flex; flex-direction: column; gap: 12px;
+        }
+        .pi-adm-draft__hint { color: var(--da-muted); font-size: 13px; line-height: 1.55; margin: 0; }
+        .pi-adm-draft__row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+        .pi-adm-draft__check {
+          display: inline-flex; align-items: center; gap: 8px;
+          color: var(--da-text); font-size: 13px; cursor: pointer;
+        }
+        .pi-adm-draft__check input { accent-color: var(--da-green); width: 15px; height: 15px; }
+        .pi-adm-draft__note { font-size: 13px; line-height: 1.55; margin: 0; color: var(--da-green); }
+        .pi-adm-draft__note[data-error="true"] { color: #ff8e8e; }
+        .pi-adm-btn:disabled { opacity: 0.55; cursor: default; }
+        a.pi-adm-btn { text-decoration: none; display: inline-block; }
       `}</style>
 
       <div className="pi-adm-tabs">
@@ -454,6 +509,52 @@ export default function AdminPitchesClient({
               }}
               placeholder="Editor-Notizen (max. 2000 Zeichen). Wird beim Verlassen des Feldes gespeichert."
             />
+
+            {(openRow.articleId || openRow.status !== "rejected") && (
+              <>
+                <p className="pi-adm-modal__label">ARTIKEL-ENTWURF</p>
+                <div className="pi-adm-draft" data-pi="draft">
+                  {openRow.articleId ? (
+                    <div className="pi-adm-draft__row">
+                      <Link href={`/autor/artikel/${openRow.articleId}`} prefetch={false} className="pi-adm-btn pi-adm-btn--primary">
+                        Entwurf öffnen
+                      </Link>
+                      <span className="pi-adm-draft__hint">Aus diesem Pitch ist bereits ein Entwurf entstanden.</span>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="pi-adm-draft__hint">
+                        Legt einen Entwurf mit Titel, Abstract, Kategorie, Volltext und Quellen an und ordnet ihn {openRow.authorName} zu. Der Pitch gilt danach als akzeptiert.
+                      </p>
+                      <div className="pi-adm-draft__row">
+                        <button
+                          type="button"
+                          className="pi-adm-btn pi-adm-btn--primary"
+                          onClick={() => handleCreateDraft(openRow.id)}
+                          disabled={draftPending}
+                        >
+                          {draftPending ? "Wird erstellt …" : "Entwurf erstellen"}
+                        </button>
+                        <label className="pi-adm-draft__check">
+                          <input
+                            type="checkbox"
+                            checked={inviteAuthor}
+                            onChange={(e) => setInviteAuthor(e.target.checked)}
+                            disabled={draftPending}
+                          />
+                          Zusätzlich per E-Mail zum Login einladen
+                        </label>
+                      </div>
+                    </>
+                  )}
+                  {draftNote && draftNote.pitchId === openRow.id && (
+                    <p className="pi-adm-draft__note" role="status" aria-live="polite" data-error={draftNote.error}>
+                      {draftNote.text}
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
 
             <div className="pi-adm-modal__actions">
               <button
