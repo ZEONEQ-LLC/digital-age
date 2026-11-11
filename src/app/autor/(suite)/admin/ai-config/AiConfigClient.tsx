@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { saveAiConfig } from "@/lib/ai/configActions";
 import type { AiTask } from "@/lib/ai/types";
@@ -151,6 +152,7 @@ export default function AiConfigClient({
           line-height: 1.55;
           margin-top: 8px;
         }
+        .aic-link { color: var(--da-green); text-decoration: underline; text-underline-offset: 2px; }
         .aic-textarea, .aic-input {
           width: 100%;
           background: var(--da-dark);
@@ -409,6 +411,13 @@ export default function AiConfigClient({
             „Default verwenden“ entfernt den Override und nutzt das
             global gesetzte Default-Modell für diese Task. Speicher-
             Format unverändert (JSON in <code>task_model_overrides</code>).
+          </p>
+          <p className="aic-hint">
+            Das Modell für den News-Ticker wählst du unter{" "}
+            <Link href="/autor/news-ticker" className="aic-link">
+              News-Ticker → Prompt &amp; Modell
+            </Link>
+            . Speichern hier ändert es nicht.
           </p>
         </div>
 
