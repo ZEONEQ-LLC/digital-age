@@ -86,12 +86,27 @@ export async function GET(request: Request) {
 
   try {
     const { runRefresh } = await import("@/lib/newsTicker/refresh");
+    // Ohne authorId: Kosten traegt der System-Author (NEWS_TICKER_AUTHOR_ID,
+    // sonst aeltester Editor).
     const stats = await runRefresh();
     // Der Ticker sitzt im Root-Layout und steckt auch in statisch
     // vorgerenderten Seiten (/kontakt, /mediadaten, ...). "layout" erneuert
     // alle Seiten beim naechsten Aufruf. Nur im Erfolgspfad: die fruehen
     // Returns laufen stuendlich durch und sollen nichts invalidieren.
     revalidatePath("/", "layout");
+    // Fehler laut machen: Wenn kein einziges neues Item durchkam, aber welche
+    // scheiterten, antwortet der Cron mit 500 (sichtbar in den Vercel-Logs).
+    // Die Details stehen in last_refresh_stats und im Admin.
+    const failed = stats.items_failed ?? 0;
+    if (failed > 0) {
+      console.error(
+        `[news-ticker:cron] ${failed} Item(s) fehlgeschlagen:`,
+        stats.errors.map((e) => `${e.source_name}: ${e.message}${e.count ? ` (${e.count}x)` : ""}`).join(" | "),
+      );
+    }
+    if (failed > 0 && stats.items_generated === 0) {
+      return NextResponse.json({ ok: false, stats }, { status: 500 });
+    }
     return NextResponse.json({ ok: true, stats });
   } catch (err) {
     console.error("[news-ticker:cron] runRefresh threw:", err);

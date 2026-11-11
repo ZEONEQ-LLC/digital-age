@@ -2,6 +2,7 @@ import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/service";
 import { callLLMForAuthor } from "@/lib/ai/systemCall";
+import { resolveSystemAuthorId } from "@/lib/ai/systemAuthor";
 import { PODCAST_CATEGORIES, isPodcastCategory } from "@/lib/podcastCategories";
 import { slugifyPodcast } from "@/lib/podcastSlug";
 import { parseAppleLink, type AppleLink } from "@/lib/podcasts/appleLink";
@@ -34,24 +35,6 @@ type Sb = ReturnType<typeof createServiceClient>;
 const DEFAULT_CATEGORY = PODCAST_CATEGORIES[0];
 const LANGS = new Set(["de", "en", "fr", "it"]);
 
-// Empfehler: feste Author-ID aus der Env, sonst der erste Editor.
-async function resolveRecommenderId(supabase: Sb): Promise<string | null> {
-  const fixed = process.env.PODCAST_INGEST_AUTHOR_ID?.trim();
-  if (fixed) {
-    const { data } = await supabase.from("authors").select("id").eq("id", fixed).maybeSingle();
-    if (data) return data.id;
-    console.error("[podcast-ingest] PODCAST_INGEST_AUTHOR_ID zeigt auf keinen Author, Fallback erster Editor.");
-  }
-  const { data } = await supabase
-    .from("authors")
-    .select("id")
-    .eq("role", "editor")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  return data?.id ?? null;
-}
-
 // Titel-Notnagel aus dem Pfad-Slug, falls die Apple-Seite nicht lesbar ist.
 function titleFromLink(link: AppleLink): string {
   const seg = new URL(link.url).pathname.split("/").filter(Boolean);
@@ -78,7 +61,8 @@ export async function ingestAppleLink(rawUrl: string): Promise<IngestOutcome> {
   const existing = await findExisting(supabase, link);
   if (existing) return { status: "exists", id: existing.id, message: `Schon vorhanden: ${existing.title}` };
 
-  const recommenderId = await resolveRecommenderId(supabase);
+  // Empfehler: feste Author-ID aus der Env, sonst der erste Editor.
+  const recommenderId = await resolveSystemAuthorId(supabase, "PODCAST_INGEST_AUTHOR_ID");
   if (!recommenderId) return { status: "error", message: "Kein Empfehler konfiguriert (PODCAST_INGEST_AUTHOR_ID oder Editor fehlt)." };
 
   // Titel sofort von der Apple-Seite (kurz), damit die Mitteilung aussagekraeftig ist.

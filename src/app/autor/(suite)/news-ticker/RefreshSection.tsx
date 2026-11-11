@@ -4,23 +4,18 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { triggerRefresh } from "@/lib/newsTickerActions";
 import { unwrapAction } from "@/lib/actionResult";
-
-type RefreshError = { source_id: string; source_name: string; message: string };
-type RefreshStats = {
-  sources_polled: number;
-  items_fetched: number;
-  items_generated: number;
-  items_skipped_dedup: number;
-  items_skipped_generation: number;
-  errors: RefreshError[];
-  paused?: boolean;
-};
+import type { RefreshStats } from "@/lib/newsTicker/stats";
 
 type Props = {
   lastRefreshLabel: string;
+  // Gespeicherte Statistik des letzten Laufs (Cron oder Admin), null wenn
+  // noch keiner lief. Wird gezeigt, bis hier ein neuer Lauf startet.
+  lastStats: RefreshStats | null;
+  // Neuester Eintrag im Ticker; stale = laenger als ein paar Tage her.
+  latestItem: { label: string; stale: boolean } | null;
 };
 
-export default function RefreshSection({ lastRefreshLabel }: Props) {
+export default function RefreshSection({ lastRefreshLabel, lastStats, latestItem }: Props) {
   const router = useRouter();
   const [stats, setStats] = useState<RefreshStats | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,8 +39,12 @@ export default function RefreshSection({ lastRefreshLabel }: Props) {
     <section>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
         <h2 style={{ color: "var(--da-text)", fontSize: 18, fontWeight: 700 }}>Refresh</h2>
-        <span style={{ color: "var(--da-muted)", fontSize: 11, fontFamily: "var(--da-font-mono)" }}>
+        <span style={{ color: "var(--da-muted)", fontSize: 11, fontFamily: "var(--da-font-mono)", textAlign: "right" }}>
           Letzter Lauf: {lastRefreshLabel}
+          <br />
+          <span style={{ color: latestItem?.stale ? "var(--da-orange)" : "var(--da-muted)" }}>
+            Neuester Eintrag: {latestItem ? latestItem.label : "keiner"}
+          </span>
         </span>
       </div>
 
@@ -106,13 +105,17 @@ export default function RefreshSection({ lastRefreshLabel }: Props) {
           </div>
         )}
 
-        {stats && <StatsBox stats={stats} />}
+        {stats ? (
+          <StatsBox stats={stats} title="Refresh abgeschlossen" />
+        ) : (
+          !pending && lastStats && <StatsBox stats={lastStats} title={`Letzter Lauf · ${lastRefreshLabel}`} />
+        )}
       </div>
     </section>
   );
 }
 
-function StatsBox({ stats }: { stats: RefreshStats }) {
+function StatsBox({ stats, title }: { stats: RefreshStats; title: string }) {
   if (stats.paused) {
     return (
       <div
@@ -130,11 +133,16 @@ function StatsBox({ stats }: { stats: RefreshStats }) {
       </div>
     );
   }
+  // Laeufe vor PR 191 kennen items_failed nicht: dort mischt
+  // items_skipped_generation Aussortiertes und Fehler.
+  const legacy = stats.items_failed === undefined;
+  const failed = stats.items_failed ?? 0;
+  const warn = failed > 0 || stats.errors.length > 0;
   return (
     <div
       style={{
-        background: "rgba(50,255,126,0.06)",
-        border: "1px solid rgba(50,255,126,0.4)",
+        background: warn ? "rgba(255,140,66,0.06)" : "rgba(50,255,126,0.06)",
+        border: warn ? "1px solid rgba(255,140,66,0.45)" : "1px solid rgba(50,255,126,0.4)",
         borderRadius: 4,
         padding: "14px 18px",
         display: "flex",
@@ -144,7 +152,7 @@ function StatsBox({ stats }: { stats: RefreshStats }) {
     >
       <p
         style={{
-          color: "var(--da-green)",
+          color: warn ? "var(--da-orange)" : "var(--da-green)",
           fontSize: 10,
           fontWeight: 700,
           letterSpacing: "0.12em",
@@ -153,14 +161,21 @@ function StatsBox({ stats }: { stats: RefreshStats }) {
           margin: 0,
         }}
       >
-        Refresh abgeschlossen
+        {title}
       </p>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
         <tbody>
           <Row label="Quellen geprüft" value={stats.sources_polled} />
           <Row label="Items neu generiert" value={stats.items_generated} accent="green" />
           <Row label="Items übersprungen (Duplikat)" value={stats.items_skipped_dedup} />
-          <Row label="Items übersprungen (Skip oder Fehler)" value={stats.items_skipped_generation} />
+          {legacy ? (
+            <Row label="Items übersprungen (aussortiert oder Fehler)" value={stats.items_skipped_generation} />
+          ) : (
+            <>
+              <Row label="Items aussortiert (passt nicht)" value={stats.items_skipped_generation} />
+              <Row label="Items fehlgeschlagen" value={failed} accent={failed > 0 ? "orange" : undefined} />
+            </>
+          )}
         </tbody>
       </table>
 
@@ -194,7 +209,10 @@ function StatsBox({ stats }: { stats: RefreshStats }) {
                 }}
               >
                 <strong style={{ color: "var(--da-orange)" }}>{e.source_name}:</strong>{" "}
-                <span style={{ color: "var(--da-muted)" }}>{e.message}</span>
+                <span style={{ color: "var(--da-muted)" }}>
+                  {e.message}
+                  {e.count && e.count > 1 ? ` (${e.count}×)` : ""}
+                </span>
               </li>
             ))}
           </ul>
@@ -211,7 +229,7 @@ function Row({
 }: {
   label: string;
   value: number;
-  accent?: "green";
+  accent?: "green" | "orange";
 }) {
   return (
     <tr style={{ borderBottom: "1px solid var(--da-border)" }}>
@@ -220,7 +238,7 @@ function Row({
         style={{
           padding: "6px 0",
           textAlign: "right",
-          color: accent === "green" ? "var(--da-green)" : "var(--da-text)",
+          color: accent === "green" ? "var(--da-green)" : accent === "orange" ? "var(--da-orange)" : "var(--da-text)",
           fontWeight: 700,
           fontFamily: "var(--da-font-mono)",
         }}

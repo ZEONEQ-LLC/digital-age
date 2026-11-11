@@ -89,6 +89,17 @@ export function isAiTask(value: unknown): value is AiTask {
 // uebernimmt deren Override unveraendert aus der DB.
 export const TASKS_WITH_OWN_MODEL_SETTING: readonly AiTask[] = ["news_item_generation"];
 
+// Hintergrund-Jobs ohne Klick (News-Ticker-Cron und -Refresh). Sie zaehlen
+// nicht ins Stundenlimit der Autoren (rateLimit.ts) und werden davon auch
+// nicht gebremst: Ein Lauf macht bis zu Quellen × items_per_source Aufrufe
+// und wuerde sonst dem Editor, dem die Kosten zugeschrieben werden, eine
+// Stunde lang die KI-Knoepfe sperren. Die Menge begrenzt der Job selbst.
+export const BACKGROUND_TASKS: readonly AiTask[] = ["news_item_generation"];
+
+export function isBackgroundTask(task: string): boolean {
+  return (BACKGROUND_TASKS as readonly string[]).includes(task);
+}
+
 // Minimaler Image-Input fuer Vision-Tasks. Aktuell nur URL-Source (die
 // Bild-URLs sind public Supabase-Storage-URLs, die Anthropic selbst laden
 // kann); base64 waere eine spaetere Erweiterung derselben Naht.

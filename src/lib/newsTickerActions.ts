@@ -9,17 +9,19 @@ type NewsSourceRow = Database["public"]["Tables"]["news_sources"]["Row"];
 type NewsSourceInsert = Database["public"]["Tables"]["news_sources"]["Insert"];
 type NewsSourceUpdate = Database["public"]["Tables"]["news_sources"]["Update"];
 
-async function requireEditor(): Promise<void> {
+// Gibt die Author-ID des Editors zurueck (traegt beim Refresh die KI-Kosten).
+async function requireEditor(): Promise<string> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new FormError("Nicht eingeloggt.");
   const { data: me } = await supabase
     .from("authors")
-    .select("role")
+    .select("id, role")
     .eq("user_id", user.id)
     .maybeSingle();
   if (!me) throw new FormError("Author-Profil nicht gefunden.");
   if (me.role !== "editor") throw new FormError("Nur Editor:innen dürfen den News-Ticker verwalten.");
+  return me.id;
 }
 
 const URL_RE = /^https?:\/\/[^\s]+$/i;
@@ -175,12 +177,12 @@ export async function triggerRefresh(): Promise<ActionResult<import("./newsTicke
 async function triggerRefreshInner(): Promise<
   import("./newsTicker/refresh").RefreshStats
 > {
-  await requireEditor();
+  const authorId = await requireEditor();
   // Dynamic import: refresh.ts ist `server-only` und importiert Anthropic
   // SDK + Service-Role-Client. Hier nur on-demand laden, damit der
   // Module-Graph der Suite-Page schlank bleibt.
   const { runRefresh } = await import("./newsTicker/refresh");
-  const stats = await runRefresh();
+  const stats = await runRefresh({ authorId });
   revalidatePath("/autor/news-ticker");
   // Der Ticker sitzt im Root-Layout und steckt auch in statisch
   // vorgerenderten Seiten (/kontakt, /mediadaten, ...). "layout" erneuert

@@ -36,3 +36,16 @@ export async function getNewsTickerConfig(): Promise<NewsTickerConfigRow | null>
     .maybeSingle();
   return data;
 }
+
+// Zeitpunkt des neuesten Ticker-Eintrags (generated_at), null ohne Eintraege.
+// Im Admin sichtbar, damit ein stehender Ticker auffaellt.
+export async function getLatestNewsItemAt(): Promise<string | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("news_items")
+    .select("generated_at")
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.generated_at ?? null;
+}

@@ -83,12 +83,15 @@ export async function callLLM(params: LLMParams): Promise<AiResult> {
     });
   } else {
     // Fehlerhafter Call ohne Token-Info: trotzdem loggen (=Spur, dass
-    // ein Versuch passiert ist), aber mit 0/0 für Tokens.
+    // ein Versuch passiert ist), aber mit 0/0 für Tokens. Modell ist das
+    // aufgeloeste (wie in systemCall.ts), nicht die Env-Variable — sonst
+    // landet der Fehlversuch beim Env-Fallback-Modell (z.B. seo_review am
+    // 24.10.2026 auf Haiku 4.5 mit 0 Tokens).
     await logAiUsage({
       authorId,
       task: params.task,
       provider: "anthropic",
-      model: process.env.ANTHROPIC_MODEL ?? "unknown",
+      model: resolved.model ?? process.env.ANTHROPIC_MODEL ?? "unknown",
       inputTokens: 0,
       outputTokens: 0,
     });
