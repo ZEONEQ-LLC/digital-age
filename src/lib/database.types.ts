@@ -1711,6 +1711,16 @@ export type Database = {
         Args: { a: Database["public"]["Tables"]["articles"]["Row"] }
         Returns: Json
       }
+      article_search_document: {
+        Args: {
+          p_body: string
+          p_excerpt: string
+          p_subtitle: string
+          p_tags: string[]
+          p_title: string
+        }
+        Returns: unknown
+      }
       can_modify_article_image: {
         Args: { article_id_text: string }
         Returns: boolean
@@ -1772,6 +1782,14 @@ export type Database = {
       save_seo_review: {
         Args: { p_article_id: string; p_review: Json }
         Returns: string
+      }
+      search_articles: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: {
+          id: string
+          rank: number
+          snippet: string
+        }[]
       }
       slugify_title: {
         Args: { p_max?: number; p_title: string }
