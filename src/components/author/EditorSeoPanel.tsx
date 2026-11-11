@@ -59,6 +59,8 @@ export type SeoState = {
 type EditorSeoPanelProps = {
   seo: SeoState;
   onChange: (next: SeoState) => void;
+  /** Slug laeuft noch dem Artikel-Titel nach (Hinweis unter dem Feld) */
+  slugAuto?: boolean;
   articleId: string;
   articleTitle?: string;
   articleBodyText?: string;
@@ -281,6 +283,7 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
   function EditorSeoPanel({
   seo,
   onChange,
+  slugAuto = false,
   articleId,
   articleTitle = "",
   articleBodyText = "",
@@ -1468,6 +1471,11 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
               loading={regenBusy === "slug"}
             />
           </div>
+          {slugAuto && (
+            <p style={{ color: "var(--da-muted)", fontSize: 12, marginTop: 6 }} data-seo="slug-auto">
+              Wird aus dem Titel gebildet, bis du den Slug hier änderst.
+            </p>
+          )}
           {regenErrors.slug && (
             <p role="alert" style={{ color: "#ff8e8e", fontSize: 12, marginTop: 6, fontFamily: "var(--da-font-mono)" }}>
               {regenErrors.slug}

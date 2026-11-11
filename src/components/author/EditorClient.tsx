@@ -71,6 +71,7 @@ import { blocksToTiptap } from "@/lib/tiptap/blocksToTiptap";
 import { tiptapToBlocks } from "@/lib/tiptap/tiptapToBlocks";
 import { contentWhitelistMatch, runEditorRoundtripGuard, runRoundtripGuard, stripAllMarkup, type GuardResult } from "@/lib/tiptap/roundtripGuard";
 import { cleanupMarkdown } from "@/lib/editor/mdCleanup";
+import { slugFollowsTitle, slugFromTitle } from "@/lib/articleSlug";
 import { generateAbstract } from "@/lib/ai/abstractActions";
 import { heroStaleChanges, parseHeroRecipe, recipeFilePaths, recipeToJson, type HeroRecipe } from "@/lib/hero-studio/recipe";
 import { deleteHeroAssets, heroAssetPathFromUrl } from "@/lib/hero-studio/upload";
@@ -580,6 +581,19 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     secondaryKeywords: article.seo_keywords_secondary ?? [],
   });
 
+  // Slug laeuft dem Titel nach, solange der Artikel nie publiziert war und
+  // niemand den Slug veraendert hat (slugFollowsTitle). Publizierte URLs bleiben.
+  const slugAuto = article.published_at == null && slugFollowsTitle(seo.slug, title);
+  function handleTitleChange(next: string) {
+    markDirty();
+    setTitle(next);
+    if (slugAuto) setSeo((prev) => ({ ...prev, slug: slugFromTitle(next) }));
+  }
+  // Bei einer Kollision haengt saveArticle ein Suffix an: Feld nachziehen.
+  function applySavedSlug(sent: ArticlePatch, saved: { slug: string }) {
+    if (sent.slug && saved.slug !== sent.slug) setSeo((prev) => ({ ...prev, slug: saved.slug }));
+  }
+
   const [savedAt, setSavedAt] = useState<string>("Geladen");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -923,6 +937,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     };
     try {
       const updated = await saveArticle(article.id, patch);
+      applySavedSlug(patch, updated);
       setStatus(updated.status);
       setSavedAt("Gespeichert (Hero Studio)");
       setDirty(false);
@@ -987,7 +1002,9 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     const { finalDoc, finalExcerpt } = prepared;
     startTransition(async () => {
       try {
-        const updated = await saveArticle(article.id, buildPatchUnchecked(finalDoc, finalExcerpt));
+        const patch = buildPatchUnchecked(finalDoc, finalExcerpt);
+        const updated = await saveArticle(article.id, patch);
+        applySavedSlug(patch, updated);
         setStatus(updated.status);
         setSavedAt("Gespeichert");
         setDirty(false);
@@ -1053,7 +1070,9 @@ export default function EditorClient({ article, revisions, categories, isEditor,
 
     startTransition(async () => {
       try {
-        await saveArticle(article.id, buildPatchUnchecked(finalDoc, finalExcerpt));
+        const patch = buildPatchUnchecked(finalDoc, finalExcerpt);
+        const updated = await saveArticle(article.id, patch);
+        applySavedSlug(patch, updated);
         setPendingCopilotReport(null);
         const next = await publishArticle(article.id);
         setStatus(next.status);
@@ -1308,6 +1327,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       };
       try {
         const updated = await saveArticle(article.id, patch);
+        applySavedSlug(patch, updated);
         setStatus(updated.status);
         setSavedAt("Gespeichert (Co-Pilot)");
         setDirty(false);
@@ -1934,7 +1954,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
               <input
                 className="a-edit-title-input"
                 value={title}
-                onChange={(e) => { markDirty(); setTitle(e.target.value); }}
+                onChange={(e) => handleTitleChange(e.target.value)}
                 placeholder="Artikel-Titel"
               />
             </div>
@@ -2354,6 +2374,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           ref={seoPanelRef}
           seo={seo}
           onChange={(next) => { markDirty(); setSeo(next); }}
+          slugAuto={slugAuto}
           articleId={article.id}
           articleTitle={title}
           articleBodyText={bodyText}
