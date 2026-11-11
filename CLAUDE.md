@@ -1226,20 +1226,67 @@ Zahlen-Suffix). Hinweis im SEO-Tab unter dem Feld. Wer den Slug von Hand oder
 per KI-Knopf ändert, beendet das Nachführen. Publizierte Artikel behalten
 ihre URL. `saveArticle` hängt bei nie publizierten Artikeln und
 `articles_slug_key`-Konflikt `-2` … `-20` an; der Editor übernimmt den
-gespeicherten Slug (`applySavedSlug`). Bekannte Abweichung: der KI-Knopf
-nutzt `normalizeArticleSlug` mit ä→a.
+gespeicherten Slug (`applySavedSlug`). Seit PR 188 nutzen auch der KI-Knopf
+und der Co-Pilot (`normalizeArticleSlug`) dieselbe Transliteration.
 
 **Server Actions: erwartete Fehler zurückgeben, nicht werfen.** Next.js
 ersetzt in Production die Meldung jedes geworfenen Fehlers aus einer Server
 Action durch einen generischen Text («omitted in production builds»). Fehler,
-die der Nutzer lesen soll, kommen als Rückgabewert (`{ ok: false, error }`).
-Muster in `inviteActions.ts`: `FormError` für eigene Meldungen, `formFailure`
-mappt alles andere auf «Das hat nicht geklappt …» und loggt; Typ
-`AuthorFormResult<T>`. Umgestellt sind `createAuthorWithInvite`,
-`createAuthorPlaceholder` (doppelte E-Mail → «Es existiert bereits ein Autor
-mit dieser E-Mail.» als rote Zeile im Modal) und `createDraftFromPitch`.
-Viele ältere Actions werfen noch (eigener Backlog-Punkt). Prüfen geht nur
-gegen `npm run build` + `next start`, im Dev-Server kommt die Meldung durch.
+die der Nutzer lesen soll, kommen als Rückgabewert. Muster seit PR 188 in
+`src/lib/actionResult.ts` (kein "use server"):
+- Server: eigene Meldungen als `throw new FormError("…")`; die exportierte
+  Action ist ein Wrapper `runAction("name", () => nameInner(...), knownError)`
+  und liefert `ActionResult<T>` (`{ ok: true, value } | { ok: false, error }`).
+  `knownError` bildet bekannte DB-Fehler ab (`isUniqueViolation(e,
+  "<constraint>")`), alles andere wird geloggt und zu `GENERIC_ACTION_ERROR`.
+- Client: `unwrapAction(await action(...))` wirft im Browser ein normales
+  `Error` mit der Meldung, bestehende try/catch-Pfade bleiben.
+- Umgestellt: `authorActions` (saveArticle, submitForReview, publishArticle,
+  archiveArticle, deleteArticle, updateAuthorProfile; Slug-Konflikt → «Dieser
+  Slug ist schon vergeben …», Handle-Konflikt → «Dieser Handle ist schon
+  vergeben.»), `storageActions` (uploadAvatar, uploadArticleImage),
+  `inviteActions` (alle Client-Actions), `authorAdminActions`
+  (updateAuthorAsEditor, deleteAuthorAsEditor, updateArticleAuthor) und
+  `createDraftFromPitch`. `createDraft` wirft weiter (Aufruf aus einem Route
+  Handler, dort greift die Schwärzung nicht).
+- Offen (Backlog): `startupActions`, `promptActions`, `newsTickerActions`,
+  `pageActions`, `podcastActions` und kleinere Module.
+Prüfen geht nur gegen `npm run build` + `next start`, im Dev-Server kommt die
+Meldung durch.
+
+### Beitragsbild, SEO-Metadaten, Build-Info im Footer (PR 188)
+
+**Beitragsbild.** Ein Upload ersetzt das Bild nur im Editor-State, der
+Uploader löscht nichts mehr (`ImageUploader`, «Bild entfernen» in
+`FeaturedImageBox` ebenso). Ein einmal gespeichertes Cover bleibt im Storage,
+denn Revisionen verweisen auf `cover_image_url` und ein Restore braucht die
+Datei. Gelöscht werden nur Uploads, die nie gespeichert wurden:
+`cleanupAfterSave` nach jedem erfolgreichen Save (ausser dem gerade
+gespeicherten und dem aktuell angezeigten Bild) und beim bestätigten
+Verlassen über «← Zurück». Schliesst jemand den Tab ohne Speichern, bleibt
+die Datei verwaist. Regel und Helfer in `src/lib/coverUploads.ts`
+(Hero-Studio-Dateien `hero-*`/`og-*` sind ausgenommen, die räumt
+`cleanupHeroFiles` ab), Test `__tests__/coverUploads.manual.ts`.
+
+**SEO-Metadaten.** Client-Seiten (`"use client"`) können keine Metadaten
+exportieren und erben sonst Titel und Beschreibung der Startseite. Dafür gibt
+es ein `layout.tsx` im Segment mit `buildListingMetadata` (Titel,
+Beschreibung, Canonical, OG): `/kontakt`, `/artikel-pitchen`,
+`/ai-prompts/einreichen`, `/swiss-ai/einreichen`. Status- und Hilfsseiten
+(Newsletter-Bestätigungen, `/login`, `/onboarding`, `/design-test`) setzen
+`robots: { index: false, follow: true }`. CMS-Seiten setzen ihren Canonical
+selbst. Die Sitemap enthält zusätzlich Podcasts (`/podcast/<slug>`), die vier
+Formularseiten und CMS-Seiten mit eigener Route, sofern publiziert und nicht
+auf noindex (`CMS_PAGE_SLUGS` in `src/app/sitemap.ts`; neue CMS-Route dort
+eintragen).
+
+**Build-Info im Footer.** `next.config.ts` setzt per `env`
+`NEXT_PUBLIC_APP_VERSION` (package.json), `NEXT_PUBLIC_BUILD_COMMIT`
+(`VERCEL_GIT_COMMIT_SHA`, 7 Zeichen) und `NEXT_PUBLIC_BUILD_TIME` (einmal pro
+Build, über `process.env.DA_BUILD_TIME` an die Worker vererbt, damit Server-
+und Client-Bundle denselben Wert haben). Formatierung in
+`src/lib/buildInfo.ts`: «Version 0.1.0 · Build 1ae69fe · Deploy 11.11.2026,
+13:45» (Europe/Zurich), lokal «Build lokal».
 
 ### Invite-Flow (PR B)
 
