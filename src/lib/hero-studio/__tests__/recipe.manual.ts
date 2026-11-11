@@ -3,7 +3,7 @@
 // Exit 0 = alles gruen, 1 = mind. ein Fail.
 
 import {
-  buildHeroRecipe, heroStaleChanges, parseHeroRecipe, recipeByteLength, recipeFilePaths, recipeToSpec, sanitizeOverrides,
+  buildHeroRecipe, heroStaleChanges, parseHeroRecipe, recipeByteLength, recipeToSpec, sanitizeOverrides,
 } from "../recipe";
 import { isHeroAssetPath } from "../upload";
 
@@ -39,7 +39,6 @@ section("buildHeroRecipe");
   ok("deutlich unter 32 KB", recipeByteLength(r) < 4096, String(recipeByteLength(r)));
   ok("roundtrip parse", JSON.stringify(parseHeroRecipe(JSON.parse(JSON.stringify(r)))) === JSON.stringify(r));
   ok("recipeToSpec", recipeToSpec(r).source === "saved" && recipeToSpec(r).overrides.anim === "morph" && recipeToSpec(r).id === "saved");
-  ok("recipeFilePaths", recipeFilePaths(r).join(",") === "id/hero-1.png,id/og-1.png,id/hero-1.mp4" && recipeFilePaths(null).length === 0);
 }
 
 section("parseHeroRecipe");

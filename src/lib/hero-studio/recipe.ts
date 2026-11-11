@@ -210,9 +210,3 @@ export function heroStaleChanges(r: HeroRecipe, live: HeroRecipeSnapshot): strin
   if (norm(r.snapshot.category) !== norm(live.category)) out.push("Rubrik");
   return out;
 }
-
-// Storage-Pfade, die ein Rezept referenziert (fuer das Aufraeumen nach dem Speichern).
-export function recipeFilePaths(r: HeroRecipe | null | undefined): string[] {
-  if (!r) return [];
-  return [r.files.hero, r.files.og, r.files.video].filter((p): p is string => !!p);
-}
