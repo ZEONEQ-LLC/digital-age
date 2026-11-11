@@ -1016,6 +1016,21 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     };
   }, [article.id, article.slug, article.category?.name_de, article.author?.display_name, seo.slug, seo.keyword, title, categories, categoryId, allAuthors, assignedAuthorId, publishedAtDate, readMinutes, excerpt, bodyText, locale]);
 
+  // Vorschau-Tab: Rubrik und Autor-Zeile wie auf der Beitragsseite. Rubrik =
+  // Subkategorie, sonst Kategorie; Datum = gesetztes Veroeffentlichungsdatum,
+  // sonst heute (wie beim ersten Publizieren).
+  const previewMeta = useMemo(() => {
+    const assigned = allAuthors.find((a) => a.id === assignedAuthorId);
+    const author = assigned?.display_name ?? article.author?.display_name ?? "";
+    return {
+      rubric: subcategory.trim() || heroArticle.rubrik,
+      author,
+      initial: author.trim().charAt(0).toUpperCase() || "?",
+      external: assigned?.role === "external",
+      date: heroArticle.date,
+    };
+  }, [allAuthors, assignedAuthorId, article.author?.display_name, subcategory, heroArticle.rubrik, heroArticle.date]);
+
   // Aktives Studio-Hero fuer die Box «Beitragsbild»: Rezept vorhanden und Cover = Hero des Rezepts.
   const heroStudioStatus = useMemo<HeroStudioStatus | null>(() => (
     coverRecipe && heroAssetPathFromUrl(cover) === coverRecipe.files.hero
@@ -2218,57 +2233,116 @@ export default function EditorClient({ article, revisions, categories, isEditor,
               </span>
             )}
           </div>
-          {cover && (
-            // Wie auf der Beitragsseite: Bild als Poster, bei gesetzter Animation
-            // dieselbe Komponente ArticleCoverVideo darueber (Pause-Knopf, reduced motion).
-            <div
+          {/* Gleiche Reihenfolge wie die Beitragsseite (src/app/artikel/[slug]/page.tsx):
+              Rubrik, Titel, Abstract, Autor-Zeile, dann Beitragsbild mit
+              Bildunterschrift und Quelle, dann Text. Anhören/Teilen nur angedeutet. */}
+          <nav
+            aria-label="Breadcrumb (Vorschau)"
+            data-preview="rubric"
+            style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24 }}
+          >
+            <span style={{ color: "var(--da-muted)", fontSize: "var(--fs-body-sm)" }}>Home</span>
+            <span style={{ color: "var(--da-faint)", fontSize: "var(--fs-body-sm)" }}>/</span>
+            <span
               style={{
-                position: "relative",
-                width: "100%",
-                aspectRatio: "16/9",
-                borderRadius: 8,
-                overflow: "hidden",
-                marginBottom: 24,
-                background: "var(--da-dark)",
+                color: "var(--da-green)",
+                fontFamily: "var(--da-font-mono)",
+                fontSize: "var(--fs-body-sm)",
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
               }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={cover}
-                alt=""
-                style={{
-                  display: "block",
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                }}
-              />
-              {coverVideoUrl && <ArticleCoverVideo src={coverVideoUrl} poster={cover} />}
-            </div>
-          )}
+              {previewMeta.rubric}
+            </span>
+          </nav>
           <h1
             style={{
               color: "var(--da-text)",
               fontFamily: "var(--da-font-display)",
-              fontSize: 36,
-              fontWeight: 800,
+              fontSize: "clamp(30px, 4vw, 48px)",
+              fontWeight: 700,
               lineHeight: 1.15,
-              marginBottom: 12,
+              letterSpacing: "-0.02em",
+              marginBottom: 24,
             }}
           >
             {title || "(Ohne Titel)"}
           </h1>
           {excerpt && (
-            <p
-              style={{
-                color: "var(--da-muted)",
-                fontSize: 18,
-                lineHeight: 1.55,
-                marginBottom: 28,
-              }}
-            >
+            <p style={{ color: "#c0c0c0", fontSize: 20, lineHeight: 1.65, marginBottom: 36, fontWeight: 300 }}>
               <InlineText content={excerpt} sources={doc?.sources ?? []} />
             </p>
+          )}
+          <div
+            data-preview="byline"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 16,
+              paddingBottom: 28,
+              marginBottom: 28,
+              borderBottom: "1px solid var(--da-card)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <span
+                aria-hidden
+                style={{
+                  width: 44,
+                  height: 44,
+                  flexShrink: 0,
+                  borderRadius: "50%",
+                  border: `2px solid ${previewMeta.external ? "var(--da-orange)" : "var(--da-green)"}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "var(--da-muted)",
+                  fontWeight: 700,
+                  fontSize: 15,
+                }}
+              >
+                {previewMeta.initial}
+              </span>
+              <div>
+                <div style={{ color: "var(--da-text)", fontSize: "var(--fs-body)", fontWeight: 600 }}>
+                  {previewMeta.author || "(Kein Autor)"}
+                </div>
+                <p style={{ color: "var(--da-muted)", fontFamily: "var(--da-font-mono)", fontSize: "var(--fs-body-sm)", margin: 0 }}>
+                  {previewMeta.date} · {readMinutes} min Lesezeit
+                </p>
+              </div>
+            </div>
+            <span style={{ color: "var(--da-faint)", fontFamily: "var(--da-font-mono)", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              Anhören · Teilen
+            </span>
+          </div>
+          {cover && (
+            // Wie auf der Beitragsseite: Bild als Poster, bei gesetzter Animation
+            // dieselbe Komponente ArticleCoverVideo darueber (Pause-Knopf, reduced motion).
+            <figure style={{ margin: "0 0 32px" }} data-preview="cover">
+              <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", background: "var(--da-dark)" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={cover}
+                  alt={coverMetadata.alt}
+                  style={{ display: "block", width: "100%", height: "auto", maxHeight: 520, objectFit: "cover" }}
+                />
+                {coverVideoUrl && <ArticleCoverVideo src={coverVideoUrl} poster={cover} />}
+              </div>
+              {coverMetadata.caption.trim() && (
+                <figcaption style={{ marginTop: 10, color: "var(--da-text)", fontSize: 14, fontWeight: 600, textAlign: "center" }}>
+                  {coverMetadata.caption}
+                </figcaption>
+              )}
+              {coverMetadata.source.trim() && (
+                <small style={{ display: "block", marginTop: 4, color: "var(--da-muted-soft)", fontSize: 12, fontStyle: "italic", textAlign: "center" }}>
+                  {coverMetadata.source}
+                </small>
+              )}
+            </figure>
           )}
           <ArticleBody>
             <BlockReader
