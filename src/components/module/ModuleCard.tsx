@@ -29,15 +29,18 @@ export type ModuleCardProps = {
   eager?: boolean;
   // Klick auf den Anker (Capture, kein preventDefault) — fuer das Zaehlen (J2).
   onActivate?: () => void;
-  // "band" (nur Kundenkreative, article_inline): abgesetzte Huelle mit
-  // Kopfzeile «ANZEIGE · Werbung, nicht Teil des Artikels» (Presserat 10.1).
-  // Der Kicker in der Karte entfaellt dann; Headline kleiner.
+  // "band" (article_inline): abgesetzte Huelle mit Kopfzeile. Kundenkreative:
+  // «ANZEIGE · Werbung, nicht Teil des Artikels» (Presserat 10.1). House-
+  // Kreative seit PR 194 ebenfalls im Band, Kopfzeile «IN EIGENER SACHE»
+  // (gleiche Hoehe wie reserviert, kein Leerraum darunter). Der Kicker in der
+  // Karte entfaellt dann; Headline kleiner.
   frame?: "band";
 };
 
 // Huelle um den Anker: eigener Flaechen-Token (dunkler als Karte und Seite),
-// Linie oben/unten, Kopfzeile. Nimmt die Textspaltenbreite ein.
-function Band({ children }: { children: React.ReactNode }) {
+// Linie oben/unten, Kopfzeile. Nimmt die Textspaltenbreite ein. Die Kopfzeile
+// ist fuer Kunden- und House-Kreative gleich hoch (BAND_EXTRA in placements.ts).
+function Band({ house, children }: { house: boolean; children: React.ReactNode }) {
   return (
     <>
       <style>{`
@@ -56,8 +59,8 @@ function Band({ children }: { children: React.ReactNode }) {
       `}</style>
       <div className="mod-band">
         <div className="mod-band__head">
-          <span className="mod-band__label da-overline">Anzeige</span>
-          <span className="mod-band__hint">Werbung, nicht Teil des Artikels</span>
+          <span className="mod-band__label da-overline">{house ? "In eigener Sache" : "Anzeige"}</span>
+          <span className="mod-band__hint">{house ? "Angebot von digital age" : "Werbung, nicht Teil des Artikels"}</span>
         </div>
         {children}
       </div>
@@ -71,10 +74,10 @@ const ModuleCard = forwardRef<HTMLAnchorElement, ModuleCardProps>(function Modul
   const anchorAttrs = preview ? {} : linkAttrs;
   const pe: React.CSSProperties = preview ? { pointerEvents: "none" } : {};
   const activate = onActivate ? { onClickCapture: () => onActivate() } : {};
-  // Band nur fuer Kundenkreative; die Kopfzeile ersetzt den Kicker.
-  const band = props.frame === "band" && !isHouse;
+  // Band fuer Kunden- und House-Kreative; die Kopfzeile ersetzt den Kicker.
+  const band = props.frame === "band";
   const showKicker = !isHouse && !band;
-  const wrap = (node: React.ReactNode) => (band ? <Band>{node}</Band> : node);
+  const wrap = (node: React.ReactNode) => (band ? <Band house={isHouse}>{node}</Band> : node);
 
   if (kind === "image") {
     return wrap(
