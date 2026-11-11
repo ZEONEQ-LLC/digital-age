@@ -12,6 +12,7 @@ import {
 import { emptyBlockDocument, type BlockDocument } from "@/types/blocks";
 import { checkSourcesUrls } from "@/lib/editor/urlCheck";
 import { validatePublishGate } from "@/lib/publishGate";
+import { isArticleSlugConflict } from "@/lib/articleSlug";
 import type { Database, Json } from "@/lib/database.types";
 
 type ArticleRow = Database["public"]["Tables"]["articles"]["Row"];
@@ -163,13 +164,15 @@ export async function saveArticle(id: string, patch: ArticlePatch): Promise<Arti
   // sich den bisherigen Slug, damit bei einem Slug-Wechsel auch der alte Pfad
   // der Beitragsseite revalidiert wird.
   let previousSlug: string | null = null;
+  let neverPublished = false;
   if (dbPatch.category_id !== undefined || dbPatch.slug !== undefined) {
     const { data: current } = await supabase
       .from("articles")
-      .select("category_id, is_featured, is_hero, slug")
+      .select("category_id, is_featured, is_hero, slug, published_at")
       .eq("id", id)
       .single();
     previousSlug = current?.slug ?? null;
+    neverPublished = current != null && current.published_at == null;
     if (
       current &&
       dbPatch.category_id !== undefined &&
@@ -181,14 +184,23 @@ export async function saveArticle(id: string, patch: ArticlePatch): Promise<Arti
     }
   }
 
-  const { data, error } = await supabase
-    .from("articles")
-    .update(dbPatch)
-    .eq("id", id)
-    .select("*")
-    .single();
+  const runUpdate = () => supabase.from("articles").update(dbPatch).eq("id", id).select("*").single();
+  let result = await runUpdate();
 
-  if (error) throw error;
+  // Der Slug laeuft dem Titel nach, zwei Entwuerfe koennen also denselben
+  // bekommen. Nie publizierte Artikel erhalten dann ein Suffix statt eines
+  // Fehlers; der Editor zeigt den tatsaechlichen Slug nach dem Speichern an.
+  // Per Update-Versuch statt Vorab-Lesen, weil RLS fremde Entwuerfe verbirgt.
+  if (neverPublished && dbPatch.slug) {
+    const base = dbPatch.slug;
+    for (let n = 2; n <= 20 && isArticleSlugConflict(result.error); n++) {
+      dbPatch.slug = `${base}-${n}`;
+      result = await runUpdate();
+    }
+  }
+
+  if (result.error) throw result.error;
+  const data = result.data;
 
   // Tags-Sync: tags-Tabelle + article_tags-Junction. Läuft NACH dem Article-
   // Update, damit der RLS-Check (Author-of-article) gegen den finalen
