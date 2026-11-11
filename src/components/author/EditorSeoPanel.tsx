@@ -88,9 +88,9 @@ const inputStyle: React.CSSProperties = {
   fontFamily: "inherit",
 };
 
-// AiButton bleibt rückwärtskompatibel: ohne `onClick`-Prop disabled mit
-// Standard-Tooltip. Die sieben anderen AI-Stub-Buttons (4 in EditorSidebar,
-// 3 hier im Panel für Description/Slug/Keyword) lassen den Prop weg.
+// AiButton: ohne `onClick`-Prop disabled mit Standard-Tooltip. Alle vier
+// Buttons im Panel (Titel, Description, Slug, Keyword) sind verdrahtet; die
+// frueheren Stubs der EditorSidebar sind mit PR 130 weggefallen.
 const aiBtnStyleBase: React.CSSProperties = {
   background: "rgba(220,214,247,0.1)",
   color: "var(--da-purple)",
