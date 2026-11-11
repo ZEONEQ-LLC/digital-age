@@ -127,33 +127,51 @@ async function readTaskModelOverrides(
     : {};
 }
 
+// Ein Task-Modell in task_model_overrides setzen ("" = Override entfernen,
+// dann gilt Task-Default bzw. Standard-Modell). Read-modify-write nur dieses
+// Schluessels, damit parallele Aenderungen anderer Tasks erhalten bleiben.
+async function writeTaskModel(task: AiTask, model: string): Promise<void> {
+  const editor = await requireEditorAuthor();
+  const next = model.trim();
+  if (next !== "" && !isKnownModel(next)) {
+    throw new FormError("Unbekanntes Modell. Bitte eines aus der Liste wählen.");
+  }
+  const supabase = await createClient();
+  const current = await readTaskModelOverrides(supabase);
+  if (!current) throw new FormError("Die KI-Konfiguration konnte nicht gelesen werden.");
+  const overrides: Record<string, unknown> = { ...current };
+  if (next === "") delete overrides[task];
+  else overrides[task] = next;
+  const { error } = await supabase
+    .from("ai_config")
+    .update({
+      task_model_overrides: overrides as Json,
+      updated_at: new Date().toISOString(),
+      updated_by: editor.id,
+    })
+    .eq("id", "global");
+  if (error) throw error;
+  revalidatePath("/autor/news-ticker");
+  revalidatePath("/autor/admin/ai-config");
+  revalidatePath("/autor/admin/ai-config/modell-check");
+}
+
 // Modell für den News-Ticker (Task news_item_generation), gewählt auf der
-// News-Ticker-Seite. Ändert nur diesen einen Schlüssel in
-// task_model_overrides; "" = Standard (default_model der AI-Konfiguration).
+// News-Ticker-Seite. "" = Standard (default_model der AI-Konfiguration).
 export async function saveNewsTickerModel(model: string): Promise<ActionResult<null>> {
   return runAction("ai.saveNewsTickerModel", async () => {
-    const editor = await requireEditorAuthor();
-    const next = model.trim();
-    if (next !== "" && !isKnownModel(next)) {
-      throw new FormError("Unbekanntes Modell. Bitte eines aus der Liste wählen.");
-    }
-    const supabase = await createClient();
-    const current = await readTaskModelOverrides(supabase);
-    if (!current) throw new FormError("Die KI-Konfiguration konnte nicht gelesen werden.");
-    const overrides: Record<string, unknown> = { ...current };
-    if (next === "") delete overrides.news_item_generation;
-    else overrides.news_item_generation = next;
-    const { error } = await supabase
-      .from("ai_config")
-      .update({
-        task_model_overrides: overrides as Json,
-        updated_at: new Date().toISOString(),
-        updated_by: editor.id,
-      })
-      .eq("id", "global");
-    if (error) throw error;
-    revalidatePath("/autor/news-ticker");
-    revalidatePath("/autor/admin/ai-config");
+    await writeTaskModel("news_item_generation", model);
+    return null;
+  });
+}
+
+// «Wechseln» im Modell-Check: setzt das Modell einer Aufgabe. Kein
+// Auto-Wechsel, nur per Klick; rueckgaengig in der AI-Konfiguration.
+export async function switchTaskModel(task: string, model: string): Promise<ActionResult<null>> {
+  return runAction("ai.switchTaskModel", async () => {
+    if (!isAiTask(task)) throw new FormError("Unbekannte Aufgabe.");
+    if (model.trim() === "") throw new FormError("Kein Modell gewählt.");
+    await writeTaskModel(task, model);
     return null;
   });
 }
