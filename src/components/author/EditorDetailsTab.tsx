@@ -195,7 +195,6 @@ export default function EditorDetailsTab({
     <>
       <style>{`
         .a-edit-details {
-          max-width: 720px;
           display: flex;
           flex-direction: column;
           gap: 14px;
