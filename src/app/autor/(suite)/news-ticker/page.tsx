@@ -1,5 +1,6 @@
 import PageTitle from "@/components/author/PageTitle";
-import { getAllSources, getNewsTickerConfig } from "@/lib/newsTickerApi";
+import { getAllSources, getLatestNewsItemAt, getNewsTickerConfig } from "@/lib/newsTickerApi";
+import { parseRefreshStats } from "@/lib/newsTicker/stats";
 import type { TickerSettings } from "@/lib/newsTickerActions";
 import SourcesSection from "./SourcesSection";
 import PromptSection from "./PromptSection";
@@ -33,22 +34,35 @@ async function getNewsTickerModel(): Promise<{ model: string; defaultModel: stri
   return { model: typeof v === "string" ? v : "", defaultModel: data?.default_model ?? "" };
 }
 
+// Ab so vielen Tagen ohne neuen Eintrag markiert der Admin den Ticker orange.
+const STALE_AFTER_DAYS = 3;
+
+function olderThanDays(iso: string, days: number): boolean {
+  return Date.now() - new Date(iso).getTime() > days * 86_400_000;
+}
+
 export default async function NewsTickerAdminPage() {
-  const [sources, config, modelInfo] = await Promise.all([
+  const [sources, config, modelInfo, latestItemAt] = await Promise.all([
     getAllSources(),
     getNewsTickerConfig(),
     getNewsTickerModel(),
+    getLatestNewsItemAt(),
   ]);
 
-  const lastRefreshLabel = config?.last_refresh_at
-    ? new Date(config.last_refresh_at).toLocaleString("de-CH", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "noch nie";
+  const formatDateTime = (iso: string) =>
+    new Date(iso).toLocaleString("de-CH", {
+      timeZone: "Europe/Zurich",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  const lastRefreshLabel = config?.last_refresh_at ? formatDateTime(config.last_refresh_at) : "noch nie";
+  const lastStats = parseRefreshStats(config?.last_refresh_stats);
+  const latestItem = latestItemAt
+    ? { label: formatDateTime(latestItemAt), stale: olderThanDays(latestItemAt, STALE_AFTER_DAYS) }
+    : null;
 
   const settings: TickerSettings = config
     ? {
@@ -70,7 +84,7 @@ export default async function NewsTickerAdminPage() {
         subtitle="RSS-Quellen, Prompt und Modell für den KI-News-Ticker. Nur für Editoren."
       />
 
-      <RefreshSection lastRefreshLabel={lastRefreshLabel} />
+      <RefreshSection lastRefreshLabel={lastRefreshLabel} lastStats={lastStats} latestItem={latestItem} />
 
       <div style={{ height: 40 }} />
 
