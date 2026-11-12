@@ -3,7 +3,7 @@ import Link from "next/link";
 import Footer from "@/components/Footer";
 import type { Prompt } from "@/components/PromptCard";
 import type { AiTool, Difficulty } from "@/components/promptColors";
-import { getFeaturedPrompts, getPublishedPrompts, type PromptWithAuthor } from "@/lib/promptApi";
+import { getFeaturedPrompts, getPublishedPrompts, type PublicPromptWithAuthor } from "@/lib/promptApi";
 import {
   PROMPT_CATEGORIES,
   PROMPT_DIFFICULTIES,
@@ -30,7 +30,7 @@ function snippet(text: string, max = 120): string {
   return text.slice(0, max).trimEnd() + "…";
 }
 
-function toLegacy(row: PromptWithAuthor): Prompt {
+function toLegacy(row: PublicPromptWithAuthor): Prompt {
   return {
     id: row.id,
     slug: row.slug,
