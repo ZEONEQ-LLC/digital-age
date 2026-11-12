@@ -1,16 +1,15 @@
 import "server-only";
-import { Resend } from "resend";
-import { render } from "@react-email/render";
 import CampaignExpiry, { subjectFor } from "@/emails/CampaignExpiry";
+import { recipientsWithEditorCopy, sendAdMail } from "@/lib/ads/mail";
 import { createServiceClient } from "@/lib/supabase/service";
 import { parsePeriod, type PeriodValue } from "@/lib/ads/types";
 import { getBaseUrl } from "@/lib/siteUrl";
 
 // Ablaufwarnung (J7/J8): Buchungen, die in den naechsten 7 Tagen enden,
 // Kampagne Kunde + live, noch nicht gewarnt. Eine Mail je Kampagne an
-// billing_email, Kopie an die Editor-Adresse (Muster contact/mail.ts
-// getEditorEmail = NEWSLETTER_REPLY_TO). Erfolg -> expiry_notified_at auf
-// allen Buchungen der Gruppe; Fehler -> console.error, nichts markieren.
+// billing_email, Kopie an die Editor-Adresse (NEWSLETTER_REPLY_TO, mail.ts).
+// Erfolg -> expiry_notified_at auf allen Buchungen der Gruppe; Fehler ->
+// console.error, nichts markieren.
 // Kapselt Auswahl + Versand + Markierung; die Route bleibt duenn.
 export type ExpiryRunResult = { checked: number; sent: number; failed: number };
 
@@ -35,38 +34,6 @@ function fmtZurich(iso: string): string {
   return new Date(new Date(iso).getTime() - 1).toLocaleDateString("de-CH", {
     day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Zurich",
   });
-}
-
-function getEditorEmail(): string | null {
-  return process.env.NEWSLETTER_REPLY_TO ?? null;
-}
-
-async function sendExpiryMail(args: {
-  to: string[];
-  campaignName: string;
-  endDate: string;
-  bookings: { placementLabel: string; endDate: string }[];
-  previewUrl: string;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
-  const key = process.env.RESEND_API_KEY;
-  const from = process.env.NEWSLETTER_FROM_EMAIL;
-  if (!key || !from) return { ok: false, error: "RESEND_API_KEY oder NEWSLETTER_FROM_EMAIL fehlt" };
-  try {
-    const html = await render(
-      CampaignExpiry({ campaignName: args.campaignName, endDate: args.endDate, bookings: args.bookings, previewUrl: args.previewUrl }),
-    );
-    const result = await new Resend(key).emails.send({
-      from,
-      replyTo: process.env.NEWSLETTER_REPLY_TO ?? undefined,
-      to: args.to,
-      subject: subjectFor(args.campaignName, args.endDate),
-      html,
-    });
-    if (result.error) return { ok: false, error: result.error.message };
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
-  }
 }
 
 export async function runExpiryWarnings(now: Date = new Date()): Promise<ExpiryRunResult> {
@@ -104,7 +71,6 @@ export async function runExpiryWarnings(now: Date = new Date()): Promise<ExpiryR
     groups.set(b.campaign.id, g);
   }
 
-  const editor = getEditorEmail();
   const base = getBaseUrl();
   for (const g of groups.values()) {
     const to = g.campaign.advertiser?.billing_email?.trim();
@@ -113,16 +79,18 @@ export async function runExpiryWarnings(now: Date = new Date()): Promise<ExpiryR
       result.failed += 1;
       continue;
     }
-    const recipients = editor && editor !== to ? [to, editor] : [to];
     const sorted = [...g.bookings].sort((a, b) => a.endIso.localeCompare(b.endIso));
     const bookings = sorted.map((b) => ({ placementLabel: b.label, endDate: fmtZurich(b.endIso) }));
     const endDate = fmtZurich(sorted[sorted.length - 1].endIso);
-    const res = await sendExpiryMail({
-      to: recipients,
-      campaignName: g.campaign.name,
-      endDate,
-      bookings,
-      previewUrl: `${base}/vorschau/${g.campaign.preview_token}`,
+    const res = await sendAdMail({
+      to: recipientsWithEditorCopy(to),
+      subject: subjectFor(g.campaign.name, endDate),
+      element: CampaignExpiry({
+        campaignName: g.campaign.name,
+        endDate,
+        bookings,
+        previewUrl: `${base}/vorschau/${g.campaign.preview_token}`,
+      }),
     });
     if (!res.ok) {
       console.error(`[module:daily] Kampagne ${g.campaign.id}: Versand fehlgeschlagen: ${res.error}`);

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import ModuleCard from "@/components/module/ModuleCard";
 import { moduleImageUrl } from "@/lib/ads/imagePath";
 import { PLACEMENTS } from "@/lib/ads/placements";
+import { formatLastDay, previewValidity } from "@/lib/ads/campaignEnd";
 import { getPreviewCampaign, type PreviewCreative } from "@/lib/ads/previewApi";
 import { RESSORT_SLUGS, formatPeriod } from "@/lib/ads/types";
 import { getCampaignStats, type CampaignStats } from "@/lib/ads/statsApi";
@@ -11,6 +12,7 @@ import { UTM_MEDIUM, UTM_SOURCE, utmContentFor } from "@/lib/ads/utm";
 import { createServiceClient } from "@/lib/supabase/service";
 import StatsSeries from "@/components/module/StatsSeries";
 import ApproveForm from "./ApproveForm";
+import ExpiredPreview from "./ExpiredPreview";
 
 // Kunden-Vorschau (G5): nur ueber den Token-Link erreichbar, nie indexiert,
 // ohne Site-Chrome (Navbar/Ticker/Rails blenden sich auf /vorschau aus).
@@ -64,6 +66,15 @@ export default async function PreviewPage({ params }: PageProps) {
   if (!TOKEN_RE.test(token)) notFound();
   const c = await getPreviewCampaign(token);
   if (!c) notFound();
+  // Entscheid Ali 12.11.2026: Der Link einer gelaufenen Kundenkampagne bleibt
+  // bis 30 Tage nach Kampagnenende gueltig (campaignEnd.ts). Archivierte
+  // Buchungen hat getPreviewCampaign schon herausgefiltert.
+  const validity = previewValidity({
+    isHouse: c.isHouse,
+    status: c.status,
+    bookings: c.bookings.map((b) => ({ period: b.period, archived_at: null })),
+  });
+  if (validity.expired) return <ExpiredPreview campaignName={c.name} endedOn={formatLastDay(validity.end)} />;
   // Zahlen (J6): nur Kundenkampagnen ab live/pausiert/beendet.
   const showStats = !c.isHouse && RUNNING.includes(c.status);
   let stats: CampaignStats | null = null;
@@ -104,6 +115,11 @@ export default async function PreviewPage({ params }: PageProps) {
           <p style={{ color: "var(--da-muted)", fontSize: 16, margin: 0 }}>
             {c.name}{c.advertiserName ? ` · ${c.advertiserName}` : ""}
           </p>
+          {validity.expiresAt && (
+            <p style={{ color: "var(--da-faint)", fontSize: 13, margin: "8px 0 0" }}>
+              Die Kampagne ist beendet. Diese Vorschau bleibt bis {formatLastDay(validity.expiresAt)} erreichbar.
+            </p>
+          )}
         </header>
 
         {c.bookings.length === 0 && (
@@ -162,7 +178,9 @@ export default async function PreviewPage({ params }: PageProps) {
                   ))}
                 </div>
                 <div>
-                  <div style={{ ...overline, marginBottom: 8 }}>Impressionen · letzte 30 Tage</div>
+                  <div style={{ ...overline, marginBottom: 8 }}>
+                    {stats.seriesEndsAtCampaignEnd ? "Impressionen · letzte 30 Tage bis Kampagnenende" : "Impressionen · letzte 30 Tage"}
+                  </div>
                   <StatsSeries series={stats.series} />
                 </div>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>

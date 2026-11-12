@@ -498,10 +498,10 @@ export async function extendBookings(campaignId: string, ids: string[], to: stri
       if (r.archived_at) { skipped += 1; continue; }
       const period = periodWithNewEnd(r.period, end);
       if (!period) { conflicts.push({ label: labelOf(r), error: "Enddatum liegt vor dem Startdatum." }); continue; }
-      // Ablaufwarnung fuer das neue Ende wieder scharf.
+      // Ablaufwarnung und Abschlussbericht fuer das neue Ende wieder scharf.
       const { error } = await supabase
         .from("ad_bookings")
-        .update({ period, expiry_notified_at: null })
+        .update({ period, expiry_notified_at: null, end_report_sent_at: null })
         .eq("id", r.id);
       if (error) { conflicts.push({ label: labelOf(r), error: mapDbError(error) }); continue; }
       done += 1;
@@ -572,13 +572,14 @@ export async function reactivateBookings(campaignId: string, ids: string[], to?:
     const conflicts: { label: string; error: string }[] = [];
     for (const r of loaded.rows) {
       if (!r.archived_at) { skipped += 1; continue; }
-      const patch: { archived_at: null; period?: string; expiry_notified_at?: null } = { archived_at: null };
+      const patch: { archived_at: null; period?: string; expiry_notified_at?: null; end_report_sent_at?: null } = { archived_at: null };
       if (isExpired(r.period, now)) {
         if (!end) { conflicts.push({ label: labelOf(r), error: "Abgelaufen — zum Reaktivieren ein neues Enddatum wählen." }); continue; }
         const period = periodWithNewEnd(r.period, end);
         if (!period) { conflicts.push({ label: labelOf(r), error: "Enddatum liegt vor dem Startdatum." }); continue; }
         patch.period = period;
         patch.expiry_notified_at = null;
+        patch.end_report_sent_at = null;
       }
       const { error } = await supabase.from("ad_bookings").update(patch).eq("id", r.id);
       if (error) { conflicts.push({ label: labelOf(r), error: mapDbError(error) }); continue; }

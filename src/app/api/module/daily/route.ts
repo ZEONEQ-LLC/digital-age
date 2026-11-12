@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { runEndReports } from "@/lib/ads/endReportJob";
 import { runExpiryWarnings } from "@/lib/ads/expiryJob";
 
 // Taeglicher Cron (vercel.json "0 5 * * *"): Ablaufwarnungen 7 Tage vor
-// Buchungsende (J7). Schutz: CRON_SECRET als Bearer; fehlt das Secret,
+// Buchungsende (J7) und Abschlussberichte am Morgen nach dem Kampagnenende
+// (endReportJob.ts). Schutz: CRON_SECRET als Bearer; fehlt das Secret,
 // laeuft der Job nicht (503). Statisches Segment "daily" neben [code] —
 // Next bevorzugt die statische Route.
 export const dynamic = "force-dynamic";
@@ -20,8 +22,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401, headers: NO_STORE });
   }
   try {
-    const stats = await runExpiryWarnings();
-    return NextResponse.json({ ok: true, ...stats }, { headers: NO_STORE });
+    const expiry = await runExpiryWarnings();
+    const endReports = await runEndReports();
+    // Bisherige Felder (checked/sent/failed) bleiben die der Ablaufwarnung.
+    return NextResponse.json({ ok: true, ...expiry, endReports }, { headers: NO_STORE });
   } catch (err) {
     console.error("[module:daily] run failed:", err);
     return NextResponse.json({ ok: false, error: "run failed" }, { status: 500, headers: NO_STORE });
