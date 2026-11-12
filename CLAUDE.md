@@ -1330,7 +1330,7 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
-### Newsletter-Versand, Suche erweitert, Kampagnenende, Hub-Header, Datenschutz Autoren/Prompts (PR 195)
+### Newsletter-Versand, Suche erweitert, Kampagnenende, Datenschutz Autoren/Prompts (PR 195)
 
 **Newsletter-Ausgaben** (Entscheid Ali 12.11.2026: Entwurf + Freigabe). Admin
 `/autor/admin/newsletter/ausgaben` (Link oben auf der Abonnenten-Seite).
@@ -1382,16 +1382,6 @@ zeigt 30 Tage nach dem Ende `ExpiredPreview` statt der Zahlen; der Admin
 zeigt Gueltigkeit und Versanddatum. Die Tagesreihe der Zahlen endet bei
 beendeten Kampagnen am letzten Kampagnentag. Kundenmails teilen
 `src/lib/ads/mail.ts`.
-
-**Hub-Header** (`src/components/HubHero.tsx`, Entscheid Ali: Empfehlungen der
-Karte, Freigabe per Screenshots): einheitlicher Kopf fuer KI & Business,
-Future Tech, KI-Plattformen, AI Prompts, Podcasts, Swiss AI. Kopfzeile mit
-«>», Titel mit Akzentwort (`<em>`), Lead, Zahlenzeile, optional rechts ein
-Knopf/Legende, Punkteraster. Text fluchtet mit dem Inhalt (max-content +
-sp-8; mobil `mobileInset` je Seite). Keine Hooks: rendert in Server- und
-Client-Baeumen, immer ausserhalb von Suspense (SSR-H1). TopicListing rendert
-ihn selbst (Sidebar-Knopf rechts), die Spotlight-Section kommt ueber `intro`
-darunter.
 
 **Datenschutz Autoren/Prompts:** anon konnte `authors.email` (alle Profile)
 und `ai_prompts.submitter_email` publizierter Prompts ueber die REST-API

@@ -93,12 +93,10 @@ export default async function KIBusinessPage() {
          
         dangerouslySetInnerHTML={{ __html: itemListJsonLd }}
       />
+      <SpotlightSection articles={featured} />
       {/* Die Suspense-Grenze fuer useSearchParams liegt in TopicListing um
-          die Liste; der Kopf (HubHero) steht im statischen HTML, darunter
-          die Spotlight-Section der Rubrik. */}
+          die Liste; Breadcrumb, H1 und Lead stehen im statischen HTML. */}
       <TopicListing
-          heroTitle={<>KI &amp; <em>Business</em></>}
-          intro={<SpotlightSection articles={featured} />}
           topicLabel="KI & Business"
           lead="Wie KI Unternehmen in der DACH-Region transformiert — Strategien, Praxisberichte, Entscheidungshilfen."
           articles={articles}
