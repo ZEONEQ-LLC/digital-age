@@ -132,11 +132,11 @@ export default function PromptEinreichenPage() {
         @keyframes ein-spin { to { transform: rotate(360deg); } }
         @keyframes ein-fadein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
-        .ein-shell { max-width: 1100px; margin: 0 auto; padding-left: var(--sp-8); padding-right: var(--sp-8); }
+        .ein-shell { max-width: 1100px; margin: 0 auto; padding-left: var(--gutter); padding-right: var(--gutter); }
         .ein-hero {
           position: relative; overflow: hidden;
           border-bottom: 1px solid var(--da-border);
-          padding: 48px var(--sp-8) 40px;
+          padding: 48px var(--gutter) 40px;
         }
         .ein-hero__grid {
           position: absolute; inset: 0; opacity: 0.05;
@@ -173,7 +173,7 @@ export default function PromptEinreichenPage() {
           color: var(--da-muted); font-size: 16px; line-height: 1.65; max-width: 620px;
         }
 
-        .ein-main { padding: 48px var(--sp-8) 96px; }
+        .ein-main { padding: 48px var(--gutter) 96px; }
         .ein-grid { display: grid; grid-template-columns: 1fr 360px; gap: 40px; align-items: start; }
 
         .ein-form { display: flex; flex-direction: column; gap: 28px; }
@@ -472,7 +472,7 @@ export default function PromptEinreichenPage() {
         @media (max-width: 720px) {
           .ein-card { padding: 22px; }
           .diff-grid { grid-template-columns: 1fr; }
-          .ein-hero { padding: 32px var(--sp-6) 28px; }
+          .ein-hero { padding: 32px var(--gutter) 28px; }
         }
       `}</style>
 

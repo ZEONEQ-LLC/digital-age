@@ -116,7 +116,7 @@ export default async function SuchePage({ searchParams }: { searchParams: Search
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <style>{`
-        .sr-hero { border-bottom: 1px solid var(--da-border); padding: 48px var(--sp-8) 40px; }
+        .sr-hero { border-bottom: 1px solid var(--da-border); padding: 48px var(--gutter) 40px; }
         .sr-inner { max-width: var(--max-content); margin: 0 auto; }
         .sr-h1 {
           color: var(--da-text); font-family: var(--da-font-display); font-size: clamp(32px, 4vw, 48px);
@@ -134,7 +134,7 @@ export default async function SuchePage({ searchParams }: { searchParams: Search
         }
         .sr-hint { color: var(--da-muted-soft); font-size: 13px; line-height: 1.6; margin-top: 12px; max-width: 680px; }
         .sr-hint code { font-family: var(--da-font-mono); font-size: 12px; color: var(--da-muted); }
-        .sr-results { padding: var(--sp-10) var(--sp-8) var(--sp-20); }
+        .sr-results { padding: var(--sp-10) var(--gutter) var(--sp-20); }
         .sr-item { display: flex; gap: var(--sp-5); padding: var(--sp-5) 0; border-bottom: 1px solid var(--da-border); text-decoration: none; }
         .sr-item:hover .sr-title { color: var(--da-green); }
         .sr-cover { position: relative; width: 156px; height: 104px; flex-shrink: 0; border-radius: var(--r-md); overflow: hidden; }
@@ -179,8 +179,8 @@ export default async function SuchePage({ searchParams }: { searchParams: Search
         }
         .sr-chip:hover { border-color: var(--da-green); color: var(--da-green); }
         @media (max-width: 640px) {
-          .sr-hero { padding: 32px var(--sp-5) 28px; }
-          .sr-results { padding: var(--sp-6) var(--sp-5) var(--sp-16); }
+          .sr-hero { padding: 32px var(--gutter) 28px; }
+          .sr-results { padding: var(--sp-6) var(--gutter) var(--sp-16); }
           .sr-item { gap: var(--sp-4); }
           .sr-cover { width: 88px; height: 66px; }
           .sr-thumb { width: 56px; height: 56px; }

@@ -18,13 +18,11 @@ type Props = {
   action?: ReactNode;
   // CSS-Farbe des Akzents, z. B. var(--da-green) oder var(--da-purple).
   accent?: string;
-  // Seitenrand unter 720 px wie der Inhalt darunter (20, 24 oder 32 px).
-  mobileInset?: string;
 };
 
 const CSS = `
   .hh { border-bottom: 1px solid var(--da-border); }
-  .hh__wrap { max-width: var(--max-content); margin: 0 auto; padding: 0 var(--sp-8); }
+  .hh__wrap { max-width: var(--max-content); margin: 0 auto; padding: 0 var(--gutter); }
   .hh__row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 24px; padding: 38px 0 32px; }
   .hh__head { display: flex; align-items: center; gap: 14px; min-width: 0; }
   .hh__bar { width: 4px; height: 38px; border-radius: 2px; background: var(--hub-accent); flex-shrink: 0; }
@@ -46,7 +44,6 @@ const CSS = `
   .hh-btn--accent { color: var(--hub-accent, var(--da-green)); border-color: var(--hub-accent, var(--da-green)); }
   .hh-btn--accent:hover { background: var(--hub-accent, var(--da-green)); color: var(--da-dark); border-color: var(--hub-accent, var(--da-green)); }
   @media (max-width: 720px) {
-    .hh__wrap { padding: 0 var(--hub-inset-m, var(--sp-5)); }
     .hh__row { padding: 26px 0 22px; gap: 10px 16px; }
     .hh__bar { height: 28px; }
     .hh__title { font-size: 30px; white-space: normal; }
@@ -55,8 +52,8 @@ const CSS = `
   }
 `;
 
-export default function HubHero({ title, claim, action, accent = "var(--da-green)", mobileInset }: Props) {
-  const style = { ["--hub-accent" as string]: accent, ...(mobileInset ? { ["--hub-inset-m" as string]: mobileInset } : {}) };
+export default function HubHero({ title, claim, action, accent = "var(--da-green)" }: Props) {
+  const style = { ["--hub-accent" as string]: accent };
   return (
     <section className="hh" style={style}>
       <style>{CSS}</style>

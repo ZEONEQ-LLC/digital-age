@@ -91,7 +91,7 @@ export default async function TagPage({ params }: PageProps) {
       <section
         style={{
           borderBottom: "1px solid var(--da-border)",
-          padding: "48px var(--sp-8) 44px",
+          padding: "48px var(--gutter) 44px",
         }}
       >
         <div style={{ maxWidth: "var(--max-content)", margin: "0 auto" }}>
@@ -174,7 +174,7 @@ export default async function TagPage({ params }: PageProps) {
         style={{
           maxWidth: "var(--max-content)",
           margin: "0 auto",
-          padding: "var(--sp-12) var(--sp-8) var(--sp-20)",
+          padding: "var(--sp-12) var(--gutter) var(--sp-20)",
         }}
       >
         {articles.length === 0 ? (

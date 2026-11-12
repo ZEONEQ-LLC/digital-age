@@ -50,8 +50,8 @@ export default function PromptsBrowser({ all, featured }: Props) {
     <>
       <style>{`
         .ap-shell { max-width: var(--max-content); margin: 0 auto; }
-        .ap-section { padding: 48px var(--sp-8) 0; }
-        .ap-section-tight { padding: 56px var(--sp-8) 0; }
+        .ap-section { padding: 48px var(--gutter) 0; }
+        .ap-section-tight { padding: 56px var(--gutter) 0; }
 
         .ap-section-h { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-6); }
         .ap-section-h__bar { width: 3px; height: 22px; background: var(--da-green); border-radius: 2px; }

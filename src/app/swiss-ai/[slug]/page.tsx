@@ -90,7 +90,7 @@ export default async function StartupDetailPage({ params }: { params: Params }) 
 
 
       <style>{`
-        .sd-shell { max-width: 920px; margin: 0 auto; padding: 48px var(--sp-8) 96px; }
+        .sd-shell { max-width: 920px; margin: 0 auto; padding: 48px var(--gutter) 96px; }
         .sd-crumb {
           color: var(--da-muted-soft);
           font-family: var(--da-font-mono);

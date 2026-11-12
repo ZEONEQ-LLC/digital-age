@@ -116,6 +116,10 @@
   /* ── Layout ────────────────────────────────────────────────────── */
   --max-content: 1200px;
   --max-narrow:  720px;
+  /* Seitenrand links/rechts: Desktop und Tablet sp-8, ab 720 px abwaerts
+     ein einheitlicher Wert fuer alle oeffentlichen Seiten (Navbar, Inhalte,
+     Footer fluchten). Neue Seiten nutzen var(--gutter) statt sp-5/6/8. */
+  --gutter:      var(--sp-8);
   --max-dash:    1280px;
   --nav-h:       64px;
   --aside-sticky-top: calc(var(--nav-h) + 24px);
@@ -131,6 +135,11 @@
   --st-warning-fg: var(--da-orange);  --st-warning-bg: rgba(255, 140, 66, 0.12);
   --st-info-fg:    var(--da-purple);  --st-info-bg:    rgba(220, 214, 247, 0.10);
   --st-error-fg:   var(--da-red);     --st-error-bg:   rgba(255, 92, 92, 0.10);
+}
+
+/* Einheitlicher mobiler Seitenrand (siehe --gutter). */
+@media (max-width: 720px) {
+  :root { --gutter: 24px; }
 }
 
 @keyframes ticker {
@@ -224,8 +233,8 @@
   .da-muted    { color: var(--da-muted); }
 
   /* ── Layout Utilities ─────────────────────────────────────────── */
-  .da-container        { max-width: var(--max-content); margin: 0 auto; padding: 0 var(--sp-8); }
-  .da-container-narrow { max-width: var(--max-narrow);  margin: 0 auto; padding: 0 var(--sp-8); }
+  .da-container        { max-width: var(--max-content); margin: 0 auto; padding: 0 var(--gutter); }
+  .da-container-narrow { max-width: var(--max-narrow);  margin: 0 auto; padding: 0 var(--gutter); }
   .da-stack > * + *    { margin-top: var(--sp-4); }
 
   /* ── Card ─────────────────────────────────────────────────────── */

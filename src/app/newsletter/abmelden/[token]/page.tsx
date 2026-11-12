@@ -55,7 +55,7 @@ export default async function Page({ params }: PageProps) {
   return (
     <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       
-      <section style={{ maxWidth: "640px", margin: "0 auto", padding: "80px 32px", textAlign: "center" }}>
+      <section style={{ maxWidth: "640px", margin: "0 auto", padding: "80px var(--gutter)", textAlign: "center" }}>
         <div style={{ fontSize: "64px", marginBottom: "24px" }}>👋</div>
         <h1
           style={{

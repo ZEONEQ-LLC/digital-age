@@ -352,7 +352,7 @@ async function ArticleView({ article, moduleReserve }: { article: ArticleWithFul
       <ReadingProgress />
       
 
-      <header style={{ maxWidth: "860px", margin: "0 auto", padding: "52px var(--sp-8) 28px" }}>
+      <header style={{ maxWidth: "860px", margin: "0 auto", padding: "52px var(--gutter) 28px" }}>
         <nav aria-label="Breadcrumb" style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "var(--sp-6)" }}>
           <Link href="/" style={{ color: "var(--da-muted)", fontSize: "var(--fs-body-sm)" }}>Home</Link>
           <span style={{ color: "var(--da-faint)", fontSize: "var(--fs-body-sm)" }}>/</span>
@@ -455,7 +455,7 @@ async function ArticleView({ article, moduleReserve }: { article: ArticleWithFul
         </div>
       </header>
 
-      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 var(--sp-8) var(--sp-12)" }}>
+      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 var(--gutter) var(--sp-12)" }}>
         <figure style={{ margin: 0 }}>
           <div style={{ position: "relative", borderRadius: "10px", overflow: "hidden" }}>
             <Image
@@ -629,7 +629,7 @@ function LinkedPodcastsSection({ podcasts }: { podcasts: PodcastWithRecommender[
   );
 
   return (
-    <section id={ARTICLE_PODCAST_ANCHOR} style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 var(--sp-8) var(--sp-8)", scrollMarginTop: "var(--nav-h)" }}>
+    <section id={ARTICLE_PODCAST_ANCHOR} style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 var(--gutter) var(--sp-8)", scrollMarginTop: "var(--nav-h)" }}>
       <p style={{ color: "var(--da-faint)", fontFamily: "var(--da-font-mono)", fontSize: "var(--fs-caption)", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "var(--sp-3)" }}>
         Podcast zum Beitrag
       </p>
@@ -685,7 +685,7 @@ function ArticleBodyGrid({ children, hasToc }: { children: React.ReactNode; hasT
         .article-grid {
           max-width: 1100px;
           margin: 0 auto;
-          padding: 0 var(--sp-8);
+          padding: 0 var(--gutter);
           display: grid;
           grid-template-columns: ${hasToc ? "1fr 220px" : "minmax(0, 860px)"};
           ${hasToc ? "gap: var(--sp-16);" : "justify-content: center;"}

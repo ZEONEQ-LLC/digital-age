@@ -18,7 +18,7 @@ export default function Navbar() {
     <>
       <style>{`
         .nav-root { position: fixed; top: 0; left: 0; right: 0; z-index: 200; background: var(--da-dark); border-bottom: 1px solid var(--da-card); }
-        .nav-inner { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 64px; }
+        .nav-inner { max-width: 1200px; margin: 0 auto; padding: 0 var(--gutter); display: flex; align-items: center; justify-content: space-between; height: 64px; }
         .nav-logo img { height: 40px; width: auto; display: block; }
         .nav-desktop { display: flex; align-items: center; gap: 32px; }
         .nav-desktop a { color: var(--da-text-strong); text-decoration: none; font-size: 15px; }
@@ -36,7 +36,7 @@ export default function Navbar() {
         .nav-dropdown-menu { position: absolute; top: calc(100% + 12px); left: 0; background: var(--da-card); border: 1px solid var(--da-border); border-radius: 8px; min-width: 180px; overflow: hidden; }
         .nav-dropdown-menu a { display: block; padding: 12px 16px; color: var(--da-text-strong); text-decoration: none; font-size: 14px; }
         .nav-dropdown-menu a:hover { background: var(--da-border); color: var(--da-green); }
-        .mobile-menu { display: none; flex-direction: column; background: var(--da-dark); border-top: 1px solid var(--da-card); padding: 16px 24px 24px; gap: 0; }
+        .mobile-menu { display: none; flex-direction: column; background: var(--da-dark); border-top: 1px solid var(--da-card); padding: 16px var(--gutter) 24px; gap: 0; }
         .mobile-menu.open { display: flex; }
         .mobile-link { color: var(--da-text); text-decoration: none; font-size: 16px; font-weight: 500; padding: 14px 0; border-bottom: 1px solid var(--da-card); display: block; }
         .mobile-sublabel { color: var(--da-muted); font-size: 13px; padding: 8px 0 8px 12px; display: block; text-decoration: none; }

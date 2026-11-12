@@ -113,7 +113,7 @@ export default function MediadatenPage() {
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <style>{`
-        .md-shell { max-width: var(--max-content); margin: 0 auto; padding: 0 var(--sp-8); }
+        .md-shell { max-width: var(--max-content); margin: 0 auto; padding: 0 var(--gutter); }
         .md-overline {
           margin: 0; color: var(--da-green); font-family: var(--da-font-mono);
           font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
@@ -338,7 +338,6 @@ export default function MediadatenPage() {
           .md-prices { grid-template-columns: 1fr; }
         }
         @media (max-width: 767px) {
-          .md-shell { padding: 0 var(--sp-5); }
           .md-section { padding: 56px 0; }
           .md-head { margin-bottom: 24px; gap: 12px; }
           .md-h2 { font-size: 28px; line-height: 1.15; }

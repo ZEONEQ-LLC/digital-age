@@ -63,7 +63,6 @@ export default async function AiPromptsPage() {
       <HubHero
         title="GenAI Prompts"
         claim="Getestete Prompts für ChatGPT, Claude und Gemini"
-        mobileInset="var(--sp-8)"
         action={<Link href="/ai-prompts/einreichen" className="hh-btn hh-btn--accent">+ Prompt einreichen</Link>}
       />
 

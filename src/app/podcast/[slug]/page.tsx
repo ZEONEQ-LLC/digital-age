@@ -154,7 +154,7 @@ export default async function PodcastDetailPage({ params }: PageProps) {
         dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }}
       />
       <style>{`
-        .pd-shell { max-width: 860px; margin: 0 auto; padding: 40px var(--sp-8) 64px; }
+        .pd-shell { max-width: 860px; margin: 0 auto; padding: 40px var(--gutter) 64px; }
         .pd-head { display: grid; grid-template-columns: 180px 1fr; gap: 28px; align-items: start; }
         .pd-cover { position: relative; width: 180px; height: 180px; border-radius: var(--r-md); overflow: hidden; background: var(--da-card); flex-shrink: 0; }
         .pd-overline { color: var(--da-green); font-family: var(--da-font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }

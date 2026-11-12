@@ -43,7 +43,7 @@ export default function PodcastsFilterList({ podcasts, availableCategories }: Pr
           border-bottom: 1px solid var(--da-border);
         }
         .pc-filterbar__inner {
-          padding: 14px var(--sp-8);
+          padding: 14px var(--gutter);
           display: flex; flex-direction: column; gap: 10px;
         }
         .pc-filter-row {
@@ -81,7 +81,7 @@ export default function PodcastsFilterList({ podcasts, availableCategories }: Pr
           font-family: var(--da-font-mono);
           letter-spacing: 0.05em;
         }
-        .pc-list-section { padding: 32px var(--sp-8) 0; max-width: var(--max-content); margin: 0 auto; }
+        .pc-list-section { padding: 32px var(--gutter) 0; max-width: var(--max-content); margin: 0 auto; }
         .pc-list { display: flex; flex-direction: column; gap: 14px; }
         .pc-empty { text-align: center; padding: 60px 0; }
         .pc-empty__msg { color: var(--da-muted); font-size: 15px; margin-bottom: 16px; }
@@ -94,11 +94,11 @@ export default function PodcastsFilterList({ podcasts, availableCategories }: Pr
         }
         .pc-empty__btn:hover { background: rgba(50,255,126,0.08); }
         @media (max-width: 720px) {
-          .pc-filterbar__inner { padding: 12px var(--sp-6); }
+          .pc-filterbar__inner { padding: 12px var(--gutter); }
           .pc-filter-row { flex-direction: row; align-items: flex-start; }
           .pc-filter-label { min-width: 70px; padding-top: 6px; }
           .pc-filter-pills { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
-          .pc-list-section { padding: 24px var(--sp-6) 0; }
+          .pc-list-section { padding: 24px var(--gutter) 0; }
         }
       `}</style>
 

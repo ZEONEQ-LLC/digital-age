@@ -17,7 +17,7 @@ export default async function Page({ searchParams }: { searchParams: SearchParam
   return (
     <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       
-      <section style={{ maxWidth: "440px", margin: "0 auto", padding: "64px 32px" }}>
+      <section style={{ maxWidth: "440px", margin: "0 auto", padding: "64px var(--gutter)" }}>
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
           <h1
             style={{

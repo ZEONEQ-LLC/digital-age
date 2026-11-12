@@ -33,7 +33,6 @@ export default async function PodcastsPage() {
       <HubHero
         title="Podcasts"
         claim="Hörenswertes zu KI, ausgewählt von der Redaktion"
-        mobileInset="var(--sp-6)"
       />
 
       <PodcastsFilterList podcasts={podcasts} availableCategories={availableCategories} />
