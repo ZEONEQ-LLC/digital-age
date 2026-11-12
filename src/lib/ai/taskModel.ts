@@ -17,10 +17,16 @@ import type { AiTask } from "@/lib/ai/types";
 //
 // hero_proposals: 1200 Output-Tokens plus Thinking muessen in den 30-s-Timeout
 // passen — Haiku 5.5 als Default, Sonnet per Admin-Override moeglich.
+//
+// platform_research / prompt_generation (PR 197): Hintergrund-Jobs ohne
+// Freigabe, die direkt veroeffentlichen. Urteil und Qualitaet zaehlen mehr
+// als die Kosten (ein Lauf pro Woche): Sonnet 5.5.
 export const TASK_MODEL_DEFAULTS: Partial<Record<AiTask, string>> = {
   image_alt: "claude-haiku-5-5",
   podcast_ingest: "claude-haiku-5-5",
   hero_proposals: "claude-haiku-5-5",
+  platform_research: "claude-sonnet-5-5",
+  prompt_generation: "claude-sonnet-5-5",
 };
 
 // Auflösung: gueltiger Override → Task-Default → genereller Default.

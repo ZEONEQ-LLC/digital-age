@@ -55,7 +55,13 @@ export type AiTask =
   | "social_posts"
   // Newsletter-Entwurf (PR 195): Betreff, Einleitung und Kurztexte zu den
   // neuen Artikeln als JSON. Cron montags (System-Author) oder Knopf im Admin.
-  | "newsletter_draft";
+  | "newsletter_draft"
+  // KI-Plattformen (PR 197): woechentliche Pruefung des Verzeichnisses mit
+  // Websuche, Aenderungen als JSON, ohne Freigabe (Ali wird informiert).
+  | "platform_research"
+  // Prompts der KI-Redaktion (PR 197): woechentlich drei neue Prompts als
+  // JSON; je Prompt ein zweiter Aufruf erzeugt das Beispiel-Ergebnis.
+  | "prompt_generation";
 
 // Laufzeit-Liste aller Tasks (Resolver, Speichern der Konfiguration). Der
 // Record erzwingt beim Kompilieren, dass jeder AiTask-Wert hier steht; eine
@@ -71,6 +77,8 @@ const AI_TASK_FLAGS: Record<AiTask, true> = {
   hero_proposals: true,
   social_posts: true,
   newsletter_draft: true,
+  platform_research: true,
+  prompt_generation: true,
 };
 
 export const AI_TASKS = Object.keys(AI_TASK_FLAGS) as AiTask[];
@@ -89,7 +97,7 @@ export const TASKS_WITH_OWN_MODEL_SETTING: readonly AiTask[] = ["news_item_gener
 // nicht gebremst: Ein Lauf macht bis zu Quellen × items_per_source Aufrufe
 // und wuerde sonst dem Editor, dem die Kosten zugeschrieben werden, eine
 // Stunde lang die KI-Knoepfe sperren. Die Menge begrenzt der Job selbst.
-export const BACKGROUND_TASKS: readonly AiTask[] = ["news_item_generation"];
+export const BACKGROUND_TASKS: readonly AiTask[] = ["news_item_generation", "platform_research", "prompt_generation"];
 
 export function isBackgroundTask(task: string): boolean {
   return (BACKGROUND_TASKS as readonly string[]).includes(task);
@@ -109,6 +117,12 @@ export type LLMParams = {
   images?: LLMImage[];
   maxTokens: number;
   task: AiTask;
+  // Optionale Websuche (Server-Tool web_search_20260209, PR 197): Claude
+  // sucht selbst und zitiert; die Antwort ist trotzdem reiner Text/JSON.
+  webSearch?: { maxUses: number };
+  // Optionales Request-Timeout in ms (Standard 30 s). Recherche mit
+  // Websuche braucht laenger.
+  timeoutMs?: number;
   // Optionales Modell-Override pro Call. Wenn gesetzt, nutzt der
   // Provider diesen Wert statt `process.env.ANTHROPIC_MODEL`. Wird vom
   // Config-Resolver in `callLLM` befüllt (DB → task_model_overrides ↦
