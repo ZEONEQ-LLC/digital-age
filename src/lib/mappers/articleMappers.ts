@@ -64,7 +64,7 @@ export function articleToListRow(
   };
 }
 
-export function authorToProfileViewModel(author: AuthorRow) {
+export function authorToProfileViewModel(author: Omit<AuthorRow, "email">) {
   const social = (author.social_links ?? {}) as Record<string, string | undefined>;
   return {
     id: author.id,

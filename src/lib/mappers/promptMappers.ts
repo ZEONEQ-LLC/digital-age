@@ -1,4 +1,4 @@
-import type { PromptWithAuthor, PromptDifficulty } from "@/lib/promptApi";
+import type { PublicPromptWithAuthor, PromptDifficulty } from "@/lib/promptApi";
 
 export type PromptCardVM = {
   id: string;
@@ -47,7 +47,7 @@ function lookupLabel(list: readonly { code: string; label: string }[], code: str
   return list.find((it) => it.code === code)?.label ?? code;
 }
 
-export function promptToCardVM(row: PromptWithAuthor): PromptCardVM {
+export function promptToCardVM(row: PublicPromptWithAuthor): PromptCardVM {
   const author = row.author;
   return {
     id: row.id,

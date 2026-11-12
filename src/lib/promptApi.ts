@@ -14,6 +14,18 @@ export type PromptWithAuthor = PromptRow & {
   author: Pick<AuthorRow, "id" | "display_name" | "slug" | "handle" | "avatar_url"> | null;
 };
 
+// Oeffentliche Spalten (Datenschutz, wie PUBLIC_STARTUP_COLUMNS): anon darf
+// submitter_email und die Pruefdaten nicht lesen (Spaltenrechte, Migration
+// 20261112160000_public_columns_authors_prompts.sql). Alle Lesepfade, die
+// ohne Login laufen, nutzen diese Liste statt "*". Neue oeffentliche Spalte =
+// hier und in der Migration ergaenzen.
+export const PUBLIC_PROMPT_COLUMNS =
+  "id, slug, title, category, context, prompt_text, example_output, tested_with, difficulty, status, author_id, submitter_name, submitter_url, uses_count, published_at, created_at, updated_at";
+
+export type PublicPromptRow = Omit<PromptRow, "submitter_email" | "rejection_reason" | "reviewed_at" | "reviewed_by_id">;
+
+export type PublicPromptWithAuthor = PublicPromptRow & { author: PromptWithAuthor["author"] };
+
 export type PromptFilters = {
   category?: string;
   tested_with?: string;
@@ -23,11 +35,11 @@ export type PromptFilters = {
 const AUTHOR_SELECT = "author:authors!author_id(id, display_name, slug, handle, avatar_url)";
 
 // PUBLIC: status in (published, featured).
-export async function getPublishedPrompts(filters?: PromptFilters): Promise<PromptWithAuthor[]> {
+export async function getPublishedPrompts(filters?: PromptFilters): Promise<PublicPromptWithAuthor[]> {
   const supabase = createPublicClient();
   let query = supabase
     .from("ai_prompts")
-    .select(`*, ${AUTHOR_SELECT}`)
+    .select(`${PUBLIC_PROMPT_COLUMNS}, ${AUTHOR_SELECT}`)
     .in("status", ["published", "featured"])
     .order("status", { ascending: false }) // featured (alpha-later) … OR: order via custom expression
     .order("published_at", { ascending: false, nullsFirst: false });
@@ -39,7 +51,7 @@ export async function getPublishedPrompts(filters?: PromptFilters): Promise<Prom
   const { data, error } = await query;
   if (error) throw error;
   // Featured zuerst — Postgres enum sort kann tricky sein; in TS resorten
-  const rows = (data as PromptWithAuthor[] | null) ?? [];
+  const rows = (data as PublicPromptWithAuthor[] | null) ?? [];
   return rows.sort((a, b) => {
     if (a.status === "featured" && b.status !== "featured") return -1;
     if (a.status !== "featured" && b.status === "featured") return 1;
@@ -50,16 +62,16 @@ export async function getPublishedPrompts(filters?: PromptFilters): Promise<Prom
 }
 
 // PUBLIC: status=featured.
-export async function getFeaturedPrompts(limit = 3): Promise<PromptWithAuthor[]> {
+export async function getFeaturedPrompts(limit = 3): Promise<PublicPromptWithAuthor[]> {
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("ai_prompts")
-    .select(`*, ${AUTHOR_SELECT}`)
+    .select(`${PUBLIC_PROMPT_COLUMNS}, ${AUTHOR_SELECT}`)
     .eq("status", "featured")
     .order("published_at", { ascending: false, nullsFirst: false })
     .limit(limit);
   if (error) throw error;
-  return (data as PromptWithAuthor[] | null) ?? [];
+  return (data as PublicPromptWithAuthor[] | null) ?? [];
 }
 
 export async function getPromptById(id: string): Promise<PromptWithAuthor | null> {
@@ -78,26 +90,26 @@ export async function getPromptById(id: string): Promise<PromptWithAuthor | null
 // laufen am Anon-Client, damit /ai-prompts/[slug] static prerendered + via
 // ISR gecacht werden kann. Per ID nur noch fuer die Umleitung alter
 // UUID-URLs (seit PR 190).
-export async function getPublishedPromptBySlug(slug: string): Promise<PromptWithAuthor | null> {
+export async function getPublishedPromptBySlug(slug: string): Promise<PublicPromptWithAuthor | null> {
   const supabase = createPublicClient();
   const { data } = await supabase
     .from("ai_prompts")
-    .select(`*, ${AUTHOR_SELECT}`)
+    .select(`${PUBLIC_PROMPT_COLUMNS}, ${AUTHOR_SELECT}`)
     .eq("slug", slug)
     .in("status", ["published", "featured"])
     .maybeSingle();
-  return (data as PromptWithAuthor | null) ?? null;
+  return (data as PublicPromptWithAuthor | null) ?? null;
 }
 
-export async function getPublishedPromptById(id: string): Promise<PromptWithAuthor | null> {
+export async function getPublishedPromptById(id: string): Promise<PublicPromptWithAuthor | null> {
   const supabase = createPublicClient();
   const { data } = await supabase
     .from("ai_prompts")
-    .select(`*, ${AUTHOR_SELECT}`)
+    .select(`${PUBLIC_PROMPT_COLUMNS}, ${AUTHOR_SELECT}`)
     .eq("id", id)
     .in("status", ["published", "featured"])
     .maybeSingle();
-  return (data as PromptWithAuthor | null) ?? null;
+  return (data as PublicPromptWithAuthor | null) ?? null;
 }
 
 export async function getMyPrompts(): Promise<PromptWithAuthor[]> {
