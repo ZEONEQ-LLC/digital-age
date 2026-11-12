@@ -1330,7 +1330,7 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
-### Newsletter-Versand, Suche erweitert, Kampagnenende, Datenschutz Autoren/Prompts (PR 195)
+### Newsletter-Versand, Suche erweitert, Kampagnenende, Rubrik-Kopf, Datenschutz Autoren/Prompts (PR 195)
 
 **Newsletter-Ausgaben** (Entscheid Ali 12.11.2026: Entwurf + Freigabe). Admin
 `/autor/admin/newsletter/ausgaben` (Link oben auf der Abonnenten-Seite).
@@ -1382,6 +1382,20 @@ zeigt 30 Tage nach dem Ende `ExpiredPreview` statt der Zahlen; der Admin
 zeigt Gueltigkeit und Versanddatum. Die Tagesreihe der Zahlen endet bei
 beendeten Kampagnen am letzten Kampagnentag. Kundenmails teilen
 `src/lib/ads/mail.ts`.
+
+**Rubrik-Kopf** (`src/components/HubHero.tsx`): Entscheid Ali 12.11.2026 nach
+Vergleich mit Wired, The Verge, TechCrunch, Ars Technica und NZZ, Variante B
+«Kompaktzeile». Eine Zeile: Akzentbalken (Motiv der Abschnittsueberschriften),
+Rubrikname als H1 (42 px, mobil 30 px), «// Claim» in einem Satz, rechts
+optional eine Aktion. Keine Einleitung, keine Zahlen, kein Mosaik, keine
+Breadcrumb; der erste Inhalt (Spotlight) steht direkt darunter. Aktionen als
+Umriss-Knoepfe (`hh-btn`, `hh-btn--accent`): Sidebar-Knopf (TopicListing, unter
+1024 px ausgeblendet), «+ Prompt einreichen», «+ Unternehmen eintragen»,
+Hosting-Legende bei KI-Plattformen. Der erste Entwurf (Kopfzeile, grosser
+Titel, Lead, Zahlenzeile) wurde abgelehnt: zu viel Text. Keine Hooks, rendert
+in Server- und Client-Baeumen, immer ausserhalb von Suspense (SSR-H1);
+TopicListing rendert ihn selbst, die Spotlight-Section kommt ueber `intro`.
+Text fluchtet mit dem Inhalt (max-content + sp-8, mobil `mobileInset`).
 
 **Datenschutz Autoren/Prompts:** anon konnte `authors.email` (alle Profile)
 und `ai_prompts.submitter_email` publizierter Prompts ueber die REST-API
