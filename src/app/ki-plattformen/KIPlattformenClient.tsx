@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 import Footer from "@/components/Footer";
 import HubHero from "@/components/HubHero";
@@ -10,33 +11,21 @@ import CompareDrawer from "@/components/CompareDrawer";
 import CompareModal from "@/components/CompareModal";
 import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
 
-const allPlatforms: Platform[] = [
-  { id: 1,  name: "Claude",          category: "LLM",    tagline: "Anthropic's flagship AI assistant — safe, helpful, honest.",   hosting: "US", pricing: "Free + Pro",   featured: true,  link: "https://claude.ai" },
-  { id: 2,  name: "ChatGPT",         category: "LLM",    tagline: "OpenAI's conversational AI with multimodal capabilities.",     hosting: "US", pricing: "Free + Plus",  featured: true,  link: "https://chatgpt.com" },
-  { id: 3,  name: "Swiss GPT",       category: "LLM",    tagline: "Swiss-hosted LLM für Enterprise-Compliance. DSGVO-konform.",   hosting: "CH", pricing: "Enterprise",   featured: true,  link: "#" },
-  { id: 4,  name: "Midjourney",      category: "Image",  tagline: "State-of-the-art KI-Bildgenerierung mit beeindruckender Qualität.", hosting: "US", pricing: "Paid",         featured: false, link: "https://midjourney.com" },
-  { id: 5,  name: "DALL-E 3",        category: "Image",  tagline: "OpenAI's Bildgenerierungsmodell, integriert in ChatGPT.",      hosting: "US", pricing: "Pay-per-use",  featured: false, link: "https://openai.com/dall-e-3" },
-  { id: 6,  name: "ElevenLabs",      category: "Audio",  tagline: "Realistische KI-Stimmsynthese in vielen Sprachen.",            hosting: "US", pricing: "Free + Paid",  featured: false, link: "https://elevenlabs.io" },
-  { id: 7,  name: "Runway",          category: "Video",  tagline: "KI-Videogenerierung und Bearbeitung für Kreative.",            hosting: "US", pricing: "Free + Paid",  featured: false, link: "https://runwayml.com" },
-  { id: 8,  name: "GitHub Copilot",  category: "Code",   tagline: "KI-Pair-Programmer für Entwickler — direkt im Editor.",        hosting: "US", pricing: "Paid",         featured: false, link: "https://github.com/features/copilot" },
-  { id: 9,  name: "Cursor",          category: "Code",   tagline: "KI-first Code-Editor für maximale Produktivität.",             hosting: "US", pricing: "Free + Pro",   featured: false, link: "https://cursor.com" },
-  { id: 10, name: "Mistral AI",      category: "LLM",    tagline: "Europäische Open-Weight Sprachmodelle. Datenschutzkonform.",   hosting: "EU", pricing: "Free + API",   featured: false, link: "https://mistral.ai" },
-  { id: 11, name: "Perplexity",      category: "Search", tagline: "KI-Suchmaschine mit Quellenangaben und Echtzeit-Daten.",       hosting: "US", pricing: "Free + Pro",   featured: false, link: "https://perplexity.ai" },
-  { id: 12, name: "Suno",            category: "Audio",  tagline: "Vollständige Songs mit KI generieren — Text zu Musik.",        hosting: "US", pricing: "Free + Paid",  featured: false, link: "https://suno.ai" },
-  { id: 13, name: "Gemini",          category: "LLM",    tagline: "Google's multimodales KI-Modell mit Deep Research.",           hosting: "US", pricing: "Free + Ultra", featured: false, link: "https://gemini.google.com" },
-  { id: 14, name: "Stable Diffusion",category: "Image",  tagline: "Open-Source Bildgenerierung — lokal oder cloud-gehostet.",     hosting: "EU", pricing: "Free / Open",  featured: false, link: "https://stability.ai" },
-];
 
 const categories = ["Alle", "LLM", "Image", "Video", "Audio", "Code", "Search"] as const;
 const hostings: Array<"Alle Regionen" | Hosting> = ["Alle Regionen", "CH", "EU", "US"];
 const MAX_COMPARE = 3;
 
-export default function KIPlattformenClient() {
+function fmtDay(iso: string): string {
+  return new Date(iso).toLocaleDateString("de-CH", { timeZone: "Europe/Zurich", day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+export default function KIPlattformenClient({ platforms: allPlatforms, checkedAt }: { platforms: Platform[]; checkedAt: string | null }) {
   const [cat, setCat] = useState<(typeof categories)[number]>("Alle");
   const [host, setHost] = useState<"Alle Regionen" | Hosting>("Alle Regionen");
   const [search, setSearch] = useState("");
   const [view, setView] = useState<ViewMode>("grid");
-  const [compareIds, setCompareIds] = useState<number[]>([]);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
   const [showCompare, setShowCompare] = useState(false);
 
   const accent = "var(--da-green)";
@@ -55,7 +44,7 @@ export default function KIPlattformenClient() {
   const hasFilter = cat !== "Alle" || host !== "Alle Regionen" || search.length > 0;
   const resetFilters = () => { setCat("Alle"); setHost("Alle Regionen"); setSearch(""); };
 
-  const toggleCompare = (id: number) => {
+  const toggleCompare = (id: string) => {
     setCompareIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : prev.length < MAX_COMPARE ? [...prev, id] : prev
     );
@@ -263,6 +252,15 @@ export default function KIPlattformenClient() {
               {compareIds.length > 0 && (
                 <div className="kip-cta-card__sel">{compareIds.length} ausgewählt</div>
               )}
+            </div>
+
+            <div className="kip-cta-card">
+              <p className="kip-flabel">Aktualität</p>
+              <p className="kip-cta-card__hint">
+                Links, Preise und Hosting prüft wöchentlich eine KI mit Websuche. Jede Änderung geht an die Redaktion.
+                {checkedAt && <> Stand: {fmtDay(checkedAt)}.</>}{" "}
+                <Link href="/ki-transparenz" style={{ color: "var(--da-green)" }}>KI-Transparenz</Link>
+              </p>
             </div>
           </aside>
 

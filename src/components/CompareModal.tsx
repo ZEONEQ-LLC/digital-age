@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { catColors, hostingColor, hostingLabel, type Platform } from "./PlatformCard";
 
 type CompareModalProps = {
-  ids: number[];
+  ids: string[];
   platforms: Platform[];
   onClose: () => void;
 };
@@ -14,7 +14,7 @@ const ROWS: Array<{ key: string; label: string; render: (p: Platform) => React.R
   { key: "hosting",  label: "Hosting",   render: (p) => <span style={{ color: hostingColor(p.hosting), fontWeight: 700 }}>{hostingLabel(p.hosting)}</span> },
   { key: "pricing",  label: "Preismodell", render: (p) => <span style={{ fontFamily: "var(--da-font-mono)", fontSize: 13 }}>{p.pricing}</span> },
   { key: "tagline",  label: "Beschreibung", render: (p) => <span style={{ color: "var(--da-muted)", fontSize: 13, lineHeight: 1.5 }}>{p.tagline}</span> },
-  { key: "link",     label: "Ausprobieren", render: (p) => <a href={p.link} target="_blank" rel="noopener noreferrer" style={{ color: "var(--da-green)", fontWeight: 700, fontSize: 13 }}>Öffnen →</a> },
+  { key: "link",     label: "Ausprobieren", render: (p) => p.link ? <a href={p.link} target="_blank" rel="noopener noreferrer" style={{ color: "var(--da-green)", fontWeight: 700, fontSize: 13 }}>Öffnen →</a> : <span style={{ color: "var(--da-muted)", fontSize: 13 }}>Auf Anfrage</span> },
 ];
 
 const MAX = 3;

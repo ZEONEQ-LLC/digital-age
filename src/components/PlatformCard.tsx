@@ -3,14 +3,15 @@
 export type Hosting = "CH" | "EU" | "US";
 
 export type Platform = {
-  id: number;
+  id: string;
   name: string;
   category: string;
   tagline: string;
   hosting: Hosting;
   pricing: string;
   featured: boolean;
-  link: string;
+  // null = kein oeffentlicher Link (z.B. Enterprise-Angebot auf Anfrage).
+  link: string | null;
 };
 
 export const hostingColor = (h: Hosting): string =>
@@ -31,7 +32,7 @@ export const catColors: Record<string, string> = {
 type PlatformCardProps = {
   platform: Platform;
   inCompare: boolean;
-  onToggleCompare: (id: number) => void;
+  onToggleCompare: (id: string) => void;
   accent?: string;
 };
 
@@ -93,6 +94,7 @@ export default function PlatformCard({ platform, inCompare, onToggleCompare, acc
           color: var(--da-dark); font-size: 12px; font-weight: 700;
           padding: 8px 0; border-radius: var(--r-sm); text-decoration: none;
         }
+        .pc__open--off { background: transparent; color: var(--da-muted); border: 1px solid var(--da-border); padding: 7px 0; cursor: default; }
         .pc__cmp {
           background: var(--da-dark);
           color: var(--da-faint);
@@ -126,7 +128,11 @@ export default function PlatformCard({ platform, inCompare, onToggleCompare, acc
           <span className="pc__badge pc__badge--price">{platform.pricing}</span>
         </div>
         <div className="pc__actions">
-          <a className="pc__open" href={platform.link} target="_blank" rel="noopener noreferrer">Öffnen →</a>
+          {platform.link ? (
+            <a className="pc__open" href={platform.link} target="_blank" rel="noopener noreferrer">Öffnen →</a>
+          ) : (
+            <span className="pc__open pc__open--off" title="Kein öffentlicher Link">Auf Anfrage</span>
+          )}
           <button
             type="button"
             className={`pc__cmp${inCompare ? " pc__cmp--on" : ""}`}

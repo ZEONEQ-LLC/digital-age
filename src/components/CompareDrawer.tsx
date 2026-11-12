@@ -3,9 +3,9 @@
 import type { Platform } from "./PlatformCard";
 
 type CompareDrawerProps = {
-  ids: number[];
+  ids: string[];
   platforms: Platform[];
-  onRemove: (id: number) => void;
+  onRemove: (id: string) => void;
   onClear: () => void;
   onOpen: () => void;
 };

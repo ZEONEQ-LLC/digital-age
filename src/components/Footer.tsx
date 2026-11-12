@@ -66,6 +66,7 @@ export default function Footer() {
                 {[
                   { label: "KI & Business", href: "/ki-im-business" },
                   { label: "Future Tech", href: "/future-tech" },
+                  { label: "News", href: "/news" },
                   { label: "KI-Plattformen", href: "/ki-plattformen" },
                   { label: "GenAI Prompts", href: "/ai-prompts" },
                   { label: "Podcasts", href: "/podcasts" },

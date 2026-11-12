@@ -489,6 +489,39 @@ export type Database = {
           },
         ]
       }
+      ai_job_runs: {
+        Row: {
+          errors: string[]
+          finished_at: string | null
+          id: string
+          job: string
+          started_at: string
+          status: string
+          summary: Json
+          trigger: string
+        }
+        Insert: {
+          errors?: string[]
+          finished_at?: string | null
+          id?: string
+          job: string
+          started_at?: string
+          status?: string
+          summary?: Json
+          trigger?: string
+        }
+        Update: {
+          errors?: string[]
+          finished_at?: string | null
+          id?: string
+          job?: string
+          started_at?: string
+          status?: string
+          summary?: Json
+          trigger?: string
+        }
+        Relationships: []
+      }
       ai_model_catalog: {
         Row: {
           checked_at: string | null
@@ -582,8 +615,120 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_platform_changes: {
+        Row: {
+          action: string
+          after: Json | null
+          before: Json | null
+          created_at: string
+          id: string
+          platform_id: string | null
+          reason: string | null
+          reverted_at: string | null
+          run_id: string | null
+          sources: string[]
+        }
+        Insert: {
+          action: string
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          platform_id?: string | null
+          reason?: string | null
+          reverted_at?: string | null
+          run_id?: string | null
+          sources?: string[]
+        }
+        Update: {
+          action?: string
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          platform_id?: string | null
+          reason?: string | null
+          reverted_at?: string | null
+          run_id?: string | null
+          sources?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_platform_changes_platform_id_fkey"
+            columns: ["platform_id"]
+            isOneToOne: false
+            referencedRelation: "ai_platforms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_platform_changes_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "ai_job_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_platforms: {
+        Row: {
+          ai_note: string | null
+          category: string
+          created_at: string
+          featured: boolean
+          hosting: string
+          id: string
+          locked: boolean
+          name: string
+          pricing: string
+          slug: string
+          source: string
+          status: string
+          tagline: string
+          updated_at: string
+          url: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          ai_note?: string | null
+          category: string
+          created_at?: string
+          featured?: boolean
+          hosting: string
+          id?: string
+          locked?: boolean
+          name: string
+          pricing: string
+          slug: string
+          source?: string
+          status?: string
+          tagline: string
+          updated_at?: string
+          url?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          ai_note?: string | null
+          category?: string
+          created_at?: string
+          featured?: boolean
+          hosting?: string
+          id?: string
+          locked?: boolean
+          name?: string
+          pricing?: string
+          slug?: string
+          source?: string
+          status?: string
+          tagline?: string
+          updated_at?: string
+          url?: string | null
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       ai_prompts: {
         Row: {
+          ai_generated: boolean
           author_id: string | null
           category: string
           context: string
@@ -607,6 +752,7 @@ export type Database = {
           uses_count: number
         }
         Insert: {
+          ai_generated?: boolean
           author_id?: string | null
           category: string
           context: string
@@ -630,6 +776,7 @@ export type Database = {
           uses_count?: number
         }
         Update: {
+          ai_generated?: boolean
           author_id?: string | null
           category?: string
           context?: string

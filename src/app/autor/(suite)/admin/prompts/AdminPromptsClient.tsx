@@ -208,8 +208,8 @@ export default function AdminPromptsClient({ initialPrompts }: Props) {
             const ss = statusStyles[p.status];
             const cat = PROMPT_CATEGORIES.find((c) => c.code === p.category)?.label ?? p.category;
             const tool = PROMPT_TESTED_WITH.find((c) => c.code === p.tested_with)?.label ?? p.tested_with;
-            const authorLabel = p.author ? p.author.display_name : (p.submitter_name ?? "Anonym");
-            const isExternal = !p.author;
+            const authorLabel = p.ai_generated ? "KI-Redaktion" : p.author ? p.author.display_name : (p.submitter_name ?? "Anonym");
+            const isExternal = !p.author && !p.ai_generated;
             const busy = busyId === p.id;
             return (
               <div className="ap-row" key={p.id}>
@@ -217,6 +217,7 @@ export default function AdminPromptsClient({ initialPrompts }: Props) {
                 <div className="ap-author ap-col-author">
                   {authorLabel}
                   {isExternal && <span style={{ marginLeft: 6, color: "var(--da-faint)", fontSize: 10 }}>(extern)</span>}
+                  {p.ai_generated && <span style={{ marginLeft: 6, color: "var(--da-purple)", fontSize: 10, fontFamily: "var(--da-font-mono)", fontWeight: 700 }}>KI</span>}
                 </div>
                 <div className="ap-col-cat" style={{ color: "var(--da-muted)" }}>{cat}</div>
                 <div style={{ color: "var(--da-muted)" }}>{tool}</div>

@@ -19,6 +19,9 @@ const REQUEST_TIMEOUT_MS = 30_000;
 // Der Puffer kostet nichts, solange er nicht genutzt wird.
 const THINKING_HEADROOM_TOKENS = 2_048;
 
+// Fortsetzungen nach "pause_turn" (Websuche am Iterationslimit).
+const MAX_CONTINUATIONS = 3;
+
 function classifyError(err: unknown): { kind: AiErrorKind; message: string } {
   // Anthropic-SDK liefert APIError mit `status`-Property; AbortError aus
   // dem Fetch-Stack hat name "AbortError".
@@ -55,7 +58,7 @@ export class AnthropicProvider implements LLMProvider {
 
     const client = new Anthropic({ apiKey });
     const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), REQUEST_TIMEOUT_MS);
+    const timer = setTimeout(() => ac.abort(), params.timeoutMs ?? REQUEST_TIMEOUT_MS);
 
     // Ohne images: reiner Text-String (unveraendertes Verhalten). Mit images:
     // Content-Block-Array aus Text + Image-Blocks (URL-Source).
@@ -73,18 +76,39 @@ export class AnthropicProvider implements LLMProvider {
         : params.prompt;
 
     try {
-      const resp = await client.messages.create(
-        {
-          model,
-          max_tokens: params.maxTokens + THINKING_HEADROOM_TOKENS,
-          system: params.system,
-          messages: [{ role: "user", content: userContent }],
-        },
-        { signal: ac.signal },
-      );
+      // Mit Websuche: Server-Tool, Claude sucht selbst. Erreicht die Suche ihr
+      // Iterationslimit, kommt stop_reason "pause_turn"; dann wird die Antwort
+      // angehaengt und fortgesetzt (hoechstens MAX_CONTINUATIONS Mal).
+      // Websuche mit dynamischer Filterung (20260209) gibt es fuer Sonnet,
+      // Opus und Fable; Haiku bekommt die Basis-Variante.
+      const searchType = /haiku/i.test(model) ? ("web_search_20250305" as const) : ("web_search_20260209" as const);
+      const tools = params.webSearch
+        ? [{ type: searchType, name: "web_search" as const, max_uses: params.webSearch.maxUses }]
+        : undefined;
+      const messages: Anthropic.MessageParam[] = [{ role: "user", content: userContent }];
+      let inputTokens = 0;
+      let outputTokens = 0;
+      let resp: Anthropic.Message | null = null;
+      for (let i = 0; i <= MAX_CONTINUATIONS; i++) {
+        resp = await client.messages.create(
+          {
+            model,
+            max_tokens: params.maxTokens + THINKING_HEADROOM_TOKENS,
+            system: params.system,
+            messages,
+            ...(tools ? { tools } : {}),
+          },
+          { signal: ac.signal },
+        );
+        inputTokens += resp.usage.input_tokens;
+        outputTokens += resp.usage.output_tokens;
+        if (resp.stop_reason !== "pause_turn") break;
+        messages.push({ role: "assistant", content: resp.content });
+      }
+      if (!resp) throw new Error("no response");
 
-      // Nur Text-Bloecke extrahieren (Thinking-Bloecke ignorieren) —
-      // non-streaming, einfache Form.
+      // Nur Text-Bloecke der letzten Antwort (Thinking, Suchaufrufe und
+      // Suchergebnisse ignorieren) — non-streaming, einfache Form.
       const firstText = resp.content
         .filter((b): b is Anthropic.TextBlock => b.type === "text")
         .map((b) => b.text)
@@ -104,8 +128,8 @@ export class AnthropicProvider implements LLMProvider {
         text: firstText,
         provider: "anthropic",
         model,
-        inputTokens: resp.usage.input_tokens,
-        outputTokens: resp.usage.output_tokens,
+        inputTokens,
+        outputTokens,
       };
     } catch (err) {
       const classified = classifyError(err);

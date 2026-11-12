@@ -20,6 +20,7 @@ const STATIC_ROUTES: StaticEntry[] = [
   { path: "/ki-plattformen", priority: 0.7, changeFrequency: "weekly" },
   { path: "/ai-prompts", priority: 0.7, changeFrequency: "weekly" },
   { path: "/podcasts", priority: 0.7, changeFrequency: "weekly" },
+  { path: "/news", priority: 0.6, changeFrequency: "daily" },
   { path: "/newsletter", priority: 0.5, changeFrequency: "monthly" },
   { path: "/tags", priority: 0.5, changeFrequency: "weekly" },
   { path: "/mediadaten", priority: 0.5, changeFrequency: "monthly" },
