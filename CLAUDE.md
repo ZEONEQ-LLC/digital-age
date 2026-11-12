@@ -1330,6 +1330,81 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+### Newsletter-Versand, Suche erweitert, Kampagnenende, Hub-Header, Datenschutz Autoren/Prompts (PR 195)
+
+**Newsletter-Ausgaben** (Entscheid Ali 12.11.2026: Entwurf + Freigabe). Admin
+`/autor/admin/newsletter/ausgaben` (Link oben auf der Abonnenten-Seite).
+- **DB** (`20261112150000_newsletter_issues.sql`): `newsletter_issues` (Status
+  draft|sending|sent|discarded, hoechstens eine offene Ausgabe per partiellem
+  Unique-Index, `items` jsonb in Versandreihenfolge, `edited_at`,
+  `test_sent_at`, Zaehler) und `newsletter_deliveries` (ein Empfaenger pro
+  Ausgabe, Momentaufnahme beim Start). Editoren lesen und pflegen Entwuerfe
+  (RLS), Cron und Versand laufen mit der Service-Role.
+- **Entwurf** (`src/lib/newsletter/draftJob.ts`): Artikel seit dem Ende der
+  letzten gesendeten Ausgabe (sonst 7 Tage), hoechstens 8. KI-Task
+  `newsletter_draft` (Strategie editierbar, Prompt/Parser in
+  `src/lib/ai/newsletterPrompts.ts`) schreibt Betreff, Einleitung, Kurztexte;
+  faellt sie aus, kommen die Texte aus den Abstracts und `ai_note` sagt es.
+  Cron `/api/cron/newsletter-draft` montags 05:30 UTC: ohne neue Artikel
+  nichts; ein unbearbeiteter offener Entwurf wird ersetzt, ein bearbeiteter
+  bleibt (Mail «wartet»). Hinweis-Mail an `NEWSLETTER_REPLY_TO`. Von Hand
+  («Entwurf jetzt erstellen») ohne neue Artikel: die neuesten vier als
+  Startpunkt. Kosten: Editor (Knopf) bzw. `NEWSLETTER_AUTHOR_ID`/aeltester
+  Editor (Cron).
+- **Versand** (`src/lib/newsletter/sendIssue.ts`): nur nach «Freigeben und
+  senden». Resend-Batch zu 100 mit Idempotency-Key, pro Empfaenger eigener
+  Abmeldelink (HTML einmal gerendert, Platzhalter `UNSUBSCRIBE_PLACEHOLDER`)
+  und `List-Unsubscribe` + One-Click-POST (`/api/newsletter/unsubscribe/<token>`,
+  GET fuehrt nur auf die Bestaetigungsseite). Voruebergehende Fehler halten
+  die Ausgabe auf «sending», «Versand fortsetzen» versucht sie erneut;
+  seit dem Start Abgemeldete werden ausgelassen («skip: …»). Links mit UTM
+  `newsletter / email / newsletter-JJJJ-MM-TT`.
+- Mail `src/emails/NewsletterIssue.tsx` (Layout hat dafuer `footerExtra`),
+  Hinweis `NewsletterDraftReady.tsx`. Reine Regeln in `src/lib/newsletter/issue.ts`,
+  Test `src/lib/newsletter/__tests__/issue.manual.ts`.
+
+**Suche erweitert** (`20261112140000_search_prompts_podcasts_startups.sql`):
+RPCs `search_prompts`, `search_podcasts`, `search_startups` wie
+`search_articles` (INVOKER, german, ⟦…⟧-Ausschnitt, max 50), ohne Index (kleine
+Tabellen). `src/lib/search/more.ts` liest danach nur oeffentliche Spalten.
+`/suche` zeigt Typ-Reiter mit Zahlen, alle Artikel und je Typ 5 Treffer mit
+«Alle … anzeigen» (`?typ=prompts|podcasts|startups|artikel`).
+
+**Kampagnenende** (Entscheid Ali: Mail mit Zahlen, Vorschau-Link 30 Tage
+gueltig). Kampagnenende = spaetestes Ende der nicht archivierten Buchungen
+(`src/lib/ads/campaignEnd.ts`, Test `__tests__/campaignEnd.manual.ts`).
+`runEndReports` (`endReportJob.ts`) im Cron `/api/module/daily` nach der
+Ablaufwarnung: gelaufene Kundenkampagne, Ende in den letzten 3 Tagen,
+Buchungen ohne `end_report_sent_at` (Migration `20261112130000`) → Mail
+`CampaignEndReport.tsx` an billing_email mit Kopie an die Redaktion.
+Verlaengern/Reaktivieren setzt die Markierung zurueck. `/vorschau/<token>`
+zeigt 30 Tage nach dem Ende `ExpiredPreview` statt der Zahlen; der Admin
+zeigt Gueltigkeit und Versanddatum. Die Tagesreihe der Zahlen endet bei
+beendeten Kampagnen am letzten Kampagnentag. Kundenmails teilen
+`src/lib/ads/mail.ts`.
+
+**Hub-Header** (`src/components/HubHero.tsx`, Entscheid Ali: Empfehlungen der
+Karte, Freigabe per Screenshots): einheitlicher Kopf fuer KI & Business,
+Future Tech, KI-Plattformen, AI Prompts, Podcasts, Swiss AI. Kopfzeile mit
+«>», Titel mit Akzentwort (`<em>`), Lead, Zahlenzeile, optional rechts ein
+Knopf/Legende, Punkteraster. Text fluchtet mit dem Inhalt (max-content +
+sp-8; mobil `mobileInset` je Seite). Keine Hooks: rendert in Server- und
+Client-Baeumen, immer ausserhalb von Suspense (SSR-H1). TopicListing rendert
+ihn selbst (Sidebar-Knopf rechts), die Spotlight-Section kommt ueber `intro`
+darunter.
+
+**Datenschutz Autoren/Prompts:** anon konnte `authors.email` (alle Profile)
+und `ai_prompts.submitter_email` publizierter Prompts ueber die REST-API
+lesen. Oeffentliche Lesepfade nutzen `PUBLIC_AUTHOR_COLUMNS` (authorApi.ts,
+auch in `RELATIONS_FULL`) und `PUBLIC_PROMPT_COLUMNS` (promptApi.ts);
+Migration `20261112160000_public_columns_authors_prompts.sql` gibt anon nur
+diese Spalten (nicht additiv, nach dem Deploy pushen). Neue oeffentliche
+Spalte = in beiden Listen ergaenzen. `authors.user_id` bleibt lesbar
+(Sitemap, Policies mit `auth.uid()`).
+
+**Modell-Auswahl:** Fable 5.2 ersetzt Fable 5.1 in `KNOWN_MODELS` (8/40 USD,
+Preis per Migration `20261112120000` im Katalog).
+
 ### Startup «Kontakt aufnehmen», Datenschutz Startups, Hausanzeigen-Band, AI 1b (PR 194)
 
 **«Kontakt aufnehmen»** auf `/swiss-ai/<slug>` (Entscheid Ali 11.11.2026):
