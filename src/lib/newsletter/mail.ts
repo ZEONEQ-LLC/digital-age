@@ -104,11 +104,6 @@ export async function sendConfirmationMail(args: {
   token: string;
 }): Promise<SendResult> {
   const confirmationUrl = `${SITE_URL}/newsletter/confirm/${args.token}`;
-  // Temporäres Debug-Log — kann wieder raus sobald Bug verifiziert behoben.
-  console.log("[newsletter] NEWSLETTER_SITE_URL env:", JSON.stringify(process.env.NEWSLETTER_SITE_URL));
-  console.log("[newsletter] NEXT_PUBLIC_SITE_URL env:", JSON.stringify(process.env.NEXT_PUBLIC_SITE_URL));
-  console.log("[newsletter] resolved SITE_URL:", SITE_URL);
-  console.log("[newsletter] confirmationUrl:", confirmationUrl);
   return renderAndSend({
     to: args.email,
     subject: CONFIRMATION_SUBJECT,
@@ -122,7 +117,6 @@ export async function sendWelcomeMail(args: {
   token: string;
 }): Promise<SendResult> {
   const unsubscribeUrl = `${SITE_URL}/newsletter/abmelden/${args.token}`;
-  console.log("[newsletter] unsubscribeUrl:", unsubscribeUrl);
   return renderAndSend({
     to: args.email,
     subject: WELCOME_SUBJECT,
@@ -138,7 +132,6 @@ export async function sendInviteMail(args: {
   intendedRole?: "author" | "editor";
 }): Promise<SendResult> {
   const inviteUrl = `${SITE_URL}/onboarding?token=${args.token}`;
-  console.log("[newsletter] inviteUrl:", inviteUrl);
   return renderAndSend({
     to: args.email,
     subject: INVITE_SUBJECT,
