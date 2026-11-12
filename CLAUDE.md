@@ -1330,6 +1330,21 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+### Einheitlicher Seitenrand, Newsletter-Logs (PR 196)
+
+**Seitenrand `--gutter`** (`globals.css`): links/rechts auf allen oeffentlichen
+Seiten. Desktop und Tablet `var(--sp-8)` (32 px, wie bisher), ab 720 px
+abwaerts 24 px (gleich wie das Logo in der Navbar). Vorher hatte jeder
+Abschnitt seinen eigenen mobilen Rand (16, 20, 24 oder 32 px). Navbar, Footer,
+Startseiten-Abschnitte, Rubriken, Artikel, Suche, Detailseiten, Formulare und
+Statusseiten nutzen den Token; die Navbar steht dadurch auf dem Desktop bei
+152 px, buendig mit dem Inhalt (vorher 144). **Neue Seiten/Abschnitte:**
+seitliches Padding immer `var(--gutter)`, keine eigenen mobilen Raender.
+Innenabstaende von Karten, Knoepfen und Modals bleiben eigene Werte.
+
+**Newsletter-Logs:** `src/lib/newsletter/mail.ts` schreibt keine Bestaetigungs-,
+Abmelde- oder Einladungslinks (mit Token) mehr ins Server-Log.
+
 ### Newsletter-Versand, Suche erweitert, Kampagnenende, Rubrik-Kopf, Datenschutz Autoren/Prompts (PR 195)
 
 **Newsletter-Ausgaben** (Entscheid Ali 12.11.2026: Entwurf + Freigabe). Admin
