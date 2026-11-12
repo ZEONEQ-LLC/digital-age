@@ -17,6 +17,8 @@ export type Prompt = {
   uses: number;
   author: string;
   isTop: boolean;
+  // Von der KI-Redaktion erstellt (woechentlicher Job, PR 197).
+  aiGenerated?: boolean;
 };
 
 type PromptCardProps = {
@@ -93,6 +95,12 @@ export default function PromptCard({ prompt, accent = "var(--da-green)" }: Promp
           color: var(--dc);
           font-family: var(--da-font-mono);
           font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+        }
+        .pcard__ai {
+          color: var(--da-muted); border: 1px solid var(--da-border); border-radius: var(--r-xs);
+          font-family: var(--da-font-mono);
+          font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+          padding: 2px 6px;
         }
         .pcard__title {
           color: var(--da-text);
@@ -194,7 +202,11 @@ export default function PromptCard({ prompt, accent = "var(--da-green)" }: Promp
           <div className="pcard__foot-right">
             <span className="pcard__uses">{prompt.uses} uses</span>
             <span className="pcard__sep">·</span>
-            <span className="pcard__author">{prompt.author}</span>
+            {prompt.aiGenerated ? (
+              <span className="pcard__ai" title="Von der KI-Redaktion erstellt und mit Claude getestet">KI-Redaktion</span>
+            ) : (
+              <span className="pcard__author">{prompt.author}</span>
+            )}
           </div>
         </div>
       </Link>

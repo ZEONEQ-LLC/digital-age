@@ -42,8 +42,9 @@ function toLegacy(row: PublicPromptWithAuthor): Prompt {
     difficulty: (lookup(PROMPT_DIFFICULTIES, row.difficulty) as Difficulty),
     tool: (lookup(PROMPT_TESTED_WITH, row.tested_with) as AiTool),
     uses: row.uses_count,
-    author: row.author?.display_name ?? row.submitter_name ?? "Anonym",
+    author: row.ai_generated ? "KI-Redaktion" : row.author?.display_name ?? row.submitter_name ?? "Anonym",
     isTop: row.status === "featured",
+    aiGenerated: row.ai_generated,
   };
 }
 

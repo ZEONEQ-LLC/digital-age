@@ -20,7 +20,7 @@ export type PromptWithAuthor = PromptRow & {
 // ohne Login laufen, nutzen diese Liste statt "*". Neue oeffentliche Spalte =
 // hier und in der Migration ergaenzen.
 export const PUBLIC_PROMPT_COLUMNS =
-  "id, slug, title, category, context, prompt_text, example_output, tested_with, difficulty, status, author_id, submitter_name, submitter_url, uses_count, published_at, created_at, updated_at";
+  "id, slug, title, category, context, prompt_text, example_output, tested_with, difficulty, status, author_id, submitter_name, submitter_url, uses_count, published_at, created_at, updated_at, ai_generated";
 
 export type PublicPromptRow = Omit<PromptRow, "submitter_email" | "rejection_reason" | "reviewed_at" | "reviewed_by_id">;
 

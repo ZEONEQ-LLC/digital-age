@@ -88,7 +88,7 @@ export default async function PromptDetailPage({ params }: { params: Params }) {
   const tc = toolColor(tool);
   const isFeatured = row.status === "featured";
   const author = row.author;
-  const submitterName = !author ? (row.submitter_name ?? "Anonym") : null;
+  const submitterName = !author ? (row.ai_generated ? "KI-Redaktion" : (row.submitter_name ?? "Anonym")) : null;
   const submitterUrl = !author ? row.submitter_url : null;
 
   const baseUrl = getBaseUrl();
@@ -138,6 +138,12 @@ export default async function PromptDetailPage({ params }: { params: Params }) {
           font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
           padding: 3px 8px; border-radius: var(--r-xs);
         }
+        .pd-ai-note {
+          display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+          color: var(--da-muted); font-size: var(--fs-body-sm); line-height: 1.5;
+          border-left: 2px solid var(--da-border); padding: 2px 0 2px 12px; margin: -6px 0 28px;
+        }
+        .pd-ai-note a { color: var(--da-green); text-decoration: underline; text-underline-offset: 2px; }
         .pd-title {
           color: var(--da-text);
           font-family: var(--da-font-display);
@@ -252,6 +258,13 @@ export default async function PromptDetailPage({ params }: { params: Params }) {
         </div>
 
         <h1 className="pd-title">{row.title}</h1>
+
+        {row.ai_generated && (
+          <p className="pd-ai-note">
+            Von der KI-Redaktion erstellt und mit Claude getestet. Der Beispiel-Output stammt aus einem echten Durchlauf.
+            <Link href="/ki-transparenz">KI-Transparenz</Link>
+          </p>
+        )}
 
         <div className="pd-block">
           <p className="pd-block__label">Kontext & Anwendung</p>
