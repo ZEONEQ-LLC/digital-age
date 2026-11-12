@@ -93,10 +93,12 @@ export default async function FutureTechPage() {
          
         dangerouslySetInnerHTML={{ __html: itemListJsonLd }}
       />
-      <SpotlightSection articles={featured} />
       {/* Die Suspense-Grenze fuer useSearchParams liegt in TopicListing um
-          die Liste; Breadcrumb, H1 und Lead stehen im statischen HTML. */}
+          die Liste; der Kopf (HubHero) steht im statischen HTML, darunter
+          die Spotlight-Section der Rubrik. */}
       <TopicListing
+          heroTitle={<>Future <em>Tech</em></>}
+          intro={<SpotlightSection articles={featured} />}
           topicLabel="Future Tech"
           lead="Technologien von morgen — heute verstehen. GenAI, IoT, Blockchain und die Innovationen, die unsere Welt neu gestalten."
           articles={articles}

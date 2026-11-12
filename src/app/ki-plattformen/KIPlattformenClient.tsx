@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import Footer from "@/components/Footer";
+import HubHero from "@/components/HubHero";
 import PlatformCard, { hostingColor, hostingLabel, catColors, type Hosting, type Platform } from "@/components/PlatformCard";
 import PlatformRow from "@/components/PlatformRow";
 import CompareDrawer from "@/components/CompareDrawer";
@@ -67,31 +68,6 @@ export default function KIPlattformenClient() {
       <style>{`
         .kip-shell { max-width: var(--max-content); margin: 0 auto; }
         .kip-pad   { padding-left: var(--sp-8); padding-right: var(--sp-8); }
-        .kip-hero {
-          border-bottom: 1px solid var(--da-border);
-          padding: 56px var(--sp-8) 48px;
-        }
-        .kip-hero__overline {
-          color: var(--da-green);
-          font-family: var(--da-font-mono);
-          font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
-          margin-bottom: 14px;
-        }
-        .kip-hero__row {
-          display: flex; align-items: flex-end; justify-content: space-between;
-          flex-wrap: wrap; gap: var(--sp-6);
-        }
-        .kip-hero__title {
-          color: var(--da-text);
-          font-family: var(--da-font-display);
-          font-size: clamp(36px, 5vw, 56px);
-          font-weight: 700; line-height: 1.0; letter-spacing: -0.02em;
-          margin-bottom: var(--sp-4);
-        }
-        .kip-hero__title em { font-style: normal; color: var(--da-green); }
-        .kip-hero__lead {
-          color: var(--da-muted); font-size: 17px; line-height: 1.65; max-width: 560px;
-        }
         .kip-legend { display: flex; flex-direction: column; gap: var(--sp-2); }
         .kip-legend__row { display: flex; align-items: center; gap: 10px; }
         .kip-legend__dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
@@ -183,34 +159,32 @@ export default function KIPlattformenClient() {
         @media (max-width: 720px) {
           .kip-feat-grid { grid-template-columns: 1fr; }
           .kip-main-grid { grid-template-columns: 1fr; }
-          .kip-hero { padding: 40px var(--sp-6) 32px; }
         }
       `}</style>
 
-      {/* Hero */}
-      <section className="kip-hero">
-        <div className="kip-shell">
-          <p className="kip-hero__overline">Ressourcen</p>
-          <div className="kip-hero__row">
-            <div>
-              <h1 className="kip-hero__title">KI-<em>Plattformen</em></h1>
-              <p className="kip-hero__lead">
-                Kuratierte Übersicht der wichtigsten KI-Tools — mit Fokus auf Enterprise-Tauglichkeit, Hosting-Region und Preismodell.
-              </p>
-            </div>
-            <div className="kip-legend" aria-label="Hosting-Legende">
-              {(["CH", "EU", "US"] as Hosting[]).map((h) => (
-                <div key={h} className="kip-legend__row">
-                  <span className="kip-legend__dot" style={{ background: hostingColor(h) }} />
-                  <span className="kip-legend__label">
-                    {h === "CH" ? "Schweizer Hosting" : h === "EU" ? "Europäisches Hosting" : "US-basiert"}
-                  </span>
-                </div>
-              ))}
-            </div>
+      <HubHero
+        mobileInset="var(--sp-8)"
+        overline="Ressourcen"
+        title={<>KI-<em>Plattformen</em></>}
+        lead="Kuratierte Übersicht der wichtigsten KI-Tools — mit Fokus auf Enterprise-Tauglichkeit, Hosting-Region und Preismodell."
+        stats={[
+          { value: allPlatforms.length, label: "Plattformen" },
+          { value: categories.length - 1, label: "Kategorien" },
+          { value: hostings.length - 1, label: "Hosting-Regionen" },
+        ]}
+        right={
+          <div className="kip-legend" aria-label="Hosting-Legende">
+            {(["CH", "EU", "US"] as Hosting[]).map((h) => (
+              <div key={h} className="kip-legend__row">
+                <span className="kip-legend__dot" style={{ background: hostingColor(h) }} />
+                <span className="kip-legend__label">
+                  {h === "CH" ? "Schweizer Hosting" : h === "EU" ? "Europäisches Hosting" : "US-basiert"}
+                </span>
+              </div>
+            ))}
           </div>
-        </div>
-      </section>
+        }
+      />
 
       {/* Featured */}
       <section className="kip-shell kip-section">
