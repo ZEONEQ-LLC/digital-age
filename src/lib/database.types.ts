@@ -118,6 +118,7 @@ export type Database = {
           archived_at: string | null
           campaign_id: string
           created_at: string
+          end_report_sent_at: string | null
           expiry_notified_at: string | null
           id: string
           paused_at: string | null
@@ -130,6 +131,7 @@ export type Database = {
           archived_at?: string | null
           campaign_id: string
           created_at?: string
+          end_report_sent_at?: string | null
           expiry_notified_at?: string | null
           id?: string
           paused_at?: string | null
@@ -142,6 +144,7 @@ export type Database = {
           archived_at?: string | null
           campaign_id?: string
           created_at?: string
+          end_report_sent_at?: string | null
           expiry_notified_at?: string | null
           id?: string
           paused_at?: string | null
@@ -1352,6 +1355,135 @@ export type Database = {
         }
         Relationships: []
       }
+      newsletter_deliveries: {
+        Row: {
+          created_at: string
+          error: string | null
+          issue_id: string
+          provider_id: string | null
+          sent_at: string | null
+          subscriber_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          issue_id: string
+          provider_id?: string | null
+          sent_at?: string | null
+          subscriber_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          issue_id?: string
+          provider_id?: string | null
+          sent_at?: string | null
+          subscriber_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "newsletter_deliveries_issue_id_fkey"
+            columns: ["issue_id"]
+            isOneToOne: false
+            referencedRelation: "newsletter_issues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "newsletter_deliveries_subscriber_id_fkey"
+            columns: ["subscriber_id"]
+            isOneToOne: false
+            referencedRelation: "newsletter_subscribers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      newsletter_issues: {
+        Row: {
+          ai_note: string | null
+          created_at: string
+          created_by: string | null
+          delivered_count: number
+          edited_at: string | null
+          failed_count: number
+          id: string
+          intro: string
+          items: Json
+          last_error: string | null
+          period_from: string
+          period_to: string
+          recipients_count: number | null
+          send_started_at: string | null
+          sent_at: string | null
+          sent_by: string | null
+          source: string
+          status: string
+          subject: string
+          test_sent_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          ai_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_count?: number
+          edited_at?: string | null
+          failed_count?: number
+          id?: string
+          intro?: string
+          items?: Json
+          last_error?: string | null
+          period_from: string
+          period_to: string
+          recipients_count?: number | null
+          send_started_at?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          source?: string
+          status?: string
+          subject: string
+          test_sent_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ai_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_count?: number
+          edited_at?: string | null
+          failed_count?: number
+          id?: string
+          intro?: string
+          items?: Json
+          last_error?: string | null
+          period_from?: string
+          period_to?: string
+          recipients_count?: number | null
+          send_started_at?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          source?: string
+          status?: string
+          subject?: string
+          test_sent_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "newsletter_issues_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "newsletter_issues_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       newsletter_signup_attempts: {
         Row: {
           action: string
@@ -1860,6 +1992,30 @@ export type Database = {
         Returns: string
       }
       search_articles: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: {
+          id: string
+          rank: number
+          snippet: string
+        }[]
+      }
+      search_podcasts: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: {
+          id: string
+          rank: number
+          snippet: string
+        }[]
+      }
+      search_prompts: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: {
+          id: string
+          rank: number
+          snippet: string
+        }[]
+      }
+      search_startups: {
         Args: { p_limit?: number; p_query: string }
         Returns: {
           id: string
