@@ -1330,6 +1330,70 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+### Startseite neu, News-Rubrik, KI-Jobs fuer Plattformen und Prompts (PR 197)
+
+**Startseite** (Design-Check, Entscheid Ali 12.11.2026: mit Slogan-Band).
+Reihenfolge in `src/app/page.tsx`: `HomeDateline` (Slogan «KI & Future Tech
+fuer die DACH-Region.» als H1, Datum, Hero-Bild schwach rechts), Aufmacher
+`LeadStory` neben `NewsColumn` (7 neueste Ticker-Meldungen), `FocusRow`
+(«Im Fokus», 3), Billboard, `RubricBlock` KI & Business, Swiss-AI-Streifen,
+`RubricBlock` Future Tech, CTA. Komponenten in `src/components/home/`.
+Auswahl in `src/lib/homeApi.ts`: Aufmacher = neuester `is_hero`, sonst
+Featured, sonst neuester Artikel; Fokus = weitere Hero/Featured, aufgefuellt;
+Rubriken je 4; jeder Artikel hoechstens einmal. Teaser ueber `plainExcerpt`
+(LeadStory.tsx: entfernt `{{x}}`, `**`, `[^n]`, Links). `HeroBold` ist geloescht;
+`SpotlightSection` lebt in den Rubrikseiten weiter.
+
+**News** (`/news`, revalidate 300): freigegebene `news_items` der letzten 30
+Tage (mindestens 10, hoechstens 150), nach Tag gruppiert (Europe/Zurich),
+Anker `#n-<id>` fuer die Links aus der Startseiten-Spalte. Daten
+`src/lib/newsApi.ts` (Public-Client). Navbar, Footer und Sitemap verlinken.
+
+**KI-Plattformen aus der DB.** `ai_platforms` (Migration
+`20261112170000_ai_platforms_and_jobs.sql`, Startbestand = die 14 Eintraege
+aus dem Code, Texte auf Deutsch). `/ki-plattformen` liest ueber
+`getPlatformDirectory` (`src/lib/platformsApi.ts`, anon sieht nur `active`,
+revalidate 3600); `Platform.id` ist der Slug, `link` kann null sein («Auf
+Anfrage»). Admin `/autor/admin/ki-plattformen`: bearbeiten, hinzufuegen,
+archivieren, Top Pick, «Fuer KI gesperrt» (`locked`), Liste der KI-Aenderungen
+mit «Rueckgaengig» (`revertPlatformChange`: Vorher-Werte bzw. archivieren/
+aktivieren, setzt `reverted_at` und sperrt den Eintrag), «Jetzt pruefen».
+
+**KI-Job Plattformen** (Wunsch Ali: woechentlich, ohne Moderation, er wird
+informiert). Cron `/api/cron/platform-research` dienstags 05:15 UTC.
+`runPlatformResearch` (`src/lib/platforms/job.ts`): Task `platform_research`
+(Default Sonnet 5.5) mit Websuche (`LLMParams.webSearch`, Provider haengt
+`web_search_20260209` an, bei Haiku `web_search_20250305`, `pause_turn`
+wird bis zu dreimal fortgesetzt, `timeoutMs` 240 s). Prompt und Parser rein in
+`research.ts` (Test `__tests__/research.manual.ts`): Aenderungen nur mit
+https-Quelle, gesperrte/archivierte/unbekannte Eintraege fallen weg, hoechstens
+6 Updates, 3 Neuaufnahmen (mit Link, Dubletten nach Name, Host, Slug), 2
+Archivierungen. Jede Aenderung mit Vorher/Nachher, Grund und Quellen in
+`ai_platform_changes`, `verified_at` fuer bestaetigte Eintraege. Mail
+`AiJobReport` an `NEWSLETTER_REPLY_TO` bei Aenderungen oder (Cron) Fehlern.
+
+**KI-Job Prompts** (Entscheid Ali: 3 pro Woche, gekennzeichnet). Cron
+`/api/cron/prompt-generation` mittwochs 05:15 UTC. `runPromptGeneration`
+(`src/lib/promptGen/job.ts`): ein Aufruf `prompt_generation` schreibt drei
+Prompts fuer die am schwaechsten vertretenen Kategorien (`pickCategories`,
+Gleichstand rotiert mit der Kalenderwoche), je ein zweiter Aufruf fuehrt das
+ausgefuellte Beispiel aus (`example_output`, Kopfzeile «Beispiel mit …»).
+Insert mit Service-Role: `published`, `ai_generated = true`, `author_id` null,
+`submitter_name` «KI-Redaktion digital age», `tested_with` claude. Karte zeigt
+im Fuss den Chip «KI-Redaktion», die Detailseite einen Hinweis mit Link auf
+`/ki-transparenz`. Admin Prompts: Leiste mit letztem Lauf und «Jetzt
+erstellen», Kennzeichen «KI» in der Liste; Zurueckziehen = Archivieren.
+Reine Logik in `generate.ts` (Test `__tests__/generate.manual.ts`).
+
+**Gemeinsam:** Laeufe in `ai_job_runs` (`src/lib/aiJobs/runs.ts`, ein Lauf
+gilt 15 Minuten als aktiv, ein zweiter Start wird abgewiesen). Beide Tasks
+sind `BACKGROUND_TASKS` (kein Stundenlimit), Strategien in der
+Prompt-Verwaltung editierbar, Gruppe «Hintergrund-Jobs» in der
+AI-Konfiguration. Kosten: beim Cron `AI_JOBS_AUTHOR_ID` (optional), sonst
+aeltester Editor; beim Klick der Editor. Die Websuche kostet zusaetzlich zu
+den Tokens (nicht im `ai_usage_log`). `ai_prompts.ai_generated` ist fuer anon
+per Spaltenrecht freigegeben und steht in `PUBLIC_PROMPT_COLUMNS`.
+
 ### Einheitlicher Seitenrand, Newsletter-Logs (PR 196)
 
 **Seitenrand `--gutter`** (`globals.css`): links/rechts auf allen oeffentlichen
