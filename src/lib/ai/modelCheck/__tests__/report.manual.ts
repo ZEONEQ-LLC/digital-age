@@ -100,7 +100,7 @@ section("Regel Gratis-Upgrade");
   const r = recs.find((x) => x.kind === "upgrade");
   ok("Opus 4.8 → Opus 5.5 (neuer, billiger)", r?.targetModel === "claude-opus-5-5", JSON.stringify(recs));
   ok("Delta −20 %", near(r?.deltaPct ?? null, -20, 1e-6));
-  const recsNoUsage = recommendForTask({ task: "summary", currentModel: "claude-opus-4-8", stats: null, catalog: CAT, selectable: sel });
+  const recsNoUsage = recommendForTask({ task: "abstract_generate", currentModel: "claude-opus-4-8", stats: null, catalog: CAT, selectable: sel });
   ok("ohne Aufrufe: Upgrade nach Listenpreis", recsNoUsage.some((x) => x.kind === "upgrade" && x.deltaPct === null));
 }
 

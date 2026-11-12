@@ -10,6 +10,8 @@ import {
 } from "@/lib/submissions/mail";
 import type { Database } from "@/lib/database.types";
 import { FormError, runAction, type ActionResult } from "@/lib/actionResult";
+import { validateContactConsent } from "@/lib/startupContact/validate";
+import { createServiceClient } from "@/lib/supabase/service";
 
 type StartupRow = Database["public"]["Tables"]["ai_startups"]["Row"];
 type StartupUpdate = Database["public"]["Tables"]["ai_startups"]["Update"];
@@ -76,6 +78,10 @@ export type ExternalStartupSubmitInput = {
   submitter_name: string;
   submitter_email: string;
   submitter_role?: string | null;
+  // Optional: Adresse fuer «Kontakt aufnehmen», nur mit Einverstaendnis zur
+  // Weiterleitung (startup_contacts, nie oeffentlich).
+  contact_email?: string | null;
+  contact_consent?: boolean;
 };
 
 export async function submitStartupExternal(input: ExternalStartupSubmitInput): Promise<ActionResult<void>> {
@@ -106,6 +112,8 @@ async function submitStartupExternalInner(input: ExternalStartupSubmitInput): Pr
   }
   if (!submitterName) throw new FormError("Name ist erforderlich.");
   if (!isEmail(submitterEmail)) throw new FormError("E-Mail-Format ungültig.");
+  const contact = validateContactConsent(input.contact_email ?? "", input.contact_consent === true);
+  if (contact.error) throw new FormError(contact.error);
 
   const supabase = await createClient();
 
@@ -142,6 +150,24 @@ async function submitStartupExternalInner(input: ExternalStartupSubmitInput): Pr
       status: "pending",
     });
   if (error) throw error;
+
+  // Kontakt fuer Anfragen (nur mit Einverstaendnis): eigene Tabelle, nur
+  // Service-Role/Editoren. Ein Fehler hier bricht die Einreichung nicht ab;
+  // die Redaktion kann die Adresse spaeter im Admin eintragen.
+  if (contact.email) {
+    try {
+      const svc = createServiceClient();
+      const { data: created } = await svc.from("ai_startups").select("id").eq("slug", slug).maybeSingle();
+      if (created) {
+        const { error: cErr } = await svc
+          .from("startup_contacts")
+          .insert({ startup_id: created.id, email: contact.email, consent_source: "submission" });
+        if (cErr) console.error("[startup-submit] contact insert failed:", cErr.message);
+      }
+    } catch (err) {
+      console.error("[startup-submit] contact insert threw:", err);
+    }
+  }
 
   // Mail-Versand parallel — Failure ist nicht-kritisch (Editor sieht im
   // Admin). Editor-Notification verlinkt auf Listing-Page; konkrete

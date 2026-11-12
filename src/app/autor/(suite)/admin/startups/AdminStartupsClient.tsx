@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { StartupRow, StartupStatus } from "@/lib/startupApi";
+import { ContactModal, ContactRequestsSection, contactBadge, type ContactView, type RequestView } from "./StartupContactAdmin";
 import {
   approveStartup,
   rejectStartup,
@@ -93,9 +94,11 @@ function startupToDraft(s: StartupRow): EditDraft {
 
 type Props = {
   initialStartups: StartupRow[];
+  contacts: ContactView[];
+  requests: RequestView[];
 };
 
-export default function AdminStartupsClient({ initialStartups }: Props) {
+export default function AdminStartupsClient({ initialStartups, contacts, requests }: Props) {
   const router = useRouter();
   const startups = initialStartups;
   const [tab, setTab] = useState<TabKey>("pending");
@@ -107,6 +110,8 @@ export default function AdminStartupsClient({ initialStartups }: Props) {
   const [rejectReason, setRejectReason] = useState("");
   const [editFor, setEditFor] = useState<StartupRow | null>(null);
   const [draft, setDraft] = useState<EditDraft | null>(null);
+  const [contactFor, setContactFor] = useState<StartupRow | null>(null);
+  const contactById = useMemo(() => new Map(contacts.map((c) => [c.startupId, c])), [contacts]);
 
   const counts = useMemo(() => {
     const c: Record<TabKey, number> = { pending: 0, published: 0, featured: 0, rejected: 0, archived: 0 };
@@ -290,6 +295,10 @@ export default function AdminStartupsClient({ initialStartups }: Props) {
         .as-modal__body { color: var(--da-text); font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; background: var(--da-dark); border: 1px solid var(--da-border); border-radius: 4px; padding: 12px; }
         .as-modal__actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 22px; }
         .as-modal__row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .as-req { display: grid; grid-template-columns: 150px minmax(0,1fr) 140px 110px; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--da-border); font-size: 13px; color: var(--da-text); align-items: center; }
+        .as-req:last-child { border-bottom: none; }
+        .as-req--head { color: var(--da-faint); font-family: var(--da-font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+        @media (max-width: 720px) { .as-req { grid-template-columns: 1fr 1fr; } }
         .as-input, .as-textarea, .as-select {
           width: 100%; background: var(--da-dark); color: var(--da-text);
           border: 1px solid var(--da-border); border-radius: 4px;
@@ -402,6 +411,14 @@ export default function AdminStartupsClient({ initialStartups }: Props) {
                         {s.open_to_investment ? "✕ Investor" : "✓ Investor"}
                       </button>
                       <button className="as-btn" disabled={busy} onClick={() => openEdit(s)}>Edit</button>
+                      <button
+                        className={`as-btn${contactById.get(s.id) && !contactById.get(s.id)?.revokedAt ? " as-btn--ok" : ""}`}
+                        disabled={busy}
+                        title={contactBadge(contactById.get(s.id)) ?? "Kein Kontakt für Anfragen"}
+                        onClick={() => setContactFor(s)}
+                      >
+                        Kontakt
+                      </button>
                       <button className="as-btn" disabled={busy} onClick={() => wrap(s.id, async () => { unwrapAction(await archiveStartup(s.id)); })}>Archive</button>
                     </>
                   )}
@@ -618,6 +635,17 @@ export default function AdminStartupsClient({ initialStartups }: Props) {
           </div>
         </div>
       )}
+
+      {contactFor && (
+        <ContactModal
+          startup={{ id: contactFor.id, name: contactFor.name }}
+          contact={contactById.get(contactFor.id)}
+          requests={requests}
+          onClose={() => setContactFor(null)}
+        />
+      )}
+
+      <ContactRequestsSection requests={requests} />
     </>
   );
 }

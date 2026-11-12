@@ -88,7 +88,7 @@ export const MIN_MEASURED_CALLS = 3;
 // Urteilsintensive Aufgaben: laufen sie auf Haiku, schlaegt die Regel
 // «Qualitaet» eine Klasse hoeher vor. Bewusst nicht dabei: News-Ticker
 // (Haiku 5.5 gewollt), Hero-Vorschlaege (Haiku wegen 30-s-Timeout).
-export const JUDGMENT_TASKS: readonly AiTask[] = ["seo_pipeline", "seo_review", "highlight_suggestions", "tone_check"];
+export const JUDGMENT_TASKS: readonly AiTask[] = ["seo_pipeline", "seo_review", "highlight_suggestions"];
 // Aufgaben mit Bild-Input: nur Modelle mit Vision vorschlagen.
 export const VISION_TASKS: readonly AiTask[] = ["image_alt"];
 

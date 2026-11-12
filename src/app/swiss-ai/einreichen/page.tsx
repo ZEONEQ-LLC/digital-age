@@ -18,6 +18,7 @@ import type {
   FundingStageCode,
 } from "@/lib/startupApi";
 import { unwrapAction } from "@/lib/actionResult";
+import { validateContactConsent } from "@/lib/startupContact/validate";
 
 type FormData = {
   name: string;
@@ -42,6 +43,9 @@ type FormData = {
   contactName: string;
   email: string;
   role: string;
+  // Optional: Adresse fuer «Kontakt aufnehmen» (nur mit Einverstaendnis).
+  contactEmail: string;
+  contactConsent: boolean;
   agreed: boolean;
 };
 
@@ -53,7 +57,7 @@ const EMPTY: FormData = {
   employee_range: "r_11_50", founded: "",
   funding_stage: "", total_funding_range: "", last_round_at: "",
   open_to_investment: false, pitch_deck_url: "", founders: "",
-  contactName: "", email: "", role: "", agreed: false,
+  contactName: "", email: "", role: "", contactEmail: "", contactConsent: false, agreed: false,
 };
 
 const STEPS = [
@@ -208,6 +212,8 @@ export default function EinreichenPage() {
       if (!data.contactName.trim()) e.contactName = "Pflichtfeld";
       if (!data.email.trim())       e.email       = "Pflichtfeld";
       else if (!/\S+@\S+\.\S+/.test(data.email)) e.email = "Bitte gültige E-Mail eingeben";
+      const contact = validateContactConsent(data.contactEmail, data.contactConsent);
+      if (contact.error) e.contactEmail = contact.error;
       if (!data.agreed) e.agreed = "Bitte bestätigen";
     }
     setErrors(e);
@@ -246,6 +252,8 @@ export default function EinreichenPage() {
           submitter_name: data.contactName,
           submitter_email: data.email,
           submitter_role: data.role || null,
+          contact_email: data.contactEmail.trim() || null,
+          contact_consent: data.contactConsent,
         }));
         setSubmitted(true);
       } catch (err) {
@@ -648,6 +656,19 @@ export default function EinreichenPage() {
                         <input type="checkbox" checked={data.open_to_investment} onChange={(e) => update("open_to_investment", e.target.checked)} />
                         <span>Wir sind offen für Investorengespräche (kann später von der Redaktion bestätigt werden).</span>
                       </label>
+                    </div>
+                    <div className="field">
+                      <label className="lbl">Kontakt-E-Mail für Anfragen <span className="opt">(optional)</span></label>
+                      <input type="email" className={`input${errors.contactEmail ? " err" : ""}`} value={data.contactEmail} onChange={(e) => update("contactEmail", e.target.value)} placeholder="hello@unternehmen.ch" />
+                      <label className="ein-check" style={{ marginTop: 10 }}>
+                        <input type="checkbox" checked={data.contactConsent} onChange={(e) => { update("contactConsent", e.target.checked); setErrors((x) => ({ ...x, contactEmail: undefined })); }} />
+                        <span>
+                          Wir sind einverstanden, dass digital age Anfragen von Besucher:innen (z.B. Investoren oder Kunden)
+                          über das Formular «Kontakt aufnehmen» an diese Adresse weiterleitet. Die Adresse wird nicht
+                          veröffentlicht, jede weitergeleitete Mail enthält einen Link zum Beenden.
+                        </span>
+                      </label>
+                      {errors.contactEmail && <p className="err-msg">{errors.contactEmail}</p>}
                     </div>
                     <div className="field">
                       <label className="ein-check">

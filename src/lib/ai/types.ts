@@ -7,15 +7,10 @@
 
 // Logisches Task-Tag. Wird in `ai_usage_log.task` persistiert für spätere
 // Auswertung (Kosten pro Use-Case). title_variants, tone_check, summary und
-// closing_paragraph gehoerten zu Buttons der EditorSidebar, die mit PR 130
-// weggefallen ist; sie haben heute keinen Aufrufer (nur Modellwahl in der
-// AI-Konfiguration). Ob sie wiederkommen oder entfernt werden, ist offen
-// (Backlog «AI 1b»).
+// closing_paragraph (Buttons der EditorSidebar bis PR 130) sind mit PR 194
+// entfernt (Entscheid «AI 1b»); alte Log-Zeilen und Overrides mit diesen
+// Namen werden ignoriert.
 export type AiTask =
-  | "title_variants"
-  | "tone_check"
-  | "summary"
-  | "closing_paragraph"
   // Master-Button "SEO generieren" — 1 LLM-Call liefert 5+ Felder als JSON
   // (Themenprofil, Focus-Keyword, 3 Title-Kandidaten, Meta-Description,
   // Slug-Vorschlag, semantische Begriffe). Wird auch von den 4 Einzel-
@@ -63,10 +58,6 @@ export type AiTask =
 // Record erzwingt beim Kompilieren, dass jeder AiTask-Wert hier steht; eine
 // neue Task braucht nur diese Zeile plus Label und Gruppe im Admin.
 const AI_TASK_FLAGS: Record<AiTask, true> = {
-  title_variants: true,
-  tone_check: true,
-  summary: true,
-  closing_paragraph: true,
   seo_pipeline: true,
   seo_review: true,
   news_item_generation: true,

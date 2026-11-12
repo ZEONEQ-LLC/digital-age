@@ -39,8 +39,8 @@ export type PlacementGeometry = {
   allowedRessorts?: string[];
 };
 
-// Band-Aufschlag fuer article_inline (Presserat 10.1, Kundenkreative im
-// Artikel): Kopfzeile (~20 px) + Abstand (12 px) + Innenabstand oben/unten
+// Band-Aufschlag fuer article_inline (Presserat 10.1; Kunden- und seit PR 194
+// auch House-Kreative im Artikel): Kopfzeile (~20 px) + Abstand (12 px) + Innenabstand oben/unten
 // (2 x 20 px). Einmal gemessen, in die reservierten Hoehen eingerechnet, damit
 // die Hoehe vor dem Fetch bekannt bleibt (CLS-Regel aus #157/#158).
 export const BAND_EXTRA = 72;

@@ -39,13 +39,9 @@ const TASK_GROUPS: TaskGroup[] = [
     id: "content",
     label: "Content",
     tasks: [
-      "title_variants",
-      "tone_check",
-      "summary",
       "abstract_generate",
       "highlight_suggestions",
       "image_alt",
-      "closing_paragraph",
     ],
   },
   {

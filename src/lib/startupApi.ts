@@ -7,6 +7,18 @@ import { createPublicClient } from "@/lib/supabase/public";
 import type { Database } from "@/lib/database.types";
 
 export type StartupRow = Database["public"]["Tables"]["ai_startups"]["Row"];
+
+// Oeffentliche Spalten. Einreicher-Daten (Name, E-Mail, Rolle) und interne
+// Pruefdaten gehoeren nicht in Public-Reads; seit PR 194 darf anon sie per
+// Spaltenrechten auch gar nicht mehr lesen (Migration 20261112100000), ein
+// select("*") am Anon-Client wuerde dann scheitern.
+export const PUBLIC_STARTUP_COLUMNS =
+  "id, slug, name, tagline, description, website, logo_url, swiss_status, industry, city, employee_range, founded_year, funding_stage, total_funding_range, last_round_at, open_to_investment, pitch_deck_url, founder_names, status, published_at, created_at, updated_at";
+
+export type PublicStartupRow = Omit<
+  StartupRow,
+  "submitter_name" | "submitter_email" | "submitter_role" | "reviewed_by_id" | "reviewed_at" | "rejection_reason"
+>;
 export type StartupStatus = Database["public"]["Enums"]["startup_status"];
 export type SwissStatusCode = Database["public"]["Enums"]["swiss_status"];
 export type EmployeeRangeCode = Database["public"]["Enums"]["employee_range"];
@@ -20,11 +32,11 @@ export type StartupFilters = {
 };
 
 // PUBLIC: status in (published, featured).
-export async function getPublishedStartups(filters?: StartupFilters): Promise<StartupRow[]> {
+export async function getPublishedStartups(filters?: StartupFilters): Promise<PublicStartupRow[]> {
   const supabase = createPublicClient();
   let query = supabase
     .from("ai_startups")
-    .select("*")
+    .select(PUBLIC_STARTUP_COLUMNS)
     .in("status", ["published", "featured"])
     .order("published_at", { ascending: false, nullsFirst: false });
 
@@ -36,7 +48,7 @@ export async function getPublishedStartups(filters?: StartupFilters): Promise<St
   const { data, error } = await query;
   if (error) throw error;
 
-  const rows = (data ?? []) as StartupRow[];
+  const rows = (data ?? []) as PublicStartupRow[];
   // Featured zuerst, dann nach published_at
   return rows.sort((a, b) => {
     if (a.status === "featured" && b.status !== "featured") return -1;
@@ -48,28 +60,28 @@ export async function getPublishedStartups(filters?: StartupFilters): Promise<St
 }
 
 // PUBLIC: status=featured.
-export async function getFeaturedStartups(limit = 3): Promise<StartupRow[]> {
+export async function getFeaturedStartups(limit = 3): Promise<PublicStartupRow[]> {
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("ai_startups")
-    .select("*")
+    .select(PUBLIC_STARTUP_COLUMNS)
     .eq("status", "featured")
     .order("published_at", { ascending: false, nullsFirst: false })
     .limit(limit);
   if (error) throw error;
-  return (data ?? []) as StartupRow[];
+  return (data ?? []) as PublicStartupRow[];
 }
 
 // PUBLIC: status in (published, featured).
-export async function getStartupBySlug(slug: string): Promise<StartupRow | null> {
+export async function getStartupBySlug(slug: string): Promise<PublicStartupRow | null> {
   const supabase = createPublicClient();
   const { data } = await supabase
     .from("ai_startups")
-    .select("*")
+    .select(PUBLIC_STARTUP_COLUMNS)
     .eq("slug", slug)
     .in("status", ["published", "featured"])
     .maybeSingle();
-  return (data as StartupRow | null) ?? null;
+  return (data as PublicStartupRow | null) ?? null;
 }
 
 export async function getAllStartupsForAdmin(): Promise<StartupRow[]> {
