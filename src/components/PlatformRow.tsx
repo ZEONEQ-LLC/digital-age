@@ -5,7 +5,7 @@ import { catColors, hostingColor, hostingLabel, type Platform } from "./Platform
 type PlatformRowProps = {
   platform: Platform;
   inCompare: boolean;
-  onToggleCompare: (id: number) => void;
+  onToggleCompare: (id: string) => void;
   accent?: string;
 };
 
@@ -49,6 +49,7 @@ export default function PlatformRow({ platform, inCompare, onToggleCompare, acce
           font-size: 12px; font-weight: 700; padding: 7px 16px;
           border-radius: var(--r-sm); text-decoration: none; white-space: nowrap;
         }
+        .prow__open--off { background: transparent; color: var(--da-muted); border: 1px solid var(--da-border); padding: 6px 15px; cursor: default; }
         .prow__cmp {
           background: var(--da-dark);
           color: var(--da-faint);
@@ -79,7 +80,11 @@ export default function PlatformRow({ platform, inCompare, onToggleCompare, acce
         <span className="prow__host">{hostingLabel(platform.hosting)}</span>
         <span className="prow__price">{platform.pricing}</span>
         <div className="prow__actions">
-          <a className="prow__open" href={platform.link} target="_blank" rel="noopener noreferrer">Öffnen →</a>
+          {platform.link ? (
+            <a className="prow__open" href={platform.link} target="_blank" rel="noopener noreferrer">Öffnen →</a>
+          ) : (
+            <span className="prow__open prow__open--off" title="Kein öffentlicher Link">Auf Anfrage</span>
+          )}
           <button
             type="button"
             className={`prow__cmp${inCompare ? " prow__cmp--on" : ""}`}
