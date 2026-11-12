@@ -65,6 +65,7 @@ export default function Navbar() {
           <div className="nav-desktop">
             <Link href="/ki-im-business">KI & Business</Link>
             <Link href="/future-tech">Future Tech</Link>
+            <Link href="/news">News</Link>
             <Link href="/swiss-ai" style={{ color: "var(--da-green)", fontWeight: 600 }}>🇨🇭 Swiss AI</Link>
             <div className="nav-dropdown">
               <button className="nav-dropdown-btn" onClick={() => setToolsOpen(!toolsOpen)}>
@@ -116,12 +117,13 @@ export default function Navbar() {
           zIndex: 199,
           backgroundColor: "var(--da-dark)",
           borderTop: "1px solid var(--da-card)",
-          padding: "16px 24px 24px",
+          padding: "16px var(--gutter) 24px",
           display: "flex",
           flexDirection: "column",
         }}>
           <Link href="/ki-im-business" style={{ color: "var(--da-text)", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>KI & Business</Link>
           <Link href="/future-tech" style={{ color: "var(--da-text)", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>Future Tech</Link>
+          <Link href="/news" style={{ color: "var(--da-text)", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>News</Link>
           <Link href="/swiss-ai" style={{ color: "var(--da-green)", textDecoration: "none", fontSize: "16px", fontWeight: 600, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>🇨🇭 Swiss AI</Link>
           <Link href="/login" style={{ color: "var(--da-text)", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>Login</Link>
           <Link href="/newsletter" style={{ color: "var(--da-text)", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>📬 Newsletter</Link>

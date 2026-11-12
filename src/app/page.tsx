@@ -1,17 +1,16 @@
 
-import HeroBold from "@/components/HeroBold";
-import SpotlightSection from "@/components/SpotlightSection";
+import FocusRow from "@/components/home/FocusRow";
+import HomeDateline from "@/components/home/HomeDateline";
+import LeadStory from "@/components/home/LeadStory";
+import NewsColumn from "@/components/home/NewsColumn";
+import RubricBlock from "@/components/home/RubricBlock";
 import ModuleSlot from "@/components/module/ModuleSlot";
 import { getSlotReservation } from "@/lib/ads/slotReservation";
 import SwissAIStrip from "@/components/SwissAIStrip";
-import ArticleSection from "@/components/ArticleSection";
 import CTAInverted from "@/components/CTAInverted";
 import Footer from "@/components/Footer";
-import {
-  getArticlesByCategory,
-  getHeroOrLatestByCategory,
-} from "@/lib/articleApi";
-import { articleToCard } from "@/lib/mappers/articleMappers";
+import { getHomeArticles } from "@/lib/homeApi";
+import { getLatestNews } from "@/lib/newsApi";
 import { getPublishedStartups } from "@/lib/startupApi";
 import { buildListingMetadata } from "@/lib/listingMetadata";
 import { getBaseUrl } from "@/lib/siteUrl";
@@ -45,24 +44,21 @@ export const metadata = buildListingMetadata({
 // (kein cookies()-Aufruf).
 export const revalidate = 60;
 
+const HOME_NEWS_COUNT = 7;
+
 export default async function Home() {
-  // BentoGrid (Featured-Section) entfernt — die Spotlight-Section deckt das
-  // Hero-Featuring ab. Kategorie-Sections filtern Hero-Artikel raus damit
-  // jeder Artikel max einmal auf der Homepage erscheint.
-  const [kiBusiness, futureTech, heroKi, heroFt, startups, billboardReserve] = await Promise.all([
-    getArticlesByCategory("ki-business", 3, { excludeHero: true }),
-    getArticlesByCategory("future-tech", 3, { excludeHero: true }),
-    getHeroOrLatestByCategory("ki-business"),
-    getHeroOrLatestByCategory("future-tech"),
+  // Startseite nach dem Design-Check (12.11.2026): Datumszeile, Aufmacher mit
+  // News-Spalte, «Im Fokus», Billboard, zwei Rubriken mit je einem grossen und
+  // drei kompakten Beitraegen, Swiss AI. Jeder Artikel hoechstens einmal
+  // (homeApi.ts).
+  const [home, news, startups, billboardReserve] = await Promise.all([
+    getHomeArticles(),
+    getLatestNews(HOME_NEWS_COUNT),
     getPublishedStartups(),
     // G3: Bild- oder Texthoehe fuer das Billboard serverseitig reservieren.
     getSlotReservation("home_billboard"),
   ]);
-
-  // Spotlight: 1 Hero (oder Fallback-Neueste) pro Kategorie.
-  const spotlight = [heroKi, heroFt].filter(
-    (a): a is NonNullable<typeof a> => !!a,
-  );
+  const spotlight = [home.lead, ...home.focus].filter((a): a is NonNullable<typeof a> => !!a);
 
   // Swiss-AI-Strip: Top-5 published Startups (featured zuerst, dann nach
   // published_at desc — sortiert via getPublishedStartups). Klick auf eine
@@ -87,8 +83,7 @@ export default async function Home() {
     logoPath: OG_FALLBACK_PATH,
     sameAs: BRAND_SAME_AS,
   });
-  // ItemList: Spotlight-Articles (Hero pro Kategorie). Klein und
-  // SEO-relevant — die Section ist die erste Content-Einheit auf der Home.
+  // ItemList: Aufmacher und «Im Fokus», die ersten Inhalte der Startseite.
   const spotlightItemList =
     spotlight.length > 0
       ? buildItemListJsonLd({
@@ -120,20 +115,27 @@ export default async function Home() {
         />
       )}
 
-      <HeroBold />
-      <SpotlightSection articles={spotlight} />
-      {/* Billboard: oben derselbe Abstand wie zwischen den Sektionen (64px, mobil 40px);
-          unten nichts — die naechste Sektion bringt ihren eigenen Abstand mit. */}
+      <HomeDateline />
       <style>{`
+        .home-top { max-width: var(--max-content); margin: 0 auto; padding: 32px var(--gutter) 0; display: grid; grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr); gap: 40px; align-items: start; }
+        @media (max-width: 1024px) { .home-top { grid-template-columns: minmax(0, 1fr); gap: 32px; } }
+        @media (max-width: 640px) { .home-top { padding-top: 20px; } }
         .home-module-wrap { max-width: var(--max-content); margin: 0 auto; padding: 64px var(--gutter) 0; }
         @media (max-width: 768px) { .home-module-wrap { padding: 40px var(--gutter) 0; } }
       `}</style>
+      <div className="home-top">
+        {home.lead && <LeadStory article={home.lead} />}
+        <NewsColumn items={news} />
+      </div>
+      <FocusRow articles={home.focus} />
+      {/* Billboard: oben derselbe Abstand wie zwischen den Sektionen (64px, mobil 40px);
+          unten nichts — die naechste Sektion bringt ihren eigenen Abstand mit. */}
       <div className="home-module-wrap">
         <ModuleSlot code="home_billboard" reserve={billboardReserve} />
       </div>
-      <ArticleSection title="KI & Business" href="/ki-im-business" articles={kiBusiness.map(articleToCard)} />
+      <RubricBlock title="KI & Business" href="/ki-im-business" articles={home.kiBusiness} />
       <SwissAIStrip items={swissAI} />
-      <ArticleSection title="Future Tech" href="/future-tech" articles={futureTech.map(articleToCard)} />
+      <RubricBlock title="Future Tech" href="/future-tech" articles={home.futureTech} />
       <CTAInverted />
       <Footer />
     </main>
