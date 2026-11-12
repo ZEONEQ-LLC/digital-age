@@ -17,8 +17,8 @@
 // Reihenfolge im Array steuert die Dropdown-Reihenfolge: empfohlenes
 // Default (Haiku 5.5) zuerst, dann aufsteigend nach Capability.
 //
-// Stand 2026-10-11 (Claude-5.5-Generation). Vorgänger Haiku 4.5, Sonnet 5,
-// Opus 4.8 und Fable 5 sind per API weiterhin erreichbar, aber nicht mehr
+// Stand 2026-11-12 (Claude-5.5-Generation, Fable 5.2). Vorgänger Haiku 4.5, Sonnet 5,
+// Opus 4.8, Fable 5 und Fable 5.1 sind per API weiterhin erreichbar, aber nicht mehr
 // in der Liste.
 
 export type ModelOption = {
@@ -32,7 +32,7 @@ export const KNOWN_MODELS: readonly ModelOption[] = [
   { id: "claude-haiku-5-5", label: "Claude Haiku 5.5 — schnell, günstig" },
   { id: "claude-sonnet-5-5", label: "Claude Sonnet 5.5 — ausgewogen" },
   { id: "claude-opus-5-5", label: "Claude Opus 5.5 — stärkstes Reasoning" },
-  { id: "claude-fable-5-1", label: "Claude Fable 5.1 — Frontier, teuer" },
+  { id: "claude-fable-5-2", label: "Claude Fable 5.2 — Frontier, teuer" },
 ];
 
 export const KNOWN_MODEL_IDS: ReadonlySet<string> = new Set(

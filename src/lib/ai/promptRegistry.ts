@@ -18,6 +18,7 @@ import { HIGHLIGHT_SUGGESTIONS_STRATEGY } from "@/lib/ai/highlightPrompts";
 import { IMAGE_ALT_STRATEGY } from "@/lib/ai/imageAltPrompts";
 import { HERO_PROPOSALS_STRATEGY, SOCIAL_POSTS_STRATEGY } from "@/lib/ai/heroPrompts";
 import { ABSTRACT_STRATEGY } from "@/lib/ai/abstractPrompts";
+import { NEWSLETTER_DRAFT_STRATEGY } from "@/lib/ai/newsletterPrompts";
 
 export const EDITABLE_PROMPT_IDS = [
   "seo_keyword_candidates",
@@ -28,6 +29,7 @@ export const EDITABLE_PROMPT_IDS = [
   "image_alt",
   "hero_proposals",
   "social_posts",
+  "newsletter_draft",
 ] as const;
 
 export type EditablePromptId = (typeof EDITABLE_PROMPT_IDS)[number];
@@ -43,6 +45,7 @@ export const EDITABLE_DEFAULT_STRATEGIES: Record<EditablePromptId, string> = {
   image_alt: IMAGE_ALT_STRATEGY,
   hero_proposals: HERO_PROPOSALS_STRATEGY,
   social_posts: SOCIAL_POSTS_STRATEGY,
+  newsletter_draft: NEWSLETTER_DRAFT_STRATEGY,
 };
 
 // Saeuberung analog Modell-Overrides: nur bekannte Prompt-IDs, leere/

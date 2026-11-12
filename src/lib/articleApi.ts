@@ -2,6 +2,7 @@
 // Inhalte (published Articles) → Anon-Client. Damit fällt der
 // cookies()-Aufruf des ssr-Clients weg und die Public-Pages werden
 // cachebar (revalidate/ISR). Siehe src/lib/supabase/public.ts.
+import { PUBLIC_AUTHOR_COLUMNS, type PublicAuthorRow } from "@/lib/authorApi";
 import { createPublicClient } from "@/lib/supabase/public";
 import type { Database } from "@/lib/database.types";
 
@@ -19,13 +20,14 @@ export type ArticleWithRelations = ArticleRow & {
 
 export type ArticleWithFullRelations = ArticleRow & {
   category: CategoryRow | null;
-  author: AuthorRow | null;
+  author: PublicAuthorRow | null;
 };
 
 export const RELATIONS_SHORT =
   "*, category:categories(slug, name_de, name_en), author:authors(slug, display_name, avatar_url, handle, role)";
 
-const RELATIONS_FULL = "*, category:categories(*), author:authors(*)";
+// author ohne email: anon hat darauf kein Leserecht (PUBLIC_AUTHOR_COLUMNS).
+const RELATIONS_FULL = `*, category:categories(*), author:authors(${PUBLIC_AUTHOR_COLUMNS})`;
 
 export async function getFeaturedArticles(limit = 4): Promise<ArticleWithRelations[]> {
   const supabase = createPublicClient();

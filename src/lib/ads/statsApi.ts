@@ -22,6 +22,7 @@ export type CampaignStats = {
   ctr: number | null;
   byPlacement: PlacementStats[];
   series: { day: string; impressions: number; clicks: number }[]; // letzte N Tage, YYYY-MM-DD (Zuerich), lueckenlos
+  seriesEndsAtCampaignEnd: boolean; // true = Kampagne beendet, die Reihe endet am letzten Kampagnentag statt heute
   periodFrom: string | null;  // ISO
   periodTo: string | null;    // ISO, null = offen
   daysElapsed: number;        // Laufzeit-Tage bisher (Zuercher Tage, min 0)
@@ -99,12 +100,6 @@ export async function getCampaignStats(supabase: Sb, campaignId: string, days = 
     .sort((a, b) => b.impressions - a.impressions);
 
   const today = zurichDay();
-  const series: CampaignStats["series"] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const day = shiftDay(today, -i);
-    const d = byDay.get(day);
-    series.push({ day, impressions: d?.impressions ?? 0, clicks: d?.clicks ?? 0 });
-  }
 
   // Zeitraum: min lower / max upper der Buchungen; eine offene Obergrenze macht das Ganze offen.
   let from: number | null = null;
@@ -127,7 +122,21 @@ export async function getCampaignStats(supabase: Sb, campaignId: string, days = 
     if (periodTo) daysTotal = Math.max(0, dayDiff(startDay, zurichDay(new Date(new Date(periodTo).getTime() - 1))) + 1);
   }
 
-  return { impressions, clicks, ctr: ctrOf(impressions, clicks), byPlacement, series, periodFrom, periodTo, daysElapsed, daysTotal };
+  // Reihe: letzte N Tage bis heute; bei beendeter Kampagne bis zum letzten
+  // Kampagnentag (sonst zeigt der Bericht Wochen nach dem Ende nur Nullen).
+  const ended = periodTo !== null && new Date(periodTo).getTime() <= Date.now();
+  const seriesEnd = ended && periodTo ? zurichDay(new Date(new Date(periodTo).getTime() - 1)) : today;
+  const series: CampaignStats["series"] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const day = shiftDay(seriesEnd, -i);
+    const d = byDay.get(day);
+    series.push({ day, impressions: d?.impressions ?? 0, clicks: d?.clicks ?? 0 });
+  }
+
+  return {
+    impressions, clicks, ctr: ctrOf(impressions, clicks), byPlacement, series, seriesEndsAtCampaignEnd: ended,
+    periodFrom, periodTo, daysElapsed, daysTotal,
+  };
 }
 
 type RowsQuery = {

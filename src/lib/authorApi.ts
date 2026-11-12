@@ -8,6 +8,16 @@ import { createPublicClient } from "@/lib/supabase/public";
 import type { Database } from "@/lib/database.types";
 
 export type AuthorRow = Database["public"]["Tables"]["authors"]["Row"];
+
+// Oeffentliche Autoren-Spalten (Datenschutz): anon darf email nicht lesen
+// (Spaltenrechte, Migration 20261112160000_public_columns_authors_prompts.sql).
+// Lesepfade ohne Login nutzen diese Liste statt "*". user_id bleibt lesbar
+// (Sitemap: nur geclaimte Profile). Neue oeffentliche Spalte = hier und in
+// der Migration ergaenzen.
+export const PUBLIC_AUTHOR_COLUMNS =
+  "id, slug, handle, display_name, bio, avatar_url, job_title, location, social_links, joined_at, role, user_id, created_at, updated_at";
+
+export type PublicAuthorRow = Omit<AuthorRow, "email">;
 export type ArticleRow = Database["public"]["Tables"]["articles"]["Row"];
 type CategoryRow = Database["public"]["Tables"]["categories"]["Row"];
 export type RevisionRow = Database["public"]["Tables"]["revisions"]["Row"];
@@ -57,21 +67,21 @@ export async function getCurrentAuthor(): Promise<AuthorRow | null> {
 // ohne diesen Fallback liefe ihre eigene Byline-URL ins 404. Zwei getrennte
 // `.eq()`-Queries statt `.or(...)` mit interpoliertem Param (kein PostgREST-
 // Filter-Injection-Vektor); handle hat Vorrang für deterministische Auflösung.
-export async function getAuthorByHandle(handle: string): Promise<AuthorRow | null> {
+export async function getAuthorByHandle(handle: string): Promise<PublicAuthorRow | null> {
   const supabase = createPublicClient();
   const byHandle = await supabase
     .from("authors")
-    .select("*")
+    .select(PUBLIC_AUTHOR_COLUMNS)
     .eq("handle", handle)
     .maybeSingle();
-  if (byHandle.data) return byHandle.data;
+  if (byHandle.data) return byHandle.data as PublicAuthorRow;
 
   const bySlug = await supabase
     .from("authors")
-    .select("*")
+    .select(PUBLIC_AUTHOR_COLUMNS)
     .eq("slug", handle)
     .maybeSingle();
-  return bySlug.data;
+  return (bySlug.data as PublicAuthorRow | null) ?? null;
 }
 
 // PUBLIC: status=published, author_id ist Param (nicht aus Session).

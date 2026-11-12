@@ -1,3 +1,4 @@
+import Link from "next/link";
 import PageTitle from "@/components/author/PageTitle";
 import { createClient } from "@/lib/supabase/server";
 import AdminNewsletterClient, {
@@ -98,6 +99,23 @@ export default async function AdminNewsletterPage({
       <PageTitle
         title="Newsletter-Abonnent:innen"
         subtitle={`${counts.all} insgesamt · ${counts.pending} pending · ${counts.confirmed} confirmed · ${counts.unsubscribed} unsubscribed`}
+        right={
+          <Link
+            href="/autor/admin/newsletter/ausgaben"
+            style={{
+              color: "var(--da-green)",
+              border: "1px solid var(--da-green)",
+              borderRadius: 4,
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 700,
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Ausgaben: Entwurf und Versand →
+          </Link>
+        }
       />
       <AdminNewsletterClient
         rows={rows}

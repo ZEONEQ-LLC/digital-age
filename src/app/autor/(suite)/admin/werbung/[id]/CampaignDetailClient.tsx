@@ -8,6 +8,7 @@ import {
   exportCampaignStatsRows, extendBookings, pauseBookings, reactivateBookings, regeneratePreviewToken, resumeBookings,
   saveImageCreativePair, setCampaignStatus, updateCampaign, updateCreative,
 } from "@/lib/ads/adActions";
+import { formatLastDay, previewValidity } from "@/lib/ads/campaignEnd";
 import type { CampaignStats } from "@/lib/ads/statsApi";
 import { COUNT_RULE_DU, formatCount, formatCtr, formatRuntime } from "@/lib/ads/statsFormat";
 import StatCell from "@/components/author/StatCell";
@@ -405,6 +406,9 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
   const hasRef = bScope !== "global";
   const shareTitle = `Anteil = Gewicht ${c.weight} / (${c.weight} + Summe der Gewichte der anderen Live-Kampagnen auf derselben Fläche und Ebene, überlappender Zeitraum). Nicht-House schlägt House.`;
   const previewUrl = `${previewBase}/vorschau/${c.preview_token}`;
+  // Abschlussbericht und Ablauf des Vorschau-Links (30 Tage nach Kampagnenende).
+  const validity = previewValidity({ isHouse, status: c.status, bookings: detail.bookings });
+  const endReportAt = activeBookings.map((b) => b.end_report_sent_at).filter((v): v is string => !!v).sort().pop() ?? null;
 
   // Stammdaten und Tracking speichern ueber dieselbe Action; beide Bloecke
   // schicken deshalb den vollen Stand, sonst wuerde ein Block den anderen leeren.
@@ -505,7 +509,17 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
             {c.approved_at ? `Freigegeben am ${formatDate(c.approved_at)} von ${c.approved_by ?? "—"}` : "Noch nicht freigegeben"}
           </div>
           {c.approved_note && <p style={{ color: "var(--da-muted)", fontSize: 13, margin: 0, whiteSpace: "pre-wrap" }}>{c.approved_note}</p>}
-          <p style={help}>Der Kunde sieht Kreative und Buchungen, keine Adresse und keinen Preis. Mit ?vorschau=&lt;Token&gt; zeigt jede öffentliche Seite die Kampagne an ihren echten Positionen. Die Freigabe ist Information, kein Gate für live.</p>
+          {(validity.expired || validity.expiresAt || endReportAt) && (
+            <div style={{ color: validity.expired ? "var(--da-orange)" : "var(--da-muted)", fontSize: 14 }}>
+              {validity.expired
+                ? `Link abgelaufen (gültig bis ${formatLastDay(validity.expiredAt)}, 30 Tage nach Kampagnenende). Die Zahlen bleiben hier und im CSV.`
+                : validity.expiresAt
+                  ? `Kampagne beendet. Der Link ist bis ${formatLastDay(validity.expiresAt)} gültig.`
+                  : null}
+              {endReportAt && ` Abschlussbericht gesendet am ${formatDate(endReportAt)}.`}
+            </div>
+          )}
+          <p style={help}>Der Kunde sieht Kreative und Buchungen, keine Adresse und keinen Preis. Mit ?vorschau=&lt;Token&gt; zeigt jede öffentliche Seite die Kampagne an ihren echten Positionen. Die Freigabe ist Information, kein Gate für live. Am Morgen nach dem Kampagnenende bekommt der Kunde automatisch die finalen Zahlen (Kopie an die Redaktion); der Link bleibt danach 30 Tage gültig.</p>
         </div>
       )}
 
@@ -528,7 +542,7 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
               <StatCell label="Laufzeit" value={formatRuntime(stats.daysElapsed, stats.daysTotal)} sub="Tage bisher / gesamt" />
             </div>
             <div>
-              <span style={labelStyle}>Impressionen · letzte 30 Tage</span>
+              <span style={labelStyle}>{stats.seriesEndsAtCampaignEnd ? "Impressionen · letzte 30 Tage bis Kampagnenende" : "Impressionen · letzte 30 Tage"}</span>
               <StatsSeries series={stats.series} />
             </div>
             <div style={{ overflowX: "auto" }}>

@@ -13,4 +13,5 @@ export const TASK_LABELS: Record<AiTask, string> = {
   podcast_ingest: "Podcast-Empfehlung per Teilen",
   hero_proposals: "Hero Studio — Vorschläge",
   social_posts: "Hero Studio — Posttexte",
+  newsletter_draft: "Newsletter-Entwurf",
 };
