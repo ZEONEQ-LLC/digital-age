@@ -52,7 +52,10 @@ export type AiTask =
   | "hero_proposals"
   // Hero Studio: Posttexte fuer LinkedIn und Instagram zum Beitrag (JSON),
   // nur Anzeige und ZIP-Paket, nicht gespeichert.
-  | "social_posts";
+  | "social_posts"
+  // Newsletter-Entwurf (PR 195): Betreff, Einleitung und Kurztexte zu den
+  // neuen Artikeln als JSON. Cron montags (System-Author) oder Knopf im Admin.
+  | "newsletter_draft";
 
 // Laufzeit-Liste aller Tasks (Resolver, Speichern der Konfiguration). Der
 // Record erzwingt beim Kompilieren, dass jeder AiTask-Wert hier steht; eine
@@ -67,6 +70,7 @@ const AI_TASK_FLAGS: Record<AiTask, true> = {
   podcast_ingest: true,
   hero_proposals: true,
   social_posts: true,
+  newsletter_draft: true,
 };
 
 export const AI_TASKS = Object.keys(AI_TASK_FLAGS) as AiTask[];

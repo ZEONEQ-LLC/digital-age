@@ -21,6 +21,7 @@ const PROMPT_LABELS: Record<EditablePromptId, string> = {
   image_alt: "Bild-ALT-Texte",
   hero_proposals: "Hero Studio — Vorschläge",
   social_posts: "Hero Studio — Posttexte",
+  newsletter_draft: "Newsletter-Entwurf",
 };
 
 // Visuelle Gruppierung der Tasks auf dieser Seite. Reihenfolge im Array =
@@ -53,6 +54,11 @@ const TASK_GROUPS: TaskGroup[] = [
     id: "hero",
     label: "Hero Studio",
     tasks: ["hero_proposals", "social_posts"],
+  },
+  {
+    id: "newsletter",
+    label: "Newsletter",
+    tasks: ["newsletter_draft"],
   },
 ];
 

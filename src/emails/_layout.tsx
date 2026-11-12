@@ -43,6 +43,9 @@ import type { ReactNode } from "react";
 export type LayoutProps = {
   previewText: string;
   children: ReactNode;
+  // Optionale Zeile ueber Impressum/Datenschutz, z. B. der Abmeldelink des
+  // Newsletters. Gleiche Fussnoten-Optik.
+  footerExtra?: ReactNode;
 };
 
 // CSS-Block für den <Head>. Enthält color-scheme-Hint + Dark-Mode-Overrides.
@@ -103,7 +106,7 @@ const SITE_URL = resolveSiteUrl();
 const FONT_BODY = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 const FONT_DISPLAY = "'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
-export default function Layout({ previewText, children }: LayoutProps) {
+export default function Layout({ previewText, children, footerExtra }: LayoutProps) {
   return (
     <Html lang="de">
       <Head>
@@ -187,6 +190,13 @@ export default function Layout({ previewText, children }: LayoutProps) {
                   fontFamily: FONT_BODY,
                 }}
               >
+                {footerExtra && (
+                  <>
+                    {footerExtra}
+                    <br />
+                    <br />
+                  </>
+                )}
                 digital-age — News &amp; Analysen zu KI und Future Tech.
                 <br />
                 <Link

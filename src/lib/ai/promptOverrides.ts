@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
 import type { EditablePromptId } from "@/lib/ai/promptRegistry";
 
@@ -8,10 +10,13 @@ import type { EditablePromptId } from "@/lib/ai/promptRegistry";
 // eine eigene Kopie, weil "use server"-Module nur async Actions exportieren
 // duerfen. Nur nicht-leere Strings zaehlen, alles andere faellt weg und der
 // Builder nimmt den Code-Default. Bei jedem Fehler (RLS, 0 Rows, Netz) → {}.
-// Kein Cache: frisch pro Call wie resolveLLMConfig.
-export async function getPromptOverrides(): Promise<Partial<Record<EditablePromptId, string>>> {
+// Kein Cache: frisch pro Call wie resolveLLMConfig. Ohne Session (Cron)
+// uebergibt der Aufrufer den Service-Client.
+export async function getPromptOverrides(
+  client?: SupabaseClient<Database>,
+): Promise<Partial<Record<EditablePromptId, string>>> {
   try {
-    const supabase = await createClient();
+    const supabase = client ?? (await createClient());
     const { data, error } = await supabase
       .from("ai_config")
       .select("task_prompt_overrides")
@@ -34,6 +39,9 @@ export async function getPromptOverrides(): Promise<Partial<Record<EditablePromp
   }
 }
 
-export async function getPromptOverride(id: EditablePromptId): Promise<string | undefined> {
-  return (await getPromptOverrides())[id];
+export async function getPromptOverride(
+  id: EditablePromptId,
+  client?: SupabaseClient<Database>,
+): Promise<string | undefined> {
+  return (await getPromptOverrides(client))[id];
 }
