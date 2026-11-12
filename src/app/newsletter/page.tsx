@@ -15,7 +15,7 @@ export default function Page() {
     <main style={{ paddingTop: "64px", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       
 
-      <section style={{ maxWidth: "900px", margin: "0 auto", padding: "64px 32px" }}>
+      <section style={{ maxWidth: "900px", margin: "0 auto", padding: "64px var(--gutter)" }}>
         <div style={{ textAlign: "center", marginBottom: "48px" }}>
           <p style={{ color: "var(--da-green)", fontSize: "13px", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "16px" }}>📬 Newsletter</p>
           <h1 style={{ color: "var(--da-text)", fontSize: "clamp(36px, 5vw, 56px)", fontWeight: 700, lineHeight: 1.15, marginBottom: "20px", fontFamily: "var(--da-font-display)" }}>

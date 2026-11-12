@@ -28,10 +28,10 @@ export default function ArticleSection({ title, href, articles, featured = false
           .article-grid-3 { grid-template-columns: 1fr !important; }
           .article-grid-2 { grid-template-columns: 1fr !important; }
           .section-header { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
-          .section-wrapper { padding: 40px 16px 0 !important; }
+          .section-wrapper { padding: 40px var(--gutter) 0 !important; }
         }
       `}</style>
-      <section className="section-wrapper" style={{ maxWidth: "1200px", margin: "0 auto", padding: "64px 32px 0" }}>
+      <section className="section-wrapper" style={{ maxWidth: "1200px", margin: "0 auto", padding: "64px var(--gutter) 0" }}>
         <div className="section-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "32px", borderBottom: "1px solid var(--da-border)", paddingBottom: "16px" }}>
           <h2 style={{ color: "var(--da-text)", fontSize: "24px", fontWeight: 700 }}>{title}</h2>
           <a href={href} style={{ color: "var(--da-green)", fontSize: "13px", fontWeight: 600, textDecoration: "none", letterSpacing: "0.05em" }}>

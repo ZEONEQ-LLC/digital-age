@@ -67,14 +67,14 @@ export default function KIPlattformenClient() {
 
       <style>{`
         .kip-shell { max-width: var(--max-content); margin: 0 auto; }
-        .kip-pad   { padding-left: var(--sp-8); padding-right: var(--sp-8); }
+        .kip-pad   { padding-left: var(--gutter); padding-right: var(--gutter); }
         .kip-legend { display: flex; align-items: center; gap: 16px; }
         .kip-legend__row { display: inline-flex; align-items: center; gap: 7px; }
         .kip-legend__dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
         .kip-legend__label { color: var(--da-muted); font-size: 13px; }
 
-        .kip-section { padding: 48px var(--sp-8) 0; }
-        .kip-section-tight { padding: 56px var(--sp-8) 0; }
+        .kip-section { padding: 48px var(--gutter) 0; }
+        .kip-section-tight { padding: 56px var(--gutter) 0; }
         .kip-section-h {
           display: flex; align-items: center; gap: var(--sp-3);
           margin-bottom: var(--sp-6);
@@ -165,7 +165,6 @@ export default function KIPlattformenClient() {
       <HubHero
         title="KI-Plattformen"
         claim="Die wichtigsten KI-Tools im Vergleich"
-        mobileInset="var(--sp-8)"
         action={
           <div className="kip-legend" aria-label="Hosting-Legende">
             {(["CH", "EU", "US"] as Hosting[]).map((h) => (

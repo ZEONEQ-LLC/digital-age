@@ -198,7 +198,7 @@ export default function KontaktPage() {
       />
 
       <style>{`
-        .ko-section { max-width: 1100px; margin: 0 auto; padding: 48px 32px 96px; }
+        .ko-section { max-width: 1100px; margin: 0 auto; padding: 48px var(--gutter) 96px; }
         .ko-cols { display: grid; grid-template-columns: 1fr 320px; gap: 40px; align-items: start; }
         .ko-card { background: var(--da-card); border: 1px solid var(--da-border); border-radius: 8px; padding: 28px; }
         .ko-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px; }
@@ -258,7 +258,7 @@ export default function KontaktPage() {
         }
         @media (max-width: 540px) {
           .ko-row { grid-template-columns: 1fr; }
-          .ko-section { padding: 32px 20px 64px; }
+          .ko-section { padding: 32px var(--gutter) 64px; }
           .ko-card { padding: 22px; }
         }
       `}</style>

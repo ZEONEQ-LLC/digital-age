@@ -288,7 +288,7 @@ export default function PitchPage() {
       <style>{`
         .a-pitch__hero {
           border-bottom: 1px solid var(--da-border);
-          padding: 48px 32px 40px;
+          padding: 48px var(--gutter) 40px;
           position: relative; overflow: hidden;
         }
         .a-pitch__hero-grid {
@@ -314,7 +314,7 @@ export default function PitchPage() {
         }
         .a-pitch__title em { font-style: normal; color: var(--da-green); }
         .a-pitch__lead { color: var(--da-muted); font-size: 16px; line-height: 1.65; max-width: 640px; }
-        .a-pitch__section { max-width: 1100px; margin: 0 auto; padding: 48px 32px 96px; }
+        .a-pitch__section { max-width: 1100px; margin: 0 auto; padding: 48px var(--gutter) 96px; }
         .a-pitch__cols {
           display: grid; grid-template-columns: 1fr 320px; gap: 40px; align-items: start;
         }

@@ -19,7 +19,7 @@ export default function HeroBold() {
         .hero-bold__top {
           position: absolute; top: var(--sp-8); left: 0; right: 0;
           max-width: var(--max-content); margin: 0 auto;
-          padding: 0 var(--sp-8);
+          padding: 0 var(--gutter);
           display: flex; justify-content: flex-end;
         }
         .hero-bold__date {
@@ -32,7 +32,7 @@ export default function HeroBold() {
           position: absolute; inset: 0;
           display: flex; flex-direction: column;
           align-items: center; justify-content: center;
-          text-align: center; padding: 0 var(--sp-8);
+          text-align: center; padding: 0 var(--gutter);
         }
         .hero-bold__title {
           color: var(--da-text);
@@ -48,7 +48,7 @@ export default function HeroBold() {
         .hero-bold__cta {
           position: absolute; bottom: 56px; left: 0; right: 0;
           max-width: var(--max-content); margin: 0 auto;
-          padding: 0 var(--sp-8);
+          padding: 0 var(--gutter);
           display: flex; align-items: center; gap: var(--sp-6);
           flex-wrap: wrap;
         }
@@ -75,8 +75,8 @@ export default function HeroBold() {
         }
         @media (max-width: 768px) {
           .hero-bold { height: 85svh; min-height: 560px; }
-          .hero-bold__top { top: 20px; padding: 0 var(--sp-5); }
-          .hero-bold__cta { bottom: 32px; padding: 0 var(--sp-5); flex-direction: column; align-items: stretch; gap: var(--sp-4); }
+          .hero-bold__top { top: 20px; padding: 0 var(--gutter); }
+          .hero-bold__cta { bottom: 32px; padding: 0 var(--gutter); flex-direction: column; align-items: stretch; gap: var(--sp-4); }
           .hero-bold__cta-primary { text-align: center; }
           .hero-bold__cta-secondary { justify-content: flex-start; }
         }

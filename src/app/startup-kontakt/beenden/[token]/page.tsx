@@ -17,7 +17,7 @@ export default async function EndForwardingPage({ params }: { params: Params }) 
   const { token } = await params;
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <section style={{ maxWidth: 640, margin: "0 auto", padding: "64px var(--sp-8) 96px" }}>
+      <section style={{ maxWidth: 640, margin: "0 auto", padding: "64px var(--gutter) 96px" }}>
         <h1
           style={{
             color: "var(--da-text)",

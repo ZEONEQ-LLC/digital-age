@@ -108,7 +108,7 @@ export default async function PromptDetailPage({ params }: { params: Params }) {
 
 
       <style>{`
-        .pd-shell { max-width: 820px; margin: 0 auto; padding: 56px var(--sp-8) 96px; }
+        .pd-shell { max-width: 820px; margin: 0 auto; padding: 56px var(--gutter) 96px; }
         .pd-crumb {
           color: var(--da-muted-soft);
           font-family: var(--da-font-mono);

@@ -267,8 +267,8 @@ export default function EinreichenPage() {
       
 
       <style>{`
-        .ein-shell { max-width: 1100px; margin: 0 auto; padding-left: var(--sp-8); padding-right: var(--sp-8); }
-        .ein-header { border-bottom: 1px solid var(--da-border); padding: 48px var(--sp-8) 40px; }
+        .ein-shell { max-width: 1100px; margin: 0 auto; padding-left: var(--gutter); padding-right: var(--gutter); }
+        .ein-header { border-bottom: 1px solid var(--da-border); padding: 48px var(--gutter) 40px; }
         .ein-crumb { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-4); }
         .ein-crumb__link { color: var(--da-muted); font-size: 13px; text-decoration: none; }
         .ein-crumb__sep { color: var(--da-faint); font-size: 13px; }
@@ -286,7 +286,7 @@ export default function EinreichenPage() {
         .ein-title em { font-style: normal; color: var(--da-green); }
         .ein-sub { color: var(--da-muted); font-size: 16px; line-height: 1.65; }
 
-        .ein-main { padding: 48px var(--sp-8) 0; }
+        .ein-main { padding: 48px var(--gutter) 0; }
         .ein-grid { display: grid; grid-template-columns: 1fr 320px; gap: 56px; align-items: start; }
 
         .ein-stepbar { display: flex; align-items: center; margin-bottom: 36px; }
@@ -488,7 +488,7 @@ export default function EinreichenPage() {
           .ein-stepbar { gap: 4px; }
           .ein-step__line { margin: 0 6px; }
           .ein-step__label { display: none; }
-          .ein-header { padding: 32px var(--sp-6) 28px; }
+          .ein-header { padding: 32px var(--gutter) 28px; }
         }
       `}</style>
 

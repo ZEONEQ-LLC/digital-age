@@ -50,7 +50,6 @@ export default async function SwissAIPage() {
       <HubHero
         title="Swiss AI"
         claim="Schweizer KI-Unternehmen im Verzeichnis"
-        mobileInset="var(--sp-8)"
         action={<Link href="/swiss-ai/einreichen" className="hh-btn hh-btn--accent">+ Unternehmen eintragen</Link>}
       />
 

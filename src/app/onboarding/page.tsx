@@ -39,7 +39,7 @@ function isExpired(iso: string): boolean {
 }
 
 const sectionStyle: React.CSSProperties = {
-  maxWidth: 520, margin: "0 auto", padding: "64px 32px",
+  maxWidth: 520, margin: "0 auto", padding: "64px var(--gutter)",
 };
 const cardStyle: React.CSSProperties = {
   background: "var(--da-card)", border: "1px solid var(--da-border)",

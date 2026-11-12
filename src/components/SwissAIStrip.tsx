@@ -16,7 +16,7 @@ export default function SwissAIStrip({ items, href = "/swiss-ai" }: SwissAIStrip
   return (
     <>
       <style>{`
-        .swiss-section { max-width: var(--max-content); margin: 0 auto; padding: var(--sp-16) var(--sp-8) 0; }
+        .swiss-section { max-width: var(--max-content); margin: 0 auto; padding: var(--sp-16) var(--gutter) 0; }
         .swiss-header {
           display: flex; align-items: center; justify-content: space-between;
           margin-bottom: var(--sp-6);
@@ -72,7 +72,7 @@ export default function SwissAIStrip({ items, href = "/swiss-ai" }: SwissAIStrip
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         @media (max-width: 640px) {
-          .swiss-section { padding: var(--sp-10) var(--sp-5) 0; }
+          .swiss-section { padding: var(--sp-10) var(--gutter) 0; }
         }
       `}</style>
       <section className="swiss-section">

@@ -6,7 +6,7 @@ type PageHeroProps = {
 
 export default function PageHero({ category, title, description }: PageHeroProps) {
   return (
-    <section style={{ backgroundColor: "var(--da-dark)", borderBottom: "1px solid var(--da-card)", padding: "64px 32px" }}>
+    <section style={{ backgroundColor: "var(--da-dark)", borderBottom: "1px solid var(--da-card)", padding: "64px var(--gutter)" }}>
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
         {category && (
           <p style={{ color: "var(--da-green)", fontSize: "13px", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "16px" }}>

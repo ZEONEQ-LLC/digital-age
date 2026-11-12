@@ -249,7 +249,7 @@ export default function TopicListing({
           .hh .tl-toggle { display: none; }
         }
         @media (max-width: 640px) {
-          .tl-grid { padding: var(--sp-10) var(--sp-5) 0; }
+          .tl-grid { padding: var(--sp-10) var(--gutter) 0; }
         }
       `}</style>
 

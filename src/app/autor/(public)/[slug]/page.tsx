@@ -140,7 +140,7 @@ export default async function AuthorPage({ params }: PageProps) {
 
 
 
-      <section style={{ borderBottom: "1px solid var(--da-card)", padding: "32px 32px 64px" }}>
+      <section style={{ borderBottom: "1px solid var(--da-card)", padding: "32px var(--gutter) 64px" }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto", marginBottom: "32px" }}>
           <nav
             aria-label="Breadcrumb"
@@ -240,7 +240,7 @@ export default async function AuthorPage({ params }: PageProps) {
         </div>
       </section>
 
-      <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "64px 32px" }}>
+      <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "64px var(--gutter)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "32px", borderBottom: "1px solid var(--da-border)", paddingBottom: "16px" }}>
           <h2 style={{ color: "var(--da-text)", fontSize: "24px", fontWeight: 700 }}>Alle Artikel von {author.name}</h2>
           <span style={{ color: "var(--da-muted)", fontSize: "14px" }}>{articles.length} Artikel</span>

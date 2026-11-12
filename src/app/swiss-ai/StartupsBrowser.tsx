@@ -90,7 +90,7 @@ export default function StartupsBrowser({ moduleReserve, all, featured, industri
     <>
       <style>{`
         .sa-shell { max-width: var(--max-content); margin: 0 auto; }
-        .sa-section { padding: 56px var(--sp-8) 0; }
+        .sa-section { padding: 56px var(--gutter) 0; }
         .sa-section-h { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-6); }
         .sa-section-h__bar { width: 3px; height: 22px; background: var(--da-green); border-radius: 2px; }
         .sa-section-h__title { color: var(--da-text); font-family: var(--da-font-display); font-size: 22px; font-weight: 700; }

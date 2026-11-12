@@ -20,7 +20,7 @@ export default function SpotlightSection({ articles, title = "Spotlight" }: Prop
         .sl-section {
           max-width: var(--max-content);
           margin: 0 auto;
-          padding: var(--sp-10) var(--sp-8) 0;
+          padding: var(--sp-10) var(--gutter) 0;
         }
         .sl-header {
           display: flex; align-items: center; gap: var(--sp-3);

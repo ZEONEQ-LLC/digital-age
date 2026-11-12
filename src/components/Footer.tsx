@@ -28,11 +28,11 @@ export default function Footer() {
       <style>{`
         @media (max-width: 768px) {
           .footer-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
-          .footer-wrapper { padding: 40px 16px 24px !important; }
+          .footer-wrapper { padding: 40px var(--gutter) 24px !important; }
         }
       `}</style>
       <footer style={{ backgroundColor: "var(--da-footer)", borderTop: "1px solid var(--da-card)", marginTop: "0" }}>
-        <div className="footer-wrapper" style={{ maxWidth: "1200px", margin: "0 auto", padding: "64px 32px 32px" }}>
+        <div className="footer-wrapper" style={{ maxWidth: "1200px", margin: "0 auto", padding: "64px var(--gutter) 32px" }}>
           {!onArticle && (
           <div style={{ backgroundColor: "var(--da-card)", border: "1px solid var(--da-border)", borderRadius: "8px", padding: "32px", marginBottom: "48px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "24px" }}>
             <div style={{ flex: "1 1 300px" }}>

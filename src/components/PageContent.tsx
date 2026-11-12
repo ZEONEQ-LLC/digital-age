@@ -25,7 +25,7 @@ export default function PageContent({
   showBreadcrumb = true,
 }: PageContentProps) {
   return (
-    <div style={{ maxWidth: "860px", margin: "0 auto", padding: "52px var(--sp-8) var(--sp-12)" }}>
+    <div style={{ maxWidth: "860px", margin: "0 auto", padding: "52px var(--gutter) var(--sp-12)" }}>
       {showBreadcrumb && (
         <nav
           aria-label="Breadcrumb"
