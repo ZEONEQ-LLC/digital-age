@@ -1,16 +1,33 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import {
   NEWS_CATEGORY_LABEL,
   newsClock,
   newsDayDate,
   newsDayLabel,
+  zurichDay,
   type NewsItem,
-} from "@/lib/newsApi";
+} from "@/lib/newsFormat";
 import { newsAnchors } from "@/lib/newsAnchor";
+import {
+  NO_FILTERS,
+  RELEVANZ_OPTIONS,
+  ZEIT_OPTIONS,
+  countWith,
+  filtersToSearch,
+  isFiltered,
+  matchesFilters,
+  parseFilters,
+  type NewsFilters,
+} from "@/lib/newsFilter";
 import { ASSESSMENT_DIMENSIONS, LEVEL_LABEL, assessmentHighlights, type Assessment } from "@/lib/newsTicker/assessment";
 
-// Meldungen von /news, nach Tagen gruppiert (Newsticker-Stil seit PR 198,
-// Einordnung seit PR 199). Eigene Komponente, damit Seite und Pruef-Mocks
-// dieselbe Darstellung nutzen.
+// Meldungen von /news mit Filtern (Newsticker-Stil seit PR 198, Einordnung
+// seit PR 199, Filter seit PR 202). Client-Komponente: Der Server rendert die
+// volle Liste (SEO, ohne JavaScript lesbar), nach dem Laden setzt die Seite die
+// Filter aus der URL. `nowIso` kommt vom Server, damit «Heute»/«Gestern» beim
+// Hydrieren gleich bleiben.
 
 const CSS = `
         /* Aufbau wie ein Newsticker (Heise, NZZ): Tageskopf, links die Uhrzeit,
@@ -63,13 +80,151 @@ const CSS = `
           .nw-ass-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .nw-day-h { font-size: 20px; }
         }
+        /* Filter (PR 202): ruhige Textoptionen, aktiv mit gruener Linie; die
+           Bereiche als Umriss-Chips mit Trefferzahl. */
+        .nf { margin: 0 0 var(--sp-10); padding: 14px 0 16px; border-top: 1px solid var(--da-border); border-bottom: 1px solid var(--da-border); display: flex; flex-direction: column; gap: 10px; }
+        .nf-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 12px; }
+        .nf-l { color: var(--da-muted); font-size: 13px; }
+        .nf-opts { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; }
+        .nf-tab {
+          background: none; border: none; padding: 4px 0; cursor: pointer; font-family: inherit; font-size: 14px;
+          color: var(--da-muted); border-bottom: 2px solid transparent;
+        }
+        .nf-tab:hover { color: var(--da-text); }
+        .nf-tab[aria-pressed="true"] { color: var(--da-text); font-weight: 600; border-bottom-color: var(--da-green); }
+        .nf-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .nf-chip {
+          display: inline-flex; align-items: baseline; gap: 6px; cursor: pointer; font-family: inherit; font-size: 13px;
+          background: transparent; color: var(--da-text-strong); border: 1px solid var(--da-border); border-radius: 999px; padding: 5px 12px;
+        }
+        .nf-chip small { color: var(--da-muted-soft); font-size: 12px; font-variant-numeric: tabular-nums; }
+        .nf-chip:hover { border-color: var(--da-muted); }
+        .nf-chip[aria-pressed="true"] { border-color: var(--da-green); color: var(--da-text); background: rgba(50,255,126,0.08); }
+        .nf-chip[aria-pressed="true"] small { color: var(--da-green); }
+        .nf-chip:disabled { opacity: 0.4; cursor: default; }
+        .nf-tab:focus-visible, .nf-chip:focus-visible, .nf-reset:focus-visible { outline: 2px solid var(--da-green); outline-offset: 2px; border-radius: 3px; }
+        .nf-hint { color: var(--da-muted-soft); font-size: 12px; align-self: center; }
+        .nf-foot { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding-top: 2px; }
+        .nf-count { color: var(--da-text-strong); font-size: 13px; font-variant-numeric: tabular-nums; }
+        .nf-reset { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; font-size: 13px; color: var(--da-green); }
+        .nf-empty { color: var(--da-muted); font-size: 15px; padding: var(--sp-6) 0; }
+        @media (max-width: 640px) {
+          .nf-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+          .nf-opts { gap: 2px 16px; }
+          .nf-tab { white-space: nowrap; }
+        }
 `;
 
-export default function NewsFeed({ days, now }: { days: [string, NewsItem[]][]; now: Date }) {
-  const anchors = newsAnchors(days.flatMap(([, list]) => list));
+function groupByDay(items: NewsItem[]): [string, NewsItem[]][] {
+  const map = new Map<string, NewsItem[]>();
+  for (const it of items) {
+    const day = zurichDay(it.publishedAt);
+    map.set(day, [...(map.get(day) ?? []), it]);
+  }
+  return Array.from(map.entries());
+}
+
+export default function NewsFeed({ items, nowIso }: { items: NewsItem[]; nowIso: string }) {
+  const now = useMemo(() => new Date(nowIso), [nowIso]);
+  const [filters, setFilters] = useState<NewsFilters>(NO_FILTERS);
+
+  // Filter aus der URL erst nach dem Hydrieren lesen (statisches HTML zeigt alles).
+  useEffect(() => {
+    const read = () => setFilters(parseFilters(window.location.search));
+    read();
+    window.addEventListener("popstate", read);
+    return () => window.removeEventListener("popstate", read);
+  }, []);
+
+  function update(next: NewsFilters) {
+    setFilters(next);
+    const url = `${window.location.pathname}${filtersToSearch(next)}`;
+    window.history.replaceState(null, "", url);
+  }
+
+  const shown = useMemo(() => items.filter((it) => matchesFilters(it, filters, now)), [items, filters, now]);
+  const days = useMemo(() => groupByDay(shown), [shown]);
+  const anchors = useMemo(() => newsAnchors(items), [items]);
+  const rubriken = useMemo(
+    () => Object.keys(NEWS_CATEGORY_LABEL).filter((k) => items.some((it) => it.category === k)),
+    [items],
+  );
+  const filtered = isFiltered(filters);
+
   return (
     <>
       <style>{CSS}</style>
+      <div className="nf" role="search" aria-label="Meldungen filtern">
+        <div className="nf-row">
+          <span className="nf-l" id="nf-zeit">Zeitraum</span>
+          <div className="nf-opts" role="group" aria-labelledby="nf-zeit">
+            {ZEIT_OPTIONS.map((o) => (
+              <button key={o.key} type="button" className="nf-tab" aria-pressed={filters.zeit === o.key}
+                onClick={() => update({ ...filters, zeit: o.key })}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="nf-row">
+          <span className="nf-l" id="nf-bereich">Tragweite</span>
+          <div className="nf-chips" role="group" aria-labelledby="nf-bereich">
+            {ASSESSMENT_DIMENSIONS.map((d) => {
+              const on = filters.bereiche.includes(d.key);
+              const n = countWith(items, filters, now, { bereiche: [d.key] });
+              return (
+                <button key={d.key} type="button" className="nf-chip" aria-pressed={on} disabled={!on && n === 0}
+                  title={`${d.label}: mindestens mittel`}
+                  onClick={() => update({ ...filters, bereiche: on ? filters.bereiche.filter((k) => k !== d.key) : [...filters.bereiche, d.key] })}>
+                  {d.label} <small>{n}</small>
+                </button>
+              );
+            })}
+            <span className="nf-hint">ab «mittel»</span>
+          </div>
+        </div>
+        <div className="nf-row">
+          <span className="nf-l" id="nf-rel">Relevanz</span>
+          <div className="nf-opts" role="group" aria-labelledby="nf-rel">
+            {RELEVANZ_OPTIONS.map((o) => (
+              <button key={o.key} type="button" className="nf-tab" aria-pressed={filters.relevanz === o.key}
+                onClick={() => update({ ...filters, relevanz: o.key })}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {rubriken.length > 1 && (
+          <div className="nf-row">
+            <span className="nf-l" id="nf-rub">Rubrik</span>
+            <div className="nf-opts" role="group" aria-labelledby="nf-rub">
+              <button type="button" className="nf-tab" aria-pressed={filters.rubrik === null}
+                onClick={() => update({ ...filters, rubrik: null })}>
+                Alle
+              </button>
+              {rubriken.map((k) => (
+                <button key={k} type="button" className="nf-tab" aria-pressed={filters.rubrik === k}
+                  onClick={() => update({ ...filters, rubrik: k })}>
+                  {NEWS_CATEGORY_LABEL[k]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="nf-foot" aria-live="polite">
+          <span className="nf-count">{shown.length} {shown.length === 1 ? "Meldung" : "Meldungen"}</span>
+          {filtered && (
+            <button type="button" className="nf-reset" onClick={() => update(NO_FILTERS)}>Filter zurücksetzen</button>
+          )}
+        </div>
+      </div>
+
+      {days.length === 0 && (
+        <p className="nf-empty">
+          Keine Meldungen für diese Auswahl.{" "}
+          <button type="button" className="nf-reset" onClick={() => update(NO_FILTERS)}>Filter zurücksetzen</button>
+        </p>
+      )}
       {days.map(([day, list]) => {
         const label = newsDayLabel(day, now);
         const isNamed = label === "Heute" || label === "Gestern";
