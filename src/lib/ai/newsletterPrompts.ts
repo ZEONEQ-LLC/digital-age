@@ -71,6 +71,7 @@ export const NEWSLETTER_DRAFT_STRATEGY = [
   "  - Duzt die Leserinnen und Leser. Sachlich und freundlich, ohne Floskeln wie «Willkommen zu einer neuen Ausgabe».",
   "  - Ordnet ein, was diese Woche verbindet, statt die Titel aufzuzählen.",
   "  - Gibt es wenige oder keine neuen Artikel, tragen die News der Woche Betreff und Einleitung.",
+  "  - Keine Vorbehalte zu einzelnen Meldungen (z. B. «nur einseitig belegt»); die gehören zu den News, nicht in die Einleitung.",
   "",
   "KURZTEXT PRO ARTIKEL:",
   "  - 1 bis 2 Sätze, höchstens 200 Zeichen.",
@@ -88,6 +89,7 @@ export const NEWSLETTER_DRAFT_STRATEGY = [
   "  - Hinweise darauf: mehrere Meldungen zum selben Thema, grosse Worte im Titel, tiefe Einordnung, eine Kehrseite, die die Meldung relativiert.",
   "  - 2 bis 3 Sätze, höchstens 400 Zeichen: Worum geht die Aufregung, und was bleibt nüchtern betrachtet davon?",
   "  - Fair und sachlich, ohne Häme und Ironie. Keine Fakten, die nicht in der Liste stehen.",
+  "  - Schreibe über die Sache, nicht über die Quelle der Liste: nicht «die Kurzfassung», «die Meldung nennt», «laut Einordnung».",
   "  - Nicht dieselbe Meldung wie bei den wichtigsten News. Passt keine, dann null.",
   "",
   "PROMPT DER WOCHE:",
@@ -97,6 +99,13 @@ export const NEWSLETTER_DRAFT_STRATEGY = [
   "PODCAST-TIPP:",
   "  - Aus der Podcast-Liste die Folge, die am besten zur Woche passt oder am meisten Erkenntnis verspricht.",
   "  - Kurztext 1 bis 2 Sätze, höchstens 200 Zeichen: worum es geht und für wen sich das Zuhören lohnt.",
+].join("\n");
+
+// Anrede im Code, nicht in der editierbaren Strategie: Der erste echte Entwurf
+// (13.11.2026, Haiku 5.5) siezte trotz «duzt» in der Strategie.
+const ADDRESS_LINE = [
+  "ANREDE: Duze die Leserinnen und Leser durchgehend (du, dich, dir, dein, euch). Nie «Sie», «Ihnen», «Ihr Unternehmen» als Anrede.",
+  "Die Leser sehen nur den Newsletter, nicht die Listen unten: keine Verweise auf «die Liste», «die Kurzfassung», «die Einordnung» oder «die Meldung nennt».",
 ].join("\n");
 
 const LANGUAGE_LINE =
@@ -119,7 +128,7 @@ export function buildNewsletterDraftPrompt(
   input: NewsletterDraftInput,
   strategy: string = NEWSLETTER_DRAFT_STRATEGY,
 ): { system: string; prompt: string } {
-  const system = [LANGUAGE_LINE, strategy.trim(), OUTPUT_FORMAT].join("\n\n");
+  const system = [LANGUAGE_LINE, ADDRESS_LINE, strategy.trim(), OUTPUT_FORMAT].join("\n\n");
   const { articles, news, prompts, podcasts } = input;
   const parts: string[] = [];
 
@@ -250,4 +259,20 @@ export function parseNewsletterDraft(raw: string, ids: KnownDraftIds): Newslette
     prompt: p ? { id: p.id, teaser: p.text } : null,
     podcast: c ? { id: c.id, teaser: c.text } : null,
   };
+}
+
+// Sie-Form erkennen (Hinweis im Entwurf, PR 205). «Sie», «Ihnen», «Ihr…» gross
+// mitten im Satz sind Anrede; am Satzanfang ist «Sie» oft «sie» (Mehrzahl),
+// darum zaehlt das erste Wort eines Satzes nicht.
+const FORMAL = /\b(Sie|Ihnen|Ihr|Ihre|Ihren|Ihrem|Ihrer|Ihres)\b/;
+
+export function usesFormalAddress(text: string): boolean {
+  return text
+    .split(/(?<=[.!?:;])\s+|\n+/)
+    .some((sentence) => FORMAL.test(sentence.trim().replace(/^\S+\s*/, "")));
+}
+
+// Welche Felder siezen? Fuer den Hinweis im Entwurf, z. B. ["Einleitung", "Hype-Check"].
+export function formalAddressFields(fields: Record<string, string | null | undefined>): string[] {
+  return Object.entries(fields).filter(([, v]) => !!v && usesFormalAddress(v)).map(([k]) => k);
 }

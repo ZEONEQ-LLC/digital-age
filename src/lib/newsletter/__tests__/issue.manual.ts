@@ -19,7 +19,7 @@ import {
   validateForSend,
 } from "../issue";
 import { defaultPrompt, einordnungLine, newsToSection, podcastToPick, promptToPick, rankNews, type NewsRow, type PromptRow } from "../sections";
-import { buildNewsletterDraftPrompt, parseNewsletterDraft, NEWSLETTER_DRAFT_STRATEGY } from "../../ai/newsletterPrompts";
+import { buildNewsletterDraftPrompt, formalAddressFields, parseNewsletterDraft, usesFormalAddress, NEWSLETTER_DRAFT_STRATEGY } from "../../ai/newsletterPrompts";
 
 let fails = 0;
 function ok(label: string, cond: boolean, detail?: string): void {
@@ -176,6 +176,18 @@ ok("unbekannte ID ignoriert", (() => {
   return !!p && !("zz" in p.teasers) && p.teasers.a1 === "ok";
 })());
 ok("Eszett wird ss", parseNewsletterDraft(JSON.stringify({ subject: "Grosse Schritte, ß", intro: "Massgeblich ß", items: [] }), ids([]))?.subject === "Grosse Schritte, ss");
+
+console.log("=== Anrede ===");
+{
+  const intro = "Diese Woche dreht sich vieles um Kontrolle: wer die Software betreibt, auf die Ihr Unternehmen angewiesen ist. Dazu kommen Updates, die Sie zeitnah einplanen sollten.";
+  ok("Sie-Form im echten Entwurf erkannt", usesFormalAddress(intro));
+  ok("«Ihnen» mitten im Satz", usesFormalAddress("Wir zeigen Ihnen, wie es geht."));
+  ok("Du-Form ok", !usesFormalAddress("Diese Woche lohnt sich ein Blick auf deine Updates. Plane sie zeitnah ein."));
+  ok("«Sie» am Satzanfang (Mehrzahl) ok", !usesFormalAddress("Die Banken reagieren. Sie setzen auf Agenten."));
+  ok("«sie»/«ihr» klein ok", !usesFormalAddress("Die Firma sagt, sie wolle ihr Angebot ausbauen."));
+  ok("Felder benannt", formalAddressFields({ Betreff: "Neu für dich", Einleitung: intro, "Hype-Check": null }).join() === "Einleitung");
+  ok("Anrede im System auch bei Override", buildNewsletterDraftPrompt(input(), "X").system.includes("ANREDE: Duze"));
+}
 
 console.log(fails === 0 ? "\nAlles gruen." : `\n${fails} Fehler.`);
 process.exit(fails === 0 ? 0 : 1);

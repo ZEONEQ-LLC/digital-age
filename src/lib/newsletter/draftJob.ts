@@ -4,6 +4,7 @@ import {
   DRAFT_MAX_NEWS,
   NEWS_INPUT_MAX,
   buildNewsletterDraftPrompt,
+  formalAddressFields,
   parseNewsletterDraft,
   type NewsletterDraftArticle,
   type NewsletterDraftInput,
@@ -259,6 +260,21 @@ export async function createNewsletterDraft(opts: {
   if (articles.length === 0) {
     const hint = "Seit der letzten Ausgabe ist kein neuer Artikel erschienen. Der Entwurf besteht aus den News der Woche und den übrigen Rubriken.";
     aiNote = aiNote ? `${hint} ${aiNote}` : hint;
+  }
+  // Sie-Form trotz Anweisung: nicht still korrigieren, sondern sichtbar machen.
+  if (parsed) {
+    const formal = formalAddressFields({
+      Betreff: parsed.subject,
+      Einleitung: parsed.intro,
+      Kurztexte: Object.values(parsed.teasers).join(" "),
+      "Hype-Check": sections.hype?.text,
+      "Prompt der Woche": parsed.prompt?.teaser,
+      "Podcast-Tipp": parsed.podcast?.teaser,
+    });
+    if (formal.length > 0) {
+      const hint = `Achtung: Die KI hat gesiezt (${formal.join(", ")}). Bitte auf «du» umschreiben.`;
+      aiNote = aiNote ? `${hint} ${aiNote}` : hint;
+    }
   }
   const lead = articles[0]?.title ?? sections.news[0]?.title ?? "";
   const subject = parsed?.subject ?? shorten(articles[0] ? `Neu auf digital age: ${lead}` : `Die Woche in KI-News: ${lead}`, 120);
