@@ -1330,6 +1330,47 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+### KI-Plattformen aus festen Quellen, Inhaltskorrekturen (PR 206)
+
+**Plattform-Job ohne Websuche** (Wunsch Ali 13.11.2026: eine verlaessliche Quelle,
+Kosten im Griff; Entscheide: Neuaufnahmen automatisch, chinesische Anbieter
+aufnehmen). Vorher ein Sonnet-Aufruf mit 12 Websuchen, ca. 0.45–0.62 USD pro Lauf,
+dabei nur 2 bzw. 5 von 14 Eintraegen geprueft und keine Neuaufnahmen.
+- **Updates:** offizielle Preisseite je Eintrag (`ai_platforms.pricing_url`, sonst
+  `url`) per eigenem Abruf (ehrlicher User-Agent, nichts umgehen). `priceDigest`
+  nimmt nur Zeilen mit Preisangaben, `page_hash` vergleicht; nur bei Aenderung
+  liest Haiku den Auszug (`buildPageCheckPrompt`/`parsePageCheck`: Preis oder
+  «eingestellt», sonst nichts), hoechstens 6 pro Lauf. Gesperrte Seiten (403,
+  nur JavaScript, 404) → `page_status` und Mail-Abschnitt «Nicht automatisch
+  prüfbar». Speichern im Admin leert `page_hash` (naechster Lauf liest neu).
+- **Neuaufnahmen:** App-Store-Charts CH/DE/AT Top 100 gratis (Apple RSS, keine
+  Spiele), Arena-Ranglisten (Hugging Face `first-rows`, Text/Code/Bild/Video/Suche,
+  nur bis Platz 20), mit `ARTIFICIAL_ANALYSIS_API_KEY` (optional, gratis) Audio.
+  Abgleich ueber `isCovered` (Name, `source_keys`, Domain, ganze Woerter,
+  archivierte zaehlen mit). Neue Apps ordnet Haiku einmal ein
+  (`ai_platform_source_seen`, Urteil ai/other/covered/added/failed). Hoechstens 3
+  Neuaufnahmen pro Lauf, App-Charts vor Ranglisten; Haiku schreibt den Eintrag,
+  der Job prueft den Link (`urlExists`). Quelle in `ai_platform_changes`.
+- Reine Logik `src/lib/platforms/sources.ts` (Test `__tests__/sources.manual.ts`),
+  Abruf `fetchSources.ts` (Retry bei 5xx), Prompts/Parser `research.ts`.
+  Task `platform_research` jetzt Haiku 5.5 (`TASK_MODEL_DEFAULTS`).
+- **Hosting CN** (DB-Check, Parser, Filter nur bei vorhandenem Eintrag, Karte
+  mit Hinweis «Anbieter in China …», `hostingNote`).
+- Migration `20261113200000_platform_sources.sql` (additiv, vor dem Preview
+  gepusht): CN, `pricing_url`, `page_hash`, `page_checked_at`, `page_status`,
+  `source_keys`, Tabelle `ai_platform_source_seen` (RLS ohne Policies).
+
+**Inhaltskorrekturen** (Wunsch Ali 13.11.2026), Daten-Migration
+`20261113210000_inhalte_korrekturen.sql`, nach dem Merge pushen: Titel
+«Blockchain of Things», Slug `ki-statt-menschenkenntnis-warum-viele-fuehrungskraefte`
+statt `draft-1783429699290-rukrng` (301 in `migration/redirect-map.json`),
+noindex aus fuer Über uns, Redaktion, KI-Transparenz, KI-Transparenz-Text an die
+Praxis angepasst. Jede Aenderung nur, wenn der Datensatz noch dem Stand vom
+13.11.2026 entspricht.
+
+**News-Seitenleiste:** Scrollbalken im Spaltenabstand (`margin-right: -20px`,
+`padding-right: 20px`), Inhaltsbreite bleibt 220 px.
+
 ### Newsletter: Du-Form, keine Verweise auf die Eingabe; News-Leiste zuruecksetzen (PR 205)
 
 Befund am ersten echten Entwurf (13.11.2026, Haiku 5.5): die News-Auswahl war

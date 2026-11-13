@@ -13,7 +13,8 @@ import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
 
 
 const categories = ["Alle", "LLM", "Image", "Video", "Audio", "Code", "Search"] as const;
-const hostings: Array<"Alle Regionen" | Hosting> = ["Alle Regionen", "CH", "EU", "US"];
+// CN nur, wenn es einen Eintrag aus China gibt (seit PR 206).
+const hostings: Array<"Alle Regionen" | Hosting> = ["Alle Regionen", "CH", "EU", "US", "CN"];
 const MAX_COMPARE = 3;
 
 function fmtDay(iso: string): string {
@@ -226,7 +227,7 @@ export default function KIPlattformenClient({ platforms: allPlatforms, checkedAt
 
             <div>
               <p className="kip-flabel">Hosting-Region</p>
-              {hostings.map((h) => {
+              {hostings.filter((h) => h !== "CN" || allPlatforms.some((p) => p.hosting === "CN")).map((h) => {
                 const active = h === host;
                 return (
                   <button
@@ -257,7 +258,7 @@ export default function KIPlattformenClient({ platforms: allPlatforms, checkedAt
             <div className="kip-cta-card">
               <p className="kip-flabel">Aktualität</p>
               <p className="kip-cta-card__hint">
-                Links, Preise und Hosting prüft wöchentlich eine KI mit Websuche. Jede Änderung geht an die Redaktion.
+                Preise prüfen wir wöchentlich auf den offiziellen Seiten der Anbieter, neue Plattformen kommen aus den App-Store-Charts der Schweiz, Deutschlands und Österreichs und aus öffentlichen Ranglisten. Eine KI wertet Änderungen aus, jede geht an die Redaktion.
                 {checkedAt && <> Stand: {fmtDay(checkedAt)}.</>}{" "}
                 <Link href="/ki-transparenz" style={{ color: "var(--da-green)" }}>KI-Transparenz</Link>
               </p>

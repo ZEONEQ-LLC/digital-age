@@ -491,5 +491,11 @@
     "destination": "/artikel/ai-mindset",
     "type": "article",
     "confidence": "manual"
+  },
+  {
+    "source": "/artikel/draft-1783429699290-rukrng",
+    "destination": "/artikel/ki-statt-menschenkenntnis-warum-viele-fuehrungskraefte",
+    "type": "article",
+    "confidence": "exact"
   }
 ]

@@ -7,7 +7,8 @@ import KiPlattformenAdminClient, { type ChangeView, type PlatformAdminView, type
 // RLS: nur Editoren.
 
 export const dynamic = "force-dynamic";
-// «Jetzt prüfen» laeuft als Server Action dieser Seite (Websuche, bis ~4 Min).
+// «Jetzt prüfen» laeuft als Server Action dieser Seite (Quellen abrufen, wenige
+// kurze KI-Aufrufe; seit PR 206 ohne Websuche).
 export const maxDuration = 300;
 
 function fmt(iso: string | null, withTime = true): string {
@@ -31,7 +32,7 @@ export default async function KiPlattformenAdminPage() {
   const [platformsRes, runsRes, changesRes] = await Promise.all([
     supabase
       .from("ai_platforms")
-      .select("id, slug, name, category, tagline, hosting, pricing, url, featured, status, locked, source, ai_note, verified_at, updated_at")
+      .select("id, slug, name, category, tagline, hosting, pricing, url, pricing_url, page_status, featured, status, locked, source, ai_note, verified_at, updated_at")
       .order("status", { ascending: true })
       .order("name", { ascending: true }),
     supabase
@@ -59,6 +60,8 @@ export default async function KiPlattformenAdminPage() {
     hosting: p.hosting,
     pricing: p.pricing,
     url: p.url,
+    pricingUrl: p.pricing_url,
+    pageStatus: p.page_status,
     featured: p.featured,
     active: p.status === "active",
     locked: p.locked,
@@ -77,6 +80,8 @@ export default async function KiPlattformenAdminPage() {
           `${n("updates")} aktualisiert`,
           `${n("archived")} archiviert`,
           `${n("checked")} bestätigt`,
+          ...(n("unreadable") > 0 ? [`${n("unreadable")} nicht prüfbar`] : []),
+          ...(typeof s.ai_calls === "number" ? [`${n("ai_calls")} KI-Aufrufe`] : []),
         ];
     return {
       id: r.id,
@@ -116,7 +121,7 @@ export default async function KiPlattformenAdminPage() {
     <>
       <PageTitle
         title="KI-Plattformen"
-        subtitle="Das Verzeichnis unter /ki-plattformen. Eine KI prüft es jeden Dienstag früh mit Websuche und ändert ohne Freigabe; du bekommst jede Änderung per Mail und kannst sie hier zurücknehmen. Gesperrte Einträge fasst die KI nicht an."
+        subtitle="Das Verzeichnis unter /ki-plattformen. Jeden Dienstag früh liest der Job die offiziellen Preisseiten und sucht neue Plattformen in den App-Store-Charts (CH, DE, AT) und den Arena-Ranglisten; eine KI wertet nur Änderungen aus. Er ändert ohne Freigabe, du bekommst jede Änderung per Mail und kannst sie hier zurücknehmen. Gesperrte Einträge fasst er nicht an."
       />
       <KiPlattformenAdminClient platforms={platforms} runs={runs} changes={changes} loadError={loadError} />
     </>

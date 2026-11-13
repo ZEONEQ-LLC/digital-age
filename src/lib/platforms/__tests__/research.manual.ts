@@ -1,5 +1,5 @@
-// Manueller Test-Runner fuer die KI-Plattformen-Pruefung (PR 197):
-// src/lib/platforms/research.ts.
+// Manueller Test-Runner fuer die KI-Plattformen-Pruefung (PR 197, feste
+// Quellen PR 206): src/lib/platforms/research.ts.
 //
 //   npx tsx src/lib/platforms/__tests__/research.manual.ts
 //
@@ -8,7 +8,12 @@ import {
   MAX_ADDITIONS,
   MAX_UPDATES,
   PLATFORM_RESEARCH_STRATEGY,
-  buildResearchPrompt,
+  buildAdditionPrompt,
+  buildAppFilterPrompt,
+  buildPageCheckPrompt,
+  parseAdditions,
+  parseAppFilter,
+  parsePageCheck,
   parseResearch,
   slugifyPlatform,
   type PlatformForResearch,
@@ -34,15 +39,49 @@ const current = [
 const SRC = ["https://quelle.example.com/preise"];
 const parse = (o: unknown) => parseResearch(JSON.stringify(o), current);
 
-console.log("=== Prompt ===");
+console.log("=== Prompts (feste Quellen) ===");
 {
-  const { system, prompt } = buildResearchPrompt(current);
-  ok("Strategie im System", system.includes(PLATFORM_RESEARCH_STRATEGY.split("\n")[0]));
-  ok("Ausgabeformat im System", system.includes('"updates"') && system.includes('"checked"'));
-  ok("Gesperrt markiert", prompt.includes("locked |") && prompt.includes("GESPERRT"));
-  ok("Kein Link sichtbar", prompt.includes("(kein Link)"));
-  const custom = buildResearchPrompt(current, "EIGENE STRATEGIE");
-  ok("Override ersetzt Strategie", custom.system.includes("EIGENE STRATEGIE") && !custom.system.includes("AUFTRAG:"));
+  const page = buildPageCheckPrompt(current[0], "https://claude.com/pricing", "Pro $20/month\nMax $100/month");
+  ok("Preisseite: Strategie und Aufgabe", page.system.includes(PLATFORM_RESEARCH_STRATEGY.split("\n")[0]) && page.system.includes('"discontinued"'));
+  ok("Preisseite: Auszug und Quelle im Prompt", page.prompt.includes("Max $100/month") && page.prompt.includes("https://claude.com/pricing") && page.prompt.includes("«Gratis + Pro»"));
+  ok("Override ersetzt Strategie", !buildPageCheckPrompt(current[0], "https://x.ch", "", "EIGEN").system.includes("GRUNDSATZ:"));
+  ok("keine Websuche mehr im Auftrag", !PLATFORM_RESEARCH_STRATEGY.toLowerCase().includes("websuche"));
+  ok("CN in den Textregeln", PLATFORM_RESEARCH_STRATEGY.includes("CN"));
+  const apps = buildAppFilterPrompt([{ key: "apple:1", label: "Kimi", hint: "App Store CH Platz 40" }]);
+  ok("App-Filter: Liste mit key", apps.prompt.includes("apple:1 | Kimi |") && apps.system.includes('"ai"'));
+  const add = buildAdditionPrompt([{ key: "arena:moonshot", label: "moonshot", hint: "Arena Text Platz 5", category: "LLM" }], ["Claude"]);
+  ok("Neuaufnahme: Kandidat und Bestand", add.prompt.includes("arena:moonshot | moonshot") && add.prompt.includes("Bereits im Verzeichnis: Claude"));
+}
+
+console.log("=== parsePageCheck ===");
+{
+  const url = "https://claude.com/pricing";
+  const r = parsePageCheck(JSON.stringify({ pricing: "Gratis + Pro + Max", discontinued: false, reason: "Seite nennt Max." }), current[0], url);
+  ok("Preis-Update mit Seite als Quelle", r?.updates.length === 1 && r.updates[0].fields.pricing === "Gratis + Pro + Max" && r.updates[0].sources[0] === url);
+  ok("null = keine Aenderung, aber geprueft", (() => { const x = parsePageCheck(JSON.stringify({ pricing: null, discontinued: false, reason: "stimmt" }), current[0], url); return x?.updates.length === 0 && x.archive.length === 0 && x.checked[0] === "claude"; })());
+  ok("eingestellt → archivieren", parsePageCheck(JSON.stringify({ pricing: null, discontinued: true, reason: "Seite: eingestellt" }), current[0], url)?.archive.length === 1);
+  ok("gesperrt bleibt unberuehrt", parsePageCheck(JSON.stringify({ pricing: "X", discontinued: true, reason: "r" }), current[3], url)?.updates.length === 0);
+  ok("kein JSON → null", parsePageCheck("Der Preis stimmt.", current[0], url) === null);
+}
+
+console.log("=== parseAppFilter ===");
+{
+  const keys = ["apple:1", "apple:2", "apple:3"];
+  const r = parseAppFilter(JSON.stringify({ ai: [{ key: "apple:1", category: "LLM" }, { key: "apple:9", category: "LLM" }, { key: "apple:2", category: "Spiele" }, { key: "apple:1", category: "Image" }] }), keys);
+  ok("nur bekannte keys, gueltige Kategorie, keine Dubletten", r?.length === 1 && r[0].key === "apple:1" && r[0].category === "LLM", JSON.stringify(r));
+  ok("kein JSON → null", parseAppFilter("keine", keys) === null);
+}
+
+console.log("=== parseAdditions ===");
+{
+  const cands = [{ key: "arena:moonshot", sourceUrl: "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset" }];
+  const kimi = { key: "arena:moonshot", name: "Kimi", category: "LLM", tagline: "KI-Assistent von Moonshot AI.", hosting: "CN", pricing: "Gratis + Pro", url: "https://www.kimi.com", pricing_url: "https://www.kimi.com/membership/pricing", reason: "Arena Text Platz 5" };
+  const r = parseAdditions(JSON.stringify({ additions: [kimi] }), current, cands);
+  ok("CN-Eintrag angenommen, Quelle = Liste", r?.length === 1 && r[0].hosting === "CN" && r[0].sources[0].includes("huggingface.co") && r[0].pricingUrl === "https://www.kimi.com/membership/pricing", JSON.stringify(r));
+  ok("unbekannter key verworfen", parseAdditions(JSON.stringify({ additions: [{ ...kimi, key: "arena:xyz" }] }), current, cands)?.length === 0);
+  ok("schon vorhanden (Name) verworfen", parseAdditions(JSON.stringify({ additions: [{ ...kimi, name: "Claude" }] }), current, cands)?.length === 0);
+  ok("ohne Link verworfen", parseAdditions(JSON.stringify({ additions: [{ ...kimi, url: null }] }), current, cands)?.length === 0);
+  ok("Preisseite http → null", parseAdditions(JSON.stringify({ additions: [{ ...kimi, pricing_url: "http://kimi.com" }] }), current, cands)?.[0].pricingUrl === null);
 }
 
 console.log("=== Parser: Updates ===");

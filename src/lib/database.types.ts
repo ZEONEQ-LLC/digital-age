@@ -669,6 +669,33 @@ export type Database = {
           },
         ]
       }
+      ai_platform_source_seen: {
+        Row: {
+          first_seen_at: string
+          key: string
+          label: string
+          last_seen_at: string
+          source: string
+          verdict: string
+        }
+        Insert: {
+          first_seen_at?: string
+          key: string
+          label: string
+          last_seen_at?: string
+          source: string
+          verdict: string
+        }
+        Update: {
+          first_seen_at?: string
+          key?: string
+          label?: string
+          last_seen_at?: string
+          source?: string
+          verdict?: string
+        }
+        Relationships: []
+      }
       ai_platforms: {
         Row: {
           ai_note: string | null
@@ -679,9 +706,14 @@ export type Database = {
           id: string
           locked: boolean
           name: string
+          page_checked_at: string | null
+          page_hash: string | null
+          page_status: string | null
           pricing: string
+          pricing_url: string | null
           slug: string
           source: string
+          source_keys: string[]
           status: string
           tagline: string
           updated_at: string
@@ -697,9 +729,14 @@ export type Database = {
           id?: string
           locked?: boolean
           name: string
+          page_checked_at?: string | null
+          page_hash?: string | null
+          page_status?: string | null
           pricing: string
+          pricing_url?: string | null
           slug: string
           source?: string
+          source_keys?: string[]
           status?: string
           tagline: string
           updated_at?: string
@@ -715,9 +752,14 @@ export type Database = {
           id?: string
           locked?: boolean
           name?: string
+          page_checked_at?: string | null
+          page_hash?: string | null
+          page_status?: string | null
           pricing?: string
+          pricing_url?: string | null
           slug?: string
           source?: string
+          source_keys?: string[]
           status?: string
           tagline?: string
           updated_at?: string

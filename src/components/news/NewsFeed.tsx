@@ -101,7 +101,10 @@ const CSS = `
           display: flex; flex-direction: column; gap: var(--sp-6);
           position: sticky; top: var(--aside-sticky-top);
           max-height: calc(100vh - var(--aside-sticky-top) - var(--sp-4)); overflow-y: auto; overscroll-behavior: contain;
-          scrollbar-width: thin; scrollbar-color: var(--da-border) transparent; padding-right: 6px;
+          scrollbar-width: thin; scrollbar-color: var(--da-border) transparent;
+          /* Scrollbalken in den Spaltenabstand schieben (Rueckmeldung Ali:
+             zu nah an den Zahlen); die Inhaltsbreite bleibt 220 px. */
+          margin-right: -20px; padding-right: 20px;
         }
         .nf-clear {
           display: flex; align-items: baseline; justify-content: space-between; gap: 10px; width: 100%;
@@ -152,7 +155,7 @@ const CSS = `
         .nf-empty { color: var(--da-muted); font-size: 15px; padding: var(--sp-6) 0; }
         @media (max-width: 1024px) {
           .nf-grid { grid-template-columns: minmax(0, 1fr); gap: var(--sp-8); }
-          .nf-aside { gap: var(--sp-3); position: static; max-height: none; overflow: visible; padding-right: 0; }
+          .nf-aside { gap: var(--sp-3); position: static; max-height: none; overflow: visible; margin-right: 0; padding-right: 0; }
           .nf-clear { display: none; }
           .nf-bar .nf-reset { display: inline; }
           .nf-toggle { display: flex; }
