@@ -2,9 +2,9 @@ import type { NewsItem } from "@/lib/newsFormat";
 import { zurichDay } from "@/lib/newsFormat";
 import { ASSESSMENT_DIMENSIONS, type AssessmentKey } from "@/lib/newsTicker/assessment";
 
-// Filter fuer /news (Wunsch Ali 13.11.2026, PR 202). Rein, damit Liste und
-// Test dieselbe Logik nutzen. Der Zustand steht in der URL
-// (?zeit=7&bereich=wirtschaft,gesellschaft&relevanz=wichtig&rubrik=ki-business),
+// Filter fuer /news (Wunsch Ali 13.11.2026, PR 202; Suche seit PR 204). Rein,
+// damit Liste und Test dieselbe Logik nutzen. Der Zustand steht in der URL
+// (?zeit=7&bereich=wirtschaft,gesellschaft&relevanz=wichtig&rubrik=ki-business&q=nvidia),
 // damit gefilterte Ansichten teilbar sind.
 
 export const ZEIT_OPTIONS = [
@@ -27,9 +27,12 @@ export type NewsFilters = {
   bereiche: AssessmentKey[];
   relevanz: Relevanz;
   rubrik: string | null;
+  q: string;              // Suchtext, leer = keine Suche
 };
 
-export const NO_FILTERS: NewsFilters = { zeit: "alle", bereiche: [], relevanz: "alle", rubrik: null };
+export const NO_FILTERS: NewsFilters = { zeit: "alle", bereiche: [], relevanz: "alle", rubrik: null, q: "" };
+
+export const SEARCH_MAX = 80;
 
 const ZEIT_KEYS = ZEIT_OPTIONS.map((o) => o.key) as readonly string[];
 const RELEVANZ_KEYS = RELEVANZ_OPTIONS.map((o) => o.key) as readonly string[];
@@ -49,6 +52,7 @@ export function parseFilters(search: string): NewsFilters {
     bereiche,
     relevanz: RELEVANZ_KEYS.includes(relevanz) ? (relevanz as Relevanz) : "alle",
     rubrik: /^[a-z0-9-]{1,40}$/.test(rubrik) ? rubrik : null,
+    q: (q.get("q") ?? "").replace(/\s+/g, " ").trim().slice(0, SEARCH_MAX),
   };
 }
 
@@ -59,12 +63,42 @@ export function filtersToSearch(f: NewsFilters): string {
   if (f.bereiche.length > 0) q.set("bereich", f.bereiche.join(","));
   if (f.relevanz !== "alle") q.set("relevanz", f.relevanz);
   if (f.rubrik) q.set("rubrik", f.rubrik);
+  if (f.q.trim()) q.set("q", f.q.trim());
   const s = q.toString();
   return s ? `?${s}` : "";
 }
 
 export function isFiltered(f: NewsFilters): boolean {
-  return f.zeit !== "alle" || f.bereiche.length > 0 || f.relevanz !== "alle" || f.rubrik !== null;
+  return f.zeit !== "alle" || f.bereiche.length > 0 || f.relevanz !== "alle" || f.rubrik !== null || f.q.trim() !== "";
+}
+
+// Zahl der gesetzten Filter ohne Suche (fuer den Knopf «Filter · 2» mobil).
+export function activeFilterCount(f: NewsFilters): number {
+  return (f.zeit !== "alle" ? 1 : 0) + f.bereiche.length + (f.relevanz !== "alle" ? 1 : 0) + (f.rubrik ? 1 : 0);
+}
+
+// Fuer die Suche: klein, ohne Akzente, ss statt Eszett («Zürich» = «zurich»).
+export function foldSearch(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss");
+}
+
+// Durchsuchter Text pro Meldung, einmal berechnet.
+const haystacks = new WeakMap<NewsItem, string>();
+function haystack(it: NewsItem): string {
+  let h = haystacks.get(it);
+  if (h === undefined) {
+    h = foldSearch([it.title, it.summary, it.teaser, it.sourceName, it.assessment?.warum ?? "", it.assessment?.kehrseite ?? ""].join(" "));
+    haystacks.set(it, h);
+  }
+  return h;
+}
+
+// Alle Woerter muessen vorkommen (und-verknuepft), Teilwoerter zaehlen.
+export function matchesSearch(it: NewsItem, q: string): boolean {
+  const words = foldSearch(q).split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const h = haystack(it);
+  return words.every((w) => h.includes(w));
 }
 
 // Trifft die Meldung alle Filter? Bereiche: mindestens «mittel» in einem der
@@ -86,6 +120,7 @@ export function matchesFilters(it: NewsItem, f: NewsFilters, now: Date): boolean
     if (f.relevanz === "relevant" && imp < 2) return false;
   }
   if (f.rubrik && it.category !== f.rubrik) return false;
+  if (f.q && !matchesSearch(it, f.q)) return false;
   return true;
 }
 

@@ -39,20 +39,28 @@ export default async function NewsPage() {
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
       <style>{`
         .nw-wrap { max-width: var(--max-content); margin: 0 auto; padding: var(--sp-10) var(--gutter) var(--sp-20); }
-        .nw-inner { max-width: 780px; }
-        .nw-note { color: var(--da-muted-soft); font-size: 13px; line-height: 1.6; margin: 0 0 var(--sp-10); max-width: 640px; }
+        .nw-note { color: var(--da-muted-soft); font-size: 13px; line-height: 1.6; margin: 0 0 var(--sp-6); max-width: 680px; }
         .nw-note a { color: var(--da-muted); }
+        .nw-empty { color: var(--da-muted); font-size: 15px; }
       `}</style>
       <HubHero title="News" claim="Meldungen zu KI und Future Tech, kurz zusammengefasst" />
-      <div className="nw-wrap"><div className="nw-inner">
-        <p className="nw-note">
-          Die Kurzfassungen erstellt eine KI aus den Meldungen der verlinkten Quellen (Heise, Wired, Netzwoche u. a.).
-          Die Einordnung (Wirtschaft, Gesellschaft, Umwelt, Dringlichkeit) ist eine Einschätzung der KI auf Basis der Meldung,
-          die Redaktion korrigiert sie bei Bedarf. Den vollständigen Bericht liest du bei der Quelle. <Link href="/ki-transparenz">KI-Transparenz</Link>
-        </p>
-        {items.length === 0 && <p className="nw-empty">Gerade sind keine Meldungen verfügbar.</p>}
-        <NewsFeed items={items} nowIso={now.toISOString()} />
-      </div></div>
+      <div className="nw-wrap">
+        {items.length === 0 ? (
+          <p className="nw-empty">Gerade sind keine Meldungen verfügbar.</p>
+        ) : (
+          <NewsFeed
+            items={items}
+            nowIso={now.toISOString()}
+            intro={
+              <p className="nw-note">
+                Die Kurzfassungen erstellt eine KI aus den Meldungen der verlinkten Quellen (Heise, Wired, Netzwoche u. a.).
+                Die Einordnung (Wirtschaft, Gesellschaft, Umwelt, Dringlichkeit) ist eine Einschätzung der KI auf Basis der Meldung,
+                die Redaktion korrigiert sie bei Bedarf. Den vollständigen Bericht liest du bei der Quelle. <Link href="/ki-transparenz">KI-Transparenz</Link>
+              </p>
+            }
+          />
+        )}
+      </div>
       <Footer />
     </main>
   );
