@@ -5,6 +5,7 @@ import {
   newsDayLabel,
   type NewsItem,
 } from "@/lib/newsApi";
+import { newsAnchors } from "@/lib/newsAnchor";
 import { ASSESSMENT_DIMENSIONS, LEVEL_LABEL, assessmentHighlights, type Assessment } from "@/lib/newsTicker/assessment";
 
 // Meldungen von /news, nach Tagen gruppiert (Newsticker-Stil seit PR 198,
@@ -23,10 +24,13 @@ const CSS = `
         }
         .nw-day-h small { color: var(--da-muted); font-family: var(--da-font-body); font-size: 15px; font-weight: 400; letter-spacing: 0; }
         .nw-item {
-          display: grid; grid-template-columns: 56px minmax(0, 1fr); column-gap: var(--sp-4);
+          position: relative; display: grid; grid-template-columns: 56px minmax(0, 1fr); column-gap: var(--sp-4);
           padding: 18px 0 20px; border-bottom: 1px solid var(--da-border);
           scroll-margin-top: calc(var(--nav-h) + 56px);
         }
+        /* Alte Marke «#n-<id>»: unsichtbar oben im Eintrag, gleiche Hervorhebung. */
+        .nw-legacy { position: absolute; top: 0; left: 0; width: 0; height: 0; overflow: hidden; scroll-margin-top: calc(var(--nav-h) + 56px); }
+        .nw-item:has(.nw-legacy:target) { background: rgba(50,255,126,0.05); box-shadow: -12px 0 0 rgba(50,255,126,0.05), 12px 0 0 rgba(50,255,126,0.05); }
         .nw-item:target { background: rgba(50,255,126,0.05); box-shadow: -12px 0 0 rgba(50,255,126,0.05), 12px 0 0 rgba(50,255,126,0.05); }
         .nw-time { color: var(--da-green); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.45; }
         .nw-title { color: var(--da-text); font-size: 19px; font-weight: 600; line-height: 1.38; letter-spacing: -0.005em; margin: 0; }
@@ -62,6 +66,7 @@ const CSS = `
 `;
 
 export default function NewsFeed({ days, now }: { days: [string, NewsItem[]][]; now: Date }) {
+  const anchors = newsAnchors(days.flatMap(([, list]) => list));
   return (
     <>
       <style>{CSS}</style>
@@ -75,7 +80,9 @@ export default function NewsFeed({ days, now }: { days: [string, NewsItem[]][]; 
               {isNamed && <small>{newsDayDate(day)}</small>}
             </h2>
             {list.map((it) => (
-              <article key={it.id} id={`n-${it.id}`} className="nw-item">
+              <article key={it.id} id={anchors.get(it.id)} className="nw-item">
+                {/* Alte Marke «#n-<id>» (bis PR 199) springt weiter hierher. */}
+                <span id={`n-${it.id}`} className="nw-legacy" aria-hidden />
                 <div className="nw-time">{newsClock(it.publishedAt)}</div>
                 <div>
                   <h3 className="nw-title">

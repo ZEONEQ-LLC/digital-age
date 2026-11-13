@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { newsClock, newsDayLabel, zurichDay, type NewsItem } from "@/lib/newsApi";
+import { newsAnchor } from "@/lib/newsAnchor";
 
 // News-Spalte der Startseite (Wunsch Ali 12.11.2026, Feinschliff PR 198 nach
 // «sieht zu sehr nach KI aus»): gebaut wie ein Newsticker bei Heise oder NZZ.
@@ -62,7 +63,7 @@ export default function NewsColumn({ items }: { items: NewsItem[] }) {
             return (
               <li key={it.id}>
                 {dayBreak && <p className="nc__day">{newsDayLabel(day, now)}</p>}
-                <Link href={`/news#n-${it.id}`} className="nc__link">
+                <Link href={`/news#${newsAnchor(it)}`} className="nc__link">
                   <span className="nc__time">{newsClock(it.publishedAt)}</span>
                   <span className="nc__title">
                     {it.importance === 3 && <span className="nc__flag">Wichtig</span>}
