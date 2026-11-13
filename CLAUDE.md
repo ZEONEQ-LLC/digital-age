@@ -1330,6 +1330,37 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+### Einordnung der News (PR 199)
+
+Entscheid Ali 13.11.2026 (Vorschlag angenommen): Die KI des Tickers schaetzt
+jede Meldung grob ein. Nur News, keine Autoren-Beitraege.
+- **DB** (`20261113090000_news_assessment.sql`, additiv): `news_items.assessment`
+  jsonb `{ v: 1, wirtschaft, gesellschaft, umwelt, dringlichkeit (0 = nicht
+  betroffen, 1 gering, 2 mittel, 3 hoch), warum (ein Satz, max 220), by: ai |
+  editor }` und `news_items.importance` smallint 1-3 (3 = «Wichtig»). anon liest
+  beide mit dem Tabellenrecht (RLS: nur approved).
+- **Rubrik und Parser** rein in `src/lib/newsTicker/assessment.ts` (Test
+  `__tests__/assessment.manual.ts`): Stufen statt Noten, «hoechstens jede fuenfte
+  Meldung ist wichtig», Geruechte und Werbung tief. Unvollstaendige Einordnung =
+  keine (null), lieber nichts zeigen als etwas Halbes.
+- **Beim Anlegen:** `generator.ts` haengt `ASSESSMENT_FIELD_INSTRUCTION` im Code
+  an den editierbaren Ticker-Prompt (Feld `einordnung` im selben JSON, gleiche
+  Task, maxTokens 650). Fehlt sie, bleibt das Item gueltig.
+- **Nachtrag:** `runRefresh` ordnet am Ende jedes Laufs (Cron und
+  Knopf) bis zu 60 Meldungen der letzten 30 Tage ohne Einordnung nach
+  (`assessExistingItem`, eigener kurzer Prompt, je 5 parallel; der Cron laeuft
+  nur einmal taeglich zur eingestellten Stunde). Zaehler `items_assessed` /
+  `assess_failed` im Lauf.
+- **Admin** `/autor/news-ticker`, Abschnitt «Meldungen und Einordnung»
+  (`ItemsSection`): letzte 40 Meldungen mit Einordnung; bearbeiten (gilt dann als
+  «Redaktion»), «Neu einordnen lassen» (setzt null, naechster Lauf), aus- und
+  einblenden (`status` rejected/approved). Actions in `newsTickerActions.ts`.
+- **Anzeige:** `/news` (Darstellung jetzt in `src/components/news/NewsFeed.tsx`):
+  «Wichtig» vor dem Titel, Satz «Warum wichtig» unter der Kurzfassung, darunter
+  aufklappbar «Einordnung: Wirtschaft hoch · Dringlichkeit mittel» mit allen vier
+  Feldern und dem Hinweis «Einschaetzung der KI» bzw. «Von der Redaktion
+  eingeordnet». Startseiten-Spalte: nur «Wichtig» vor dem Titel.
+
 ### Design-Check Beitragsseite und Rubrik-Liste (PR 198)
 
 Entscheid Ali 13.11.2026 nach Vergleich mit Wired, The Verge, TechCrunch, Ars
