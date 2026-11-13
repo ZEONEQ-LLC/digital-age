@@ -94,4 +94,3 @@ export function newsClock(iso: string): string {
 export function newsDayDate(day: string): string {
   return new Date(`${day}T12:00:00Z`).toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Zurich" });
 }
-
