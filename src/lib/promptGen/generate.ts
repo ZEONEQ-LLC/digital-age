@@ -174,7 +174,9 @@ function valuesLine(values: Record<string, string>): string {
 // Validiert die KI-Antwort. Akzeptiert ein einzelnes Prompt-Objekt (seit
 // PR 201), {"prompt": {…}} oder {"prompts": […]}. Unpassende Laengen,
 // unbekannte Kategorien und Titel, die es schon gibt, fallen weg. null = kein JSON.
-export function parseGenerated(raw: string, existingTitles: string[], forceCategory?: GenCategory): GeneratedPrompt[] | null {
+// rejected (optional) sammelt, warum ein Vorschlag wegfiel, fuer die
+// Fehlerzeile im Admin (vorher nur «Länge, Kategorie oder Dublette»).
+export function parseGenerated(raw: string, existingTitles: string[], forceCategory?: GenCategory, rejected?: string[]): GeneratedPrompt[] | null {
   let parsed: unknown;
   try { parsed = JSON.parse(stripCodeFence(raw)); } catch { return null; }
   if (!parsed || typeof parsed !== "object") return null;
@@ -196,9 +198,21 @@ export function parseGenerated(raw: string, existingTitles: string[], forceCateg
     const rawCat = String(r.category ?? "").toLowerCase().trim();
     const category = forceCategory ?? ((GEN_CATEGORIES as readonly string[]).includes(rawCat) ? (rawCat as GenCategory) : null);
     const difficulty = DIFFICULTIES.includes(r.difficulty as Difficulty) ? (r.difficulty as Difficulty) : "intermediate";
-    if (!title || !category || context.length < 40 || prompt_text.length < 120) continue;
+    const problems = [
+      !title && "Titel fehlt",
+      !category && `unbekannte Kategorie «${rawCat || "leer"}»`,
+      context.length < 40 && `«Wofür» zu kurz (${context.length} Zeichen, mindestens 40)`,
+      prompt_text.length < 120 && `Prompt zu kurz (${prompt_text.length} Zeichen, mindestens 120)`,
+    ].filter((x): x is string => typeof x === "string");
+    if (problems.length > 0 || !category) {
+      rejected?.push(problems.join(", "));
+      continue;
+    }
     const key = normalizeTitle(title);
-    if (!key || seen.has(key)) continue;
+    if (!key || seen.has(key)) {
+      rejected?.push(`Titel schon vorhanden («${title}»)`);
+      continue;
+    }
     seen.add(key);
     out.push({ title, category, difficulty, context, prompt_text, example_values: valuesLine(values), example_fill: fillPlaceholders(prompt_text, values) });
   }

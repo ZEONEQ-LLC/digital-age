@@ -1330,6 +1330,47 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+### Newsletter-Rubriken, Prompt-Job-Hinweise (PR 203)
+
+**Rubriken** (Idee Ali 13.11.2026, sonst faellt der Newsletter mager aus):
+nach den Artikeln «Die wichtigsten News der Woche» (bis 5), «Hype-Check» (eine
+Meldung mit viel Echo und duenner Substanz, 2 bis 3 Saetze), «Prompt der Woche»
+und «Podcast-Tipp». Leere Rubriken erscheinen nicht.
+- **DB** (`20261113180000_newsletter_issue_sections.sql`, additiv):
+  `newsletter_issues.sections` jsonb `{ news: [{newsId, title, why, source,
+  anchor, einordnung}], hype: {newsId, title, text, source, anchor} | null,
+  prompt | podcast: {id, slug, title, teaser, label, coverUrl} | null }`. Form
+  und Pruefung nur in `sanitizeSections` (`src/lib/newsletter/issue.ts`);
+  alte Ausgaben haben `{}`.
+- **Quellen** (`src/lib/newsletter/sections.ts`, rein): Spaltenlisten,
+  `rankNews` (Wichtigkeit, Summe der Stufen, neuer), `newsToSection` («Warum
+  wichtig» aus der Einordnung, Marke per `newsAnchor`), `promptToPick`,
+  `podcastToPick`, `defaultPrompt` (featured zuerst).
+- **Entwurf** (`draftJob.ts`): News nach `generated_at` im Zeitraum (nur
+  eingeordnete; `published_at` der Quellen kann in der Zukunft liegen), Prompts
+  nach `published_at`, Podcasts nach `recommended_at`. Derselbe KI-Aufruf
+  `newsletter_draft` waehlt News (Thema nur einmal), Hype-Check, Prompt und
+  Podcast; kurze IDs `n1`/`p1`/`c1` im Prompt, `maxTokens` 2800, Timeout 90 s
+  (Cron `maxDuration` 120). Die Regeln stehen in der editierbaren Strategie,
+  das Ausgabeformat im Code. Ohne KI: News nach Rang, Prompt featured/neuester,
+  Podcast neuester, kein Hype-Check. Der Cron erstellt auch ohne neue Artikel
+  einen Entwurf, wenn mindestens drei eingeordnete News da sind.
+- **Versand:** `validateForSend` verlangt einen Artikel oder eine News und Text
+  in jedem Eintrag. News verlinken auf `/news#<marke>` mit UTM
+  (`trackedNewsUrl`), Prompt auf `/ai-prompts/<slug>`, Podcast auf
+  `/podcast/<slug>`.
+- **Admin:** je Rubrik bearbeiten, entfernen, aus einer Liste waehlen (News der
+  letzten 21 Tage nach Rang, Prompts, Podcasts); Verlauf zeigt «n Artikel · m
+  News». Hinweis-Mail an die Redaktion nennt Artikel und News.
+
+**Prompt-Job:** «Vorschlag bestand die Pruefung nicht (Laenge, Kategorie oder
+Dublette)» nennt jetzt den Grund (`parseGenerated(..., rejected)`: Feld und
+Laenge, Kategorie, vorhandener Titel). Die Prompts der KI-Redaktion bekommen
+`tested_with = mehrere` statt `claude` (las sich wie «nur fuer Claude»); die
+Detailseite sagt «fuer alle gaengigen KI-Assistenten geschrieben und mit Claude
+getestet». Bestehende per Daten-Migration
+`20261113181000_ai_prompts_tested_with_mehrere.sql` (nach dem Merge pushen).
+
 ### Filter auf /news, Zukunftsdaten, Prompt-Kategorie (PR 202)
 
 **Filter** (Wunsch Ali 13.11.2026, Auswahl nach Claudes Empfehlung):

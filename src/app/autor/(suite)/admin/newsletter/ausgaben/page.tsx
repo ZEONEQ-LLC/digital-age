@@ -2,13 +2,26 @@ import Link from "next/link";
 import PageTitle from "@/components/author/PageTitle";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_COVER_URL } from "@/lib/coverImage";
-import { isIssueStatus, sanitizeItems, type IssueItem } from "@/lib/newsletter/issue";
-import NewsletterIssuesClient, { type IssueView } from "./NewsletterIssuesClient";
+import { isIssueStatus, sanitizeItems, sanitizeSections, type IssueItem } from "@/lib/newsletter/issue";
+import {
+  NEWS_SELECT,
+  PODCAST_SELECT,
+  PROMPT_SELECT,
+  newsToSection,
+  podcastToPick,
+  promptToPick,
+  rankNews,
+  type NewsRow,
+  type PodcastRow,
+  type PromptRow,
+} from "@/lib/newsletter/sections";
+import NewsletterIssuesClient, { type IssueView, type NewsCandidate } from "./NewsletterIssuesClient";
 
 // Newsletter-Ausgaben (PR 195, Entscheid Ali 12.11.2026: Entwurf + Freigabe).
 // Server-Teil: offene Ausgabe, Verlauf, Zahl der bestaetigten Abonnenten und
-// Kandidaten fuer «Artikel hinzufuegen». Editor-Gate ueber das Admin-Layout,
-// RLS (newsletter_issues_editor_*) zusaetzlich.
+// Kandidaten fuer «Artikel hinzufuegen» sowie (PR 203) fuer die Rubriken:
+// News der letzten 21 Tage (nach Einordnung), Prompts und Podcasts. Editor-
+// Gate ueber das Admin-Layout, RLS (newsletter_issues_editor_*) zusaetzlich.
 
 export const dynamic = "force-dynamic";
 
@@ -29,14 +42,18 @@ function siteUrl(): string {
 }
 
 // Kandidaten fuer «Artikel hinzufuegen»: publiziert in den letzten 60 Tagen.
-function candidatesSince(): string {
-  return new Date(Date.now() - 60 * 86_400_000).toISOString();
+function candidatesSince(days = 60): string {
+  return new Date(Date.now() - days * 86_400_000).toISOString();
+}
+
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", timeZone: "Europe/Zurich" });
 }
 
 export default async function NewsletterIssuesPage() {
   const supabase = await createClient();
   const since = candidatesSince();
-  const [{ data: issues, error }, { count: confirmed }, { data: recent }] = await Promise.all([
+  const [{ data: issues, error }, { count: confirmed }, { data: recent }, { data: newsData }, { data: promptData }, { data: podcastData }] = await Promise.all([
     supabase.from("newsletter_issues").select("*").neq("status", "discarded").order("created_at", { ascending: false }).limit(30),
     supabase.from("newsletter_subscribers").select("id", { count: "exact", head: true }).eq("status", "confirmed"),
     supabase
@@ -46,6 +63,12 @@ export default async function NewsletterIssuesPage() {
       .gte("published_at", since)
       .order("published_at", { ascending: false })
       .limit(30),
+    supabase.from("news_items").select(NEWS_SELECT).eq("status", "approved").gte("generated_at", candidatesSince(21))
+      .order("generated_at", { ascending: false }).limit(150),
+    supabase.from("ai_prompts").select(PROMPT_SELECT).in("status", ["published", "featured"])
+      .order("published_at", { ascending: false }).limit(40),
+    supabase.from("podcasts").select(PODCAST_SELECT).eq("is_published", true)
+      .order("recommended_at", { ascending: false }).limit(40),
   ]);
 
   const views: IssueView[] = (issues ?? []).map((r) => ({
@@ -54,6 +77,7 @@ export default async function NewsletterIssuesPage() {
     subject: r.subject,
     intro: r.intro,
     items: sanitizeItems(r.items),
+    sections: sanitizeSections(r.sections),
     periodFrom: r.period_from,
     periodTo: r.period_to,
     source: r.source === "manual" ? "manual" : "cron",
@@ -84,6 +108,14 @@ export default async function NewsletterIssuesPage() {
     };
   });
 
+  const newsCandidates: NewsCandidate[] = rankNews((newsData ?? []) as NewsRow[]).map((r) => ({
+    ...newsToSection(r),
+    date: shortDate(r.generated_at),
+    importance: r.importance,
+  }));
+  const promptCandidates = ((promptData ?? []) as PromptRow[]).map((r) => promptToPick(r));
+  const podcastCandidates = ((podcastData ?? []) as PodcastRow[]).map((r) => podcastToPick(r, base));
+
   return (
     <>
       <PageTitle
@@ -94,7 +126,14 @@ export default async function NewsletterIssuesPage() {
       {error ? (
         <p role="alert" style={{ color: "#ff8e8e", fontSize: 14 }}>Ausgaben konnten nicht geladen werden: {error.message}</p>
       ) : (
-        <NewsletterIssuesClient issues={views} confirmedCount={confirmed ?? 0} candidates={candidates} />
+        <NewsletterIssuesClient
+          issues={views}
+          confirmedCount={confirmed ?? 0}
+          candidates={candidates}
+          newsCandidates={newsCandidates}
+          promptCandidates={promptCandidates}
+          podcastCandidates={podcastCandidates}
+        />
       )}
     </>
   );

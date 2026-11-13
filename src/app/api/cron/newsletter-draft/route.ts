@@ -3,16 +3,18 @@ import { render } from "@react-email/render";
 import { Resend } from "resend";
 import NewsletterDraftReady, { draftReadySubject } from "@/emails/NewsletterDraftReady";
 import { createNewsletterDraft } from "@/lib/newsletter/draftJob";
+import { sanitizeSections } from "@/lib/newsletter/issue";
 import { SITE_URL } from "@/lib/newsletter/mail";
 import { createServiceClient } from "@/lib/supabase/service";
 
 // Newsletter-Entwurf (vercel.json "30 5 * * 1", Montag frueh, PR 195): neue
-// Artikel seit der letzten Ausgabe, KI-Texte, danach ein Hinweis an die
-// Redaktion (NEWSLETTER_REPLY_TO). Versendet wird nie automatisch, nur nach
-// Freigabe im Admin. Ohne neue Artikel: nichts, keine Mail. Schutz wie die
-// anderen Crons: CRON_SECRET als Bearer, ohne Secret 503.
+// Artikel und Rubriken (News, Hype-Check, Prompt, Podcast; PR 203) seit der
+// letzten Ausgabe, KI-Texte, danach ein Hinweis an die Redaktion
+// (NEWSLETTER_REPLY_TO). Versendet wird nie automatisch, nur nach Freigabe im
+// Admin. Ohne neue Artikel und mit weniger als drei News: nichts, keine Mail.
+// Schutz wie die anderen Crons: CRON_SECRET als Bearer, ohne Secret 503.
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const NO_STORE = { "Cache-Control": "no-store" };
 const ADMIN_PATH = "/autor/admin/newsletter/ausgaben";
@@ -27,16 +29,17 @@ async function notifyEditor(p: { kind: "created" | "waiting"; issueId: string })
   }
   const { data } = await createServiceClient()
     .from("newsletter_issues")
-    .select("subject, items, ai_note")
+    .select("subject, items, sections, ai_note")
     .eq("id", p.issueId)
     .maybeSingle();
   if (!data) return false;
   const items = Array.isArray(data.items) ? data.items.length : 0;
+  const news = sanitizeSections(data.sections).news.length;
   try {
     const html = await render(
-      NewsletterDraftReady({ kind: p.kind, subject: data.subject, items, adminUrl: `${SITE_URL}${ADMIN_PATH}`, aiNote: data.ai_note }),
+      NewsletterDraftReady({ kind: p.kind, subject: data.subject, items, news, adminUrl: `${SITE_URL}${ADMIN_PATH}`, aiNote: data.ai_note }),
     );
-    const res = await new Resend(key).emails.send({ from, to, subject: draftReadySubject({ kind: p.kind, items }), html });
+    const res = await new Resend(key).emails.send({ from, to, subject: draftReadySubject({ kind: p.kind, items, news }), html });
     if (res.error) {
       console.error("[newsletter:cron] Hinweis-Mail fehlgeschlagen:", res.error.message);
       return false;

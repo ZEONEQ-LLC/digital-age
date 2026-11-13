@@ -6,13 +6,18 @@ type Props = {
   kind: "created" | "waiting";
   subject: string;
   items: number;
+  news: number;
   adminUrl: string;
   aiNote: string | null;
 };
 
-export function draftReadySubject(p: Pick<Props, "kind" | "items">): string {
+function contentLine(p: Pick<Props, "items" | "news">): string {
+  return `${p.items} Artikel, ${p.news} News`;
+}
+
+export function draftReadySubject(p: Pick<Props, "kind" | "items" | "news">): string {
   return p.kind === "created"
-    ? `Newsletter-Entwurf bereit: ${p.items} Artikel`
+    ? `Newsletter-Entwurf bereit: ${contentLine(p)}`
     : "Newsletter-Entwurf wartet auf deine Freigabe";
 }
 
@@ -22,7 +27,7 @@ export default function NewsletterDraftReady(p: Props) {
       <Heading>{p.kind === "created" ? "Der Newsletter-Entwurf ist bereit." : "Ein Entwurf wartet noch."}</Heading>
       <Paragraph>
         {p.kind === "created"
-          ? `Aus ${p.items} neuen Artikeln ist ein Entwurf entstanden. Betreff: «${p.subject}».`
+          ? `Der Entwurf enthält ${contentLine(p)} sowie, falls vorhanden, Hype-Check, Prompt und Podcast. Betreff: «${p.subject}».`
           : `Der bearbeitete Entwurf «${p.subject}» ist noch nicht versendet. Er bleibt unverändert, bis du ihn freigibst oder verwirfst.`}
       </Paragraph>
       {p.aiNote && (

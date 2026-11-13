@@ -77,6 +77,17 @@ console.log("=== parseGenerated ===");
   ok("vorgegebene Kategorie gewinnt", parseGenerated(JSON.stringify(item({ category: "lernen (Lernen)" })), [], "kreativ")?.[0].category === "kreativ");
   ok("unbekannte Kategorie verworfen", parseGenerated(JSON.stringify({ prompts: [item({ category: "andere" })] }), [])?.length === 0);
   ok("zu kurzer Prompt verworfen", parseGenerated(JSON.stringify({ prompts: [item({ prompt_text: "Schreib was." })] }), [])?.length === 0);
+  {
+    const why: string[] = [];
+    parseGenerated(JSON.stringify({ prompts: [item({ prompt_text: "Schreib was.", context: "kurz" })] }), [], "code", why);
+    ok("Grund nennt Feld und Laenge", why.length === 1 && why[0].includes("Prompt zu kurz (12 Zeichen") && why[0].includes("«Wofür» zu kurz"), why.join(" | "));
+    const dup: string[] = [];
+    parseGenerated(JSON.stringify(item()), ["Offerte in zehn Minuten gegenprüfen"], "business", dup);
+    ok("Grund bei Dublette", dup[0]?.startsWith("Titel schon vorhanden"), dup.join(" | "));
+    const cat: string[] = [];
+    parseGenerated(JSON.stringify(item({ category: "andere" })), [], undefined, cat);
+    ok("Grund bei Kategorie", cat[0]?.includes("unbekannte Kategorie «andere»"), cat.join(" | "));
+  }
   ok("unbekannte Schwierigkeit → intermediate", parseGenerated(JSON.stringify({ prompts: [item({ difficulty: "mittel" })] }), [])?.[0].difficulty === "intermediate");
   ok("Titel auf 80 Zeichen", (parseGenerated(JSON.stringify({ prompts: [item({ title: "T".repeat(120) })] }), [])?.[0].title.length ?? 0) === 80);
   ok("bestehender Titel (Gross/Klein, Satzzeichen) verworfen",

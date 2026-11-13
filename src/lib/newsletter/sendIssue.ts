@@ -10,8 +10,10 @@ import {
   issueCampaign,
   personalize,
   sanitizeItems,
+  sanitizeSections,
   validateForSend,
   type IssueItem,
+  type IssueSections,
 } from "@/lib/newsletter/issue";
 import { SITE_URL } from "@/lib/newsletter/mail";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -39,8 +41,11 @@ type IssueRow = {
   subject: string;
   intro: string;
   items: unknown;
+  sections: unknown;
   send_started_at: string | null;
 };
+
+const ISSUE_COLUMNS = "id, status, subject, intro, items, sections, send_started_at";
 
 function sender(): { resend: Resend; from: string; replyTo: string | undefined } | null {
   const key = process.env.RESEND_API_KEY;
@@ -59,7 +64,7 @@ export function oneClickUnsubscribeUrl(token: string): string {
 
 // HTML einmal rendern; der Abmeldelink enthaelt den Platzhalter.
 export async function renderIssueHtml(
-  issue: { subject: string; intro: string; items: IssueItem[] },
+  issue: { subject: string; intro: string; items: IssueItem[]; sections: IssueSections },
   opts: { date: Date; test?: boolean },
 ): Promise<string> {
   return render(
@@ -67,6 +72,7 @@ export async function renderIssueHtml(
       subject: issue.subject,
       intro: issue.intro,
       items: issue.items,
+      sections: issue.sections,
       dateText: formatIssueDate(opts.date),
       campaign: issueCampaign(opts.date),
       siteUrl: SITE_URL,
@@ -80,12 +86,13 @@ export async function sendIssueTest(issueId: string, to: string): Promise<{ ok: 
   const s = sender();
   if (!s) return { ok: false, error: "Mailversand ist nicht konfiguriert (RESEND_API_KEY / NEWSLETTER_FROM_EMAIL)." };
   const svc = createServiceClient();
-  const { data, error } = await svc.from("newsletter_issues").select("id, status, subject, intro, items, send_started_at").eq("id", issueId).maybeSingle();
+  const { data, error } = await svc.from("newsletter_issues").select(ISSUE_COLUMNS).eq("id", issueId).maybeSingle();
   if (error || !data) return { ok: false, error: "Ausgabe nicht gefunden." };
   const issue = data as IssueRow;
   const items = sanitizeItems(issue.items);
+  const sections = sanitizeSections(issue.sections);
   try {
-    const html = personalize(await renderIssueHtml({ subject: issue.subject, intro: issue.intro, items }, { date: new Date(), test: true }), "test");
+    const html = personalize(await renderIssueHtml({ subject: issue.subject, intro: issue.intro, items, sections }, { date: new Date(), test: true }), "test");
     const res = await s.resend.emails.send({ from: s.from, replyTo: s.replyTo, to, subject: `[Test] ${issue.subject}`, html });
     if (res.error) return { ok: false, error: res.error.message };
   } catch (err) {
@@ -101,15 +108,16 @@ export async function sendIssueToSubscribers(issueId: string, editorId: string):
   const svc = createServiceClient();
   const started = Date.now();
 
-  const { data, error } = await svc.from("newsletter_issues").select("id, status, subject, intro, items, send_started_at").eq("id", issueId).maybeSingle();
+  const { data, error } = await svc.from("newsletter_issues").select(ISSUE_COLUMNS).eq("id", issueId).maybeSingle();
   if (error || !data) return { ok: false, error: "Ausgabe nicht gefunden." };
   const issue = data as IssueRow;
   const items = sanitizeItems(issue.items);
+  const sections = sanitizeSections(issue.sections);
   if (issue.status !== "draft" && issue.status !== "sending") return { ok: false, error: "Diese Ausgabe ist nicht mehr offen." };
 
   let startedAt = issue.send_started_at ? new Date(issue.send_started_at) : new Date();
   if (issue.status === "draft") {
-    const v = validateForSend({ subject: issue.subject, items });
+    const v = validateForSend({ subject: issue.subject, items, sections });
     if (!v.ok) return { ok: false, error: v.error };
     const { count: confirmed, error: cntErr } = await svc
       .from("newsletter_subscribers")
@@ -149,7 +157,7 @@ export async function sendIssueToSubscribers(issueId: string, editorId: string):
       .not("error", "like", `${SKIP_PREFIX}%`);
   }
 
-  const baseHtml = await renderIssueHtml({ subject: issue.subject, intro: issue.intro, items }, { date: startedAt });
+  const baseHtml = await renderIssueHtml({ subject: issue.subject, intro: issue.intro, items, sections }, { date: startedAt });
 
   let sent = 0;
   let failed = 0;
