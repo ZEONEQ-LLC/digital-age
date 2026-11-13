@@ -26,6 +26,7 @@ export type PlatformInput = {
   hosting: string;
   pricing: string;
   url: string;
+  pricingUrl: string;
 };
 
 function validate(input: PlatformInput) {
@@ -33,13 +34,16 @@ function validate(input: PlatformInput) {
   const tagline = input.tagline.replace(/\s+/g, " ").trim();
   const pricing = input.pricing.trim();
   const url = input.url.trim();
+  const pricingUrl = input.pricingUrl.trim();
   if (!name || name.length > 60) throw new FormError("Name: 1 bis 60 Zeichen.");
   if (!tagline || tagline.length > 200) throw new FormError("Beschreibung: 1 bis 200 Zeichen.");
   if (!pricing || pricing.length > 40) throw new FormError("Preis: 1 bis 40 Zeichen.");
   if (!(PLATFORM_CATEGORIES as readonly string[]).includes(input.category)) throw new FormError("Unbekannte Kategorie.");
   if (!(PLATFORM_HOSTINGS as readonly string[]).includes(input.hosting)) throw new FormError("Unbekanntes Hosting.");
   if (url && !/^https:\/\/[^\s/]+\.[^\s]+$/i.test(url)) throw new FormError("Link muss mit https:// beginnen (leer = kein Link).");
-  return { name, category: input.category, tagline, hosting: input.hosting, pricing, url: url || null };
+  if (pricingUrl && !/^https:\/\/[^\s/]+\.[^\s]+$/i.test(pricingUrl)) throw new FormError("Preisseite muss mit https:// beginnen (leer = Link).");
+  // Neue Preisseite: Hash zuruecksetzen, damit der naechste Lauf sie liest.
+  return { name, category: input.category, tagline, hosting: input.hosting, pricing, url: url || null, pricing_url: pricingUrl || null };
 }
 
 export async function savePlatform(id: string, input: PlatformInput): Promise<ActionResult<null>> {
@@ -47,7 +51,8 @@ export async function savePlatform(id: string, input: PlatformInput): Promise<Ac
     await requireEditorId();
     const fields = validate(input);
     const supabase = await createClient();
-    const { error } = await supabase.from("ai_platforms").update({ ...fields, source: "editor" }).eq("id", id);
+    // page_hash leeren: der naechste Lauf liest die (evtl. neue) Preisseite.
+    const { error } = await supabase.from("ai_platforms").update({ ...fields, source: "editor", page_hash: null, page_status: null }).eq("id", id);
     if (error) throw error;
     refresh();
     return null;

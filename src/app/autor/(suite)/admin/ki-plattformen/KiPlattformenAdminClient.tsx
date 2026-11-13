@@ -21,6 +21,8 @@ export type PlatformAdminView = {
   hosting: string;
   pricing: string;
   url: string | null;
+  pricingUrl: string | null;
+  pageStatus: string | null;
   featured: boolean;
   active: boolean;
   locked: boolean;
@@ -49,7 +51,10 @@ type Props = { platforms: PlatformAdminView[]; runs: RunView[]; changes: ChangeV
 const ACTION_LABEL = { add: "Neu", update: "Aktualisiert", archive: "Archiviert" } as const;
 const SOURCE_LABEL: Record<string, string> = { seed: "Startbestand", ai: "zuletzt von KI", editor: "zuletzt von Redaktion" };
 const RUN_STATUS: Record<string, string> = { running: "läuft", ok: "ok", partial: "mit Fehlern", error: "fehlgeschlagen" };
-const EMPTY: PlatformInput = { name: "", category: "LLM", tagline: "", hosting: "EU", pricing: "", url: "" };
+const EMPTY: PlatformInput = { name: "", category: "LLM", tagline: "", hosting: "EU", pricing: "", url: "", pricingUrl: "" };
+
+// Ergebnis des letzten Abrufs der Preisseite (PR 206).
+const PAGE_STATUS: Record<string, string> = { blocked: "Preisseite sperrt Bots", script: "Preisseite nur per JavaScript", missing: "Preisseite nicht gefunden", error: "Preisseite nicht erreichbar" };
 
 function host(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
@@ -306,6 +311,7 @@ export default function KiPlattformenAdminClient({ platforms, runs, changes, loa
                       <td>
                         <div className="kp-mono">{p.category} · {p.hosting}</div>
                         <div className="kp-sub">{p.pricing}</div>
+                        {p.pageStatus && PAGE_STATUS[p.pageStatus] && <div className="kp-sub" style={{ color: "var(--da-orange)" }}>{PAGE_STATUS[p.pageStatus]}</div>}
                       </td>
                       <td>
                         <div className="kp-mono">{p.verifiedLabel}</div>
@@ -353,7 +359,7 @@ export default function KiPlattformenAdminClient({ platforms, runs, changes, loa
                       <tr>
                         <td colSpan={5}>
                           <PlatformForm
-                            initial={{ name: p.name, category: p.category, tagline: p.tagline, hosting: p.hosting, pricing: p.pricing, url: p.url ?? "" }}
+                            initial={{ name: p.name, category: p.category, tagline: p.tagline, hosting: p.hosting, pricing: p.pricing, url: p.url ?? "", pricingUrl: p.pricingUrl ?? "" }}
                             submitLabel="Speichern"
                             busy={busy === `e-${p.id}`}
                             note={p.locked ? null : "Tipp: Nach dem Bearbeiten «Für KI gesperrt» setzen, wenn die KI den Eintrag nicht mehr ändern soll."}
@@ -416,6 +422,7 @@ function PlatformForm({
       <label className="kp-wide">Beschreibung (ein Satz)<input className="kp-input" value={v.tagline} onChange={set("tagline")} maxLength={200} required /></label>
       <label>Preis<input className="kp-input" value={v.pricing} onChange={set("pricing")} maxLength={40} required /></label>
       <label style={{ gridColumn: "span 2" }}>Link (https://, leer = kein Link)<input className="kp-input" value={v.url} onChange={set("url")} type="url" /></label>
+      <label className="kp-wide">Preisseite (https://, prüft der Job wöchentlich; leer = Link)<input className="kp-input" value={v.pricingUrl} onChange={set("pricingUrl")} type="url" /></label>
       <div className="kp-form__actions">
         <button type="submit" className="kp-btn" disabled={busy}>{busy ? "Speichere…" : submitLabel}</button>
         <button type="button" className="kp-link kp-link--muted" onClick={onCancel}>Abbrechen</button>

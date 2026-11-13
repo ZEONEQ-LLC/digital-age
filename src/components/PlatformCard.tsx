@@ -1,6 +1,6 @@
 "use client";
 
-export type Hosting = "CH" | "EU" | "US";
+export type Hosting = "CH" | "EU" | "US" | "CN";
 
 export type Platform = {
   id: string;
@@ -15,10 +15,15 @@ export type Platform = {
 };
 
 export const hostingColor = (h: Hosting): string =>
-  h === "CH" ? "var(--da-green)" : h === "EU" ? "var(--da-orange)" : "var(--da-muted-soft)";
+  h === "CH" ? "var(--da-green)" : h === "EU" ? "var(--da-orange)" : h === "CN" ? "#ff8e8e" : "var(--da-muted-soft)";
 
 export const hostingLabel = (h: Hosting): string =>
-  h === "CH" ? "🇨🇭 Schweiz" : h === "EU" ? "🇪🇺 EU" : "🌐 USA";
+  h === "CH" ? "🇨🇭 Schweiz" : h === "EU" ? "🇪🇺 EU" : h === "CN" ? "🇨🇳 China" : "🌐 USA";
+
+// Hinweis bei Anbietern aus China (Entscheid Ali 13.11.2026: aufnehmen,
+// gekennzeichnet): Daten unterliegen chinesischem Recht.
+export const hostingNote = (h: Hosting): string | null =>
+  h === "CN" ? "Anbieter in China: Eingaben werden dort verarbeitet und unterliegen chinesischem Recht. Keine vertraulichen Daten eingeben." : null;
 
 export const catColors: Record<string, string> = {
   LLM: "var(--da-green)",
@@ -84,6 +89,7 @@ export default function PlatformCard({ platform, inCompare, onToggleCompare, acc
           font-size: 11px; white-space: nowrap;
         }
         .pc__badge--host { color: var(--hc); border: 1px solid var(--hc); font-weight: 600; }
+        .pc__note { color: var(--da-muted); font-size: 12px; line-height: 1.45; margin: 10px 0 0; }
         .pc__badge--price {
           color: var(--da-muted); border: 1px solid var(--da-border);
           font-family: var(--da-font-mono);
@@ -127,6 +133,7 @@ export default function PlatformCard({ platform, inCompare, onToggleCompare, acc
           <span className="pc__badge pc__badge--host">{hostingLabel(platform.hosting)}</span>
           <span className="pc__badge pc__badge--price">{platform.pricing}</span>
         </div>
+        {hostingNote(platform.hosting) && <p className="pc__note">{hostingNote(platform.hosting)}</p>}
         <div className="pc__actions">
           {platform.link ? (
             <a className="pc__open" href={platform.link} target="_blank" rel="noopener noreferrer">Öffnen →</a>

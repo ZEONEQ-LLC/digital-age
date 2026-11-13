@@ -14,6 +14,6 @@ export const TASK_LABELS: Record<AiTask, string> = {
   hero_proposals: "Hero Studio — Vorschläge",
   social_posts: "Hero Studio — Posttexte",
   newsletter_draft: "Newsletter-Entwurf",
-  platform_research: "KI-Plattformen prüfen (Websuche)",
+  platform_research: "KI-Plattformen prüfen",
   prompt_generation: "Prompts der KI-Redaktion",
 };
