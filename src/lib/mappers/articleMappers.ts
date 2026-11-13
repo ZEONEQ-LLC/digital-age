@@ -4,6 +4,7 @@
 // DB-Abfrage-Layer brechen.
 
 import type { ArticleWithRelations } from "@/lib/articleApi";
+import { plainExcerpt } from "@/lib/excerpt";
 import type { Database } from "@/lib/database.types";
 import { getCoverUrl } from "@/lib/coverImage";
 import type { ListArticle } from "@/components/ArticleListRow";
@@ -61,6 +62,7 @@ export function articleToListRow(
     readTime: readMin > 0 ? `${readMin} min` : "—",
     href: card.href,
     external: card.external,
+    excerpt: plainExcerpt(article.excerpt) || undefined,
   };
 }
 

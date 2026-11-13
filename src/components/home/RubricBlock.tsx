@@ -2,7 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ArticleWithRelations } from "@/lib/articleApi";
 import { getCoverUrl } from "@/lib/coverImage";
-import { accentFor, articleMeta, categoryLabel, plainExcerpt } from "./LeadStory";
+import { plainExcerpt } from "@/lib/excerpt";
+import { accentFor, articleMeta, categoryLabel } from "./LeadStory";
 
 // Rubrik auf der Startseite: ein grosser Beitrag links, drei kompakte rechts.
 // Abwechslung statt dreier gleicher Karten pro Rubrik.

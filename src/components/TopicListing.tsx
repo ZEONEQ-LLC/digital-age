@@ -47,10 +47,13 @@ export type TopicListingProps = {
   accentColor?: Accent;
   ressortSlug?: string;
   moduleReserve?: SlotReserve;
+  // Artikel, die schon oben stehen (Spotlight): in «Alle» ohne Autor-Filter
+  // nicht noch einmal in der Liste.
+  pinnedIds?: string[];
 };
 
-const PAGE_SIZE = 6;
-const PAGE_INCREMENT = 3;
+const PAGE_SIZE = 10;
+const PAGE_INCREMENT = 10;
 
 export default function TopicListing({
   topicLabel,
@@ -65,6 +68,7 @@ export default function TopicListing({
   accentColor = "green",
   ressortSlug,
   moduleReserve,
+  pinnedIds = [],
 }: TopicListingProps) {
   const accent = accentVar[accentColor];
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -213,21 +217,15 @@ export default function TopicListing({
         .tl-author__count { color: var(--accent); font-size: 11px; font-family: var(--da-font-mono); flex-shrink: 0; }
 
         .tl-feed-head {
-          display: flex; align-items: center; justify-content: space-between;
-          margin-bottom: var(--sp-4);
+          display: flex; align-items: baseline; justify-content: space-between;
+          padding-bottom: var(--sp-3); border-bottom: 1px solid var(--da-border);
+          margin-bottom: 0;
           gap: var(--sp-4);
           flex-wrap: wrap;
         }
         .tl-feed-count { color: var(--da-muted); font-family: var(--da-font-mono); font-size: var(--fs-meta); white-space: nowrap; }
-        .tl-feed-sort {
-          background: var(--da-card);
-          color: var(--da-text-strong);
-          border: 1px solid var(--da-border);
-          border-radius: var(--r-sm);
-          padding: 6px 12px;
-          font-size: var(--fs-meta);
-          font-family: var(--da-font-body);
-          cursor: pointer;
+        .tl-feed-label {
+          color: var(--da-text); font-family: var(--da-font-display); font-size: 20px; font-weight: 700; margin: 0;
         }
         .tl-loader { padding-top: var(--sp-8); padding-bottom: var(--sp-4); text-align: center; }
         .tl-progress { height: 3px; background: var(--da-card); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
@@ -287,6 +285,7 @@ export default function TopicListing({
           topTags={topTags}
           ressortSlug={ressortSlug}
           moduleReserve={moduleReserve}
+          pinnedIds={pinnedIds}
           accent={accent}
           sidebarOpen={sidebarOpen}
         />
@@ -313,6 +312,7 @@ function TopicListingBody({
   topTags,
   ressortSlug,
   moduleReserve,
+  pinnedIds = [],
   accent,
   sidebarOpen,
 }: TopicListingBodyProps) {
@@ -332,11 +332,16 @@ function TopicListingBody({
     ? authors.find((a) => a.slug === authorFilter) ?? null
     : null;
 
+  const hidePinned = activeCat === "Alle" && !authorFilter && pinnedIds.length > 0;
   const filtered = useMemo(() => {
     let out = activeCat === "Alle" ? articles : articles.filter((a) => a.category === activeCat);
     if (authorFilter) out = out.filter((a) => a.authorSlug === authorFilter);
+    if (hidePinned) {
+      const pinned = new Set(pinnedIds);
+      out = out.filter((a) => !pinned.has(String(a.id)));
+    }
     return out;
-  }, [articles, activeCat, authorFilter]);
+  }, [articles, activeCat, authorFilter, hidePinned, pinnedIds]);
   const shown = filtered.slice(0, visibleCount);
   const progress = filtered.length === 0 ? 100 : Math.min(100, Math.round((visibleCount / filtered.length) * 100));
 
@@ -478,11 +483,8 @@ function TopicListingBody({
             </div>
           )}
           <div className="tl-feed-head">
-            <p className="tl-feed-count">{filtered.length} Artikel</p>
-            <select className="tl-feed-sort" defaultValue="neu" aria-label="Sortierung">
-              <option value="neu">Neueste zuerst</option>
-              <option value="meist">Meistgelesen</option>
-            </select>
+            <p className="tl-feed-label">{hidePinned ? "Neueste" : activeCat === "Alle" ? "Alle Artikel" : activeCat}</p>
+            <p className="tl-feed-count">{hidePinned ? `${filtered.length} weitere Artikel` : `${filtered.length} Artikel`}</p>
           </div>
 
           {shown.length === 0 ? (
