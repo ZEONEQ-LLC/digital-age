@@ -41,6 +41,7 @@ export default function NewsColumn({ items }: { items: NewsItem[] }) {
           padding: 12px 0; border-bottom: 1px solid var(--da-border); text-decoration: none;
         }
         .nc__time { color: var(--da-green); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; padding-top: 1px; }
+        .nc__flag { color: var(--da-green); font-weight: 700; margin-right: 6px; }
         .nc__title {
           color: var(--da-text-strong); font-size: 15px; font-weight: 500; line-height: 1.38;
           display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
@@ -63,7 +64,10 @@ export default function NewsColumn({ items }: { items: NewsItem[] }) {
                 {dayBreak && <p className="nc__day">{newsDayLabel(day, now)}</p>}
                 <Link href={`/news#n-${it.id}`} className="nc__link">
                   <span className="nc__time">{newsClock(it.publishedAt)}</span>
-                  <span className="nc__title">{it.title}</span>
+                  <span className="nc__title">
+                    {it.importance === 3 && <span className="nc__flag">Wichtig</span>}
+                    {it.title}
+                  </span>
                   <span className="nc__src">{it.sourceName}</span>
                 </Link>
               </li>

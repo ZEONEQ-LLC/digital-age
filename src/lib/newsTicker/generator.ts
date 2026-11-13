@@ -3,6 +3,7 @@ import "server-only";
 import { callLLMForAuthor } from "@/lib/ai/systemCall";
 import type { Database } from "@/lib/database.types";
 import type { RawFeedItem } from "./fetcher";
+import { ASSESSMENT_FIELD_INSTRUCTION, buildAssessmentPrompt, parseAssessmentReply, type Assessment, type Importance } from "./assessment";
 import { describeLlmError, parseGenerated, type GenerateOutcome } from "./parse";
 
 export type { GeneratedItem, GenerateOutcome } from "./parse";
@@ -39,7 +40,9 @@ function buildSystem(promptTemplate: string, source: NewsSourceRow): string {
   ]
     .filter(Boolean)
     .join("\n");
-  return `${ctx}\n\n${promptTemplate}`;
+  // Die Einordnung haengt immer im Code an (nicht im editierbaren Prompt),
+  // damit sie auch mit einem alten DB-Prompt kommt.
+  return `${ctx}\n\n${promptTemplate}\n\n${ASSESSMENT_FIELD_INSTRUCTION}`;
 }
 
 function buildUserPrompt(rawItem: RawFeedItem): string {
@@ -69,7 +72,7 @@ export async function generateNewsItem(
   const result = await callLLMForAuthor(authorId, {
     system: buildSystem(promptTemplate, source),
     prompt: buildUserPrompt(rawItem),
-    maxTokens: 400,
+    maxTokens: 650,
     task: "news_item_generation",
   });
 
@@ -84,3 +87,19 @@ export async function generateNewsItem(
 
   return parseGenerated(result.text);
 }
+
+/**
+ * Einordnung fuer eine bestehende Meldung nachtragen (aeltere Meldungen oder
+ * wenn die KI das Feld beim Anlegen ausgelassen hat). Gleiche Task und damit
+ * gleiches Modell wie der Ticker.
+ */
+export async function assessExistingItem(
+  item: { title: string; teaser: string; summary: string; sourceName: string | null },
+  authorId: string,
+): Promise<{ assessment: Assessment; importance: Importance } | { error: string }> {
+  const { system, prompt } = buildAssessmentPrompt(item);
+  const result = await callLLMForAuthor(authorId, { system, prompt, maxTokens: 300, task: "news_item_generation" });
+  if (!result.ok) return { error: describeLlmError(result.kind, result.message) };
+  return parseAssessmentReply(result.text) ?? { error: "Einordnung der KI unvollständig oder kein JSON." };
+}
+

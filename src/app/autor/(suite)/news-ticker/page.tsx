@@ -1,5 +1,7 @@
 import PageTitle from "@/components/author/PageTitle";
-import { getAllSources, getLatestNewsItemAt, getNewsTickerConfig } from "@/lib/newsTickerApi";
+import { getAllSources, getLatestNewsItemAt, getNewsTickerConfig, getRecentNewsItemsForAdmin } from "@/lib/newsTickerApi";
+import { readAssessment, readImportance } from "@/lib/newsTicker/assessment";
+import ItemsSection, { type AdminNewsItem } from "./ItemsSection";
 import { parseRefreshStats } from "@/lib/newsTicker/stats";
 import type { TickerSettings } from "@/lib/newsTickerActions";
 import SourcesSection from "./SourcesSection";
@@ -42,11 +44,12 @@ function olderThanDays(iso: string, days: number): boolean {
 }
 
 export default async function NewsTickerAdminPage() {
-  const [sources, config, modelInfo, latestItemAt] = await Promise.all([
+  const [sources, config, modelInfo, latestItemAt, recentItems] = await Promise.all([
     getAllSources(),
     getNewsTickerConfig(),
     getNewsTickerModel(),
     getLatestNewsItemAt(),
+    getRecentNewsItemsForAdmin(40),
   ]);
 
   const formatDateTime = (iso: string) =>
@@ -63,6 +66,20 @@ export default async function NewsTickerAdminPage() {
   const latestItem = latestItemAt
     ? { label: formatDateTime(latestItemAt), stale: olderThanDays(latestItemAt, STALE_AFTER_DAYS) }
     : null;
+
+  const adminItems: AdminNewsItem[] = recentItems.map((it) => ({
+    id: it.id,
+    title: it.title,
+    summary: it.summary,
+    sourceName: it.source_name,
+    sourceUrl: it.source_url,
+    timeLabel: it.published_at
+      ? new Date(it.published_at).toLocaleString("de-CH", { timeZone: "Europe/Zurich", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+      : "–",
+    hidden: it.status !== "approved",
+    assessment: readAssessment(it.assessment),
+    importance: readImportance(it.importance),
+  }));
 
   const settings: TickerSettings = config
     ? {
@@ -85,6 +102,10 @@ export default async function NewsTickerAdminPage() {
       />
 
       <RefreshSection lastRefreshLabel={lastRefreshLabel} lastStats={lastStats} latestItem={latestItem} />
+
+      <div style={{ height: 40 }} />
+
+      <ItemsSection items={adminItems} />
 
       <div style={{ height: 40 }} />
 

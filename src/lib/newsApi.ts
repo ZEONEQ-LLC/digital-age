@@ -1,5 +1,6 @@
 import "server-only";
 
+import { readAssessment, readImportance, type Assessment, type Importance } from "@/lib/newsTicker/assessment";
 import { createPublicClient } from "@/lib/supabase/public";
 
 // Oeffentliche News (Ticker-Eintraege, status approved) fuer die Startseite
@@ -15,6 +16,9 @@ export type NewsItem = {
   sourceName: string;
   sourceUrl: string;
   publishedAt: string;
+  // KI-Einordnung (PR 199), null solange der Nachtrag noch fehlt.
+  assessment: Assessment | null;
+  importance: Importance | null;
 };
 
 export const NEWS_CATEGORY_LABEL: Record<string, string> = {
@@ -34,6 +38,8 @@ type Row = {
   source_url: string;
   published_at: string | null;
   generated_at: string;
+  assessment: unknown;
+  importance: number | null;
 };
 
 function toItem(r: Row): NewsItem {
@@ -46,13 +52,15 @@ function toItem(r: Row): NewsItem {
     sourceName: r.source_name ?? "Externe Quelle",
     sourceUrl: r.source_url,
     publishedAt: r.published_at ?? r.generated_at,
+    assessment: readAssessment(r.assessment),
+    importance: readImportance(r.importance),
   };
 }
 
 export async function getLatestNews(limit: number): Promise<NewsItem[]> {
   const { data, error } = await createPublicClient()
     .from("news_items")
-    .select("id, title, teaser, summary, category, source_name, source_url, published_at, generated_at")
+    .select("id, title, teaser, summary, category, source_name, source_url, published_at, generated_at, assessment, importance")
     .eq("status", "approved")
     .order("published_at", { ascending: false, nullsFirst: false })
     .limit(limit);

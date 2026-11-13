@@ -176,6 +176,12 @@ function StatsBox({ stats, title }: { stats: RefreshStats; title: string }) {
               <Row label="Items fehlgeschlagen" value={failed} accent={failed > 0 ? "orange" : undefined} />
             </>
           )}
+          {stats.items_assessed !== undefined && (
+            <Row label="Einordnung nachgetragen" value={stats.items_assessed} />
+          )}
+          {(stats.assess_failed ?? 0) > 0 && (
+            <Row label="Einordnung fehlgeschlagen" value={stats.assess_failed ?? 0} accent="orange" />
+          )}
         </tbody>
       </table>
 

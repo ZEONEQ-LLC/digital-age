@@ -49,3 +49,16 @@ export async function getLatestNewsItemAt(): Promise<string | null> {
     .maybeSingle();
   return data?.generated_at ?? null;
 }
+
+// Letzte Meldungen fuer den Abschnitt «Meldungen und Einordnung» im Admin
+// (Session-Client, RLS news_items_editor_all: auch ausgeblendete).
+export async function getRecentNewsItemsForAdmin(limit = 40) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("news_items")
+    .select("id, title, summary, source_name, source_url, published_at, status, category, assessment, importance")
+    .order("published_at", { ascending: false })
+    .limit(limit);
+  return data ?? [];
+}
+
