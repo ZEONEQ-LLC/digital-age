@@ -38,8 +38,8 @@ export default function InternalArticleCard({
       }}
     >
       {coverUrl && (
-        <div style={{ position: "relative", flex: "0 0 120px", width: 120, height: 80, borderRadius: 4, overflow: "hidden" }}>
-          <Image src={coverUrl} alt="" fill sizes="120px" style={{ objectFit: "cover" }} unoptimized />
+        <div style={{ position: "relative", flex: "0 0 144px", width: 144, aspectRatio: "16 / 9", borderRadius: 4, overflow: "hidden" }}>
+          <Image src={coverUrl} alt="" fill sizes="144px" style={{ objectFit: "cover" }} unoptimized />
         </div>
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -50,7 +50,7 @@ export default function InternalArticleCard({
           {title}
         </div>
         {excerpt && (
-          <div style={{ color: "var(--da-muted)", fontSize: 13, lineHeight: 1.5 }}>
+          <div style={{ color: "var(--da-muted)", fontSize: 13, lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
             {excerpt}
           </div>
         )}

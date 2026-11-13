@@ -352,166 +352,92 @@ async function ArticleView({ article, moduleReserve }: { article: ArticleWithFul
       <ReadingProgress />
       
 
-      <header style={{ maxWidth: "860px", margin: "0 auto", padding: "52px var(--gutter) 28px" }}>
-        <nav aria-label="Breadcrumb" style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "var(--sp-6)" }}>
-          <Link href="/" style={{ color: "var(--da-muted)", fontSize: "var(--fs-body-sm)" }}>Home</Link>
-          <span style={{ color: "var(--da-faint)", fontSize: "var(--fs-body-sm)" }}>/</span>
-          <span
-            style={{
-              color: "var(--da-green)",
-              fontFamily: "var(--da-font-mono)",
-              fontSize: "var(--fs-body-sm)",
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-            }}
-          >
-            {subcategory}
-          </span>
-          {isExternal && (
+      <ArticleHeadStyles />
+      <header className="ah">
+        <nav aria-label="Breadcrumb" className="ah-kicker">
+          {categoryName && categoryRoute ? (
+            <Link href={categoryRoute} className="ah-kicker__rubric">{categoryName}</Link>
+          ) : categoryName ? (
+            <span className="ah-kicker__rubric">{categoryName}</span>
+          ) : null}
+          {subcategory && subcategory !== categoryName && (
             <>
-              <span style={{ color: "var(--da-faint)", fontSize: "var(--fs-body-sm)" }}>·</span>
-              <ExternalBadge size="xs" />
+              <span className="ah-kicker__sep" aria-hidden>/</span>
+              <span className="ah-kicker__sub">{subcategory}</span>
             </>
           )}
+          {isExternal && <ExternalBadge size="xs" />}
         </nav>
 
-        <h1
-          style={{
-            color: "var(--da-text)",
-            fontFamily: "var(--da-font-display)",
-            fontSize: "clamp(30px, 4vw, 48px)",
-            fontWeight: 700,
-            lineHeight: 1.15,
-            letterSpacing: "-0.02em",
-            marginBottom: "var(--sp-6)",
-          }}
-        >
-          {article.title}
-        </h1>
+        <h1 className="ah-title">{article.title}</h1>
 
-        {article.excerpt && (
-          <p style={{ color: "#c0c0c0", fontSize: "20px", lineHeight: 1.65, marginBottom: "36px", fontWeight: 300 }}>
-            <InlineText content={article.excerpt} sources={doc.sources} />
-          </p>
-        )}
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: "var(--sp-4)",
-            paddingBottom: "28px",
-            borderBottom: "1px solid var(--da-card)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-            {/* Avatar-Link geht zum selben Ziel wie der Name-Link.
-                aria-hidden + tabIndex=-1, damit Screenreader/Tastatur
-                nicht beides als doppelten Link vorlesen — der Name-Link
-                bleibt die zugängliche Hauptaktion. */}
-            <Link
-              href={`/autor/${authorHandle}`}
-              aria-hidden="true"
-              tabIndex={-1}
-              style={{
-                position: "relative",
-                width: 44,
-                height: 44,
-                flexShrink: 0,
-                borderRadius: "50%",
-                overflow: "hidden",
-                border: `2px solid ${isExternal ? "var(--da-orange)" : "var(--da-green)"}`,
-                display: "block",
-              }}
-            >
-              {author.avatar_url && (
-                <Image src={author.avatar_url} alt={author.display_name} fill sizes="44px" style={{ objectFit: "cover" }} unoptimized />
-              )}
-            </Link>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <Link href={`/autor/${authorHandle}`} style={{ color: "var(--da-text)", fontSize: "var(--fs-body)", fontWeight: 600 }}>
-                  {author.display_name}
-                </Link>
-                {isExternal && <ExternalBadge size="xs" />}
-              </div>
-              <p style={{ color: "var(--da-muted)", fontFamily: "var(--da-font-mono)", fontSize: "var(--fs-body-sm)" }}>
-                {dateLabel} · {article.reading_minutes ?? 0} min Lesezeit
+        <div className="ah-body">
+          <div className="ah-side">
+            {article.excerpt && (
+              <p className="ah-dek">
+                <InlineText content={article.excerpt} sources={doc.sources} />
               </p>
+            )}
+            <div className="ah-byline">
+              <div className="ah-author">
+                {/* Avatar-Link geht zum selben Ziel wie der Name-Link.
+                    aria-hidden + tabIndex=-1, damit Screenreader/Tastatur
+                    nicht beides als doppelten Link vorlesen. */}
+                <Link
+                  href={`/autor/${authorHandle}`}
+                  aria-hidden="true"
+                  tabIndex={-1}
+                  className="ah-avatar"
+                  style={{ borderColor: isExternal ? "var(--da-orange)" : "var(--da-green)" }}
+                >
+                  {author.avatar_url && (
+                    <Image src={author.avatar_url} alt={author.display_name} fill sizes="40px" style={{ objectFit: "cover" }} unoptimized />
+                  )}
+                </Link>
+                <div>
+                  <Link href={`/autor/${authorHandle}`} className="ah-author__name">{author.display_name}</Link>
+                  <p className="ah-author__meta">{dateLabel} · {article.reading_minutes ?? 0} min Lesezeit</p>
+                </div>
+              </div>
+              <div className="ah-actions">
+                <ListenButton
+                  chunks={speechChunks}
+                  lang={speechLang}
+                  podcastTargetId={hasPlayablePodcast ? ARTICLE_PODCAST_ANCHOR : undefined}
+                  podcastPlayEvent={hasPlayablePodcast ? ARTICLE_PODCAST_PLAY_EVENT : undefined}
+                />
+                <ShareButtons title={article.title} url={url} />
+              </div>
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-4)", flexWrap: "wrap" }}>
-            <ListenButton
-              chunks={speechChunks}
-              lang={speechLang}
-              podcastTargetId={hasPlayablePodcast ? ARTICLE_PODCAST_ANCHOR : undefined}
-              podcastPlayEvent={hasPlayablePodcast ? ARTICLE_PODCAST_PLAY_EVENT : undefined}
-            />
-            <ShareButtons title={article.title} url={url} />
-          </div>
+
+          <figure className="ah-figure">
+            <div className="ah-figure__frame">
+              <Image
+                src={getCoverUrl(article)}
+                alt={article.cover_image_alt?.trim() || article.title}
+                width={1600}
+                height={900}
+                sizes="(max-width: 1024px) 100vw, 1136px"
+                priority
+                unoptimized
+                className="ah-figure__img"
+              />
+              {/* Hero-Animation (Hero Studio): dekorative Ebene ueber dem Bild,
+                  das Bild bleibt LCP, Poster und Fallback. */}
+              {article.cover_video_url?.trim() && (
+                <ArticleCoverVideo src={article.cover_video_url.trim()} poster={getCoverUrl(article)} />
+              )}
+            </div>
+            {(article.cover_image_caption?.trim() || article.cover_image_source?.trim()) && (
+              <figcaption className="ah-figure__cap">
+                {article.cover_image_caption?.trim() && <span>{article.cover_image_caption.trim()}</span>}
+                {article.cover_image_source?.trim() && <small>{article.cover_image_source.trim()}</small>}
+              </figcaption>
+            )}
+          </figure>
         </div>
       </header>
-
-      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 var(--gutter) var(--sp-12)" }}>
-        <figure style={{ margin: 0 }}>
-          <div style={{ position: "relative", borderRadius: "10px", overflow: "hidden" }}>
-            <Image
-              src={getCoverUrl(article)}
-              alt={article.cover_image_alt?.trim() || article.title}
-              width={1600}
-              height={900}
-              sizes="(max-width: 1100px) 100vw, 1100px"
-              priority
-              unoptimized
-              style={{ width: "100%", height: "auto", maxHeight: "520px", objectFit: "cover", display: "block" }}
-            />
-            {/* Hero-Animation (Hero Studio): dekorative Ebene ueber dem Bild,
-                das Bild bleibt LCP, Poster und Fallback. */}
-            {article.cover_video_url?.trim() && (
-              <ArticleCoverVideo src={article.cover_video_url.trim()} poster={getCoverUrl(article)} />
-            )}
-            <div
-              aria-hidden
-              style={{
-                position: "absolute",
-                inset: 0,
-                background: "linear-gradient(to top, rgba(28,28,30,0.3) 0%, transparent 40%)",
-                pointerEvents: "none",
-              }}
-            />
-          </div>
-          {article.cover_image_caption?.trim() && (
-            <figcaption
-              style={{
-                marginTop: 10,
-                color: "var(--da-text)",
-                fontSize: 14,
-                fontWeight: 600,
-                textAlign: "center",
-              }}
-            >
-              {article.cover_image_caption}
-            </figcaption>
-          )}
-          {article.cover_image_source?.trim() && (
-            <small
-              style={{
-                display: "block",
-                marginTop: 4,
-                color: "var(--da-muted-soft)",
-                fontSize: 12,
-                fontStyle: "italic",
-                textAlign: "center",
-              }}
-            >
-              {article.cover_image_source}
-            </small>
-          )}
-        </figure>
-      </div>
 
       <LinkedPodcastsSection podcasts={linkedPodcasts} />
       {htmlLang !== "de" && <HtmlLang lang={htmlLang} />}
@@ -522,31 +448,16 @@ async function ArticleView({ article, moduleReserve }: { article: ArticleWithFul
             <BlockReader doc={doc} articleSlug={article.slug} ressortSlug={categorySlug} moduleReserve={moduleReserve} locale={article.locale} />
           </ArticleBody>
 
-          {article.tags && article.tags.length > 0 && (
-            <div style={{ marginTop: "var(--sp-10)", display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {article.tags.map((tag) => (
-                <Link
-                  key={tag}
-                  href={`/tag/${slugifyTag(tag)}`}
-                  style={{
-                    background: "var(--da-card)",
-                    border: "1px solid var(--da-border)",
-                    color: "var(--da-text-strong)",
-                    fontSize: 12,
-                    padding: "4px 10px",
-                    borderRadius: 999,
-                    fontFamily: "var(--da-font-mono)",
-                    textDecoration: "none",
-                    transition: "border-color var(--t-fast), color var(--t-fast)",
-                  }}
-                >
-                  #{tag}
-                </Link>
-              ))}
-            </div>
-          )}
-
-          <div style={{ marginTop: "var(--sp-12)", paddingTop: "var(--sp-8)", borderTop: "1px solid var(--da-card)" }}>
+          <div className="art-endbar">
+            {article.tags && article.tags.length > 0 && (
+              <div className="art-tags">
+                {article.tags.map((tag) => (
+                  <Link key={tag} href={`/tag/${slugifyTag(tag)}`} className="art-tag">
+                    #{tag}
+                  </Link>
+                ))}
+              </div>
+            )}
             <ShareButtons title={article.title} url={url} />
           </div>
 
@@ -629,13 +540,12 @@ function LinkedPodcastsSection({ podcasts }: { podcasts: PodcastWithRecommender[
   );
 
   return (
-    <section id={ARTICLE_PODCAST_ANCHOR} style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 var(--gutter) var(--sp-8)", scrollMarginTop: "var(--nav-h)" }}>
+    <section id={ARTICLE_PODCAST_ANCHOR} style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 var(--gutter) var(--sp-8)", scrollMarginTop: "var(--nav-h)" }}>
       <p style={{ color: "var(--da-faint)", fontFamily: "var(--da-font-mono)", fontSize: "var(--fs-caption)", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "var(--sp-3)" }}>
         Podcast zum Beitrag
       </p>
-      {/* maxWidth = natuerliche Lesebreite, links­buendig an der 1100er-
-          Inhaltskante (deckungsgleich mit Hero-Bild + Fliesstext). */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)", maxWidth: "720px" }}>
+      {/* Breite = Textspalte (680), linksbuendig wie Kopf, Bild und Text. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)", maxWidth: "680px" }}>
         {podcasts.map((p, idx) => {
           const isSelfHosted = p.source_type === "self_hosted" && !!p.audio_url;
           if (isSelfHosted && p.audio_url) {
@@ -679,24 +589,131 @@ function LinkedPodcastsSection({ podcasts }: { podcasts: PodcastWithRecommender[
 }
 
 function ArticleBodyGrid({ children, hasToc }: { children: React.ReactNode; hasToc: boolean }) {
+  // Gleiches Raster wie Kopf und Navbar (1200 inkl. Rand): Text 680 px
+  // linksbuendig, Inhaltsverzeichnis rechts an der Kante.
   return (
     <>
       <style>{`
         .article-grid {
-          max-width: 1100px;
+          max-width: 1200px;
           margin: 0 auto;
           padding: 0 var(--gutter);
           display: grid;
-          grid-template-columns: ${hasToc ? "1fr 220px" : "minmax(0, 860px)"};
-          ${hasToc ? "gap: var(--sp-16);" : "justify-content: center;"}
+          grid-template-columns: ${hasToc ? "minmax(0, 680px) 220px" : "minmax(0, 680px)"};
+          justify-content: space-between;
           align-items: start;
         }
+        .art-endbar {
+          margin-top: var(--sp-10);
+          padding-top: var(--sp-6);
+          border-top: 1px solid var(--da-border);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: var(--sp-4);
+          flex-wrap: wrap;
+        }
+        .art-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+        .art-tag {
+          background: var(--da-card);
+          border: 1px solid var(--da-border);
+          color: var(--da-text-strong);
+          font-size: 12px;
+          padding: 4px 10px;
+          border-radius: 999px;
+          font-family: var(--da-font-mono);
+          text-decoration: none;
+          transition: border-color var(--t-fast), color var(--t-fast);
+        }
+        .art-tag:hover { border-color: var(--da-green); color: var(--da-text); }
         @media (max-width: 1024px) {
-          .article-grid { grid-template-columns: 1fr; gap: var(--sp-8); }
+          .article-grid { grid-template-columns: minmax(0, 1fr); }
           .article-grid > aside { display: none; }
         }
       `}</style>
       <div className="article-grid">{children}</div>
     </>
+  );
+}
+
+// Kopf der Beitragsseite (Design-Check Artikel, PR 198, Entscheid Ali
+// 13.11.2026: Variante A). Raster wie die Navbar (1200 inkl. Rand): Rubrik /
+// Unterrubrik, Titel ueber die ganze Breite, darunter links das Beitragsbild,
+// rechts Abstract und Autorzeile (unten buendig). Bild im natuerlichen
+// Seitenverhaeltnis, nur sehr hohe Bilder werden ab --ah-img-max beschnitten.
+// Bis 1024 px untereinander (Abstract, Autor, Bild), auf dem Handy das Bild
+// direkt unter dem Titel.
+function ArticleHeadStyles() {
+  return (
+    <style>{`
+      .ah { max-width: 1200px; margin: 0 auto; padding: 44px var(--gutter) var(--sp-10); }
+      .ah-kicker {
+        display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        font-family: var(--da-font-mono); font-size: 12px; font-weight: 700;
+        letter-spacing: 0.1em; text-transform: uppercase;
+      }
+      .ah-kicker__rubric { color: var(--da-green); text-decoration: none; }
+      a.ah-kicker__rubric:hover { text-decoration: underline; text-underline-offset: 3px; }
+      .ah-kicker__sep { color: var(--da-faint); }
+      .ah-kicker__sub { color: var(--da-muted); }
+      .ah-title {
+        color: var(--da-text);
+        font-family: var(--da-font-display);
+        font-size: clamp(30px, 3.9vw, 50px);
+        font-weight: 700;
+        line-height: 1.12;
+        letter-spacing: -0.02em;
+        max-width: 1000px;
+        margin: 18px 0 0;
+      }
+      .ah-body {
+        display: grid; grid-template-columns: minmax(0, 1fr) 360px; grid-template-areas: "fig side";
+        column-gap: 40px; margin-top: 32px; align-items: stretch;
+      }
+      .ah-side { grid-area: side; display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+      .ah-dek { color: #c6c6c6; font-size: 17px; line-height: 1.6; margin: 0; }
+      .ah-byline {
+        margin-top: auto; display: flex; flex-direction: column; align-items: flex-start; gap: 16px;
+        padding-top: 18px; border-top: 1px solid var(--da-border);
+      }
+      .ah-author { display: flex; align-items: center; gap: 12px; }
+      .ah-avatar {
+        position: relative; width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%;
+        overflow: hidden; border: 2px solid var(--da-green); display: block;
+      }
+      .ah-author__name { color: var(--da-text); font-size: 15px; font-weight: 600; text-decoration: none; }
+      .ah-author__meta { color: var(--da-muted); font-family: var(--da-font-mono); font-size: 12px; margin: 2px 0 0; }
+      .ah-actions { display: flex; align-items: center; gap: 14px; flex-wrap: nowrap; }
+      .ah-actions .share-row__label { display: none; }
+      .ah-figure { grid-area: fig; margin: 0; --ah-img-max: 480px; }
+      .ah-figure__frame { position: relative; border-radius: 10px; overflow: hidden; background: var(--da-card); }
+      .ah-figure__img { width: 100%; height: auto; max-height: var(--ah-img-max); object-fit: cover; display: block; }
+      .ah-figure__cap {
+        display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline;
+        margin-top: 10px; font-size: 13px; color: var(--da-text-strong);
+      }
+      .ah-figure__cap small { color: var(--da-muted-soft); font-size: 12px; font-style: italic; }
+
+      @media (max-width: 1024px) {
+        .ah-body { display: flex; flex-direction: column; margin-top: 0; }
+        .ah-side { gap: 0; }
+        .ah-dek { font-size: 19px; max-width: 760px; margin-top: 20px; }
+        .ah-byline {
+          margin-top: 28px; flex-direction: row; align-items: center; justify-content: space-between;
+          flex-wrap: wrap; padding: 18px 0; border-bottom: 1px solid var(--da-border);
+        }
+        .ah-actions .share-row__label { display: inline; }
+        .ah-figure { margin-top: 32px; --ah-img-max: 640px; }
+      }
+      @media (max-width: 640px) {
+        .ah { padding-top: 32px; }
+        .ah-figure { order: -1; margin-top: 22px; --ah-img-max: 420px; }
+        .ah-dek { font-size: 17px; margin-top: 20px; }
+        .ah-byline { margin-top: 22px; padding: 16px 0; gap: 14px; }
+        .ah-actions { gap: 12px; }
+        .ah-actions .share-row__label { display: none; }
+        .ah-figure__frame { border-radius: 8px; }
+      }
+    `}</style>
   );
 }
