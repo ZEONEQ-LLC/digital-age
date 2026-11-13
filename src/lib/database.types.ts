@@ -1565,6 +1565,7 @@ export type Database = {
           period_from: string
           period_to: string
           recipients_count: number | null
+          sections: Json
           send_started_at: string | null
           sent_at: string | null
           sent_by: string | null
@@ -1588,6 +1589,7 @@ export type Database = {
           period_from: string
           period_to: string
           recipients_count?: number | null
+          sections?: Json
           send_started_at?: string | null
           sent_at?: string | null
           sent_by?: string | null
@@ -1611,6 +1613,7 @@ export type Database = {
           period_from?: string
           period_to?: string
           recipients_count?: number | null
+          sections?: Json
           send_started_at?: string | null
           sent_at?: string | null
           sent_by?: string | null

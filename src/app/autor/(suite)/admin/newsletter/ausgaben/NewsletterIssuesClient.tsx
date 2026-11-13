@@ -4,13 +4,21 @@ import { useId, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { unwrapAction } from "@/lib/actionResult";
 import {
+  HYPE_TEXT_MAX,
   ISSUE_STATUS_LABEL,
   INTRO_MAX,
   MAX_ITEMS,
+  MAX_NEWS,
+  NEWS_WHY_MAX,
+  PICK_TEASER_MAX,
   SUBJECT_MAX,
   TEASER_MAX,
   formatIssueDate,
+  validateForSend,
   type IssueItem,
+  type IssueNews,
+  type IssuePick,
+  type IssueSections,
   type IssueStatus,
 } from "@/lib/newsletter/issue";
 import {
@@ -23,7 +31,11 @@ import {
 } from "@/lib/newsletter/issueActions";
 
 // Admin «Newsletter-Ausgaben» (PR 195): offener Entwurf bearbeiten, Vorschau,
-// Test an sich selbst, Freigabe; darunter der Verlauf.
+// Test an sich selbst, Freigabe; darunter der Verlauf. Seit PR 203 mit den
+// Rubriken News, Hype-Check, Prompt der Woche und Podcast-Tipp (je
+// bearbeiten, entfernen, aus einer Liste waehlen).
+
+export type NewsCandidate = IssueNews & { date: string; importance: number | null };
 
 export type IssueView = {
   id: string;
@@ -31,6 +43,7 @@ export type IssueView = {
   subject: string;
   intro: string;
   items: IssueItem[];
+  sections: IssueSections;
   periodFrom: string;
   periodTo: string;
   source: "cron" | "manual";
@@ -47,7 +60,14 @@ export type IssueView = {
   updatedAt: string;
 };
 
-type Props = { issues: IssueView[]; confirmedCount: number; candidates: IssueItem[] };
+type Candidates = {
+  candidates: IssueItem[];
+  newsCandidates: NewsCandidate[];
+  promptCandidates: IssuePick[];
+  podcastCandidates: IssuePick[];
+};
+
+type Props = Candidates & { issues: IssueView[]; confirmedCount: number };
 
 type Notice = { kind: "ok" | "err"; text: string } | null;
 
@@ -78,7 +98,7 @@ const CSS = `
   .nl-input:focus, .nl-textarea:focus, .nl-select:focus { outline: none; border-color: var(--da-green); }
   .nl-input:disabled, .nl-textarea:disabled { opacity: 0.7; }
   .nl-items { display: flex; flex-direction: column; gap: 12px; }
-  .nl-item { display: grid; grid-template-columns: 84px 1fr auto; gap: 14px; padding: 14px; border: 1px solid var(--da-border); border-radius: 6px; background: var(--da-dark); }
+  .nl-item { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 14px; padding: 14px; border: 1px solid var(--da-border); border-radius: 6px; background: var(--da-dark); }
   .nl-item img { width: 84px; height: 56px; object-fit: cover; border-radius: 4px; display: block; }
   .nl-item-cat { color: var(--da-green); font-family: var(--da-font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
   .nl-item-title { color: var(--da-text); font-size: 15px; font-weight: 600; line-height: 1.35; margin: 2px 0 8px; text-decoration: none; display: block; }
@@ -87,8 +107,12 @@ const CSS = `
   .nl-icon { background: transparent; border: 1px solid var(--da-border); color: var(--da-muted); border-radius: 4px; width: 30px; height: 30px; cursor: pointer; font-size: 14px; line-height: 1; }
   .nl-icon:hover:not(:disabled) { border-color: var(--da-green); color: var(--da-green); }
   .nl-icon:disabled { opacity: 0.35; cursor: default; }
+  .nl-item--text { grid-template-columns: minmax(0, 1fr) auto; }
+  .nl-item-meta { color: var(--da-muted); font-size: 12px; line-height: 1.4; }
+  .nl-sec { border-top: 1px solid var(--da-border); padding-top: 18px; }
+  .nl-sec-hint { color: var(--da-muted); font-size: 12px; line-height: 1.5; margin: -2px 0 4px; }
   .nl-add { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .nl-add .nl-select { flex: 1 1 320px; width: auto; }
+  .nl-add .nl-select { flex: 1 1 320px; width: auto; min-width: 0; max-width: 100%; text-overflow: ellipsis; }
   .nl-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   .nl-btn { background: var(--da-green); color: var(--da-dark); border: none; border-radius: 4px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; }
   .nl-btn--ghost { background: transparent; color: var(--da-green); border: 1px solid var(--da-green); }
@@ -133,10 +157,116 @@ function PreviewModal({ html, title, onClose }: { html: string; title: string; o
   );
 }
 
-function Editor({ issue, confirmedCount, candidates, onPreview }: {
+const smallLabel = { fontWeight: 400, fontSize: 12, color: "var(--da-muted)" } as const;
+
+function Tools({ index, count, locked, label, onMove, onRemove }: {
+  index: number;
+  count: number;
+  locked: boolean;
+  label: string;
+  onMove?: (index: number, delta: -1 | 1) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="nl-tools">
+      {onMove && <button type="button" className="nl-icon" aria-label="Nach oben" disabled={locked || index === 0} onClick={() => onMove(index, -1)}>↑</button>}
+      {onMove && <button type="button" className="nl-icon" aria-label="Nach unten" disabled={locked || index === count - 1} onClick={() => onMove(index, 1)}>↓</button>}
+      <button type="button" className="nl-icon" aria-label={`«${label}» entfernen`} disabled={locked} onClick={onRemove}>×</button>
+    </div>
+  );
+}
+
+// Auswahl plus Knopf, wie «Artikel hinzufuegen».
+function AddRow({ label, placeholder, empty, options, locked, button, onAdd }: {
+  label: string;
+  placeholder: string;
+  empty: string;
+  options: { value: string; text: string }[];
+  locked: boolean;
+  button: string;
+  onAdd: (value: string) => void;
+}) {
+  const id = useId();
+  const [value, setValue] = useState("");
+  return (
+    <div className="nl-add">
+      <label htmlFor={id} style={{ position: "absolute", left: -9999 }}>{label}</label>
+      <select id={id} className="nl-select" value={value} disabled={locked || options.length === 0} onChange={(e) => setValue(e.target.value)}>
+        <option value="">{options.length === 0 ? empty : placeholder}</option>
+        {options.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
+      </select>
+      <button type="button" className="nl-btn nl-btn--ghost" disabled={locked || !value} onClick={() => { onAdd(value); setValue(""); }}>{button}</button>
+    </div>
+  );
+}
+
+function newsOption(n: NewsCandidate): { value: string; text: string } {
+  const flag = n.importance === 3 ? "Wichtig · " : "";
+  return { value: n.newsId, text: `${flag}${n.title} (${n.date}, ${n.source || "ohne Quelle"})` };
+}
+
+// Prompt der Woche bzw. Podcast-Tipp: ein Eintrag oder keiner.
+function PickSection({ title, hint, value, candidates, locked, onChange, linkBase, emptyText }: {
+  title: string;
+  hint: string;
+  value: IssuePick | null;
+  candidates: IssuePick[];
+  locked: boolean;
+  onChange: (next: IssuePick | null) => void;
+  linkBase: string;
+  emptyText: string;
+}) {
+  const options = candidates.filter((c) => c.id !== value?.id).map((c) => ({ value: c.id, text: c.label ? `${c.title} (${c.label})` : c.title }));
+  return (
+    <div className="nl-field nl-sec">
+      <span className="nl-label">{title}</span>
+      <p className="nl-sec-hint">{hint}</p>
+      {value ? (
+        <div className={value.coverUrl ? "nl-item" : "nl-item nl-item--text"}>
+          {value.coverUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- Vorschaubild, kein LCP
+            <img src={value.coverUrl} alt="" />
+          )}
+          <div>
+            {value.label && <div className="nl-item-meta">{value.label}</div>}
+            <a className="nl-item-title" href={`${linkBase}/${value.slug}`} target="_blank" rel="noopener">{value.title}</a>
+            <label className="nl-label" style={smallLabel}>
+              <span>Kurztext</span>
+              <Counter value={value.teaser} max={PICK_TEASER_MAX} />
+            </label>
+            <textarea
+              className="nl-textarea"
+              rows={2}
+              aria-label={`Kurztext zu ${value.title}`}
+              value={value.teaser}
+              disabled={locked}
+              onChange={(e) => onChange({ ...value, teaser: e.target.value })}
+            />
+          </div>
+          <Tools index={0} count={1} locked={locked} label={value.title} onRemove={() => onChange(null)} />
+        </div>
+      ) : (
+        <p className="nl-empty">Diese Rubrik ist leer und erscheint nicht im Newsletter.</p>
+      )}
+      <AddRow
+        label={`${title} wählen`}
+        placeholder={value ? "Durch einen anderen ersetzen …" : "Auswählen …"}
+        empty={emptyText}
+        options={options}
+        locked={locked}
+        button={value ? "Ersetzen" : "Übernehmen"}
+        onAdd={(id) => {
+          const c = candidates.find((x) => x.id === id);
+          if (c) onChange({ ...c });
+        }}
+      />
+    </div>
+  );
+}
+
+function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandidates, podcastCandidates, onPreview }: Candidates & {
   issue: IssueView;
   confirmedCount: number;
-  candidates: IssueItem[];
   onPreview: (html: string, title: string) => void;
 }) {
   const router = useRouter();
@@ -144,15 +274,33 @@ function Editor({ issue, confirmedCount, candidates, onPreview }: {
   const [subject, setSubject] = useState(issue.subject);
   const [intro, setIntro] = useState(issue.intro);
   const [items, setItems] = useState<IssueItem[]>(issue.items);
+  const [sections, setSections] = useState<IssueSections>(issue.sections);
   const [pick, setPick] = useState("");
   const [notice, setNotice] = useState<Notice>(null);
   const [pending, startTransition] = useTransition();
   const sending = issue.status === "sending";
   const locked = sending || pending;
 
-  const saved = useMemo(() => JSON.stringify({ s: issue.subject, i: issue.intro, it: issue.items }), [issue]);
-  const dirty = JSON.stringify({ s: subject, i: intro, it: items }) !== saved;
+  const saved = useMemo(() => JSON.stringify({ s: issue.subject, i: issue.intro, it: issue.items, se: issue.sections }), [issue]);
+  const dirty = JSON.stringify({ s: subject, i: intro, it: items, se: sections }) !== saved;
   const available = candidates.filter((c) => !items.some((i) => i.articleId === c.articleId));
+  const patch = { subject, intro, items, sections };
+  const usedNews = new Set([...sections.news.map((n) => n.newsId), sections.hype?.newsId].filter(Boolean));
+  const newsOptions = newsCandidates.filter((n) => !usedNews.has(n.newsId)).map(newsOption);
+
+  function setNews(update: (list: IssueNews[]) => IssueNews[]) {
+    setSections((s) => ({ ...s, news: update(s.news) }));
+  }
+
+  function moveNews(index: number, delta: -1 | 1) {
+    setNews((list) => {
+      const target = index + delta;
+      if (target < 0 || target >= list.length) return list;
+      const next = [...list];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
 
   function run(fn: () => Promise<string | null>) {
     setNotice(null);
@@ -169,7 +317,7 @@ function Editor({ issue, confirmedCount, candidates, onPreview }: {
 
   async function saveIfDirty(): Promise<void> {
     if (!dirty) return;
-    unwrapAction(await saveIssue(issue.id, { subject, intro, items }));
+    unwrapAction(await saveIssue(issue.id, patch));
   }
 
   function move(index: number, delta: -1 | 1) {
@@ -199,7 +347,7 @@ function Editor({ issue, confirmedCount, candidates, onPreview }: {
     <section className="nl-card" aria-label="Offene Ausgabe">
       <div className="nl-meta">
         <span className={statusClass}>{ISSUE_STATUS_LABEL[issue.status]}</span>
-        <span>Artikel seit {formatIssueDate(issue.periodFrom)}</span>
+        <span>Inhalte seit {formatIssueDate(issue.periodFrom)}</span>
         <span>{issue.source === "cron" ? "automatisch erstellt" : "von Hand erstellt"} {dateTime(issue.createdAt)}</span>
         {issue.editedAt && <span>bearbeitet {dateTime(issue.editedAt)}</span>}
         <span>Test: {issue.testSentAt ? dateTime(issue.testSentAt) : "noch keiner"}</span>
@@ -272,6 +420,119 @@ function Editor({ issue, confirmedCount, candidates, onPreview }: {
         )}
       </div>
 
+      <div className="nl-field nl-sec">
+        <span className="nl-label">Die wichtigsten News ({sections.news.length}/{MAX_NEWS})</span>
+        <p className="nl-sec-hint">Verlinkt auf /news mit Einordnung. «Warum wichtig» kommt aus der Einordnung und lässt sich hier anpassen.</p>
+        <div className="nl-items">
+          {sections.news.length === 0 && <p className="nl-empty">Keine News. Die Rubrik erscheint nicht im Newsletter.</p>}
+          {sections.news.map((n, i) => (
+            <div key={n.newsId} className="nl-item nl-item--text">
+              <div>
+                <div className="nl-item-meta">{[n.source, n.einordnung].filter(Boolean).join(" · ")}</div>
+                <a className="nl-item-title" href={`/news${n.anchor ? `#${n.anchor}` : ""}`} target="_blank" rel="noopener">{n.title}</a>
+                <label className="nl-label" style={smallLabel}>
+                  <span>Warum wichtig</span>
+                  <Counter value={n.why} max={NEWS_WHY_MAX} />
+                </label>
+                <textarea
+                  className="nl-textarea"
+                  rows={2}
+                  aria-label={`Warum wichtig: ${n.title}`}
+                  value={n.why}
+                  disabled={locked}
+                  onChange={(e) => setNews((list) => list.map((x, j) => (j === i ? { ...x, why: e.target.value } : x)))}
+                />
+              </div>
+              <Tools
+                index={i}
+                count={sections.news.length}
+                locked={locked}
+                label={n.title}
+                onMove={moveNews}
+                onRemove={() => setNews((list) => list.filter((x) => x.newsId !== n.newsId))}
+              />
+            </div>
+          ))}
+        </div>
+        {!sending && sections.news.length < MAX_NEWS && (
+          <AddRow
+            label="News hinzufügen"
+            placeholder="News der letzten 21 Tage hinzufügen …"
+            empty="Keine weiteren News der letzten 21 Tage"
+            options={newsOptions}
+            locked={locked}
+            button="Hinzufügen"
+            onAdd={(id) => {
+              const c = newsCandidates.find((x) => x.newsId === id);
+              if (c) setNews((list) => [...list, { newsId: c.newsId, title: c.title, why: c.why, source: c.source, anchor: c.anchor, einordnung: c.einordnung }]);
+            }}
+          />
+        )}
+      </div>
+
+      <div className="nl-field nl-sec">
+        <span className="nl-label">Hype-Check</span>
+        <p className="nl-sec-hint">Eine Meldung mit viel Echo und wenig Substanz, in 2 bis 3 Sätzen nüchtern eingeordnet. Fair, ohne Häme.</p>
+        {sections.hype ? (
+          <div className="nl-item nl-item--text">
+            <div>
+              {sections.hype.source && <div className="nl-item-meta">{sections.hype.source}</div>}
+              <a className="nl-item-title" href={`/news${sections.hype.anchor ? `#${sections.hype.anchor}` : ""}`} target="_blank" rel="noopener">{sections.hype.title}</a>
+              <label className="nl-label" style={smallLabel}>
+                <span>Text</span>
+                <Counter value={sections.hype.text} max={HYPE_TEXT_MAX} />
+              </label>
+              <textarea
+                className="nl-textarea"
+                rows={3}
+                aria-label={`Hype-Check: ${sections.hype.title}`}
+                value={sections.hype.text}
+                disabled={locked}
+                onChange={(e) => setSections((s) => (s.hype ? { ...s, hype: { ...s.hype, text: e.target.value } } : s))}
+              />
+            </div>
+            <Tools index={0} count={1} locked={locked} label={sections.hype.title} onRemove={() => setSections((s) => ({ ...s, hype: null }))} />
+          </div>
+        ) : (
+          <p className="nl-empty">Kein Hype-Check. Die Rubrik erscheint nicht im Newsletter.</p>
+        )}
+        {!sending && (
+          <AddRow
+            label="Meldung für den Hype-Check wählen"
+            placeholder={sections.hype ? "Andere Meldung wählen …" : "Meldung wählen …"}
+            empty="Keine weiteren News der letzten 21 Tage"
+            options={newsOptions}
+            locked={locked}
+            button={sections.hype ? "Ersetzen" : "Übernehmen"}
+            onAdd={(id) => {
+              const c = newsCandidates.find((x) => x.newsId === id);
+              if (c) setSections((s) => ({ ...s, hype: { newsId: c.newsId, title: c.title, text: "", source: c.source, anchor: c.anchor } }));
+            }}
+          />
+        )}
+      </div>
+
+      <PickSection
+        title="Prompt der Woche"
+        hint="Aus der Prompt-Sammlung. Verlinkt auf die Prompt-Seite."
+        value={sections.prompt}
+        candidates={promptCandidates}
+        locked={locked || sending}
+        onChange={(prompt) => setSections((s) => ({ ...s, prompt }))}
+        linkBase="/ai-prompts"
+        emptyText="Keine veröffentlichten Prompts"
+      />
+      <PickSection
+        title="Podcast-Tipp"
+        hint="Eine empfohlene Folge. Verlinkt auf die Podcast-Seite."
+        value={sections.podcast}
+        candidates={podcastCandidates}
+        locked={locked || sending}
+        onChange={(podcast) => setSections((s) => ({ ...s, podcast }))}
+        linkBase="/podcast"
+        emptyText="Keine veröffentlichten Podcasts"
+      />
+
       {notice && <div className={notice.kind === "ok" ? "nl-note nl-note--ok" : "nl-note nl-note--err"} role={notice.kind === "err" ? "alert" : "status"}>{notice.text}</div>}
 
       <div className="nl-bar">
@@ -281,14 +542,14 @@ function Editor({ issue, confirmedCount, candidates, onPreview }: {
           </button>
         ) : (
           <>
-            <button type="button" className="nl-btn" disabled={locked || !dirty} onClick={() => run(async () => { unwrapAction(await saveIssue(issue.id, { subject, intro, items })); return "Gespeichert."; })}>
+            <button type="button" className="nl-btn" disabled={locked || !dirty} onClick={() => run(async () => { unwrapAction(await saveIssue(issue.id, patch)); return "Gespeichert."; })}>
               {dirty ? "Speichern" : "Gespeichert"}
             </button>
             <button
               type="button"
               className="nl-btn nl-btn--ghost"
               disabled={locked}
-              onClick={() => run(async () => { onPreview(unwrapAction(await renderIssuePreview({ subject, intro, items })), subject || "Vorschau"); return null; })}
+              onClick={() => run(async () => { onPreview(unwrapAction(await renderIssuePreview(patch)), subject || "Vorschau"); return null; })}
             >
               Vorschau
             </button>
@@ -316,11 +577,11 @@ function Editor({ issue, confirmedCount, candidates, onPreview }: {
             <button
               type="button"
               className="nl-btn"
-              disabled={locked || items.length === 0 || confirmedCount === 0}
+              disabled={locked || (items.length === 0 && sections.news.length === 0) || confirmedCount === 0}
               onClick={() => {
-                const missing = items.find((it) => it.teaser.trim() === "");
-                if (subject.trim() === "" || missing) {
-                  setNotice({ kind: "err", text: subject.trim() === "" ? "Betreff fehlt." : `Kurztext fehlt bei «${missing?.title}».` });
+                const v = validateForSend({ subject, items, sections });
+                if (!v.ok) {
+                  setNotice({ kind: "err", text: v.error });
                   return;
                 }
                 const noTest = issue.testSentAt ? "" : "\n\nHinweis: Für diesen Entwurf wurde noch kein Test verschickt.";
@@ -337,7 +598,7 @@ function Editor({ issue, confirmedCount, candidates, onPreview }: {
   );
 }
 
-export default function NewsletterIssuesClient({ issues, confirmedCount, candidates }: Props) {
+export default function NewsletterIssuesClient({ issues, confirmedCount, ...lists }: Props) {
   const router = useRouter();
   const [preview, setPreview] = useState<{ html: string; title: string } | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
@@ -361,7 +622,7 @@ export default function NewsletterIssuesClient({ issues, confirmedCount, candida
   function showSent(i: IssueView) {
     startTransition(async () => {
       try {
-        setPreview({ html: unwrapAction(await renderIssuePreview({ subject: i.subject, intro: i.intro, items: i.items })), title: i.subject });
+        setPreview({ html: unwrapAction(await renderIssuePreview({ subject: i.subject, intro: i.intro, items: i.items, sections: i.sections })), title: i.subject });
       } catch (e) {
         setNotice({ kind: "err", text: e instanceof Error ? e.message : String(e) });
       }
@@ -379,7 +640,7 @@ export default function NewsletterIssuesClient({ issues, confirmedCount, candida
             key={`${open.id}:${open.updatedAt}`}
             issue={open}
             confirmedCount={confirmedCount}
-            candidates={candidates}
+            {...lists}
             onPreview={(html, title) => setPreview({ html, title })}
           />
         ) : (
@@ -407,7 +668,7 @@ export default function NewsletterIssuesClient({ issues, confirmedCount, candida
                 <tr>
                   <th>Versendet</th>
                   <th>Betreff</th>
-                  <th className="nl-num">Artikel</th>
+                  <th className="nl-num">Inhalt</th>
                   <th className="nl-num">Empfänger</th>
                   <th className="nl-num">Zugestellt</th>
                   <th className="nl-num">Fehler</th>
@@ -419,7 +680,7 @@ export default function NewsletterIssuesClient({ issues, confirmedCount, candida
                   <tr key={i.id}>
                     <td className="nl-num" style={{ textAlign: "left" }}>{dateTime(i.sentAt)}</td>
                     <td>{i.subject}</td>
-                    <td className="nl-num">{i.items.length}</td>
+                    <td className="nl-num">{i.items.length} Artikel{i.sections.news.length > 0 ? ` · ${i.sections.news.length} News` : ""}</td>
                     <td className="nl-num">{i.recipients ?? "—"}</td>
                     <td className="nl-num">{i.delivered}</td>
                     <td className="nl-num">{i.failed}</td>

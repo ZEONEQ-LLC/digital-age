@@ -81,9 +81,10 @@ export async function runPromptGeneration(trigger: "cron" | "manual", authorId: 
       const { system, prompt } = buildGenerationPrompt(cat, titles, strategy, DIFFS[i % DIFFS.length]);
       const res = await callLLMForAuthor(author, { system, prompt, maxTokens: 3000, task: "prompt_generation", timeoutMs: 150_000 });
       if (!res.ok) { errors.push(`${cat}: KI nicht erreichbar (${res.kind}).`); return []; }
-      const parsed = parseGenerated(res.text, titles, cat);
+      const why: string[] = [];
+      const parsed = parseGenerated(res.text, titles, cat, why);
       if (!parsed) { errors.push(`${cat}: Antwort der KI war kein gültiges JSON.`); return []; }
-      if (parsed.length === 0) errors.push(`${cat}: Vorschlag bestand die Prüfung nicht (Länge, Kategorie oder Dublette).`);
+      if (parsed.length === 0) errors.push(`${cat}: Vorschlag verworfen (${why.join("; ") || "keine Angabe"}).`);
       return parsed;
     }),
   );
@@ -117,7 +118,10 @@ export async function runPromptGeneration(trigger: "cron" | "manual", authorId: 
       context: g.context,
       prompt_text: g.prompt_text,
       example_output: examples[i],
-      tested_with: "claude",
+      // Die Prompts sind fuer alle gaengigen Assistenten geschrieben; mit
+      // Claude laeuft nur das Beispiel (Hinweis auf der Detailseite). «claude»
+      // las sich in Liste und Filter wie «nur fuer Claude» (Ali 13.11.2026).
+      tested_with: "mehrere",
       status: "published",
       published_at: now,
       author_id: null,

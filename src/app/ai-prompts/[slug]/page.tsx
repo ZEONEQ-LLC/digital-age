@@ -261,7 +261,7 @@ export default async function PromptDetailPage({ params }: { params: Params }) {
 
         {row.ai_generated && (
           <p className="pd-ai-note">
-            Von der KI-Redaktion erstellt und mit Claude getestet. Der Beispiel-Output stammt aus einem echten Durchlauf.
+            Von der KI-Redaktion erstellt, für alle gängigen KI-Assistenten geschrieben und mit Claude getestet. Der Beispiel-Output stammt aus einem echten Durchlauf.
             <Link href="/ki-transparenz">KI-Transparenz</Link>
           </p>
         )}

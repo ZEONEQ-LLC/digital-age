@@ -7,7 +7,9 @@ import {
   INTRO_MAX,
   SUBJECT_MAX,
   sanitizeItems,
+  sanitizeSections,
   type IssueItem,
+  type IssueSections,
 } from "@/lib/newsletter/issue";
 import { renderIssueHtml, sendIssueTest, sendIssueToSubscribers } from "@/lib/newsletter/sendIssue";
 import { createClient } from "@/lib/supabase/server";
@@ -29,7 +31,7 @@ async function requireEditor(): Promise<{ id: string; email: string }> {
   return { id: me.id, email: me.email };
 }
 
-export type IssuePatch = { subject: string; intro: string; items: IssueItem[] };
+export type IssuePatch = { subject: string; intro: string; items: IssueItem[]; sections: IssueSections };
 
 async function loadOpenDraft(id: string) {
   const supabase = await createClient();
@@ -39,7 +41,7 @@ async function loadOpenDraft(id: string) {
   return supabase;
 }
 
-export async function saveIssue(id: string, patch: IssuePatch): Promise<ActionResult<{ items: IssueItem[] }>> {
+export async function saveIssue(id: string, patch: IssuePatch): Promise<ActionResult<{ items: IssueItem[]; sections: IssueSections }>> {
   return runAction("newsletter.saveIssue", async () => {
     await requireEditor();
     const subject = patch.subject.replace(/\s+/g, " ").trim();
@@ -48,15 +50,16 @@ export async function saveIssue(id: string, patch: IssuePatch): Promise<ActionRe
     if (subject.length > SUBJECT_MAX) throw new FormError(`Betreff zu lang (höchstens ${SUBJECT_MAX} Zeichen).`);
     if (intro.length > INTRO_MAX) throw new FormError(`Einleitung zu lang (höchstens ${INTRO_MAX} Zeichen).`);
     const items = sanitizeItems(patch.items);
+    const sections = sanitizeSections(patch.sections);
     const supabase = await loadOpenDraft(id);
     const { error } = await supabase
       .from("newsletter_issues")
-      .update({ subject, intro, items, edited_at: new Date().toISOString() })
+      .update({ subject, intro, items, sections, edited_at: new Date().toISOString() })
       .eq("id", id)
       .eq("status", "draft");
     if (error) throw error;
     revalidatePath(PAGE);
-    return { items };
+    return { items, sections };
   });
 }
 
@@ -72,12 +75,12 @@ export async function createIssueNow(
     switch (res.kind) {
       case "created":
         return {
-          message: res.aiOk ? `Entwurf mit ${res.items} Artikeln erstellt.` : `Entwurf mit ${res.items} Artikeln erstellt, aber ohne KI-Texte (siehe Hinweis).`,
+          message: `Entwurf mit ${res.items} Artikeln und ${res.news} News erstellt${res.aiOk ? "." : ", aber ohne KI-Texte (siehe Hinweis)."}`,
           issueId: res.issueId,
           needsConfirm: false,
         };
       case "no_articles":
-        throw new FormError("Seit der letzten Ausgabe ist kein neuer Artikel erschienen. Kein Entwurf erstellt.");
+        throw new FormError("Seit der letzten Ausgabe sind weder neue Artikel noch genug eingeordnete News erschienen. Kein Entwurf erstellt.");
       case "kept_edited":
         return { message: "Der offene Entwurf ist bearbeitet.", issueId: res.issueId, needsConfirm: true };
       case "sending":
@@ -105,7 +108,12 @@ export async function renderIssuePreview(patch: IssuePatch): Promise<ActionResul
   return runAction("newsletter.renderIssuePreview", async () => {
     await requireEditor();
     return renderIssueHtml(
-      { subject: patch.subject.trim() || "(Betreff fehlt)", intro: patch.intro.trim(), items: sanitizeItems(patch.items) },
+      {
+        subject: patch.subject.trim() || "(Betreff fehlt)",
+        intro: patch.intro.trim(),
+        items: sanitizeItems(patch.items),
+        sections: sanitizeSections(patch.sections),
+      },
       { date: new Date(), test: true },
     );
   });

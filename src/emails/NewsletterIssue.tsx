@@ -1,15 +1,28 @@
-import { Img, Link, Section } from "react-email";
+import type { ReactNode } from "react";
+import { Column, Img, Link, Row, Section } from "react-email";
 import Layout, { Paragraph } from "./_layout";
-import { trackedArticleUrl, type IssueItem } from "@/lib/newsletter/issue";
+import {
+  EMPTY_SECTIONS,
+  hasSections,
+  trackedArticleUrl,
+  trackedNewsUrl,
+  trackedUrl,
+  type IssueItem,
+  type IssuePick,
+  type IssueSections,
+} from "@/lib/newsletter/issue";
 
 // Woechentlicher Newsletter (PR 195): Einleitung, dann pro Artikel Bild,
-// Rubrik, Titel, Kurztext und Link (mit UTM fuer GA4). Abmeldelink in der
+// Rubrik, Titel, Kurztext und Link (mit UTM fuer GA4). Seit PR 203 danach die
+// Rubriken «Die wichtigsten News der Woche», «Hype-Check», «Prompt der Woche»
+// und «Podcast-Tipp»; leere Rubriken fallen weg. Abmeldelink in der
 // Fusszeile; das HTML wird einmal gerendert und pro Empfaenger
 // personalisiert (UNSUBSCRIBE_PLACEHOLDER in unsubscribeUrl).
 export type NewsletterIssueProps = {
   subject: string;
   intro: string;
   items: IssueItem[];
+  sections?: IssueSections;
   dateText: string;          // «16.11.2026»
   campaign: string;          // UTM-Kampagne
   siteUrl: string;
@@ -21,7 +34,91 @@ const FONT_BODY = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-
 const FONT_DISPLAY = "'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 const FONT_MONO = "'Roboto Mono', Menlo, Consolas, monospace";
 
+const TEXT = "#1c1c1e";
+const MUTED = "#52525b";
+const ACCENT = "#16a34a";
+
+// Abschnittskopf: feine Linie, darunter der Name der Rubrik.
+function SectionHead({ title, sub }: { title: string; sub?: string }) {
+  return (
+    <Section className="divider" style={{ borderTop: "1px solid #e4e4e7", margin: "40px 0 0", padding: "24px 0 0" }}>
+      <h2 className="heading" style={{ color: TEXT, fontFamily: FONT_DISPLAY, fontSize: 21, fontWeight: 700, lineHeight: 1.3, margin: "0 0 4px", letterSpacing: "-0.01em" }}>
+        {title}
+      </h2>
+      {sub && (
+        <p className="text-muted" style={{ color: MUTED, fontFamily: FONT_BODY, fontSize: 14, lineHeight: 1.5, margin: 0 }}>
+          {sub}
+        </p>
+      )}
+    </Section>
+  );
+}
+
+function EntryTitle({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="text-primary"
+      style={{ color: TEXT, fontFamily: FONT_DISPLAY, fontSize: 17, fontWeight: 700, lineHeight: 1.35, textDecoration: "none", display: "block", margin: "0 0 6px" }}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function Body({ children }: { children: ReactNode }) {
+  return (
+    <p className="text-primary" style={{ color: TEXT, fontFamily: FONT_BODY, fontSize: 15, lineHeight: 1.6, margin: "0 0 6px" }}>
+      {children}
+    </p>
+  );
+}
+
+function Meta({ children }: { children: ReactNode }) {
+  return (
+    <p className="text-muted" style={{ color: MUTED, fontFamily: FONT_BODY, fontSize: 13, lineHeight: 1.5, margin: 0 }}>
+      {children}
+    </p>
+  );
+}
+
+function More({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link href={href} className="accent-link" style={{ color: ACCENT, fontFamily: FONT_BODY, fontSize: 14, fontWeight: 700, textDecoration: "none" }}>
+      {children}
+    </Link>
+  );
+}
+
+function PickBlock({ pick, href, more }: { pick: IssuePick; href: string; more: string }) {
+  const text = (
+    <>
+      {pick.label && <Meta>{pick.label}</Meta>}
+      <div style={{ height: 4 }} />
+      <EntryTitle href={href}>{pick.title}</EntryTitle>
+      <Body>{pick.teaser}</Body>
+      <More href={href}>{more}</More>
+    </>
+  );
+  if (!pick.coverUrl) return <Section style={{ margin: "16px 0 0" }}>{text}</Section>;
+  return (
+    <Section style={{ margin: "16px 0 0" }}>
+      <Row>
+        <Column style={{ width: 88, verticalAlign: "top", paddingRight: 16 }}>
+          <Link href={href}>
+            <Img src={pick.coverUrl} alt="" width="88" height="88" style={{ width: 88, height: 88, borderRadius: 6, display: "block", objectFit: "cover" }} />
+          </Link>
+        </Column>
+        <Column style={{ verticalAlign: "top" }}>{text}</Column>
+      </Row>
+    </Section>
+  );
+}
+
 export default function NewsletterIssue(p: NewsletterIssueProps) {
+  const s = p.sections ?? EMPTY_SECTIONS;
+  const withSections = hasSections(s);
+  const url = (path: string) => trackedUrl(p.siteUrl, path, p.campaign);
   return (
     <Layout
       previewText={p.intro.slice(0, 140)}
@@ -53,6 +150,7 @@ export default function NewsletterIssue(p: NewsletterIssueProps) {
       </h1>
       <Paragraph>{p.intro}</Paragraph>
 
+      {withSections && p.items.length > 0 && <SectionHead title="Neu auf digital age" />}
       {p.items.map((it) => {
         const href = trackedArticleUrl(p.siteUrl, it.slug, p.campaign);
         return (
@@ -92,7 +190,48 @@ export default function NewsletterIssue(p: NewsletterIssueProps) {
         );
       })}
 
-      <Section style={{ margin: "32px 0 0" }}>
+      {s.news.length > 0 && (
+        <>
+          <SectionHead title="Die wichtigsten News der Woche" sub="Aus dem News-Ticker von digital age, eingeordnet mit KI." />
+          {s.news.map((n) => (
+            <Section key={n.newsId} style={{ margin: "18px 0 0" }}>
+              <EntryTitle href={trackedNewsUrl(p.siteUrl, n.anchor, p.campaign)}>{n.title}</EntryTitle>
+              <Body>{n.why}</Body>
+              <Meta>{[n.source, n.einordnung].filter(Boolean).join(" · ")}</Meta>
+            </Section>
+          ))}
+          <Section style={{ margin: "18px 0 0" }}>
+            <More href={url("/news")}>Alle News →</More>
+          </Section>
+        </>
+      )}
+
+      {s.hype && (
+        <>
+          <SectionHead title="Hype-Check" sub="Viel Echo, wenig Substanz? Eine Meldung der Woche, nüchtern betrachtet." />
+          <Section style={{ margin: "18px 0 0" }}>
+            <EntryTitle href={trackedNewsUrl(p.siteUrl, s.hype.anchor, p.campaign)}>{s.hype.title}</EntryTitle>
+            <Body>{s.hype.text}</Body>
+            {s.hype.source && <Meta>{s.hype.source}</Meta>}
+          </Section>
+        </>
+      )}
+
+      {s.prompt && (
+        <>
+          <SectionHead title="Prompt der Woche" />
+          <PickBlock pick={s.prompt} href={url(`/ai-prompts/${encodeURIComponent(s.prompt.slug)}`)} more="Prompt ansehen →" />
+        </>
+      )}
+
+      {s.podcast && (
+        <>
+          <SectionHead title="Podcast-Tipp" />
+          <PickBlock pick={s.podcast} href={url(`/podcast/${encodeURIComponent(s.podcast.slug)}`)} more="Zur Folge →" />
+        </>
+      )}
+
+      <Section style={{ margin: "40px 0 0" }}>
         <Paragraph muted small>
           Fragen oder Hinweise? Antworte einfach auf diese E-Mail.
         </Paragraph>
