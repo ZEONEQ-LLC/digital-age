@@ -1373,9 +1373,11 @@ export type Database = {
       }
       news_items: {
         Row: {
+          assessment: Json | null
           category: string | null
           generated_at: string
           id: string
+          importance: number | null
           original_title: string
           published_at: string
           source_id: string
@@ -1387,9 +1389,11 @@ export type Database = {
           title: string
         }
         Insert: {
+          assessment?: Json | null
           category?: string | null
           generated_at?: string
           id?: string
+          importance?: number | null
           original_title: string
           published_at: string
           source_id: string
@@ -1401,9 +1405,11 @@ export type Database = {
           title: string
         }
         Update: {
+          assessment?: Json | null
           category?: string | null
           generated_at?: string
           id?: string
+          importance?: number | null
           original_title?: string
           published_at?: string
           source_id?: string
