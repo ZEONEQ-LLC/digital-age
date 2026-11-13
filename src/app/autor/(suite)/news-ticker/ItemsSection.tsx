@@ -18,11 +18,11 @@ export type AdminNewsItem = {
   sourceUrl: string;
   timeLabel: string;
   hidden: boolean;
-  assessment: { wirtschaft: Level; gesellschaft: Level; umwelt: Level; dringlichkeit: Level; warum: string; by: "ai" | "editor" } | null;
+  assessment: { wirtschaft: Level; gesellschaft: Level; umwelt: Level; dringlichkeit: Level; warum: string; kehrseite?: string; by: "ai" | "editor" } | null;
   importance: Importance | null;
 };
 
-type Draft = Record<AssessmentKey, number> & { importance: number; warum: string };
+type Draft = Record<AssessmentKey, number> & { importance: number; warum: string; kehrseite: string };
 
 const LEVELS: Level[] = [0, 1, 2, 3];
 const IMPORTANCES: Importance[] = [1, 2, 3];
@@ -31,7 +31,7 @@ function draftOf(it: AdminNewsItem): Draft {
   const a = it.assessment;
   return {
     wirtschaft: a?.wirtschaft ?? 1, gesellschaft: a?.gesellschaft ?? 1, umwelt: a?.umwelt ?? 0, dringlichkeit: a?.dringlichkeit ?? 1,
-    importance: it.importance ?? 2, warum: a?.warum ?? "",
+    importance: it.importance ?? 2, warum: a?.warum ?? "", kehrseite: a?.kehrseite ?? "",
   };
 }
 
@@ -86,6 +86,7 @@ export default function ItemsSection({ items }: { items: AdminNewsItem[] }) {
         .ni-badge--ed { color: var(--da-orange); border: 1px solid rgba(255,140,66,0.5); }
         .ni-line { color: var(--da-muted); font-size: 12px; margin: 4px 0 0; }
         .ni-why { color: var(--da-text-strong); font-size: 13px; margin: 4px 0 0; line-height: 1.45; }
+        .ni-why--con { color: var(--da-muted); }
         .ni-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
         .ni-link { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; color: var(--da-green); white-space: nowrap; }
         .ni-link--muted { color: var(--da-muted); }
@@ -107,7 +108,7 @@ export default function ItemsSection({ items }: { items: AdminNewsItem[] }) {
         <h2 className="ni-h">Meldungen und Einordnung</h2>
       </div>
       <p className="ni-sub">
-        Die KI schätzt jede Meldung beim Anlegen ein (Wirtschaft, Gesellschaft, Umwelt, Dringlichkeit, Wichtigkeit und ein Satz «Warum wichtig»).
+        Die KI schätzt jede Meldung beim Anlegen ein (Wirtschaft, Gesellschaft, Umwelt, Dringlichkeit, Wichtigkeit, ein Satz «Warum wichtig» und ein Satz zur Kehrseite).
         Fehlende Einordnungen (letzte 30 Tage) trägt der Cron stündlich nach, «Jetzt aktualisieren» oben sofort. Korrigierte Werte gelten als «Redaktion». «Wichtig» erscheint auf der Startseite und unter /news.
       </p>
       {err && <div className="ni-err" role="alert">{err}</div>}
@@ -126,6 +127,7 @@ export default function ItemsSection({ items }: { items: AdminNewsItem[] }) {
                 </p>
                 <p className="ni-line">{it.sourceName ?? "Quelle"} · {shortLine(it)}</p>
                 {it.assessment && <p className="ni-why">{it.assessment.warum}</p>}
+                {it.assessment?.kehrseite && <p className="ni-why ni-why--con">Kehrseite: {it.assessment.kehrseite}</p>}
               </div>
               <div className="ni-actions">
                 <button type="button" className="ni-link" onClick={() => toggle(it)}>
@@ -171,6 +173,10 @@ export default function ItemsSection({ items }: { items: AdminNewsItem[] }) {
                   <label className="ni-wide">
                     Warum wichtig (ein Satz, höchstens 220 Zeichen)
                     <input className="ni-input" value={draft.warum} maxLength={220} onChange={(e) => setDraft({ ...draft, warum: e.target.value })} />
+                  </label>
+                  <label className="ni-wide">
+                    Kehrseite (ein Satz: Risiko, Einwand oder offene Frage)
+                    <input className="ni-input" value={draft.kehrseite} maxLength={220} onChange={(e) => setDraft({ ...draft, kehrseite: e.target.value })} />
                   </label>
                   <div className="ni-form__actions">
                     <button type="submit" className="ni-btn" disabled={busy !== null}>{busy === `e-${it.id}` ? "Speichere…" : "Speichern"}</button>

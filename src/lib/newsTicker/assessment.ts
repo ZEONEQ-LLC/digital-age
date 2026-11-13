@@ -21,6 +21,9 @@ export type Assessment = {
   umwelt: Level;
   dringlichkeit: Level;
   warum: string;
+  // Die kritische Seite in einem Satz (Wunsch Ali 13.11.2026, PR 201).
+  // Fehlt bei Einordnungen vor PR 201; der Nachtrag holt sie fuer KI-Werte nach.
+  kehrseite?: string;
   by: "ai" | "editor";
 };
 
@@ -30,6 +33,7 @@ export const LEVEL_LABEL: Record<Level, string> = { 0: "nicht betroffen", 1: "ge
 export const IMPORTANCE_LABEL: Record<Importance, string> = { 1: "Randnotiz", 2: "Relevant", 3: "Wichtig" };
 
 export const MAX_WARUM = 220;
+export const MAX_KEHRSEITE = 220;
 
 // Rubrik, an jeden Ticker-Prompt angehaengt (der editierbare Prompt-Teil
 // bleibt unveraendert) und Kern des Nachtrag-Prompts.
@@ -42,6 +46,7 @@ export const ASSESSMENT_RUBRIC = [
   "  - dringlichkeit: Muss man jetzt reagieren (Frist, Sicherheitslücke, Gesetz in Kraft) = 3; Ankündigung, Studie, Trend = 1.",
   "wichtigkeit: 1 = Randnotiz, 2 = relevant für Fachleute, 3 = wichtig für Entscheider in der Schweiz, Deutschland, Österreich. Höchstens jede fünfte Meldung verdient 3.",
   "warum: ein Satz, höchstens 200 Zeichen, warum die Meldung für Leser in der DACH-Region zählt. Konkret, ohne Floskeln, ohne Wiederholung des Titels.",
+  "kehrseite: ein Satz, höchstens 200 Zeichen, zur kritischen Seite: ein Risiko, ein Einwand, eine offene Frage oder was die Meldung nicht belegt. Sachlich und fair, ohne Polemik, ohne Vermutungen über Personen, ohne den Satz «Es bleibt abzuwarten».",
   "Gerüchte, Einzelmeinungen und Produktwerbung bekommen tiefe Werte.",
 ].join("\n");
 
@@ -49,7 +54,7 @@ export const ASSESSMENT_FIELD_INSTRUCTION = [
   ASSESSMENT_RUBRIC,
   "",
   "ZUSÄTZLICH zum Schema oben: Gib im selben JSON-Objekt das Feld",
-  '"einordnung": {"wirtschaft": 0-3, "gesellschaft": 0-3, "umwelt": 0-3, "dringlichkeit": 0-3, "wichtigkeit": 1-3, "warum": "…"} aus.',
+  '"einordnung": {"wirtschaft": 0-3, "gesellschaft": 0-3, "umwelt": 0-3, "dringlichkeit": 0-3, "wichtigkeit": 1-3, "warum": "…", "kehrseite": "…"} aus.',
   'Bei {"skip": true} entfällt die Einordnung.',
 ].join("\n");
 
@@ -63,7 +68,7 @@ export function buildAssessmentPrompt(item: { title: string; teaser: string; sum
       LANGUAGE_LINE,
       ASSESSMENT_RUBRIC,
       "",
-      'AUSGABE: NUR ein JSON-Objekt, ohne Code-Block: {"wirtschaft": 0-3, "gesellschaft": 0-3, "umwelt": 0-3, "dringlichkeit": 0-3, "wichtigkeit": 1-3, "warum": "…"}',
+      'AUSGABE: NUR ein JSON-Objekt, ohne Code-Block: {"wirtschaft": 0-3, "gesellschaft": 0-3, "umwelt": 0-3, "dringlichkeit": 0-3, "wichtigkeit": 1-3, "warum": "…", "kehrseite": "…"}',
     ].join("\n"),
     prompt: [
       `Titel: ${item.title}`,
@@ -94,16 +99,27 @@ function clipSentence(s: string, max: number): string {
 }
 
 // Prueft ein Objekt {wirtschaft, gesellschaft, umwelt, dringlichkeit,
-// wichtigkeit, warum}. Fehlt ein Feld oder ist es kein Wert 0-3, gibt es keine
-// Einordnung (null): lieber nichts zeigen als etwas Halbes.
-export function parseAssessment(raw: unknown, by: "ai" | "editor" = "ai"): { assessment: Assessment; importance: Importance } | null {
+// wichtigkeit, warum, kehrseite}. Fehlt ein Feld oder ist es kein Wert 0-3,
+// gibt es keine Einordnung (null): lieber nichts zeigen als etwas Halbes.
+// Die Kehrseite ist fuer neue KI-Einordnungen Pflicht (requireKehrseite),
+// fuer gespeicherte aeltere und fuer die Redaktion freiwillig.
+export function parseAssessment(
+  raw: unknown,
+  by: "ai" | "editor" = "ai",
+  opts: { requireKehrseite?: boolean } = {},
+): { assessment: Assessment; importance: Importance } | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const o = raw as Record<string, unknown>;
   const w = level(o.wirtschaft), g = level(o.gesellschaft), u = level(o.umwelt), d = level(o.dringlichkeit);
   const imp = importance(o.wichtigkeit);
   const warum = typeof o.warum === "string" ? clipSentence(o.warum, MAX_WARUM) : "";
+  const kehr = typeof o.kehrseite === "string" ? clipSentence(o.kehrseite, MAX_KEHRSEITE) : "";
+  const requireKehrseite = opts.requireKehrseite ?? by === "ai";
   if (w === null || g === null || u === null || d === null || imp === null || warum.length < 10) return null;
-  return { assessment: { v: 1, wirtschaft: w, gesellschaft: g, umwelt: u, dringlichkeit: d, warum, by }, importance: imp };
+  if (requireKehrseite && kehr.length < 10) return null;
+  const assessment: Assessment = { v: 1, wirtschaft: w, gesellschaft: g, umwelt: u, dringlichkeit: d, warum, by };
+  if (kehr.length >= 10) assessment.kehrseite = kehr;
+  return { assessment, importance: imp };
 }
 
 // Antwort des Nachtrag-Aufrufs (JSON, evtl. mit Code-Block).
@@ -119,7 +135,7 @@ export function parseAssessmentReply(text: string): { assessment: Assessment; im
 export function readAssessment(raw: unknown): Assessment | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const o = raw as Record<string, unknown>;
-  const parsed = parseAssessment({ ...o, wichtigkeit: 1 }, o.by === "editor" ? "editor" : "ai");
+  const parsed = parseAssessment({ ...o, wichtigkeit: 1 }, o.by === "editor" ? "editor" : "ai", { requireKehrseite: false });
   return parsed ? parsed.assessment : null;
 }
 

@@ -10,6 +10,7 @@ import {
   PROMPT_GENERATION_STRATEGY,
   buildExamplePrompt,
   buildGenerationPrompt,
+  fillPlaceholders,
   formatExampleOutput,
   isoWeek,
   normalizeTitle,
@@ -29,8 +30,7 @@ const item = (o: Record<string, unknown> = {}) => ({
   difficulty: "intermediate",
   context: "Für KMU, die Offerten von Lieferanten schnell auf Lücken, Risiken und Verhandlungsspielraum prüfen wollen.",
   prompt_text: "Du prüfst eine Offerte aus Sicht der Einkäuferin. ".repeat(6) + "Offerte: [OFFERTE]",
-  example_values: "Offerte: Website-Relaunch, 18'000 CHF",
-  example_fill: "Du prüfst eine Offerte aus Sicht der Einkäuferin. ".repeat(3) + "Offerte: Website-Relaunch für 18'000 CHF.",
+  beispielwerte: { OFFERTE: "Website-Relaunch für 18'000 CHF" },
   ...o,
 });
 
@@ -52,23 +52,29 @@ ok("28.12.2026 = KW 53", isoWeek(new Date("2026-12-28T12:00:00Z")) === 53);
 
 console.log("=== Prompt ===");
 {
-  const { system, prompt } = buildGenerationPrompt(["code", "lernen", "strategie"], ["Alter Titel"]);
+  const { system, prompt } = buildGenerationPrompt("lernen", ["Alter Titel"], undefined, "expert");
   ok("Strategie im System", system.includes(PROMPT_GENERATION_STRATEGY.split("\n")[0]));
-  ok("Kategorien im Prompt", prompt.includes("code (Code)") && prompt.includes("lernen (Lernen)"));
+  ok("eine Kategorie im Prompt", prompt.includes("lernen (Lernen)") && !prompt.includes("code (Code)"));
+  ok("Schwierigkeit vorgegeben", prompt.includes("Schwierigkeit: expert"));
   ok("bestehende Titel im Prompt", prompt.includes("- Alter Titel"));
-  ok("Override ersetzt Strategie", !buildGenerationPrompt(["code"], [], "X").system.includes("AUFTRAG:"));
-  const ex = buildExamplePrompt(parseGenerated(JSON.stringify({ prompts: [item()] }), [])![0]);
-  ok("Beispiel-Aufruf nutzt example_fill", ex.prompt.includes("18'000 CHF") && !ex.prompt.includes("[OFFERTE]"));
+  ok("Ausgabe ein Objekt mit beispielwerte", system.includes('"beispielwerte"') && !system.includes('"prompts"'));
+  ok("Override ersetzt Strategie", !buildGenerationPrompt("code", [], "X").system.includes("AUFTRAG:"));
+  const g = parseGenerated(JSON.stringify(item()), [])![0];
+  const ex = buildExamplePrompt(g);
+  ok("Beispiel im Code eingesetzt", ex.prompt.includes("18'000 CHF") && !ex.prompt.includes("[OFFERTE]"), ex.prompt.slice(-80));
+  ok("Kopfzeile der Beispielwerte", g.example_values === "Offerte: Website-Relaunch für 18'000 CHF", g.example_values);
 }
 
 console.log("=== parseGenerated ===");
 {
-  ok("gueltiger Prompt", parseGenerated(JSON.stringify({ prompts: [item()] }), [])?.length === 1);
+  ok("gueltiger Prompt (Liste)", parseGenerated(JSON.stringify({ prompts: [item()] }), [])?.length === 1);
+  ok("gueltiger Prompt (einzelnes Objekt)", parseGenerated(JSON.stringify(item()), [])?.length === 1);
+  ok("gueltiger Prompt ({prompt: …})", parseGenerated(JSON.stringify({ prompt: item() }), [])?.length === 1);
+  ok("ohne Beispielwerte trotzdem gueltig", parseGenerated(JSON.stringify(item({ beispielwerte: undefined })), [])?.[0].example_fill.includes("[OFFERTE]") === true);
   ok("kein JSON → null", parseGenerated("Hier sind drei Prompts:", []) === null);
   ok("ohne prompts-Liste → null", parseGenerated(JSON.stringify({ items: [] }), []) === null);
   ok("unbekannte Kategorie verworfen", parseGenerated(JSON.stringify({ prompts: [item({ category: "andere" })] }), [])?.length === 0);
   ok("zu kurzer Prompt verworfen", parseGenerated(JSON.stringify({ prompts: [item({ prompt_text: "Schreib was." })] }), [])?.length === 0);
-  ok("ohne Beispiel verworfen", parseGenerated(JSON.stringify({ prompts: [item({ example_fill: "" })] }), [])?.length === 0);
   ok("unbekannte Schwierigkeit → intermediate", parseGenerated(JSON.stringify({ prompts: [item({ difficulty: "mittel" })] }), [])?.[0].difficulty === "intermediate");
   ok("Titel auf 80 Zeichen", (parseGenerated(JSON.stringify({ prompts: [item({ title: "T".repeat(120) })] }), [])?.[0].title.length ?? 0) === 80);
   ok("bestehender Titel (Gross/Klein, Satzzeichen) verworfen",
@@ -81,6 +87,12 @@ console.log("=== parseGenerated ===");
   ok("Zeilenumbrueche im Prompt bleiben", parseGenerated(JSON.stringify({ prompts: [item({ prompt_text: "Zeile 1\n\n".repeat(40) })] }), [])?.[0].prompt_text.includes("\n\n") === true);
   ok("normalizeTitle", normalizeTitle("Ärger — vermeiden!") === "arger vermeiden");
 }
+
+console.log("=== fillPlaceholders ===");
+ok("Gross/Klein und Leerzeichen egal", fillPlaceholders("A [Branche] B [ZIEL KUNDE].", { BRANCHE: "Treuhand", ziel_kunde: "KMU" }) === "A Treuhand B KMU.");
+ok("unbekannte bleiben", fillPlaceholders("X [UNBEKANNT]", { A: "b" }) === "X [UNBEKANNT]");
+ok("Schluessel mit Klammern", fillPlaceholders("[ORT]", { "[ORT]": "Luzern" }) === "Luzern");
+ok("Markdown-Link bleibt", fillPlaceholders("[Text](https://x.ch)", {}) === "[Text](https://x.ch)");
 
 console.log("=== formatExampleOutput ===");
 {

@@ -6,7 +6,7 @@ import { unwrapAction } from "@/lib/actionResult";
 import { runPromptGenerationNow } from "@/lib/aiJobs/actions";
 
 // Leiste fuer den woechentlichen Job «Prompts der KI-Redaktion» (PR 197).
-export default function PromptJobBar({ lastRun }: { lastRun: string | null }) {
+export default function PromptJobBar({ lastRun, lastErrors = [] }: { lastRun: string | null; lastErrors?: string[] }) {
   const router = useRouter();
   const [running, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -46,9 +46,10 @@ export default function PromptJobBar({ lastRun }: { lastRun: string | null }) {
       <div className="pjb__text">
         <strong>KI-Redaktion:</strong> Jeden Mittwoch früh erscheinen drei neue Prompts, gekennzeichnet und mit echtem Beispiel-Output. Du bekommst eine Mail; Unpassendes hier archivieren.
         <span className="pjb__meta">Letzter Lauf: {lastRun ?? "noch keiner"}</span>
+        {lastErrors.length > 0 && <span className="pjb__meta" style={{ color: "#ff8e8e" }}>{lastErrors.join(" · ")}</span>}
       </div>
       <button type="button" className="pjb__btn" onClick={runNow} disabled={running}>
-        {running ? "Erstelle… (bis 3 Minuten)" : "Jetzt erstellen"}
+        {running ? "Erstelle… (1 bis 2 Minuten)" : "Jetzt erstellen"}
       </button>
       {msg && <span role={msg.ok ? "status" : "alert"} className="pjb__msg" style={{ color: msg.ok ? "var(--da-green)" : "#ff8e8e" }}>{msg.text}</span>}
     </div>

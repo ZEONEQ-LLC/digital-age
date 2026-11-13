@@ -42,25 +42,25 @@ const CSS = `
         .nw-flag { color: var(--da-green); font-weight: 700; margin-right: 8px; }
         .nw-why { color: #b8b8b8; font-size: 15px; line-height: 1.55; margin: 10px 0 0; padding-left: 12px; border-left: 2px solid var(--da-border); }
         .nw-why b { color: var(--da-text); font-weight: 600; }
-        .nw-ass { margin-top: 8px; font-size: 13px; }
-        .nw-ass summary { cursor: pointer; color: var(--da-muted); list-style: none; display: inline-flex; gap: 6px; align-items: baseline; }
-        .nw-ass summary::-webkit-details-marker { display: none; }
-        .nw-ass summary::after { content: "▾"; font-size: 11px; color: var(--da-muted-soft); }
-        .nw-ass[open] summary::after { content: "▴"; }
-        .nw-ass summary:hover { color: var(--da-text-strong); }
-        .nw-ass summary:focus-visible { outline: 2px solid var(--da-green); outline-offset: 2px; border-radius: 2px; }
-        .nw-ass-grid { display: grid; grid-template-columns: max-content 54px max-content; gap: 6px 12px; align-items: center; margin: 10px 0 4px; }
-        .nw-ass-l { color: var(--da-text-strong); font-size: 13px; }
-        .nw-meter { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+        .nw-why p { margin: 0; }
+        .nw-why p + p { margin-top: 6px; }
+        .nw-ass { margin-top: 12px; }
+        .nw-ass-h { color: var(--da-text-strong); font-size: 13px; font-weight: 600; margin: 0 0 8px; }
+        .nw-ass-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 16px; max-width: 640px; }
+        .nw-ass-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        .nw-ass-l { color: var(--da-muted); font-size: 12px; }
+        .nw-ass-row { display: flex; align-items: center; gap: 8px; }
+        .nw-meter { display: grid; grid-template-columns: repeat(3, 14px); gap: 3px; }
         .nw-meter i { height: 6px; border-radius: 1px; background: var(--da-border); }
         .nw-meter i.on { background: var(--da-green); }
-        .nw-ass-v { color: var(--da-muted); font-size: 13px; }
-        .nw-ass-note { color: var(--da-muted-soft); font-size: 12px; margin: 6px 0 0; }
-        @media (max-width: 640px) {
+        .nw-ass-v { color: var(--da-text-strong); font-size: 12px; white-space: nowrap; }
+        .nw-ass-note { color: var(--da-muted-soft); font-size: 12px; margin: 8px 0 0; }
+@media (max-width: 640px) {
           .nw-item { grid-template-columns: 46px minmax(0, 1fr); column-gap: 10px; }
           .nw-time { font-size: 14px; }
           .nw-title { font-size: 17px; }
           .nw-summary { font-size: 15px; }
+          .nw-ass-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .nw-day-h { font-size: 20px; }
         }
 `;
@@ -91,8 +91,12 @@ export default function NewsFeed({ days, now }: { days: [string, NewsItem[]][]; 
                   </h3>
                   <p className="nw-summary">{it.summary}</p>
                   {it.assessment && (
-                    <p className="nw-why"><b>Warum wichtig:</b> {it.assessment.warum}</p>
+                    <div className="nw-why">
+                      <p><b>Warum wichtig:</b> {it.assessment.warum}</p>
+                      {it.assessment.kehrseite && <p><b>Kehrseite:</b> {it.assessment.kehrseite}</p>}
+                    </div>
                   )}
+                  {it.assessment && <AssessmentDetails a={it.assessment} />}
                   <p className="nw-meta">
                     <a className="nw-src" href={it.sourceUrl} target="_blank" rel="noopener noreferrer">
                       {it.sourceName} ↗
@@ -104,7 +108,6 @@ export default function NewsFeed({ days, now }: { days: [string, NewsItem[]][]; 
                       </>
                     )}
                   </p>
-                  {it.assessment && <AssessmentDetails a={it.assessment} />}
                 </div>
               </article>
             ))}
@@ -115,28 +118,30 @@ export default function NewsFeed({ days, now }: { days: [string, NewsItem[]][]; 
   );
 }
 
-// Einordnung zum Aufklappen: Kurzfassung (Felder ab «mittel»), darunter alle
-// vier Felder mit Stufe. Ohne JavaScript (details/summary).
+// Einordnung, immer sichtbar (Wunsch Ali 13.11.2026): Kopfzeile mit den
+// Feldern ab «mittel», darunter alle vier Felder mit Stufe.
 function AssessmentDetails({ a }: { a: Assessment }) {
   const top = assessmentHighlights(a);
   const label = top.length > 0
     ? `Einordnung: ${top.map((t) => `${t.label} ${LEVEL_LABEL[t.level]}`).join(" · ")}`
     : "Einordnung: geringe Tragweite";
   return (
-    <details className="nw-ass">
-      <summary>{label}</summary>
+    <div className="nw-ass">
+      <p className="nw-ass-h">{label}</p>
       <div className="nw-ass-grid">
         {ASSESSMENT_DIMENSIONS.map((d) => (
-          <div key={d.key} style={{ display: "contents" }}>
+          <div key={d.key} className="nw-ass-cell">
             <span className="nw-ass-l">{d.label}</span>
-            <span className="nw-meter" aria-hidden>
-              {[1, 2, 3].map((n) => <i key={n} className={a[d.key] >= n ? "on" : undefined} />)}
+            <span className="nw-ass-row">
+              <span className="nw-meter" aria-hidden>
+                {[1, 2, 3].map((n) => <i key={n} className={a[d.key] >= n ? "on" : undefined} />)}
+              </span>
+              <span className="nw-ass-v">{a[d.key] === 0 ? "kein Bezug" : LEVEL_LABEL[a[d.key]]}</span>
             </span>
-            <span className="nw-ass-v">{LEVEL_LABEL[a[d.key]]}</span>
           </div>
         ))}
       </div>
       <p className="nw-ass-note">{a.by === "editor" ? "Von der Redaktion eingeordnet." : "Einschätzung der KI auf Basis der Meldung."}</p>
-    </details>
+    </div>
   );
 }

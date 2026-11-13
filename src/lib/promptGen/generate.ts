@@ -31,8 +31,8 @@ export const PROMPT_GENERATION_STRATEGY = [
   "Du bist Redaktorin der Rubrik «AI Prompts» von digital-age, einem Schweizer Magazin für KI und Future Tech.",
   "Die Leserinnen und Leser sind Fach- und Führungskräfte in KMU, Verwaltung und Agenturen in der Schweiz, Deutschland und Österreich.",
   "",
-  "AUFTRAG: Schreibe neue Prompts, die man sofort kopieren und im Arbeitsalltag nutzen will.",
-  "  - Jeder Prompt löst eine konkrete, wiederkehrende Aufgabe (z. B. Offerte prüfen, Workshop planen, Datenschutz-Check eines Tools, Code-Review, Lernplan).",
+  "AUFTRAG: Schreibe einen neuen Prompt, den man sofort kopieren und im Arbeitsalltag nutzen will.",
+  "  - Der Prompt löst eine konkrete, wiederkehrende Aufgabe (z. B. Offerte prüfen, Workshop planen, Datenschutz-Check eines Tools, Code-Review, Lernplan).",
   "  - Aufbau: Rolle oder Perspektive, Aufgabe, nötiger Kontext, Vorgehen in Schritten, gewünschtes Ausgabeformat, Qualitätskriterien.",
   "  - Variablen in [ECKIGEN KLAMMERN in Grossbuchstaben], höchstens fünf pro Prompt.",
   "  - Bezug zur DACH-Region, wo es passt (Schweizer Recht, DSG/DSGVO, KMU-Realität, Mehrsprachigkeit).",
@@ -44,14 +44,17 @@ export const PROMPT_GENERATION_STRATEGY = [
 const LANGUAGE_LINE =
   "SPRACHE: Deutsch mit Schweizer Rechtschreibung (de-CH). IMMER 'ss' statt Eszett. NIEMALS Eszett verwenden.";
 
+// Ein Prompt pro Aufruf (seit PR 201): Drei Prompts samt ausgefuelltem
+// Beispiel in einer Antwort sprengten das Ausgabelimit (13.11.2026: zweimal
+// max_tokens, kein gueltiges JSON). Das Beispiel setzt der Code aus
+// «beispielwerte» ein.
 const OUTPUT_FORMAT = [
   "AUSGABEFORMAT: Antworte ausschliesslich mit einem JSON-Objekt, ohne Code-Block:",
-  '{"prompts": [{"title": "…", "category": "…", "difficulty": "beginner|intermediate|expert", "context": "…", "prompt_text": "…", "example_values": "…", "example_fill": "…"}]}',
+  '{"title": "…", "category": "…", "difficulty": "beginner|intermediate|expert", "context": "…", "prompt_text": "…", "beispielwerte": {"PLATZHALTER": "Wert"}}',
   "  - title: höchstens 70 Zeichen, sagt, was der Prompt erledigt.",
   "  - context: 2 bis 3 Sätze, wofür und wie man ihn nutzt, höchstens 400 Zeichen.",
-  "  - prompt_text: der Prompt selbst, 400 bis 2500 Zeichen, Absätze mit \\n.",
-  "  - example_values: die Beispielwerte für die Variablen in einer Zeile, z. B. «Branche: Treuhand, Ort: Luzern», höchstens 200 Zeichen.",
-  "  - example_fill: derselbe Prompt mit diesen Beispielwerten eingesetzt, ohne eckige Klammern.",
+  "  - prompt_text: der Prompt selbst, 400 bis 1800 Zeichen, Absätze mit \\n, Variablen als [PLATZHALTER].",
+  "  - beispielwerte: für jeden Platzhalter im Prompt ein realistischer Beispielwert aus der Schweiz, kurz (höchstens 120 Zeichen je Wert).",
 ].join("\n");
 
 // Die n am schwaechsten vertretenen Kategorien; bei Gleichstand rotiert der
@@ -75,14 +78,15 @@ export function isoWeek(d: Date): number {
 }
 
 export function buildGenerationPrompt(
-  categories: GenCategory[],
+  category: GenCategory,
   existingTitles: string[],
   strategy: string = PROMPT_GENERATION_STRATEGY,
+  difficulty?: Difficulty,
 ): { system: string; prompt: string } {
   const system = [LANGUAGE_LINE, strategy.trim(), OUTPUT_FORMAT].join("\n\n");
   const prompt = [
-    `Schreibe ${categories.length} Prompts, je einen für diese Kategorien: ${categories.map((c) => `${c} (${CATEGORY_LABEL[c]})`).join(", ")}.`,
-    "Mische die Schwierigkeit (beginner, intermediate, expert).",
+    `Schreibe einen Prompt für die Kategorie ${category} (${CATEGORY_LABEL[category]}).`,
+    difficulty ? `Schwierigkeit: ${difficulty}.` : "Wähle die passende Schwierigkeit (beginner, intermediate, expert).",
     existingTitles.length > 0
       ? `Bereits in der Sammlung (nicht wiederholen):\n${existingTitles.slice(0, 200).map((t) => `- ${t}`).join("\n")}`
       : "Die Sammlung ist noch leer.",
@@ -139,14 +143,44 @@ function stripCodeFence(raw: string): string {
   return a >= 0 && b > a ? t.slice(a, b + 1) : t;
 }
 
-// Validiert die KI-Antwort. Unpassende Laengen, unbekannte Kategorien und
-// Titel, die es schon gibt, fallen weg. null = kein JSON.
+// Setzt die Beispielwerte in die Platzhalter ein ([BRANCHE] → «Treuhand»),
+// Gross-/Kleinschreibung und Leerzeichen im Namen egal. Unbekannte
+// Platzhalter bleiben stehen; die KI im Beispiel-Aufruf kommt damit zurecht.
+export function fillPlaceholders(promptText: string, values: Record<string, string>): string {
+  const norm = (k: string) => k.trim().toUpperCase().replace(/[\s_-]+/g, "_");
+  const map = new Map(Object.entries(values).map(([k, v]) => [norm(k.replace(/^\[|\]$/g, "")), v]));
+  return promptText.replace(/\[([^\[\]\n]{1,60})\]/g, (m, key: string) => map.get(norm(key)) ?? m);
+}
+
+function readValues(v: unknown): Record<string, string> {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+  const out: Record<string, string> = {};
+  for (const [k, val] of Object.entries(v as Record<string, unknown>).slice(0, 8)) {
+    const s = oneLine(val, 120);
+    if (k.trim() && s) out[k.trim()] = s;
+  }
+  return out;
+}
+
+// «Branche: Treuhand, Ort: Luzern» fuer die Kopfzeile des Beispiel-Outputs.
+function valuesLine(values: Record<string, string>): string {
+  const label = (k: string) => {
+    const t = k.replace(/^\[|\]$/g, "").replace(/[_-]+/g, " ").toLowerCase().trim();
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  };
+  return Object.entries(values).map(([k, v]) => `${label(k)}: ${v}`).join(", ").slice(0, 200);
+}
+
+// Validiert die KI-Antwort. Akzeptiert ein einzelnes Prompt-Objekt (seit
+// PR 201), {"prompt": {…}} oder {"prompts": […]}. Unpassende Laengen,
+// unbekannte Kategorien und Titel, die es schon gibt, fallen weg. null = kein JSON.
 export function parseGenerated(raw: string, existingTitles: string[]): GeneratedPrompt[] | null {
   let parsed: unknown;
   try { parsed = JSON.parse(stripCodeFence(raw)); } catch { return null; }
   if (!parsed || typeof parsed !== "object") return null;
-  const list = (parsed as { prompts?: unknown }).prompts;
-  if (!Array.isArray(list)) return null;
+  const o = parsed as Record<string, unknown>;
+  const list = Array.isArray(o.prompts) ? o.prompts : o.prompt && typeof o.prompt === "object" ? [o.prompt] : typeof o.title === "string" ? [o] : null;
+  if (!list) return null;
   const seen = new Set(existingTitles.map(normalizeTitle));
   const out: GeneratedPrompt[] = [];
   for (const item of list) {
@@ -155,15 +189,14 @@ export function parseGenerated(raw: string, existingTitles: string[]): Generated
     const title = oneLine(r.title, 80);
     const context = str(r.context, 600);
     const prompt_text = str(r.prompt_text, 3000);
-    const example_fill = str(r.example_fill, 4000);
-    const example_values = oneLine(r.example_values, 200);
+    const values = readValues(r.beispielwerte);
     const category = (GEN_CATEGORIES as readonly string[]).includes(String(r.category)) ? (r.category as GenCategory) : null;
     const difficulty = DIFFICULTIES.includes(r.difficulty as Difficulty) ? (r.difficulty as Difficulty) : "intermediate";
-    if (!title || !category || context.length < 40 || prompt_text.length < 120 || example_fill.length < 80) continue;
+    if (!title || !category || context.length < 40 || prompt_text.length < 120) continue;
     const key = normalizeTitle(title);
     if (!key || seen.has(key)) continue;
     seen.add(key);
-    out.push({ title, category, difficulty, context, prompt_text, example_values, example_fill });
+    out.push({ title, category, difficulty, context, prompt_text, example_values: valuesLine(values), example_fill: fillPlaceholders(prompt_text, values) });
   }
   return out;
 }
