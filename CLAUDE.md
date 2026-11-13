@@ -1330,6 +1330,32 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+### Kehrseite, Einordnung immer sichtbar, Prompt-Job repariert (PR 201)
+
+**News (Wunsch Ali 13.11.2026):**
+- **Kehrseite:** Die Einordnung hat ein weiteres Feld `kehrseite` (ein Satz:
+  Risiko, Einwand, offene Frage oder was die Meldung nicht belegt; sachlich, ohne
+  Polemik). Fuer neue KI-Einordnungen ist es Pflicht (`parseAssessment`, Option
+  `requireKehrseite`). Gespeicherte aeltere und die der Redaktion duerfen ohne
+  sein. Der Nachtrag (`backfillAssessments`) holt auch KI-Einordnungen ohne
+  Kehrseite nach (PostgREST-Filter `assessment->>kehrseite.is.null` und
+  `assessment->>by.eq.ai`); Einordnungen der Redaktion bleiben unangetastet.
+- **Anzeige auf `/news`:** Unter der Kurzfassung steht ein Block «Warum
+  wichtig» und «Kehrseite». Die Einordnung ist immer sichtbar, nicht mehr
+  aufklappbar: Kopfzeile, vier Felder mit Balken und Stufe, Stufe 0 als
+  «kein Bezug». Quelle und Rubrik stehen darunter.
+- **Admin:** Ein Feld «Kehrseite» kommt beim Bearbeiten dazu.
+
+**Prompt-Job repariert:** Der erste Handlauf (13.11.2026) endete zweimal mit
+`max_tokens` und kaputtem JSON, weil drei Prompts samt ausgefuelltem Beispiel in
+einer Antwort zu lang waren.
+- **Neu, je Prompt ein Aufruf:** drei parallel, `maxTokens` 3000, Schwierigkeit
+  gemischt. `prompt_text` hat 400 bis 1800 Zeichen. Die KI liefert
+  `beispielwerte` als Objekt, den Beispiel-Prompt setzt der Code ein
+  (`fillPlaceholders`).
+- **Parser:** `parseGenerated` akzeptiert ein Objekt, `{prompt}` oder `{prompts}`.
+- **Admin:** Die Leiste im Prompt-Admin zeigt die Fehler des letzten Laufs.
+
 ### Lesbare Sprungmarken auf /news (PR 200)
 
 Meldungen auf `/news` haben als `id` den Titel-Slug (`newsAnchor` in
