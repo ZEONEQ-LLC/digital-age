@@ -81,7 +81,7 @@ export async function runPromptGeneration(trigger: "cron" | "manual", authorId: 
       const { system, prompt } = buildGenerationPrompt(cat, titles, strategy, DIFFS[i % DIFFS.length]);
       const res = await callLLMForAuthor(author, { system, prompt, maxTokens: 3000, task: "prompt_generation", timeoutMs: 150_000 });
       if (!res.ok) { errors.push(`${cat}: KI nicht erreichbar (${res.kind}).`); return []; }
-      const parsed = parseGenerated(res.text, titles);
+      const parsed = parseGenerated(res.text, titles, cat);
       if (!parsed) { errors.push(`${cat}: Antwort der KI war kein gültiges JSON.`); return []; }
       if (parsed.length === 0) errors.push(`${cat}: Vorschlag bestand die Prüfung nicht (Länge, Kategorie oder Dublette).`);
       return parsed;
