@@ -16,6 +16,7 @@ import {
   buildGenerationPrompt,
   formatExampleOutput,
   isoWeek,
+  normalizeTitle,
   parseGenerated,
   pickCategories,
 } from "@/lib/promptGen/generate";
@@ -72,12 +73,29 @@ export async function runPromptGeneration(trigger: "cron" | "manual", authorId: 
   const author = authorId ?? (await resolveSystemAuthorId(svc, "AI_JOBS_AUTHOR_ID"));
   if (!author) return fail("Kein Editor für die KI-Kosten gefunden.");
   const strategy = await getPromptOverride("prompt_generation", svc);
-  const { system, prompt } = buildGenerationPrompt(categories, titles, strategy);
-  const res = await callLLMForAuthor(author, { system, prompt, maxTokens: 6000, task: "prompt_generation", timeoutMs: 180_000 });
-  if (!res.ok) return fail(`KI nicht erreichbar (${res.kind}).`);
-  const generated = parseGenerated(res.text, titles);
-  if (!generated) return fail("Die KI-Antwort war kein gültiges JSON.", { raw: res.text.slice(0, 2000) });
-  if (generated.length === 0) return fail("Kein Vorschlag bestand die Prüfung (Länge, Kategorie, Dublette).");
+  // Ein Aufruf pro Prompt, parallel (seit PR 201; drei Prompts in einer
+  // Antwort lagen ueber dem Ausgabelimit). Schwierigkeit gemischt.
+  const DIFFS = ["beginner", "intermediate", "expert"] as const;
+  const replies = await Promise.all(
+    categories.map(async (cat, i) => {
+      const { system, prompt } = buildGenerationPrompt(cat, titles, strategy, DIFFS[i % DIFFS.length]);
+      const res = await callLLMForAuthor(author, { system, prompt, maxTokens: 3000, task: "prompt_generation", timeoutMs: 150_000 });
+      if (!res.ok) { errors.push(`${cat}: KI nicht erreichbar (${res.kind}).`); return []; }
+      const parsed = parseGenerated(res.text, titles);
+      if (!parsed) { errors.push(`${cat}: Antwort der KI war kein gültiges JSON.`); return []; }
+      if (parsed.length === 0) errors.push(`${cat}: Vorschlag bestand die Prüfung nicht (Länge, Kategorie oder Dublette).`);
+      return parsed;
+    }),
+  );
+  // Doppelte Titel zwischen den parallelen Antworten entfernen.
+  const seenTitles = new Set<string>();
+  const generated = replies.flat().filter((g) => {
+    const k = normalizeTitle(g.title);
+    if (seenTitles.has(k)) return false;
+    seenTitles.add(k);
+    return true;
+  });
+  if (generated.length === 0) return fail("Kein Prompt erstellt.");
 
   // Beispiele parallel ausfuehren; ein Fehler kostet nur den Beispiel-Output.
   const examples = await Promise.all(
