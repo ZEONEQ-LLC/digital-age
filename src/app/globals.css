@@ -122,7 +122,10 @@
   --gutter:      var(--sp-8);
   --max-dash:    1280px;
   --nav-h:       64px;
-  --aside-sticky-top: calc(var(--nav-h) + 24px);
+  /* Mitlaufende Seitenleisten unter Navbar und Ticker (40 px, NewsTickerClient);
+     vorher nur unter der Navbar, die obersten 16 px lagen unter dem Ticker. */
+  --ticker-h:    40px;
+  --aside-sticky-top: calc(var(--nav-h) + var(--ticker-h) + 24px);
   --sidebar-w:   240px;
 
   /* ── Transitions ───────────────────────────────────────────────── */
