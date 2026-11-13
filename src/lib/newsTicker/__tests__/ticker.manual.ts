@@ -30,6 +30,10 @@ section("parseGenerated");
   const partial = parseGenerated('{"title":"T","teaser":""}');
   ok("unvollstaendig → error", partial.kind === "error" && partial.message.includes("unvollständig"));
   ok("JSON-String statt Objekt → error", parseGenerated('"hallo"').kind === "error");
+  const rated = parseGenerated('{"title":"T","teaser":"Te","summary":"S","category":null,"einordnung":{"wirtschaft":3,"gesellschaft":1,"umwelt":0,"dringlichkeit":2,"wichtigkeit":3,"warum":"Betrifft Schweizer Banken direkt."}}');
+  ok("Einordnung wird mitgelesen", rated.kind === "item" && rated.item.assessment?.wirtschaft === 3 && rated.item.importance === 3 && rated.item.assessment.by === "ai");
+  const unrated = parseGenerated('{"title":"T","teaser":"Te","summary":"S","einordnung":{"wirtschaft":"viel"}}');
+  ok("kaputte Einordnung → Item ohne Einordnung", unrated.kind === "item" && unrated.item.assessment === null && unrated.item.importance === null);
 }
 
 section("describeLlmError");

@@ -21,6 +21,9 @@ export type RefreshStats = {
   // Kein brauchbares Ergebnis (KI-Fehler, Antwort im falschen Format). Seit
   // PR 191; aeltere Laeufe in last_refresh_stats haben das Feld nicht.
   items_failed?: number;
+  // Einordnung nachgetragen bzw. gescheitert (seit PR 199).
+  items_assessed?: number;
+  assess_failed?: number;
   errors: RefreshError[];
   // Wenn true, wurde der Run wegen `news_ticker_config.is_paused = true`
   // sofort abgebrochen — alle Zähler bleiben 0.

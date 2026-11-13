@@ -3,7 +3,7 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/service";
 import { resolveSystemAuthorId } from "@/lib/ai/systemAuthor";
 import { fetchAndParseFeed } from "./fetcher";
-import { generateNewsItem } from "./generator";
+import { assessExistingItem, generateNewsItem } from "./generator";
 import type { Database } from "@/lib/database.types";
 import { addRefreshError, emptyRefreshStats, type RefreshStats } from "./stats";
 
@@ -78,6 +78,10 @@ export async function runRefresh(opts: { authorId?: string } = {}): Promise<Refr
   for (const source of sources ?? []) {
     await processSource(supabase, source, promptTemplate, itemsPerSource, authorId, stats);
   }
+
+  // Einordnung nachtragen (PR 199): aeltere Meldungen und solche, bei denen die
+  // KI das Feld ausgelassen hat, pro Lauf hoechstens BACKFILL_PER_RUN.
+  await backfillAssessments(supabase, authorId, stats);
 
   // Stats zurückschreiben — even bei 0 sources, damit der Editor sieht dass
   // der Refresh lief.
@@ -162,6 +166,8 @@ async function processSource(
       // Source-Name als Snapshot mitschreiben (denormalisiert, weil anon-
       // RLS auf news_sources den Embed im Public-Ticker blockt).
       source_name: source.name,
+      assessment: generated.assessment as unknown as Database["public"]["Tables"]["news_items"]["Insert"]["assessment"],
+      importance: generated.importance,
     });
 
     if (insErr) {
@@ -179,3 +185,48 @@ async function processSource(
     stats.items_generated += 1;
   }
 }
+
+// Der Ticker laeuft einmal taeglich (scheduled_hour_cet) plus Klick im Admin;
+// 60 pro Lauf holen den Bestand eines Monats in ein bis zwei Laeufen nach.
+const BACKFILL_PER_RUN = 60;
+const BACKFILL_PARALLEL = 5;
+// Nur Meldungen, die noch auf /news stehen (Fenster dort: 30 Tage).
+const BACKFILL_WINDOW_DAYS = 30;
+
+async function backfillAssessments(
+  supabase: ReturnType<typeof createServiceClient>,
+  authorId: string,
+  stats: RefreshStats,
+): Promise<void> {
+  const since = new Date(Date.now() - BACKFILL_WINDOW_DAYS * 86_400_000).toISOString();
+  const { data: rows, error } = await supabase
+    .from("news_items")
+    .select("id, title, teaser, summary, source_name")
+    .eq("status", "approved")
+    .is("assessment", null)
+    .gte("published_at", since)
+    .order("published_at", { ascending: false })
+    .limit(BACKFILL_PER_RUN);
+  if (error || !rows) return;
+  // In kleinen Gruppen parallel, damit 60 Aufrufe nicht minutenlang dauern.
+  for (let i = 0; i < rows.length; i += BACKFILL_PARALLEL) {
+    await Promise.all(rows.slice(i, i + BACKFILL_PARALLEL).map(async (r) => {
+      const res = await assessExistingItem({ title: r.title, teaser: r.teaser, summary: r.summary, sourceName: r.source_name }, authorId);
+      if ("error" in res) {
+        stats.assess_failed = (stats.assess_failed ?? 0) + 1;
+        return;
+      }
+      const { error: upErr } = await supabase
+        .from("news_items")
+        .update({
+          assessment: res.assessment as unknown as Database["public"]["Tables"]["news_items"]["Update"]["assessment"],
+          importance: res.importance,
+        })
+        .eq("id", r.id)
+        .is("assessment", null);
+      if (upErr) stats.assess_failed = (stats.assess_failed ?? 0) + 1;
+      else stats.items_assessed = (stats.items_assessed ?? 0) + 1;
+    }));
+  }
+}
+

@@ -2,12 +2,17 @@
 // damit der Test (__tests__/parse.manual.ts) es laden kann.
 
 import type { AiErrorKind } from "@/lib/ai/types";
+import { parseAssessment, type Assessment, type Importance } from "./assessment";
 
 export type GeneratedItem = {
   title: string;
   teaser: string;
   summary: string;
   category: string | null;
+  // Einordnung (seit PR 199). Fehlt sie oder ist sie unvollstaendig, bleibt
+  // das Item gueltig; der Nachtrag im naechsten Lauf holt sie nach.
+  assessment: Assessment | null;
+  importance: Importance | null;
 };
 
 // Ergebnis pro RSS-Item. "skip" heisst: Das Modell hat das Item als
@@ -84,7 +89,11 @@ export function parseGenerated(raw: string): GenerateOutcome {
     return { kind: "error", message: "Antwort der KI ist unvollständig (Titel, Teaser oder Zusammenfassung fehlt)." };
   }
 
-  return { kind: "item", item: { title, teaser, summary, category } };
+  const rated = parseAssessment(p.einordnung);
+  return {
+    kind: "item",
+    item: { title, teaser, summary, category, assessment: rated?.assessment ?? null, importance: rated?.importance ?? null },
+  };
 }
 
 // Lesbare Meldung fuer die Fehlerliste im Admin (keine Provider-Details).
