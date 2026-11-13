@@ -325,3 +325,19 @@
   /* ── Animation ────────────────────────────────────────────────── */
   .da-fadein { animation: da-fadein var(--t-slow) ease; }
 }
+
+/* Hervorhebungen im Text ({{g}} / {{o}}, InlineText und BlockReader) als
+   Leuchtmarker unter hellem Text statt Vollflaeche mit dunkler Schrift
+   (Design-Check Artikel, PR 198). Die Marken setzen Inline-Styles, daher
+   !important. */
+mark.hl-green,
+mark.hl-orange {
+  color: var(--da-text) !important;
+  font-weight: 600 !important;
+  padding: 0 2px !important;
+  border-radius: 2px !important;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+mark.hl-green { background: linear-gradient(transparent 58%, rgba(50, 255, 126, 0.38) 58%) !important; }
+mark.hl-orange { background: linear-gradient(transparent 58%, rgba(255, 140, 66, 0.42) 58%) !important; }

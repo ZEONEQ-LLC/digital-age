@@ -1330,6 +1330,54 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+### Design-Check Beitragsseite und Rubrik-Liste (PR 198)
+
+Entscheid Ali 13.11.2026 nach Vergleich mit Wired, The Verge, TechCrunch, Ars
+Technica und Heise (Visualisierung als Artifact): Artikelkopf Variante **A**,
+dazu Lesetext, Artikelende und Liste wie vorgeschlagen.
+
+**Beitragsseite** (`src/app/artikel/[slug]/page.tsx`, Stile in
+`ArticleHeadStyles` und `ArticleBodyGrid`): ein Raster mit der Navbar (1200 inkl.
+`--gutter`), alles beginnt buendig mit dem Logo. Kopf: Rubrik (Link auf die
+Rubrikseite) / Unterrubrik in Mono, Titel ueber die ganze Breite, darunter links
+das Beitragsbild, rechts (360 px) Abstract und Autorzeile, die unten buendig
+steht; «Teilen»-Label dort ausgeblendet. Bild im natuerlichen Seitenverhaeltnis
+(`height: auto`), nur sehr hohe Bilder werden ab `--ah-img-max` (480 / 640 /
+420 px) mittig beschnitten; 16:9-Hero-Studio-Bilder und breite Grafiken bleiben
+ganz (vorher schnitt `max-height: 520px` 16:9-Bilder oben und unten). Bis
+1024 px untereinander (Abstract, Autorzeile zwischen Linien, Bild), auf dem Handy
+das Bild direkt unter dem Titel. Lesetext 680 px links, Inhaltsverzeichnis rechts
+an der Kante (`justify-content: space-between`), Zeilenhoehe 1.75. Tags und
+Teilen in einer Zeile (`.art-endbar`). Podcast-Leiste in derselben Breite.
+Verwandte-Artikel-Karten (`InternalArticleCard`): Abstract auf drei Zeilen,
+Bild 16:9.
+
+**Hervorhebungen** `{{g}}`/`{{o}}` (InlineText, BlockReader) sind global ein
+Leuchtmarker unter heller Schrift (`mark.hl-green`/`mark.hl-orange` in
+`globals.css`, mit `!important`, weil die Marken Inline-Styles setzen), statt
+gruener/oranger Flaeche mit dunkler Schrift.
+
+**Artikelliste** (`ArticleListRow`, Rubrikseiten und `/tag/<slug>`): Bild 16:9
+(232 px, Handy 112 px rechts), Titel in der Display-Schrift, zwei Zeilen Abstract
+(`excerpt` aus `articleToListRow`, Klartext ueber `plainExcerpt` in
+`src/lib/excerpt.ts`), kein Farbbalken. `TopicListing`: Spotlight-Artikel
+(`pinnedIds`) erscheinen in «Alle» ohne Autor-Filter nicht noch einmal
+(«Neueste · n weitere Artikel»), Nachladen in 10er-Schritten, das wirkungslose
+Auswahlfeld «Neueste zuerst / Meistgelesen» ist entfernt. Unterrubriken
+gleicher Schreibweise bis auf Gross-/Kleinschreibung legt
+`canonicalSubcategories` (`src/lib/subcategory.ts`) zusammen (haeufigste
+Schreibweise gewinnt). Der Tag-Kopf steht jetzt buendig mit der Liste.
+
+**News** (Feinschliff nach Alis Rueckmeldung 13.11.2026 «sieht zu sehr nach KI
+aus»): Startseiten-Spalte (`NewsColumn`) und `/news` wie ein Newsticker bei
+Heise/NZZ. Keine Karte, keine Kategorie-Punkte, keine Mono-Versalien. Links die
+Uhrzeit (`newsClock`, gruen, tabellarische Ziffern), rechts Titel und Quelle;
+Tageswechsel in der Spalte einmal als Zwischenzeile («Gestern»), auf `/news`
+als Tageskopf «Heute · Freitag, 13. November» mit kraeftiger Linie
+(`newsDayDate`). Quelle als dezenter Link «Heise KI ↗» mit Rubrik daneben,
+statt einer gruenen Zeile «Bei … weiterlesen» unter jeder Meldung.
+`newsTimeLabel` und `NEWS_CATEGORY_ACCENT` sind entfallen.
+
 ### Startseite neu, News-Rubrik, KI-Jobs fuer Plattformen und Prompts (PR 197)
 
 **Startseite** (Design-Check, Entscheid Ali 12.11.2026: mit Slogan-Band).

@@ -3,6 +3,7 @@ import Link from "next/link";
 import ExternalBadge from "@/components/ExternalBadge";
 import type { ArticleWithRelations } from "@/lib/articleApi";
 import { getCoverUrl } from "@/lib/coverImage";
+import { plainExcerpt } from "@/lib/excerpt";
 
 // Aufmacher der Startseite: grosses Bild, Rubrik, Titel, Abstract, Autor.
 export function articleMeta(a: ArticleWithRelations): string {
@@ -11,19 +12,6 @@ export function articleMeta(a: ArticleWithRelations): string {
     : "";
   const read = a.reading_minutes ? `${a.reading_minutes} min` : "";
   return [date, read].filter(Boolean).join(" · ");
-}
-
-// Abstract als Klartext: eigene Marker ({{g}}, **, Quellen [^1], Links)
-// gehoeren nicht auf die Startseite.
-export function plainExcerpt(text: string | null | undefined): string {
-  return (text ?? "")
-    .replace(/\[\^\d+\]/g, "")
-    .replace(/\[\[[^\]]+\]\]\(([^)]+)\)/g, "$1")
-    .replace(/\{\{\/?[a-z]+\}\}/gi, "")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/\*\*/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 export function categoryLabel(a: ArticleWithRelations): string {

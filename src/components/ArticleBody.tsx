@@ -5,10 +5,10 @@ export default function ArticleBody({ children }: { children: React.ReactNode })
         .article-body {
           color: #d8d8d8;
           font-size: 18px;
-          line-height: 1.85;
+          line-height: 1.75;
           font-weight: 400;
         }
-        .article-body p { margin-bottom: 28px; }
+        .article-body p { margin-bottom: 26px; }
         .article-body h2 {
           color: var(--da-text);
           font-family: var(--da-font-display);
@@ -54,11 +54,9 @@ export default function ArticleBody({ children }: { children: React.ReactNode })
           text-decoration: underline;
           text-underline-offset: 3px;
         }
-        /* Verschachtelte Inline-Elemente innerhalb von Highlights sollen die
-         * dunkle Highlight-Farbe erben statt eigene globale Farben zu setzen.
-         * Sonst überschreibt z.B. \`.article-body strong { color: text }\` die
-         * \`color: dark\` des Mark und der Text wird auf grünem/orangem
-         * Hintergrund unleserlich (weiss auf grün). */
+        /* Verschachtelte Inline-Elemente innerhalb von Highlights erben die
+         * Farbe der Marke (seit PR 198 heller Text auf Leuchtmarker, siehe
+         * globals.css), statt eigene globale Farben zu setzen. */
         .article-body mark strong,
         .article-body mark em,
         .article-body mark a,

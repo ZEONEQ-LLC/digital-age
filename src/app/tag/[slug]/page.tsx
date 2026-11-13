@@ -91,10 +91,11 @@ export default async function TagPage({ params }: PageProps) {
       <section
         style={{
           borderBottom: "1px solid var(--da-border)",
-          padding: "48px var(--gutter) 44px",
+          padding: "48px 0 44px",
         }}
       >
-        <div style={{ maxWidth: "var(--max-content)", margin: "0 auto" }}>
+        {/* Rand innen wie bei der Liste darunter, sonst steht der Kopf 32 px weiter links. */}
+        <div style={{ maxWidth: "var(--max-content)", margin: "0 auto", padding: "0 var(--gutter)" }}>
           <nav
             aria-label="Breadcrumb"
             style={{

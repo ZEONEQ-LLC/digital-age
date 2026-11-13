@@ -8,6 +8,7 @@ import { buildListingMetadata } from "@/lib/listingMetadata";
 import { buildItemListJsonLd } from "@/lib/jsonLd";
 import { getBaseUrl } from "@/lib/siteUrl";
 import { getSlotReservation } from "@/lib/ads/slotReservation";
+import { canonicalSubcategories } from "@/lib/subcategory";
 
 export const revalidate = 120;
 
@@ -30,7 +31,7 @@ const categoryColors: Record<string, string> = {
 const trendingTags: string[] = [];
 
 export default async function FutureTechPage() {
-  const [rows, featured, topTagsRaw] = await Promise.all([
+  const [rawRows, featured, topTagsRaw] = await Promise.all([
     getArticlesByCategory("future-tech"),
     getFeaturedByCategory("future-tech", 3),
     getTopTags(5),
@@ -40,6 +41,8 @@ export default async function FutureTechPage() {
     name: t.name,
     count: Number(t.article_count),
   }));
+  // Gleiche Unterrubrik in anderer Schreibweise nur einmal im Filter.
+  const rows = canonicalSubcategories(rawRows);
   const articles = rows.map(articleToListRow);
 
   const subcategorySet = new Set<string>();
@@ -101,6 +104,7 @@ export default async function FutureTechPage() {
           claim="Technologien von morgen, verständlich erklärt"
           topicLabel="Future Tech"
           articles={articles}
+          pinnedIds={featured.map((a) => a.id)}
           subcategories={subcategories}
           categoryColors={categoryColors}
           trendingTags={trendingTags}

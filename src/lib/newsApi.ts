@@ -24,13 +24,6 @@ export const NEWS_CATEGORY_LABEL: Record<string, string> = {
   tools: "Tools",
 };
 
-export const NEWS_CATEGORY_ACCENT: Record<string, string> = {
-  "ki-business": "var(--da-green)",
-  "future-tech": "var(--da-purple)",
-  "swiss-ai": "var(--da-orange)",
-  tools: "var(--da-muted)",
-};
-
 type Row = {
   id: string;
   title: string;
@@ -75,17 +68,6 @@ export function zurichDay(iso: string): string {
   return new Date(iso).toLocaleDateString("en-CA", { timeZone: "Europe/Zurich" });
 }
 
-// «07:01» (heute), «Gestern, 20:55» oder «10.11.» fuer aeltere Meldungen.
-export function newsTimeLabel(iso: string, now: Date): string {
-  const d = new Date(iso);
-  const time = d.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" });
-  const day = zurichDay(iso);
-  if (day === zurichDay(now.toISOString())) return time;
-  if (day === zurichDay(new Date(now.getTime() - 86_400_000).toISOString())) return `Gestern, ${time}`;
-  // de-CH liefert «11.11.» bereits mit Schlusspunkt.
-  return d.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", timeZone: "Europe/Zurich" });
-}
-
 // Tagesueberschrift fuer /news: «Heute», «Gestern» oder «Montag, 10. November».
 export function newsDayLabel(day: string, now: Date): string {
   const today = zurichDay(now.toISOString());
@@ -94,3 +76,14 @@ export function newsDayLabel(day: string, now: Date): string {
   if (day === yesterday) return "Gestern";
   return new Date(`${day}T12:00:00Z`).toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Zurich" });
 }
+
+// Uhrzeit einer Meldung, «07:01» (Europe/Zurich).
+export function newsClock(iso: string): string {
+  return new Date(iso).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" });
+}
+
+// Datum zur Tagesueberschrift: «Freitag, 13. November».
+export function newsDayDate(day: string): string {
+  return new Date(`${day}T12:00:00Z`).toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Zurich" });
+}
+
