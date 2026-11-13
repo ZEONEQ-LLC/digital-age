@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import {
   NEWS_CATEGORY_LABEL,
   newsClock,
@@ -13,7 +13,9 @@ import { newsAnchors } from "@/lib/newsAnchor";
 import {
   NO_FILTERS,
   RELEVANZ_OPTIONS,
+  SEARCH_MAX,
   ZEIT_OPTIONS,
+  activeFilterCount,
   countWith,
   filtersToSearch,
   isFiltered,
@@ -28,6 +30,11 @@ import { ASSESSMENT_DIMENSIONS, LEVEL_LABEL, assessmentHighlights, type Assessme
 // volle Liste (SEO, ohne JavaScript lesbar), nach dem Laden setzt die Seite die
 // Filter aus der URL. `nowIso` kommt vom Server, damit «Heute»/«Gestern» beim
 // Hydrieren gleich bleiben.
+//
+// Seit PR 204 (Rueckmeldung Ali 13.11.2026: «Filter haben wir normalerweise auf
+// der linken Seite») stehen Suche und Filter in einer Seitenleiste wie bei den
+// Prompts (/ai-prompts) und Rubriken. Unter 1024 px steht die Suche ueber der
+// Liste, die Filter klappen hinter dem Knopf «Filter» auf.
 
 const CSS = `
         /* Aufbau wie ein Newsticker (Heise, NZZ): Tageskopf, links die Uhrzeit,
@@ -80,38 +87,61 @@ const CSS = `
           .nw-ass-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .nw-day-h { font-size: 20px; }
         }
-        /* Filter (PR 202): ruhige Textoptionen, aktiv mit gruener Linie; die
-           Bereiche als Umriss-Chips mit Trefferzahl. */
-        .nf { margin: 0 0 var(--sp-10); padding: 14px 0 16px; border-top: 1px solid var(--da-border); border-bottom: 1px solid var(--da-border); display: flex; flex-direction: column; gap: 10px; }
-        .nf-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 12px; }
-        .nf-l { color: var(--da-muted); font-size: 13px; }
-        .nf-opts { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; }
-        .nf-tab {
-          background: none; border: none; padding: 4px 0; cursor: pointer; font-family: inherit; font-size: 14px;
-          color: var(--da-muted); border-bottom: 2px solid transparent;
+        /* Seitenleiste (PR 204), Aufbau wie /ai-prompts: Mono-Label, Liste mit
+           Trennlinien, aktiv fett mit gruener Zahl. Tragweite mit Kaestchen,
+           weil dort mehrere Optionen zugleich gelten. */
+        .nf-grid { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; align-items: start; }
+        /* Liste bis zur rechten Kante (buendig mit der Navbar), Lesetext
+           auf eine angenehme Zeilenlaenge begrenzt. */
+        .nf-main { min-width: 0; }
+        .nw-item > div + div { max-width: 760px; }
+        .nf-aside { display: flex; flex-direction: column; gap: var(--sp-6); }
+        .nf-groups { display: flex; flex-direction: column; gap: var(--sp-6); }
+        .nf-label {
+          display: block; color: var(--da-faint); font-family: var(--da-font-mono);
+          font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin: 0 0 var(--sp-3);
         }
-        .nf-tab:hover { color: var(--da-text); }
-        .nf-tab[aria-pressed="true"] { color: var(--da-text); font-weight: 600; border-bottom-color: var(--da-green); }
-        .nf-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-        .nf-chip {
-          display: inline-flex; align-items: baseline; gap: 6px; cursor: pointer; font-family: inherit; font-size: 13px;
-          background: transparent; color: var(--da-text-strong); border: 1px solid var(--da-border); border-radius: 999px; padding: 5px 12px;
+        .nf-sub { color: var(--da-muted-soft); font-size: 12px; margin: calc(-1 * var(--sp-2)) 0 4px; }
+        .nf-search {
+          width: 100%; box-sizing: border-box; background: var(--da-card); color: var(--da-text);
+          border: 1px solid var(--da-border); border-radius: var(--r-sm); padding: 10px 14px; font-size: 13px; font-family: inherit;
         }
-        .nf-chip small { color: var(--da-muted-soft); font-size: 12px; font-variant-numeric: tabular-nums; }
-        .nf-chip:hover { border-color: var(--da-muted); }
-        .nf-chip[aria-pressed="true"] { border-color: var(--da-green); color: var(--da-text); background: rgba(50,255,126,0.08); }
-        .nf-chip[aria-pressed="true"] small { color: var(--da-green); }
-        .nf-chip:disabled { opacity: 0.4; cursor: default; }
-        .nf-tab:focus-visible, .nf-chip:focus-visible, .nf-reset:focus-visible { outline: 2px solid var(--da-green); outline-offset: 2px; border-radius: 3px; }
-        .nf-hint { color: var(--da-muted-soft); font-size: 12px; align-self: center; }
-        .nf-foot { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding-top: 2px; }
-        .nf-count { color: var(--da-text-strong); font-size: 13px; font-variant-numeric: tabular-nums; }
-        .nf-reset { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; font-size: 13px; color: var(--da-green); }
+        .nf-search:focus { border-color: var(--da-green); outline: none; }
+        .nf-opt {
+          display: flex; align-items: center; justify-content: space-between; gap: 10px;
+          width: 100%; background: none; border: none; cursor: pointer; font-family: inherit;
+          padding: 9px 0; border-bottom: 1px solid var(--da-border);
+          font-size: 13px; text-align: left; color: var(--da-text-strong); font-weight: 400;
+        }
+        .nf-opt:hover { color: var(--da-text); }
+        .nf-opt[aria-pressed="true"] { color: var(--da-text); font-weight: 700; }
+        .nf-opt:disabled { opacity: 0.4; cursor: default; }
+        .nf-opt__l { display: flex; align-items: center; gap: var(--sp-2); }
+        .nf-n { font-family: var(--da-font-mono); font-size: 11px; color: var(--da-faint); font-weight: 400; }
+        .nf-opt[aria-pressed="true"] .nf-n { color: var(--da-green); }
+        .nf-check { width: 11px; height: 11px; border: 1px solid var(--da-muted-soft); border-radius: 2px; flex-shrink: 0; box-sizing: border-box; }
+        .nf-opt[aria-pressed="true"] .nf-check { background: var(--da-green); border-color: var(--da-green); }
+        .nf-opt:focus-visible, .nf-reset:focus-visible, .nf-toggle:focus-visible { outline: 2px solid var(--da-green); outline-offset: 2px; border-radius: 3px; }
+        .nf-toggle {
+          display: none; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
+          background: none; border: 1px solid var(--da-border); border-radius: var(--r-sm); padding: 10px 14px;
+          color: var(--da-text-strong); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+        }
+        .nf-toggle[aria-expanded="true"] { border-color: var(--da-muted); }
+        .nf-toggle span[aria-hidden] { color: var(--da-muted); font-weight: 400; }
+        .nf-bar { display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; margin: 0 0 var(--sp-6); }
+        .nf-count { color: var(--da-muted); font-family: var(--da-font-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+        .nf-reset { background: none; border: none; padding: 0; cursor: pointer; color: var(--da-orange); font-family: var(--da-font-mono); font-size: 12px; }
         .nf-empty { color: var(--da-muted); font-size: 15px; padding: var(--sp-6) 0; }
+        @media (max-width: 1024px) {
+          .nf-grid { grid-template-columns: minmax(0, 1fr); gap: var(--sp-8); }
+          .nf-aside { gap: var(--sp-3); }
+          .nf-toggle { display: flex; }
+          .nf-groups { display: none; }
+          .nf-groups.is-open { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-6) var(--sp-8); padding-top: var(--sp-3); }
+        }
         @media (max-width: 640px) {
-          .nf-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
-          .nf-opts { gap: 2px 16px; }
-          .nf-tab { white-space: nowrap; }
+          .nf-groups.is-open { grid-template-columns: minmax(0, 1fr); }
         }
 `;
 
@@ -124,9 +154,11 @@ function groupByDay(items: NewsItem[]): [string, NewsItem[]][] {
   return Array.from(map.entries());
 }
 
-export default function NewsFeed({ items, nowIso }: { items: NewsItem[]; nowIso: string }) {
+export default function NewsFeed({ items, nowIso, intro }: { items: NewsItem[]; nowIso: string; intro?: ReactNode }) {
   const now = useMemo(() => new Date(nowIso), [nowIso]);
   const [filters, setFilters] = useState<NewsFilters>(NO_FILTERS);
+  const [open, setOpen] = useState(false);
+  const ids = { search: useId(), groups: useId(), zeit: useId(), bereich: useId(), rel: useId(), rub: useId() };
 
   // Filter aus der URL erst nach dem Hydrieren lesen (statisches HTML zeigt alles).
   useEffect(() => {
@@ -151,72 +183,76 @@ export default function NewsFeed({ items, nowIso }: { items: NewsItem[]; nowIso:
   );
   const filtered = isFiltered(filters);
 
+  const activeCount = activeFilterCount(filters);
+  const opt = (key: string, label: string, pressed: boolean, n: number, onClick: () => void, check = false) => (
+    <button key={key} type="button" className="nf-opt" aria-pressed={pressed} disabled={!pressed && n === 0} onClick={onClick}>
+      <span className="nf-opt__l">
+        {check && <span className="nf-check" aria-hidden />}
+        {label}
+      </span>
+      <span className="nf-n">{n}</span>
+    </button>
+  );
+
   return (
-    <>
+    <div className="nf-grid">
       <style>{CSS}</style>
-      <div className="nf" role="search" aria-label="Meldungen filtern">
-        <div className="nf-row">
-          <span className="nf-l" id="nf-zeit">Zeitraum</span>
-          <div className="nf-opts" role="group" aria-labelledby="nf-zeit">
-            {ZEIT_OPTIONS.map((o) => (
-              <button key={o.key} type="button" className="nf-tab" aria-pressed={filters.zeit === o.key}
-                onClick={() => update({ ...filters, zeit: o.key })}>
-                {o.label}
-              </button>
-            ))}
-          </div>
+      <aside className="nf-aside" aria-label="Suche und Filter">
+        <div role="search">
+          <label className="nf-label" htmlFor={ids.search}>Suche</label>
+          <input
+            id={ids.search}
+            type="search"
+            className="nf-search"
+            placeholder="News durchsuchen …"
+            maxLength={SEARCH_MAX}
+            value={filters.q}
+            onChange={(e) => update({ ...filters, q: e.target.value })}
+          />
         </div>
-        <div className="nf-row">
-          <span className="nf-l" id="nf-bereich">Tragweite</span>
-          <div className="nf-chips" role="group" aria-labelledby="nf-bereich">
+        <button type="button" className="nf-toggle" aria-expanded={open} aria-controls={ids.groups} onClick={() => setOpen((v) => !v)}>
+          {activeCount > 0 ? `Filter · ${activeCount} aktiv` : "Filter"}
+          <span aria-hidden>{open ? "▴" : "▾"}</span>
+        </button>
+        <div id={ids.groups} className={open ? "nf-groups is-open" : "nf-groups"}>
+          <div role="group" aria-labelledby={ids.zeit}>
+            <p className="nf-label" id={ids.zeit}>Zeitraum</p>
+            {ZEIT_OPTIONS.map((o) =>
+              opt(o.key, o.label, filters.zeit === o.key, countWith(items, filters, now, { zeit: o.key }), () => update({ ...filters, zeit: o.key })),
+            )}
+          </div>
+          <div role="group" aria-labelledby={ids.bereich}>
+            <p className="nf-label" id={ids.bereich}>Tragweite</p>
+            <p className="nf-sub">ab «mittel», mehrere wählbar</p>
             {ASSESSMENT_DIMENSIONS.map((d) => {
               const on = filters.bereiche.includes(d.key);
-              const n = countWith(items, filters, now, { bereiche: [d.key] });
-              return (
-                <button key={d.key} type="button" className="nf-chip" aria-pressed={on} disabled={!on && n === 0}
-                  title={`${d.label}: mindestens mittel`}
-                  onClick={() => update({ ...filters, bereiche: on ? filters.bereiche.filter((k) => k !== d.key) : [...filters.bereiche, d.key] })}>
-                  {d.label} <small>{n}</small>
-                </button>
-              );
+              return opt(d.key, d.label, on, countWith(items, filters, now, { bereiche: [d.key] }), () =>
+                update({ ...filters, bereiche: on ? filters.bereiche.filter((k) => k !== d.key) : [...filters.bereiche, d.key] }), true);
             })}
-            <span className="nf-hint">ab «mittel»</span>
           </div>
-        </div>
-        <div className="nf-row">
-          <span className="nf-l" id="nf-rel">Relevanz</span>
-          <div className="nf-opts" role="group" aria-labelledby="nf-rel">
-            {RELEVANZ_OPTIONS.map((o) => (
-              <button key={o.key} type="button" className="nf-tab" aria-pressed={filters.relevanz === o.key}
-                onClick={() => update({ ...filters, relevanz: o.key })}>
-                {o.label}
-              </button>
-            ))}
+          <div role="group" aria-labelledby={ids.rel}>
+            <p className="nf-label" id={ids.rel}>Relevanz</p>
+            {RELEVANZ_OPTIONS.map((o) =>
+              opt(o.key, o.label, filters.relevanz === o.key, countWith(items, filters, now, { relevanz: o.key }), () => update({ ...filters, relevanz: o.key })),
+            )}
           </div>
-        </div>
-        {rubriken.length > 1 && (
-          <div className="nf-row">
-            <span className="nf-l" id="nf-rub">Rubrik</span>
-            <div className="nf-opts" role="group" aria-labelledby="nf-rub">
-              <button type="button" className="nf-tab" aria-pressed={filters.rubrik === null}
-                onClick={() => update({ ...filters, rubrik: null })}>
-                Alle
-              </button>
-              {rubriken.map((k) => (
-                <button key={k} type="button" className="nf-tab" aria-pressed={filters.rubrik === k}
-                  onClick={() => update({ ...filters, rubrik: k })}>
-                  {NEWS_CATEGORY_LABEL[k]}
-                </button>
-              ))}
+          {rubriken.length > 1 && (
+            <div role="group" aria-labelledby={ids.rub}>
+              <p className="nf-label" id={ids.rub}>Rubrik</p>
+              {opt("alle", "Alle", filters.rubrik === null, countWith(items, filters, now, { rubrik: null }), () => update({ ...filters, rubrik: null }))}
+              {rubriken.map((k) =>
+                opt(k, NEWS_CATEGORY_LABEL[k], filters.rubrik === k, countWith(items, filters, now, { rubrik: k }), () => update({ ...filters, rubrik: k })),
+              )}
             </div>
-          </div>
-        )}
-        <div className="nf-foot" aria-live="polite">
-          <span className="nf-count">{shown.length} {shown.length === 1 ? "Meldung" : "Meldungen"}</span>
-          {filtered && (
-            <button type="button" className="nf-reset" onClick={() => update(NO_FILTERS)}>Filter zurücksetzen</button>
           )}
         </div>
+      </aside>
+
+      <div className="nf-main">
+      {intro}
+      <div className="nf-bar" aria-live="polite">
+        <span className="nf-count">{shown.length} {shown.length === 1 ? "Meldung" : "Meldungen"}{filtered ? ` von ${items.length}` : ""}</span>
+        {filtered && <button type="button" className="nf-reset" onClick={() => update(NO_FILTERS)}>Filter zurücksetzen</button>}
       </div>
 
       {days.length === 0 && (
@@ -269,7 +305,8 @@ export default function NewsFeed({ items, nowIso }: { items: NewsItem[]; nowIso:
           </section>
         );
       })}
-    </>
+      </div>
+    </div>
   );
 }
 

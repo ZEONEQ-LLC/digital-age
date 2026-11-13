@@ -1330,6 +1330,26 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+### News: Seitenleiste mit Suche (PR 204)
+
+Rueckmeldung Ali 13.11.2026: Filter stehen sonst links (Rubriken, Prompts),
+auf `/news` standen sie oben. Jetzt Seitenleiste wie `/ai-prompts` (220 px,
+Mono-Label, Liste mit Trennlinien, aktiv fett mit gruener Zahl): Suche,
+Zeitraum, Tragweite (Kaestchen, mehrere waehlbar, ab «mittel»), Relevanz,
+Rubrik, jeweils mit Trefferzahl (`countWith`). Liste bis zur rechten Kante
+(buendig mit der Navbar), Lesetext hoechstens 760 px. Unter 1024 px Suche ueber
+der Liste, Filter hinter dem Knopf «Filter · n aktiv» (`activeFilterCount`),
+aufgeklappt zwei Spalten, auf dem Handy eine.
+- **Suche** clientseitig ueber Titel, Kurzfassung, Teaser, Quelle, «Warum
+  wichtig» und Kehrseite (`matchesSearch`, alle Woerter muessen vorkommen,
+  Gross/Klein, Akzente und Eszett egal per `foldSearch`), in der URL als
+  `?q=`. Die Liste ist ohnehin komplett geladen (30 Tage, hoechstens 150).
+- Die KI-Hinweiszeile steht ueber der Liste (`intro` von `NewsFeed`).
+- Daten-Nachzug `20261113190000_ai_prompts_tested_with_nachzug.sql`: ein
+  Prompt-Lauf mit vor dem Deploy geladener Admin-Seite trug wieder «claude» ein
+  (Server Actions laufen auf der Version, mit der die Seite geladen wurde).
+  Nach dem Merge pushen.
+
 ### Newsletter-Rubriken, Prompt-Job-Hinweise (PR 203)
 
 **Rubriken** (Idee Ali 13.11.2026, sonst faellt der Newsletter mager aus):

@@ -1,10 +1,10 @@
-// Manueller Test-Runner fuer die Filter auf /news (PR 202):
+// Manueller Test-Runner fuer die Filter auf /news (PR 202, Suche PR 204):
 // src/lib/newsFilter.ts und plausiblePublishedAt (src/lib/newsFormat.ts).
 //
 //   npx tsx src/lib/__tests__/newsFilter.manual.ts
 import type { NewsItem } from "../newsFormat";
 import { plausiblePublishedAt } from "../newsFormat";
-import { NO_FILTERS, countWith, filtersToSearch, isFiltered, matchesFilters, parseFilters } from "../newsFilter";
+import { NO_FILTERS, activeFilterCount, countWith, filtersToSearch, foldSearch, isFiltered, matchesFilters, matchesSearch, parseFilters } from "../newsFilter";
 
 let fails = 0;
 function ok(label: string, cond: boolean, detail?: string): void {
@@ -39,7 +39,7 @@ ok("Bereich ohne Einordnung → raus", !ids({ ...NO_FILTERS, bereiche: ["gesells
 ok("nur wichtige", ids({ ...NO_FILTERS, relevanz: "wichtig" }) === "heute-wirtschaft");
 ok("relevant und wichtig", ids({ ...NO_FILTERS, relevanz: "relevant" }) === "heute-wirtschaft,heute-gesellschaft,gestern-umwelt");
 ok("Rubrik", ids({ ...NO_FILTERS, rubrik: "future-tech" }) === "heute-gesellschaft");
-ok("kombiniert", ids({ zeit: "heute", bereiche: ["gesellschaft"], relevanz: "relevant", rubrik: null }) === "heute-gesellschaft");
+ok("kombiniert", ids({ zeit: "heute", bereiche: ["gesellschaft"], relevanz: "relevant", rubrik: null, q: "" }) === "heute-gesellschaft");
 ok("Zahl am Chip", countWith(items, { ...NO_FILTERS, zeit: "heute" }, now, { bereiche: ["wirtschaft"] }) === 1);
 
 console.log("=== URL ===");
@@ -49,6 +49,27 @@ console.log("=== URL ===");
   ok("Muell → Standard", JSON.stringify(parseFilters("?zeit=gestern2&relevanz=x&rubrik=<script>")) === JSON.stringify(NO_FILTERS));
   ok("zurueck in die URL", filtersToSearch(f) === "?zeit=7&bereich=wirtschaft%2Cgesellschaft&relevanz=wichtig&rubrik=ki-business", filtersToSearch(f));
   ok("ohne Filter leer", filtersToSearch(NO_FILTERS) === "" && !isFiltered(NO_FILTERS) && isFiltered(f));
+}
+
+console.log("=== Suche ===");
+{
+  const n = it("n", "2026-11-13T08:00:00Z", {
+    title: "Jensen Huang tritt zurück", summary: "Nvidia bekommt eine neue Chefin.", sourceName: "Netzwoche",
+    assessment: { ...a(3, 0, 0, 2), kehrseite: "Die Nachfolge in Zürich bleibt offen." },
+  });
+  ok("Titel, Gross/Klein", matchesSearch(n, "huang") && matchesSearch(n, "NVIDIA"));
+  ok("Umlaut egal", matchesSearch(n, "zuruck") && matchesSearch(n, "Zürich") && matchesSearch(n, "zurich"));
+  ok("Quelle und Kehrseite", matchesSearch(n, "netzwoche") && matchesSearch(n, "nachfolge"));
+  ok("alle Woerter noetig", matchesSearch(n, "huang chefin") && !matchesSearch(n, "huang tesla"));
+  ok("leer = alles", matchesSearch(n, "   "));
+  ok("Eszett", foldSearch("Grösse Straße") === "grosse strasse");
+  ok("Suche im Filter", ids({ ...NO_FILTERS, q: "heute-wirt" }) === "heute-wirtschaft");
+  const f = parseFilters("?q=%20%20Nvidia%20%20Chef%20&zeit=heute");
+  ok("q gelesen und normalisiert", f.q === "Nvidia Chef" && f.zeit === "heute", JSON.stringify(f));
+  ok("q zurueck in die URL", filtersToSearch(f) === "?zeit=heute&q=Nvidia+Chef", filtersToSearch(f));
+  ok("q zaehlt als Filter, nicht im Knopf", isFiltered({ ...NO_FILTERS, q: "x" }) && activeFilterCount({ ...NO_FILTERS, q: "x" }) === 0);
+  ok("Knopf zaehlt Filter", activeFilterCount({ zeit: "7", bereiche: ["wirtschaft", "umwelt"], relevanz: "wichtig", rubrik: null, q: "" }) === 4);
+  ok("q gekuerzt", parseFilters(`?q=${"a".repeat(200)}`).q.length === 80);
 }
 
 console.log("=== plausiblePublishedAt ===");
