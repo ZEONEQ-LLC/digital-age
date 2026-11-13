@@ -240,3 +240,69 @@ async function saveTickerSettingsInner(s: TickerSettings): Promise<void> {
   // alle Seiten beim naechsten Aufruf, nicht nur die Startseite.
   revalidatePath("/", "layout");
 }
+
+export type NewsItemReview = {
+  status: "approved" | "rejected";
+  wirtschaft: number;
+  gesellschaft: number;
+  umwelt: number;
+  dringlichkeit: number;
+  importance: number;
+  warum: string;
+};
+
+// Meldung im Admin pruefen (PR 199): Einordnung von Hand setzen (by = editor)
+// und/oder ausblenden. RLS news_items_editor_all.
+export async function saveNewsItemReview(id: string, r: NewsItemReview): Promise<ActionResult<void>> {
+  return runAction("newsTicker.saveNewsItemReview", async () => {
+    await requireEditor();
+    if (r.status !== "approved" && r.status !== "rejected") throw new FormError("Unbekannter Status.");
+    const { parseAssessment } = await import("@/lib/newsTicker/assessment");
+    const rated = parseAssessment(
+      { wirtschaft: r.wirtschaft, gesellschaft: r.gesellschaft, umwelt: r.umwelt, dringlichkeit: r.dringlichkeit, wichtigkeit: r.importance, warum: r.warum },
+      "editor",
+    );
+    if (!rated) throw new FormError("Einordnung unvollständig: alle Stufen wählen und einen Satz «Warum wichtig» (mind. 10 Zeichen) schreiben.");
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("news_items")
+      .update({
+        status: r.status,
+        assessment: rated.assessment as unknown as Database["public"]["Tables"]["news_items"]["Update"]["assessment"],
+        importance: rated.importance,
+      })
+      .eq("id", id);
+    if (error) throw error;
+    revalidatePath("/autor/news-ticker");
+    revalidatePath("/news");
+    revalidatePath("/");
+  });
+}
+
+// Einordnung verwerfen: Der naechste Ticker-Lauf ordnet die Meldung neu ein.
+export async function resetNewsItemAssessment(id: string): Promise<ActionResult<void>> {
+  return runAction("newsTicker.resetNewsItemAssessment", async () => {
+    await requireEditor();
+    const supabase = await createClient();
+    const { error } = await supabase.from("news_items").update({ assessment: null, importance: null }).eq("id", id);
+    if (error) throw error;
+    revalidatePath("/autor/news-ticker");
+    revalidatePath("/news");
+    revalidatePath("/");
+  });
+}
+
+// Meldung aus- oder wieder einblenden, ohne die Einordnung anzufassen.
+export async function setNewsItemStatus(id: string, status: "approved" | "rejected"): Promise<ActionResult<void>> {
+  return runAction("newsTicker.setNewsItemStatus", async () => {
+    await requireEditor();
+    if (status !== "approved" && status !== "rejected") throw new FormError("Unbekannter Status.");
+    const supabase = await createClient();
+    const { error } = await supabase.from("news_items").update({ status }).eq("id", id);
+    if (error) throw error;
+    revalidatePath("/autor/news-ticker");
+    revalidatePath("/news");
+    revalidatePath("/");
+  });
+}
+
