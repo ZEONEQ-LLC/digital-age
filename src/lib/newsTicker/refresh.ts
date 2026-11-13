@@ -161,7 +161,8 @@ async function processSource(
       teaser: generated.teaser,
       summary: generated.summary,
       category,
-      published_at: item.published_at.toISOString(),
+      // Feeds mit Zukunftsdatum (Netzwoche: Ausgabedatum) auf jetzt kappen.
+      published_at: new Date(Math.min(item.published_at.getTime(), Date.now())).toISOString(),
       status: "approved",
       // Source-Name als Snapshot mitschreiben (denormalisiert, weil anon-
       // RLS auf news_sources den Embed im Public-Ticker blockt).

@@ -2,11 +2,7 @@ import Link from "next/link";
 import Footer from "@/components/Footer";
 import HubHero from "@/components/HubHero";
 import { buildListingMetadata } from "@/lib/listingMetadata";
-import {
-  getLatestNews,
-  zurichDay,
-  type NewsItem,
-} from "@/lib/newsApi";
+import { getLatestNews } from "@/lib/newsApi";
 import NewsFeed from "@/components/news/NewsFeed";
 
 // News-Rubrik (Wunsch Ali 12.11.2026): die Meldungen des Tickers zum Lesen,
@@ -26,16 +22,6 @@ const LIMIT = 150;
 const WINDOW_DAYS = 30;
 const MIN_ITEMS = 10;
 
-function groupByDay(items: NewsItem[]): [string, NewsItem[]][] {
-  const map = new Map<string, NewsItem[]>();
-  for (const it of items) {
-    const day = zurichDay(it.publishedAt);
-    const list = map.get(day) ?? [];
-    list.push(it);
-    map.set(day, list);
-  }
-  return Array.from(map.entries());
-}
 
 // Zeitpunkt des Renderns (ISR): bewusst ausserhalb der Komponente.
 function renderedAt(): Date {
@@ -48,7 +34,6 @@ export default async function NewsPage() {
   // Nur der letzte Monat; steht der Ticker laenger, bleiben die neuesten zehn.
   const recent = all.filter((it) => now.getTime() - new Date(it.publishedAt).getTime() <= WINDOW_DAYS * 86_400_000);
   const items = recent.length >= MIN_ITEMS ? recent : all.slice(0, MIN_ITEMS);
-  const days = groupByDay(items);
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
@@ -65,8 +50,8 @@ export default async function NewsPage() {
           Die Einordnung (Wirtschaft, Gesellschaft, Umwelt, Dringlichkeit) ist eine Einschätzung der KI auf Basis der Meldung,
           die Redaktion korrigiert sie bei Bedarf. Den vollständigen Bericht liest du bei der Quelle. <Link href="/ki-transparenz">KI-Transparenz</Link>
         </p>
-        {days.length === 0 && <p className="nw-empty">Gerade sind keine Meldungen verfügbar.</p>}
-        <NewsFeed days={days} now={now} />
+        {items.length === 0 && <p className="nw-empty">Gerade sind keine Meldungen verfügbar.</p>}
+        <NewsFeed items={items} nowIso={now.toISOString()} />
       </div></div>
       <Footer />
     </main>

@@ -1330,6 +1330,31 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+### Filter auf /news, Zukunftsdaten, Prompt-Kategorie (PR 202)
+
+**Filter** (Wunsch Ali 13.11.2026, Auswahl nach Claudes Empfehlung):
+- **Optionen:**
+  - Zeitraum (Alle, Heute, Gestern, Letzte 7 Tage);
+  - Tragweite (Wirtschaft, Gesellschaft, Umwelt, Dringlichkeit, jeweils ab «mittel», oder-verknuepft, mit Trefferzahl);
+  - Relevanz (Alle, Relevant = Wichtigkeit ab 2, Wichtig = 3);
+  - Rubrik (nur vorhandene).
+- **Logik:** rein in `src/lib/newsFilter.ts` (Test `src/lib/__tests__/newsFilter.manual.ts`).
+- **URL:** Der Zustand steht in der URL (`?zeit=7&bereich=wirtschaft,gesellschaft&relevanz=wichtig&rubrik=ki-business`), per `history.replaceState`, und ist teilbar.
+- **Liste:** `src/components/news/NewsFeed.tsx` ist dafuer eine Client-Komponente.
+  - Der Server rendert die volle Liste (statisch, ohne JS lesbar); die Filter aus der URL greifen nach dem Hydrieren.
+  - `nowIso` kommt vom Server, damit «Heute»/«Gestern» beim Hydrieren gleich bleiben.
+- **Reine Helfer:** in `src/lib/newsFormat.ts` (`NewsItem`, `zurichDay`, `newsClock`, …). `newsApi.ts` bleibt server-only und reicht sie weiter.
+
+**Zukunftsdaten:** Netzwoche datiert Meldungen aufs Ausgabedatum (z. B. 30.11. fuer eine Meldung vom 13.11.).
+- `plausiblePublishedAt` nimmt dann `generated_at`.
+- `getLatestNews` sortiert danach neu.
+- Neue Eintraege kappt der Ticker beim Anlegen auf jetzt.
+
+**Prompt-Job:**
+- `parseGenerated` uebernimmt die angefragte Kategorie (`forceCategory`). Die KI schrieb sie teils als «Lernen», dann fiel der Prompt weg.
+- Die Strategie verbietet Methoden, die schon in der Sammlung sind (zweimal Pre-Mortem).
+- Die Kehrseite soll eine Sache der Sache selbst sein; die Formeln «Die Meldung nennt weder … noch …» und «Es bleibt abzuwarten» sind zu vermeiden.
+
 ### Kehrseite, Einordnung immer sichtbar, Prompt-Job repariert (PR 201)
 
 **News (Wunsch Ali 13.11.2026):**

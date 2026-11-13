@@ -46,7 +46,7 @@ export const ASSESSMENT_RUBRIC = [
   "  - dringlichkeit: Muss man jetzt reagieren (Frist, Sicherheitslücke, Gesetz in Kraft) = 3; Ankündigung, Studie, Trend = 1.",
   "wichtigkeit: 1 = Randnotiz, 2 = relevant für Fachleute, 3 = wichtig für Entscheider in der Schweiz, Deutschland, Österreich. Höchstens jede fünfte Meldung verdient 3.",
   "warum: ein Satz, höchstens 200 Zeichen, warum die Meldung für Leser in der DACH-Region zählt. Konkret, ohne Floskeln, ohne Wiederholung des Titels.",
-  "kehrseite: ein Satz, höchstens 200 Zeichen, zur kritischen Seite: ein Risiko, ein Einwand, eine offene Frage oder was die Meldung nicht belegt. Sachlich und fair, ohne Polemik, ohne Vermutungen über Personen, ohne den Satz «Es bleibt abzuwarten».",
+  "kehrseite: ein Satz, höchstens 200 Zeichen, zur kritischen Seite der Sache selbst: ein konkretes Risiko, ein Nachteil für jemanden, ein Einwand oder eine offene Frage. Erst wenn es keine solche Seite gibt: was die Meldung nicht belegt. Sachlich und fair, ohne Polemik, ohne Vermutungen über Personen. Vermeide die Formeln «Die Meldung nennt weder … noch …» und «Es bleibt abzuwarten».",
   "Gerüchte, Einzelmeinungen und Produktwerbung bekommen tiefe Werte.",
 ].join("\n");
 

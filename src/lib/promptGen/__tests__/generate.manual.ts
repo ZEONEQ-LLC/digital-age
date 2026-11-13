@@ -73,6 +73,8 @@ console.log("=== parseGenerated ===");
   ok("ohne Beispielwerte trotzdem gueltig", parseGenerated(JSON.stringify(item({ beispielwerte: undefined })), [])?.[0].example_fill.includes("[OFFERTE]") === true);
   ok("kein JSON → null", parseGenerated("Hier sind drei Prompts:", []) === null);
   ok("ohne prompts-Liste → null", parseGenerated(JSON.stringify({ items: [] }), []) === null);
+  ok("Kategorie gross geschrieben akzeptiert", parseGenerated(JSON.stringify(item({ category: "Lernen" })), [])?.[0].category === "lernen");
+  ok("vorgegebene Kategorie gewinnt", parseGenerated(JSON.stringify(item({ category: "lernen (Lernen)" })), [], "kreativ")?.[0].category === "kreativ");
   ok("unbekannte Kategorie verworfen", parseGenerated(JSON.stringify({ prompts: [item({ category: "andere" })] }), [])?.length === 0);
   ok("zu kurzer Prompt verworfen", parseGenerated(JSON.stringify({ prompts: [item({ prompt_text: "Schreib was." })] }), [])?.length === 0);
   ok("unbekannte Schwierigkeit → intermediate", parseGenerated(JSON.stringify({ prompts: [item({ difficulty: "mittel" })] }), [])?.[0].difficulty === "intermediate");

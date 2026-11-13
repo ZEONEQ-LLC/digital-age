@@ -38,7 +38,7 @@ export const PROMPT_GENERATION_STRATEGY = [
   "  - Bezug zur DACH-Region, wo es passt (Schweizer Recht, DSG/DSGVO, KMU-Realität, Mehrsprachigkeit).",
   "  - Keine Floskeln wie «Du bist ein Weltklasse-Experte», keine Versprechen, keine Emojis.",
   "  - Etwas Überraschendes: ein Kniff, den viele nicht kennen (z. B. Gegenposition einnehmen lassen, Rückfragen erzwingen, Bewertungsraster).",
-  "  - Kein Thema doppelt zur bestehenden Sammlung.",
+  "  - Kein Thema doppelt zur bestehenden Sammlung, und keine Methode, die dort schon vorkommt (steht z. B. schon ein Pre-Mortem drin, nimm einen anderen Kniff).",
 ].join("\n");
 
 const LANGUAGE_LINE =
@@ -174,7 +174,7 @@ function valuesLine(values: Record<string, string>): string {
 // Validiert die KI-Antwort. Akzeptiert ein einzelnes Prompt-Objekt (seit
 // PR 201), {"prompt": {…}} oder {"prompts": […]}. Unpassende Laengen,
 // unbekannte Kategorien und Titel, die es schon gibt, fallen weg. null = kein JSON.
-export function parseGenerated(raw: string, existingTitles: string[]): GeneratedPrompt[] | null {
+export function parseGenerated(raw: string, existingTitles: string[], forceCategory?: GenCategory): GeneratedPrompt[] | null {
   let parsed: unknown;
   try { parsed = JSON.parse(stripCodeFence(raw)); } catch { return null; }
   if (!parsed || typeof parsed !== "object") return null;
@@ -190,7 +190,11 @@ export function parseGenerated(raw: string, existingTitles: string[]): Generated
     const context = str(r.context, 600);
     const prompt_text = str(r.prompt_text, 3000);
     const values = readValues(r.beispielwerte);
-    const category = (GEN_CATEGORIES as readonly string[]).includes(String(r.category)) ? (r.category as GenCategory) : null;
+    // Die Kategorie gibt der Aufruf vor (ein Prompt pro Kategorie); die KI
+    // schrieb sie teils als «Lernen» oder «lernen (Lernen)», dann fiel der
+    // Prompt weg (13.11.2026: 2 von 3).
+    const rawCat = String(r.category ?? "").toLowerCase().trim();
+    const category = forceCategory ?? ((GEN_CATEGORIES as readonly string[]).includes(rawCat) ? (rawCat as GenCategory) : null);
     const difficulty = DIFFICULTIES.includes(r.difficulty as Difficulty) ? (r.difficulty as Difficulty) : "intermediate";
     if (!title || !category || context.length < 40 || prompt_text.length < 120) continue;
     const key = normalizeTitle(title);
