@@ -230,3 +230,18 @@ async function backfillAssessments(
   }
 }
 
+/**
+ * Nur den Nachtrag der Einordnung laufen lassen (stuendlicher Cron ausserhalb
+ * der Ticker-Stunde, PR 200). Ohne fehlende Einordnungen gibt es keinen
+ * KI-Aufruf. So muss nach «Neu einordnen lassen» oder einem Merge niemand bis
+ * zum naechsten Ticker-Lauf warten.
+ */
+export async function runAssessmentBackfill(): Promise<{ assessed: number; failed: number }> {
+  const supabase = createServiceClient();
+  const authorId = await resolveSystemAuthorId(supabase, "NEWS_TICKER_AUTHOR_ID");
+  if (!authorId) return { assessed: 0, failed: 0 };
+  const stats = emptyRefreshStats();
+  await backfillAssessments(supabase, authorId, stats);
+  return { assessed: stats.items_assessed ?? 0, failed: stats.assess_failed ?? 0 };
+}
+

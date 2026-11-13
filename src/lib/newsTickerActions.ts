@@ -279,7 +279,8 @@ export async function saveNewsItemReview(id: string, r: NewsItemReview): Promise
   });
 }
 
-// Einordnung verwerfen: Der naechste Ticker-Lauf ordnet die Meldung neu ein.
+// Einordnung verwerfen: Der stuendliche Nachtrag (Cron) ordnet die Meldung
+// innerhalb einer Stunde neu ein, «Jetzt aktualisieren» sofort.
 export async function resetNewsItemAssessment(id: string): Promise<ActionResult<void>> {
   return runAction("newsTicker.resetNewsItemAssessment", async () => {
     await requireEditor();

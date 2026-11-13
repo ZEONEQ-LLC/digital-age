@@ -108,7 +108,7 @@ export default function ItemsSection({ items }: { items: AdminNewsItem[] }) {
       </div>
       <p className="ni-sub">
         Die KI schätzt jede Meldung beim Anlegen ein (Wirtschaft, Gesellschaft, Umwelt, Dringlichkeit, Wichtigkeit und ein Satz «Warum wichtig»).
-        Fehlende Einordnungen (letzte 30 Tage) trägt jeder Lauf nach, bis zu 60 pro Lauf; «Jetzt aktualisieren» oben holt sie sofort. Korrigierte Werte gelten als «Redaktion». «Wichtig» erscheint auf der Startseite und unter /news.
+        Fehlende Einordnungen (letzte 30 Tage) trägt der Cron stündlich nach, «Jetzt aktualisieren» oben sofort. Korrigierte Werte gelten als «Redaktion». «Wichtig» erscheint auf der Startseite und unter /news.
       </p>
       {err && <div className="ni-err" role="alert">{err}</div>}
       <div className="ni-box">

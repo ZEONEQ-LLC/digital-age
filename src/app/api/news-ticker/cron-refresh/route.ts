@@ -9,7 +9,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 //   3. Sub-Switch in news_ticker_config.scheduler_enabled (UI-Toggle).
 //   4. Pause-Toggle in news_ticker_config.is_paused (UI-Toggle).
 //   5. Stunden-Match: aktuelle Zürcher Stunde === scheduled_hour_cet.
-// Erst wenn alle Bedingungen erfüllt, wird runRefresh() ausgeführt.
+// Erst wenn alle Bedingungen erfüllt, wird runRefresh() ausgeführt. In den
+// anderen Stunden traegt der Cron nur fehlende Einordnungen nach (PR 200).
 
 export const maxDuration = 300; // 5 Min — Refresh kann lange laufen
 export const dynamic = "force-dynamic";
@@ -73,12 +74,27 @@ export async function GET(request: Request) {
 
   const now = zurichHour();
   if (now !== cfg.scheduled_hour_cet) {
+    // Ausserhalb der Ticker-Stunde: nur fehlende Einordnungen nachtragen
+    // (PR 200). Ohne fehlende gibt es keinen KI-Aufruf.
+    let backfill: { assessed: number; failed: number } | { error: string };
+    try {
+      const { runAssessmentBackfill } = await import("@/lib/newsTicker/refresh");
+      backfill = await runAssessmentBackfill();
+      if (backfill.assessed > 0) {
+        revalidatePath("/news");
+        revalidatePath("/");
+      }
+    } catch (err) {
+      console.error("[news-ticker:cron] backfill threw:", err);
+      backfill = { error: err instanceof Error ? err.message : String(err) };
+    }
     return NextResponse.json(
       {
         ok: true,
         status: "not-scheduled-hour",
         current_hour_cet: now,
         scheduled_hour_cet: cfg.scheduled_hour_cet,
+        backfill,
       },
       { status: 200 },
     );
