@@ -1330,6 +1330,17 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+### Lesbare Sprungmarken auf /news (PR 200)
+
+Meldungen auf `/news` haben als `id` den Titel-Slug (`newsAnchor` in
+`src/lib/newsAnchor.ts`, gleiche
+Transliteration wie Artikel-Slugs, `slugFromTitle`), z. B.
+`/news#spacex-und-tesla-verhandeln-angeblich-ueber-fusion`; vorher
+`#n-<uuid>`. Die Startseiten-Spalte verlinkt dieselbe Marke. Doppelte Titel auf
+einer Seite bekommen die ersten 6 Zeichen der ID angehaengt (`newsAnchors`).
+Alte Links springen weiter: ein unsichtbares `<span id="n-<uuid>">` oben im
+Eintrag (`.nw-legacy`, Hervorhebung per `:has(:target)`).
+
 ### Einordnung der News (PR 199)
 
 Entscheid Ali 13.11.2026 (Vorschlag angenommen): Die KI des Tickers schaetzt
@@ -1348,8 +1359,10 @@ jede Meldung grob ein. Nur News, keine Autoren-Beitraege.
   Task, maxTokens 650). Fehlt sie, bleibt das Item gueltig.
 - **Nachtrag:** `runRefresh` ordnet am Ende jedes Laufs (Cron und
   Knopf) bis zu 60 Meldungen der letzten 30 Tage ohne Einordnung nach
-  (`assessExistingItem`, eigener kurzer Prompt, je 5 parallel; der Cron laeuft
-  nur einmal taeglich zur eingestellten Stunde). Zaehler `items_assessed` /
+  (`assessExistingItem`, eigener kurzer Prompt, je 5 parallel). Seit PR 200
+  laeuft der Nachtrag zusaetzlich stuendlich: Der Ticker-Cron ruft ausserhalb
+  der eingestellten Stunde `runAssessmentBackfill` auf (ohne fehlende
+  Einordnungen kein KI-Aufruf; respektiert Env-Schalter, Scheduler und Pause). Zaehler `items_assessed` /
   `assess_failed` im Lauf.
 - **Admin** `/autor/news-ticker`, Abschnitt «Meldungen und Einordnung»
   (`ItemsSection`): letzte 40 Meldungen mit Einordnung; bearbeiten (gilt dann als
