@@ -249,6 +249,7 @@ export type NewsItemReview = {
   dringlichkeit: number;
   importance: number;
   warum: string;
+  kehrseite: string;
 };
 
 // Meldung im Admin pruefen (PR 199): Einordnung von Hand setzen (by = editor)
@@ -259,7 +260,7 @@ export async function saveNewsItemReview(id: string, r: NewsItemReview): Promise
     if (r.status !== "approved" && r.status !== "rejected") throw new FormError("Unbekannter Status.");
     const { parseAssessment } = await import("@/lib/newsTicker/assessment");
     const rated = parseAssessment(
-      { wirtschaft: r.wirtschaft, gesellschaft: r.gesellschaft, umwelt: r.umwelt, dringlichkeit: r.dringlichkeit, wichtigkeit: r.importance, warum: r.warum },
+      { wirtschaft: r.wirtschaft, gesellschaft: r.gesellschaft, umwelt: r.umwelt, dringlichkeit: r.dringlichkeit, wichtigkeit: r.importance, warum: r.warum, kehrseite: r.kehrseite },
       "editor",
     );
     if (!rated) throw new FormError("Einordnung unvollständig: alle Stufen wählen und einen Satz «Warum wichtig» (mind. 10 Zeichen) schreiben.");

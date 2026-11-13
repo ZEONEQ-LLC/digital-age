@@ -203,7 +203,9 @@ async function backfillAssessments(
     .from("news_items")
     .select("id, title, teaser, summary, source_name")
     .eq("status", "approved")
-    .is("assessment", null)
+    // Ohne Einordnung, oder KI-Einordnung von vor PR 201 ohne Kehrseite.
+    // Einordnungen der Redaktion bleiben unangetastet.
+    .or("assessment.is.null,and(assessment->>kehrseite.is.null,assessment->>by.eq.ai)")
     .gte("published_at", since)
     .order("published_at", { ascending: false })
     .limit(BACKFILL_PER_RUN);
@@ -223,7 +225,7 @@ async function backfillAssessments(
           importance: res.importance,
         })
         .eq("id", r.id)
-        .is("assessment", null);
+        .or("assessment.is.null,assessment->>by.eq.ai");
       if (upErr) stats.assess_failed = (stats.assess_failed ?? 0) + 1;
       else stats.items_assessed = (stats.items_assessed ?? 0) + 1;
     }));

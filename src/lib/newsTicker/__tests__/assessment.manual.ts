@@ -22,13 +22,21 @@ function ok(label: string, cond: boolean, detail?: string): void {
   console.log(`${cond ? "PASS" : "FAIL"}  ${label}${!cond && detail ? `\n      ${detail}` : ""}`);
 }
 
-const full = { wirtschaft: 3, gesellschaft: 2, umwelt: 0, dringlichkeit: 1, wichtigkeit: 3, warum: "Schweizer Banken müssen ihre Schnittstellen bis 2027 öffnen." };
+const full = {
+  wirtschaft: 3, gesellschaft: 2, umwelt: 0, dringlichkeit: 1, wichtigkeit: 3,
+  warum: "Schweizer Banken müssen ihre Schnittstellen bis 2027 öffnen.",
+  kehrseite: "Ob kleine Banken die Kosten tragen können, lässt die Meldung offen.",
+};
 
 console.log("=== parseAssessment ===");
 {
   const r = parseAssessment(full);
   ok("gueltig", !!r && r.assessment.wirtschaft === 3 && r.importance === 3 && r.assessment.by === "ai" && r.assessment.v === 1);
   ok("Redaktion", parseAssessment(full, "editor")?.assessment.by === "editor");
+  ok("Kehrseite gelesen", r?.assessment.kehrseite?.startsWith("Ob kleine Banken") === true);
+  ok("KI ohne Kehrseite → null", parseAssessment({ ...full, kehrseite: undefined }) === null);
+  ok("KI mit zu kurzer Kehrseite → null", parseAssessment({ ...full, kehrseite: "Aber." }) === null);
+  ok("Redaktion ohne Kehrseite erlaubt", parseAssessment({ ...full, kehrseite: "" }, "editor")?.assessment.kehrseite === undefined);
   ok("Werte als Text-Ziffern", parseAssessment({ ...full, wirtschaft: "2" })?.assessment.wirtschaft === 2);
   ok("ueber 3 wird 3", parseAssessment({ ...full, gesellschaft: 7 })?.assessment.gesellschaft === 3);
   ok("unter 0 wird 0", parseAssessment({ ...full, umwelt: -2 })?.assessment.umwelt === 0);
@@ -55,6 +63,8 @@ console.log("=== readAssessment / readImportance ===");
   ok("gespeicherte Einordnung lesbar", readAssessment(stored)?.dringlichkeit === 1);
   ok("Redaktion bleibt Redaktion", readAssessment({ ...stored, by: "editor" })?.by === "editor");
   ok("Muell → null", readAssessment({ foo: 1 }) === null && readAssessment(null) === null);
+  const old = { v: 1, wirtschaft: 2, gesellschaft: 1, umwelt: 0, dringlichkeit: 1, warum: "Eine ältere Einordnung ohne Kehrseite.", by: "ai" };
+  ok("alte Einordnung ohne Kehrseite lesbar", readAssessment(old)?.kehrseite === undefined && readAssessment(old)?.wirtschaft === 2);
   ok("Wichtigkeit 1-3", readImportance(2) === 2 && readImportance(4) === null && readImportance(null) === null);
 }
 
