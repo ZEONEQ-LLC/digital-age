@@ -95,7 +95,23 @@ const CSS = `
            auf eine angenehme Zeilenlaenge begrenzt. */
         .nf-main { min-width: 0; }
         .nw-item > div + div { max-width: 760px; }
-        .nf-aside { display: flex; flex-direction: column; gap: var(--sp-6); }
+        /* Mitlaufend wie /ai-prompts; hoeher als das Fenster scrollt die
+           Leiste selbst, damit «Rubrik» nie abgeschnitten ist. */
+        .nf-aside {
+          display: flex; flex-direction: column; gap: var(--sp-6);
+          position: sticky; top: var(--aside-sticky-top);
+          max-height: calc(100vh - var(--aside-sticky-top) - var(--sp-4)); overflow-y: auto; overscroll-behavior: contain;
+          scrollbar-width: thin; scrollbar-color: var(--da-border) transparent; padding-right: 6px;
+        }
+        .nf-clear {
+          display: flex; align-items: baseline; justify-content: space-between; gap: 10px; width: 100%;
+          background: none; border: none; border-bottom: 1px solid var(--da-border); padding: 0 0 10px; cursor: pointer;
+          color: var(--da-orange); font-family: var(--da-font-mono); font-size: 12px; text-align: left;
+        }
+        .nf-clear span { color: var(--da-muted-soft); }
+        .nf-clear:hover { color: var(--da-text); }
+        /* Zuruecksetzen einmal pro Ansicht: Desktop in der Leiste, mobil ueber der Liste. */
+        .nf-bar .nf-reset { display: none; }
         .nf-groups { display: flex; flex-direction: column; gap: var(--sp-6); }
         .nf-label {
           display: block; color: var(--da-faint); font-family: var(--da-font-mono);
@@ -110,7 +126,7 @@ const CSS = `
         .nf-opt {
           display: flex; align-items: center; justify-content: space-between; gap: 10px;
           width: 100%; background: none; border: none; cursor: pointer; font-family: inherit;
-          padding: 9px 0; border-bottom: 1px solid var(--da-border);
+          padding: 8px 0; border-bottom: 1px solid var(--da-border);
           font-size: 13px; text-align: left; color: var(--da-text-strong); font-weight: 400;
         }
         .nf-opt:hover { color: var(--da-text); }
@@ -121,7 +137,8 @@ const CSS = `
         .nf-opt[aria-pressed="true"] .nf-n { color: var(--da-green); }
         .nf-check { width: 11px; height: 11px; border: 1px solid var(--da-muted-soft); border-radius: 2px; flex-shrink: 0; box-sizing: border-box; }
         .nf-opt[aria-pressed="true"] .nf-check { background: var(--da-green); border-color: var(--da-green); }
-        .nf-opt:focus-visible, .nf-reset:focus-visible, .nf-toggle:focus-visible { outline: 2px solid var(--da-green); outline-offset: 2px; border-radius: 3px; }
+        .nf-reset:focus-visible, .nf-toggle:focus-visible, .nf-clear:focus-visible { outline: 2px solid var(--da-green); outline-offset: 2px; border-radius: 3px; }
+        .nf-opt:focus-visible, .nf-search:focus-visible { outline: 2px solid var(--da-green); outline-offset: -2px; border-radius: 3px; }
         .nf-toggle {
           display: none; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
           background: none; border: 1px solid var(--da-border); border-radius: var(--r-sm); padding: 10px 14px;
@@ -135,7 +152,9 @@ const CSS = `
         .nf-empty { color: var(--da-muted); font-size: 15px; padding: var(--sp-6) 0; }
         @media (max-width: 1024px) {
           .nf-grid { grid-template-columns: minmax(0, 1fr); gap: var(--sp-8); }
-          .nf-aside { gap: var(--sp-3); }
+          .nf-aside { gap: var(--sp-3); position: static; max-height: none; overflow: visible; padding-right: 0; }
+          .nf-clear { display: none; }
+          .nf-bar .nf-reset { display: inline; }
           .nf-toggle { display: flex; }
           .nf-groups { display: none; }
           .nf-groups.is-open { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-6) var(--sp-8); padding-top: var(--sp-3); }
@@ -210,6 +229,12 @@ export default function NewsFeed({ items, nowIso, intro }: { items: NewsItem[]; 
             onChange={(e) => update({ ...filters, q: e.target.value })}
           />
         </div>
+        {filtered && (
+          <button type="button" className="nf-clear" onClick={() => update(NO_FILTERS)}>
+            × Filter zurücksetzen
+            <span>{activeCount + (filters.q.trim() ? 1 : 0)} aktiv</span>
+          </button>
+        )}
         <button type="button" className="nf-toggle" aria-expanded={open} aria-controls={ids.groups} onClick={() => setOpen((v) => !v)}>
           {activeCount > 0 ? `Filter · ${activeCount} aktiv` : "Filter"}
           <span aria-hidden>{open ? "▴" : "▾"}</span>

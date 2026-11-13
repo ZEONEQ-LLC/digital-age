@@ -1330,6 +1330,30 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+### Newsletter: Du-Form, keine Verweise auf die Eingabe; News-Leiste zuruecksetzen (PR 205)
+
+Befund am ersten echten Entwurf (13.11.2026, Haiku 5.5): die News-Auswahl war
+gut (5 Themen, Huang nur einmal), aber die Einleitung siezte trotz «duzt» in der
+Strategie, der Hype-Check verwies auf «die Kurzfassung», und die Einleitung
+uebernahm eine Kehrseite. Jetzt:
+- `ADDRESS_LINE` im Code (nicht ueberschreibbar, wie die Sprachzeile): duzen,
+  keine Verweise auf Liste, Kurzfassung, Einordnung oder «die Meldung nennt».
+- Strategie: keine Vorbehalte einzelner Meldungen in der Einleitung; der
+  Hype-Check schreibt ueber die Sache, nicht ueber die Quelle der Liste.
+- `usesFormalAddress` / `formalAddressFields` (newsletterPrompts.ts): «Sie»,
+  «Ihnen», «Ihr…» gross mitten im Satz (das erste Wort eines Satzes zaehlt
+  nicht, weil «Sie» dort oft Mehrzahl ist). Siezt die KI trotzdem, steht im
+  Entwurf «Achtung: Die KI hat gesiezt (Einleitung, …)». Keine stille Korrektur.
+
+**News-Seitenleiste** (Wunsch Ali 13.11.2026): «× Filter zuruecksetzen · n aktiv»
+oben in der Leiste (setzt auch die Suche zurueck). Die Leiste laeuft auf dem
+Desktop mit (sticky) und scrollt selbst, wenn sie hoeher als das Fenster ist.
+Mobil steht das Zuruecksetzen ueber der Liste (je Ansicht nur einmal).
+**`--aside-sticky-top`** (globals.css) rechnet jetzt den Ticker mit
+(`--ticker-h` 40 px): Mitlaufende Seitenleisten (Prompts, Swiss AI,
+KI-Plattformen, Kontakt, Formulare) lagen vorher mit den obersten 16 px unter dem
+Ticker.
+
 ### News: Seitenleiste mit Suche (PR 204)
 
 Rueckmeldung Ali 13.11.2026: Filter stehen sonst links (Rubriken, Prompts),
