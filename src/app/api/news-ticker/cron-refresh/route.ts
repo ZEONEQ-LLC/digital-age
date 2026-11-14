@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { hoursOrDefault, isScheduledHour } from "@/lib/newsTicker/schedule";
 
 // Vercel-Cron-Endpoint (stündlich). Mehrstufiges Gating:
 //   1. Master-Switch via Env-Var NEWS_TICKER_CRON_ENABLED (Vercel-
@@ -8,7 +9,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 //   2. Optional CRON_SECRET-Bearer-Check.
 //   3. Sub-Switch in news_ticker_config.scheduler_enabled (UI-Toggle).
 //   4. Pause-Toggle in news_ticker_config.is_paused (UI-Toggle).
-//   5. Stunden-Match: aktuelle Zürcher Stunde === scheduled_hour_cet.
+//   5. Stunden-Match: aktuelle Zürcher Stunde steht in scheduled_hours_cet
+//      (Standard 7, 12 und 18 Uhr).
 // Erst wenn alle Bedingungen erfüllt, wird runRefresh() ausgeführt. In den
 // anderen Stunden traegt der Cron nur fehlende Einordnungen nach (PR 200).
 
@@ -47,7 +49,7 @@ export async function GET(request: Request) {
   const supabase = createServiceClient();
   const { data: cfg, error: cfgErr } = await supabase
     .from("news_ticker_config")
-    .select("scheduler_enabled, scheduled_hour_cet, is_paused")
+    .select("scheduler_enabled, scheduled_hours_cet, is_paused")
     .eq("id", 1)
     .maybeSingle();
 
@@ -73,7 +75,8 @@ export async function GET(request: Request) {
   }
 
   const now = zurichHour();
-  if (now !== cfg.scheduled_hour_cet) {
+  const hours = hoursOrDefault(cfg.scheduled_hours_cet);
+  if (!isScheduledHour(hours, now)) {
     // Ausserhalb der Ticker-Stunde: nur fehlende Einordnungen nachtragen
     // (PR 200). Ohne fehlende gibt es keinen KI-Aufruf.
     let backfill: { assessed: number; failed: number } | { error: string };
@@ -93,7 +96,7 @@ export async function GET(request: Request) {
         ok: true,
         status: "not-scheduled-hour",
         current_hour_cet: now,
-        scheduled_hour_cet: cfg.scheduled_hour_cet,
+        scheduled_hours_cet: hours,
         backfill,
       },
       { status: 200 },

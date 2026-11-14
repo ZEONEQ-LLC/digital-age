@@ -1338,6 +1338,30 @@ Die festen Apple-Pfade `/apple-touch-icon.png` und
 bestehendes Home-Bildschirm-Lesezeichen behaelt sein altes Icon, bis es
 geloescht und neu angelegt wird.
 
+### News-Ticker: mehrere Laeufe pro Tag, Gedaechtnis fuer Aussortiertes (PR 208)
+
+Ausloeser: Am Samstagmittag stand auf der Startseite als neueste Meldung
+«Gestern 23:05». Der Ticker lief einmal am Tag (07:00).
+
+- **Laufzeiten:** `news_ticker_config.scheduled_hours_cet` (smallint[], Schweizer
+  Zeit, Standard 7, 12, 18). Der Cron bleibt stuendlich (`vercel.json`) und
+  laesst den Ticker nur in diesen Stunden laufen. Reine Logik in
+  `src/lib/newsTicker/schedule.ts` (`hoursOrDefault`, `isScheduledHour`,
+  `nextRunHour`), Test `newsSchedule.manual.ts`. Im Admin: Stunden-Kacheln unter
+  «Anzeige & Scheduler», «Nächster Lauf» im Kopf von «Refresh».
+- **`scheduled_hour_cet` ist veraltet.** Die Spalte bleibt bestehen und wird
+  beim Speichern auf die erste Stunde gesetzt. Neuer Code liest sie nicht.
+- **Kosten pro Meldung, nicht pro Lauf:** `news_items_skipped` merkt sich, was
+  die KI aussortiert hat (`{"skip": true}`). Vorher wurde jede aussortierte
+  Meldung bei jedem Lauf neu beurteilt, solange sie im Feed stand. Statistik:
+  `items_skipped_known`. Nur Service-Role (RLS ohne Policies), Eintraege aelter
+  als 30 Tage loescht jeder Lauf.
+- **Prompt geaendert = Gedaechtnis leer:** `saveGenerationPrompt` leert
+  `news_items_skipped`, wenn sich der Text aendert. Sonst blieben frueher
+  aussortierte Meldungen trotz neuer Regeln draussen.
+- Fehlgeschlagene Meldungen (KI-Fehler) werden nicht gemerkt und beim naechsten
+  Lauf erneut versucht.
+
 ### Swiss AI S1: Offenlegung, «Daten bestätigt», Regelseite, Zaehler (PR 207)
 
 Erster Schritt des Plans «Swiss AI Showcase» (Uebergabe und Diagnose vom

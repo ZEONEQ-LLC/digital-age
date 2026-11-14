@@ -1478,6 +1478,32 @@ export type Database = {
           },
         ]
       }
+      news_items_skipped: {
+        Row: {
+          skipped_at: string
+          source_id: string | null
+          source_url: string
+        }
+        Insert: {
+          skipped_at?: string
+          source_id?: string | null
+          source_url: string
+        }
+        Update: {
+          skipped_at?: string
+          source_id?: string | null
+          source_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "news_items_skipped_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "news_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       news_sources: {
         Row: {
           country: string | null
@@ -1526,6 +1552,7 @@ export type Database = {
           last_refresh_at: string | null
           last_refresh_stats: Json | null
           scheduled_hour_cet: number
+          scheduled_hours_cet: number[]
           scheduler_enabled: boolean
           ticker_speed: string
           updated_at: string
@@ -1538,6 +1565,7 @@ export type Database = {
           last_refresh_at?: string | null
           last_refresh_stats?: Json | null
           scheduled_hour_cet?: number
+          scheduled_hours_cet?: number[]
           scheduler_enabled?: boolean
           ticker_speed?: string
           updated_at?: string
@@ -1550,6 +1578,7 @@ export type Database = {
           last_refresh_at?: string | null
           last_refresh_stats?: Json | null
           scheduled_hour_cet?: number
+          scheduled_hours_cet?: number[]
           scheduler_enabled?: boolean
           ticker_speed?: string
           updated_at?: string

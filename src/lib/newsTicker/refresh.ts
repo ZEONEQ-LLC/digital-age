@@ -11,6 +11,9 @@ type NewsSourceRow = Database["public"]["Tables"]["news_sources"]["Row"];
 
 export type { RefreshError, RefreshStats } from "./stats";
 
+// So lange bleibt eine aussortierte Meldung gemerkt (news_items_skipped).
+const SKIP_MEMORY_DAYS = 30;
+
 const PROMPT_FALLBACK =
   "Du analysierst RSS-Items für ein KI-Magazin. Gib JSON {title, teaser, summary, category} oder {skip: true} zurück.";
 
@@ -18,7 +21,9 @@ const PROMPT_FALLBACK =
  * Sequenzieller Refresh-Lauf:
  *   1. Aktive Quellen laden
  *   2. Pro Quelle: Feed fetchen, Items dedup-prüfen, neue Items via LLM
- *      generieren, in news_items inserten
+ *      generieren, in news_items inserten. Was die KI aussortiert, wird in
+ *      news_items_skipped gemerkt und beim naechsten Lauf nicht erneut
+ *      beurteilt. KI-Kosten entstehen so pro neuer Meldung, nicht pro Lauf.
  *   3. Config-Singleton mit last_refresh_at + Stats updaten
  *
  * Verwendet Service-Role, damit die gleiche Funktion vom Admin-UI (Editor-
@@ -83,6 +88,11 @@ export async function runRefresh(opts: { authorId?: string } = {}): Promise<Refr
   // KI das Feld ausgelassen hat, pro Lauf hoechstens BACKFILL_PER_RUN.
   await backfillAssessments(supabase, authorId, stats);
 
+  // Gemerkte Aussortierte aufraeumen: Feeds fuehren nur die neuesten Eintraege,
+  // aeltere tauchen nicht mehr auf.
+  const skipCutoff = new Date(Date.now() - SKIP_MEMORY_DAYS * 86_400_000).toISOString();
+  await supabase.from("news_items_skipped").delete().lt("skipped_at", skipCutoff);
+
   // Stats zurückschreiben — even bei 0 sources, damit der Editor sieht dass
   // der Refresh lief.
   await supabase
@@ -130,6 +140,19 @@ async function processSource(
       continue;
     }
 
+    // Schon einmal von der KI aussortiert: nicht erneut beurteilen lassen.
+    // Scheitert die Abfrage, laeuft die Meldung wie bisher durch die KI.
+    const { data: knownSkip } = await supabase
+      .from("news_items_skipped")
+      .select("source_url")
+      .eq("source_url", item.source_url)
+      .maybeSingle();
+
+    if (knownSkip) {
+      stats.items_skipped_known = (stats.items_skipped_known ?? 0) + 1;
+      continue;
+    }
+
     let outcome;
     try {
       outcome = await generateNewsItem(item, source, promptTemplate, authorId);
@@ -142,6 +165,14 @@ async function processSource(
 
     if (outcome.kind === "skip") {
       stats.items_skipped_generation += 1;
+      // Merken, damit der naechste Lauf dafuer keinen KI-Aufruf mehr braucht.
+      const { error: skipErr } = await supabase
+        .from("news_items_skipped")
+        .upsert(
+          { source_url: item.source_url, source_id: source.id },
+          { onConflict: "source_url", ignoreDuplicates: true },
+        );
+      if (skipErr) console.error("[news-ticker] Aussortiertes nicht gemerkt:", skipErr.message);
       continue;
     }
     if (outcome.kind === "error") {
@@ -187,7 +218,7 @@ async function processSource(
   }
 }
 
-// Der Ticker laeuft einmal taeglich (scheduled_hour_cet) plus Klick im Admin;
+// Der Ticker laeuft zu den Stunden aus scheduled_hours_cet plus Klick im Admin;
 // 60 pro Lauf holen den Bestand eines Monats in ein bis zwei Laeufen nach.
 const BACKFILL_PER_RUN = 60;
 const BACKFILL_PARALLEL = 5;
