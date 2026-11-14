@@ -24,6 +24,8 @@ export type AdminArticleRow = {
   tags: string[];
   isFeatured: boolean;
   isHero: boolean;
+  // «Unternehmensbeitrag» oder «Publireportage»; null bei redaktionellen.
+  contentLabel: string | null;
 };
 
 type StatusFilter = "all" | ArticleStatus;
@@ -304,6 +306,7 @@ export default function AdminArticlesClient({ rows, authors, categories }: Props
               <div className="adm-art__title">{a.title}</div>
               <div className="adm-art__meta">
                 <span className="adm-art__cat">{a.categoryName || a.categorySlug}</span>
+                {a.contentLabel && <span>{a.contentLabel}</span>}
                 <span>{a.wordCount ?? 0} Wörter · {a.readingMinutes ?? 0} min</span>
               </div>
             </div>

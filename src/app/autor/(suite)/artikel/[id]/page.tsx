@@ -39,6 +39,23 @@ export default async function EditorPage({ params }: PageProps) {
     allAuthors = data ?? [];
   }
 
+  // Unternehmen fuer den Inhaltstyp «Unternehmensbeitrag». Archivierte bleiben
+  // sichtbar, damit eine bestehende Zuordnung lesbar ist, sind aber nicht
+  // waehlbar.
+  let startups: { id: string; name: string; listed: boolean }[] = [];
+  if (isEditor) {
+    const { data } = await supabase
+      .from("ai_startups")
+      .select("id, name, status")
+      .in("status", ["published", "featured", "archived"])
+      .order("name");
+    startups = (data ?? []).map((s) => ({
+      id: s.id,
+      name: s.name,
+      listed: s.status === "published" || s.status === "featured",
+    }));
+  }
+
   return (
     <>
       <MobileEditorWarning />
@@ -49,6 +66,7 @@ export default async function EditorPage({ params }: PageProps) {
           categories={categories ?? []}
           isEditor={isEditor}
           allAuthors={allAuthors}
+          startups={startups}
         />
       </div>
     </>

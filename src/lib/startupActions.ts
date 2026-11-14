@@ -1,5 +1,6 @@
 "use server";
 
+import { contentTypeDbError } from "@/lib/contentType";
 import { revalidatePath } from "next/cache";
 import { normalizeCity } from "@/lib/startupCity";
 import { createClient } from "@/lib/supabase/server";
@@ -530,7 +531,7 @@ async function restoreStartupToPublishedInner(id: string): Promise<void> {
 }
 
 export async function deleteStartup(id: string): Promise<ActionResult<void>> {
-  return runAction("startup.deleteStartup", () => deleteStartupInner(id));
+  return runAction("startup.deleteStartup", () => deleteStartupInner(id), contentTypeDbError);
 }
 
 async function deleteStartupInner(id: string): Promise<void> {

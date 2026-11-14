@@ -1,3 +1,4 @@
+import { editorialOnly } from "@/lib/contentType";
 import type { MetadataRoute } from "next";
 import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getBaseUrl } from "@/lib/siteUrl";
@@ -107,10 +108,11 @@ async function fetchArticleEntries(
   base: string,
 ): Promise<MetadataRoute.Sitemap> {
   try {
-    const { data, error } = await supabase
-      .from("articles")
-      .select("slug, updated_at, cover_image_url")
-      .eq("status", "published");
+    // Nur redaktionelle Artikel. Unternehmensbeitraege bekommen mit S2b einen
+    // eigenen Block unter /showcase/<slug>.
+    const { data, error } = await editorialOnly(
+      supabase.from("articles").select("slug, updated_at, cover_image_url").eq("status", "published"),
+    );
     if (error) {
       console.error("[sitemap] articles error:", error.message);
       return [];

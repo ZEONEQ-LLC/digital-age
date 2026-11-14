@@ -1,5 +1,6 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/service";
+import { editorialOnly } from "@/lib/contentType";
 import { isPlacementCode, type PlacementCode } from "@/lib/ads/placements";
 import type { PeriodValue } from "@/lib/ads/types";
 
@@ -104,10 +105,11 @@ export async function getPreviewCampaign(token: string): Promise<PreviewCampaign
 
   // Ziel-Link "Auf der Seite ansehen" je Platzierung (mit ?vorschau=<token>).
   async function newestArticleSlug(ressort: string | null): Promise<string | null> {
-    let q = supabase
-      .from("articles")
-      .select("slug, category:categories!inner(slug)")
-      .eq("status", "published")
+    // Nur redaktionelle Artikel: Unternehmensbeitraege haben keine
+    // Beitragsseite unter /artikel und keine Kundenanzeigen.
+    let q = editorialOnly(
+      supabase.from("articles").select("slug, category:categories!inner(slug)").eq("status", "published"),
+    )
       .order("published_at", { ascending: false })
       .limit(1);
     if (ressort) q = q.filter("category.slug", "eq", ressort);

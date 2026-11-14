@@ -19,6 +19,7 @@ import TableOfContents, { type TocItem } from "@/components/TableOfContents";
 import ExternalBadge from "@/components/ExternalBadge";
 import { getArticleBySlug, type ArticleWithFullRelations } from "@/lib/articleApi";
 import { getArticlesByAuthor } from "@/lib/authorApi";
+import { editorialOnly } from "@/lib/contentType";
 import { getCoverUrl } from "@/lib/coverImage";
 import { markdownToBlocks } from "@/lib/markdownBlocks";
 import { getBaseUrl } from "@/lib/siteUrl";
@@ -53,10 +54,9 @@ export const revalidate = 600;
 export async function generateStaticParams() {
   try {
     const supabase = createPublicClient();
-    const { data } = await supabase
-      .from("articles")
-      .select("slug")
-      .eq("status", "published");
+    const { data } = await editorialOnly(
+      supabase.from("articles").select("slug").eq("status", "published"),
+    );
     return (data ?? []).map((a) => ({ slug: a.slug }));
   } catch {
     return [];

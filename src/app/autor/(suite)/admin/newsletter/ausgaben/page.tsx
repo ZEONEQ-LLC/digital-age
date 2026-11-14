@@ -1,3 +1,4 @@
+import { editorialOnly } from "@/lib/contentType";
 import Link from "next/link";
 import PageTitle from "@/components/author/PageTitle";
 import { createClient } from "@/lib/supabase/server";
@@ -56,10 +57,13 @@ export default async function NewsletterIssuesPage() {
   const [{ data: issues, error }, { count: confirmed }, { data: recent }, { data: newsData }, { data: promptData }, { data: podcastData }] = await Promise.all([
     supabase.from("newsletter_issues").select("*").neq("status", "discarded").order("created_at", { ascending: false }).limit(30),
     supabase.from("newsletter_subscribers").select("id", { count: "exact", head: true }).eq("status", "confirmed"),
-    supabase
-      .from("articles")
-      .select("id, slug, title, excerpt, cover_image_url, published_at, category:categories(name_de)")
-      .eq("status", "published")
+    // Kandidaten: nur redaktionelle Artikel.
+    editorialOnly(
+      supabase
+        .from("articles")
+        .select("id, slug, title, excerpt, cover_image_url, published_at, category:categories(name_de)")
+        .eq("status", "published"),
+    )
       .gte("published_at", since)
       .order("published_at", { ascending: false })
       .limit(30),

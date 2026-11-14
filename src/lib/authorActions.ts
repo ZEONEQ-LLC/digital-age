@@ -11,6 +11,7 @@ import {
 } from "@/lib/articles/mail";
 import { emptyBlockDocument, type BlockDocument } from "@/types/blocks";
 import { checkSourcesUrls } from "@/lib/editor/urlCheck";
+import { SHOWCASE_PUBLISHING_ENABLED, companyPublishBlockers, contentTypeDbError } from "@/lib/contentType";
 import { validatePublishGate } from "@/lib/publishGate";
 import { isArticleSlugConflict } from "@/lib/articleSlug";
 import { FormError, isUniqueViolation, runAction, type ActionResult } from "@/lib/actionResult";
@@ -38,7 +39,8 @@ function articleError(e: unknown): string | null {
   if (isArticleSlugConflict(e as { code?: string; message?: string })) {
     return "Dieser Slug ist schon vergeben. Bitte einen anderen wählen.";
   }
-  return null;
+  // Einordnung und Showcase-Kategorie (DB-Trigger articles_guard_content_type).
+  return contentTypeDbError(e);
 }
 
 function profileError(e: unknown): string | null {
@@ -176,6 +178,12 @@ async function saveArticleInner(id: string, patch: ArticlePatch): Promise<Articl
   type ArticleUpdate = Database["public"]["Tables"]["articles"]["Update"];
   const { body_blocks: patchBlocks, ...rest } = patch;
   const dbPatch: ArticleUpdate = { ...rest };
+  // Die Einordnung (redaktionell oder Unternehmensbeitrag) laeuft nur ueber
+  // setArticleContentType. Der Patch kommt vom Client und ist zur Laufzeit
+  // nicht typgeprueft, deshalb hier ausdruecklich entfernen.
+  delete dbPatch.content_type;
+  delete dbPatch.startup_id;
+  delete dbPatch.is_paid;
   if (patchBlocks !== undefined && patchBlocks !== null) {
     dbPatch.body_md = renderBlockDocumentToMarkdown(patchBlocks);
     dbPatch.body_blocks = patchBlocks as unknown as Json;
@@ -422,14 +430,36 @@ async function publishArticleInner(id: string): Promise<ArticleRow> {
   // Gate (siehe Block direkt unter dieser Query). Beim Re-Publish wird
   // der Gate uebersprungen, damit Bestandsartikel ohne komplette Felder
   // weiter publizierbar bleiben.
-  const { data: current } = await supabase
+  const { data: current, error: currentErr } = await supabase
     .from("articles")
     .select(
-      "published_at, slug, title, excerpt, seo_title, seo_description, seo_keyword_primary, cover_image_url, cover_image_alt, author:authors(display_name, email)",
+      "published_at, slug, title, excerpt, seo_title, seo_description, seo_keyword_primary, cover_image_url, cover_image_alt, content_type, startup_id, author:authors(display_name, email), category:categories(slug), startup:ai_startups(status)",
     )
     .eq("id", id)
     .single();
-  const wasPublishedBefore = current?.published_at != null;
+  // Ohne den aktuellen Stand liefen die Pruefungen unten ins Leere.
+  if (currentErr || !current) {
+    if (currentErr) console.error("[article] publish: Artikel nicht lesbar:", currentErr.message);
+    throw new FormError("Der Artikel konnte nicht geladen werden. Bitte die Seite neu laden.");
+  }
+  const wasPublishedBefore = current.published_at != null;
+
+  // Unternehmensbeitraege: eigene Pruefung, bei JEDEM Publizieren (nicht nur
+  // beim ersten). In S2a ist das Publizieren ganz gesperrt, weil die
+  // gekennzeichneten Showcase-Seiten noch fehlen.
+  {
+    const startupStatus = (current.startup as { status: string } | null)?.status;
+    const blockers = companyPublishBlockers(
+      {
+        content_type: current.content_type,
+        startup_id: current.startup_id,
+        categorySlug: (current.category as { slug: string } | null)?.slug ?? null,
+        startupListed: startupStatus === "published" || startupStatus === "featured",
+      },
+      SHOWCASE_PUBLISHING_ENABLED,
+    );
+    if (blockers.length > 0) throw new FormError(blockers.join(" "));
+  }
 
   // Pre-Publish-Gate: nur beim Erst-Publish (published_at IS NULL) muessen
   // die Pflichtfelder gesetzt sein. Bei Re-Publish (auch nach Archiv) bleibt

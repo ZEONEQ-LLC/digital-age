@@ -1,5 +1,6 @@
 import "server-only";
 
+import { editorialOnly } from "@/lib/contentType";
 import { createPublicClient } from "@/lib/supabase/public";
 import { RELATIONS_SHORT, type ArticleWithRelations } from "@/lib/articleApi";
 
@@ -22,11 +23,11 @@ export async function searchArticles(
   }
   if (!ranked || ranked.length === 0) return { hits: [], failed: false };
 
-  const { data: rows, error: rowsErr } = await supabase
-    .from("articles")
-    .select(RELATIONS_SHORT)
-    .eq("status", "published")
-    .in("id", ranked.map((r) => r.id));
+  // Nur redaktionelle Artikel. Mit S2b zeigt die Suche Unternehmensbeitraege
+  // gekennzeichnet und mit Link auf /showcase/<slug>.
+  const { data: rows, error: rowsErr } = await editorialOnly(
+    supabase.from("articles").select(RELATIONS_SHORT).eq("status", "published"),
+  ).in("id", ranked.map((r) => r.id));
   if (rowsErr) {
     console.error("[search] article rows failed:", rowsErr.message);
     return { hits: [], failed: true };
