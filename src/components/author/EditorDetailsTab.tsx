@@ -5,6 +5,8 @@ import AuthorCard from "./AuthorCard";
 import FeaturedImageBox, { type CoverMetadata, type HeroStudioStatus } from "./FeaturedImageBox";
 import MonoCaption from "./MonoCaption";
 import TagInput from "./TagInput";
+import ContentTypeBox, { type ContentTypeValue, type StartupOption } from "./ContentTypeBox";
+import { SHOWCASE_CATEGORY_SLUG } from "@/lib/contentType";
 import { updateArticleAuthor, updateFeaturedStatus } from "@/lib/authorAdminActions";
 import { unwrapAction } from "@/lib/actionResult";
 
@@ -15,6 +17,7 @@ import { unwrapAction } from "@/lib/actionResult";
 //   - Featured/Hero-Status (Editor-only)
 //   - Author-Zuweisung (Editor-only)
 //   - Kategorie / Subkategorie / Tags
+//   - Inhaltstyp: redaktionell oder Unternehmensbeitrag (Editor-only)
 //
 // Sprache lebt bewusst NICHT hier — sie ist Inhalts-relevant und sitzt
 // kompakt vor dem Titel im Inhalt-Tab.
@@ -67,6 +70,14 @@ type Props = {
   articleIsFeatured: boolean;
   articleIsHero: boolean;
   articleCategoryId: string;
+
+  // Inhaltstyp (Editor-only). onCategorySynced setzt die Kategorie im
+  // Editor-State nach, ohne den Artikel als ungespeichert zu markieren: Die
+  // Einordnung ist dann schon in der DB.
+  articleStatus: string;
+  initialContentType: ContentTypeValue;
+  startups: StartupOption[];
+  onCategorySynced: (id: string) => void;
 };
 
 export default function EditorDetailsTab({
@@ -98,7 +109,18 @@ export default function EditorDetailsTab({
   articleIsFeatured,
   articleIsHero,
   articleCategoryId,
+  articleStatus,
+  initialContentType,
+  startups,
+  onCategorySynced,
 }: Props) {
+  const [contentType, setContentType] = useState<ContentTypeValue>(initialContentType);
+  const isCompanyArticle = contentType.content_type === "company";
+  // «Showcase» ist Unternehmensbeitraegen vorbehalten und im Dropdown nie
+  // waehlbar.
+  const editorialCategories = categories.filter((c) => c.slug !== SHOWCASE_CATEGORY_SLUG);
+  const showcaseCategory = categories.find((c) => c.slug === SHOWCASE_CATEGORY_SLUG);
+
   const [assignedAuthor, setAssignedAuthor] = useState(currentAuthorId);
   const [authorToast, setAuthorToast] = useState<string | null>(null);
   const [authorPending, startAuthorTransition] = useTransition();
@@ -237,15 +259,26 @@ export default function EditorDetailsTab({
           <div className="a-edit-details__meta-row" style={{ marginTop: 12 }}>
             <div>
               <label className="a-edit-details__label">Kategorie</label>
-              <select
-                className="a-edit-details__select"
-                value={categoryId}
-                onChange={(e) => handleCategoryChange(e.target.value)}
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name_de}</option>
-                ))}
-              </select>
+              {isCompanyArticle ? (
+                <select
+                  className="a-edit-details__select"
+                  value={showcaseCategory?.id ?? ""}
+                  disabled
+                  title="Unternehmensbeiträge liegen immer in «Showcase»."
+                >
+                  <option value={showcaseCategory?.id ?? ""}>{showcaseCategory?.name_de ?? "Showcase"}</option>
+                </select>
+              ) : (
+                <select
+                  className="a-edit-details__select"
+                  value={categoryId}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                >
+                  {editorialCategories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name_de}</option>
+                  ))}
+                </select>
+              )}
             </div>
             <div>
               <label className="a-edit-details__label">Subkategorie</label>
@@ -266,6 +299,31 @@ export default function EditorDetailsTab({
             </div>
           </div>
         </AuthorCard>
+
+        {isEditor && (
+          <ContentTypeBox
+            articleId={articleId}
+            articleStatus={articleStatus}
+            saved={contentType}
+            startups={startups}
+            editorialCategories={editorialCategories}
+            currentCategoryId={categoryId}
+            onApplied={(result) => {
+              setContentType({
+                content_type: result.content_type === "company" ? "company" : "editorial",
+                startup_id: result.startup_id,
+                is_paid: result.is_paid,
+              });
+              onCategorySynced(result.category_id);
+              // Der Server nimmt Featured/Hero beim Wechsel zum
+              // Unternehmensbeitrag zurueck.
+              if (result.content_type === "company") {
+                setIsFeatured(false);
+                setIsHero(false);
+              }
+            }}
+          />
+        )}
 
         <FeaturedImageBox
           articleId={articleId}
@@ -344,7 +402,17 @@ export default function EditorDetailsTab({
           )}
         </div>
 
-        {isEditor && (
+        {isEditor && isCompanyArticle && (
+          <AuthorCard padding={18}>
+            <MonoCaption>Featured</MonoCaption>
+            <p style={{ color: "var(--da-muted)", fontSize: 12, lineHeight: 1.5, margin: 0 }}>
+              Unternehmensbeiträge können nicht Featured oder Hero sein. Diese Plätze sind redaktionellen Artikeln
+              vorbehalten.
+            </p>
+          </AuthorCard>
+        )}
+
+        {isEditor && !isCompanyArticle && (
           <AuthorCard padding={18}>
             <MonoCaption>Featured</MonoCaption>
             <label style={{ display: "flex", gap: 10, alignItems: "flex-start", marginTop: 10, cursor: featuredPending ? "wait" : "pointer" }}>

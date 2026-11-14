@@ -1,5 +1,6 @@
 import "server-only";
 
+import { editorialOnly } from "@/lib/contentType";
 import { RELATIONS_SHORT, type ArticleWithRelations } from "@/lib/articleApi";
 import { createPublicClient } from "@/lib/supabase/public";
 
@@ -21,10 +22,11 @@ const RUBRIC_COUNT = 4;
 
 export async function getHomeArticles(): Promise<HomeArticles> {
   const supabase = createPublicClient();
-  const { data, error } = await supabase
-    .from("articles")
-    .select(RELATIONS_SHORT)
-    .eq("status", "published")
+  // Nur redaktionelle Artikel: Unternehmensbeitraege stehen nie als Aufmacher
+  // oder im Fokus.
+  const { data, error } = await editorialOnly(
+    supabase.from("articles").select(RELATIONS_SHORT).eq("status", "published"),
+  )
     .order("published_at", { ascending: false })
     .limit(60);
   if (error) console.error("[home] articles failed:", error.message);

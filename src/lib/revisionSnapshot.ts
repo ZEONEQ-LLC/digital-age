@@ -4,7 +4,7 @@
 // REVISION_SNAPSHOT_FIELDS ist die Liste der redaktionellen articles-Spalten,
 // die in den Revision-Snapshot gehen. Sie MUSS mit dem jsonb_build_object in
 // public.article_editorial_snapshot (Migration 20260707170000, erweitert in
-// 20261102150000) synchron
+// 20261102150000 und 20261114140000) synchron
 // bleiben — die SQL-Seite ist die ausfuehrende Quelle, diese Konstante die
 // dokumentierte/testbare Spiegelung.
 //
@@ -49,7 +49,18 @@ export const REVISION_SNAPSHOT_FIELDS = [
   "seo_keyword_primary",
   "seo_keywords_secondary",
   "slug",
+  "content_type",
+  "startup_id",
+  "is_paid",
 ] as const;
+
+// Im Snapshot, aber NIE restauriert (Migration 20261114140000): die
+// Einordnung als redaktioneller Artikel oder Unternehmensbeitrag. Sie steht
+// zur Nachvollziehbarkeit drin, und ein Wechsel erzeugt eine Revision. Ein
+// Restore laesst sie stehen, sonst machte ein alter Stand einen
+// Unternehmensbeitrag still wieder zum redaktionellen Artikel. Die Kategorie
+// folgt der heutigen Einordnung (Unternehmensbeitrag bleibt in «showcase»).
+export const REVISION_NOT_RESTORED_FIELDS = ["content_type", "startup_id", "is_paid"] as const;
 
 export type RevisionType = "content" | "status_change" | "restore";
 

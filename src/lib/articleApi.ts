@@ -4,6 +4,7 @@
 // cachebar (revalidate/ISR). Siehe src/lib/supabase/public.ts.
 import { PUBLIC_AUTHOR_COLUMNS, type PublicAuthorRow } from "@/lib/authorApi";
 import { createPublicClient } from "@/lib/supabase/public";
+import { editorialOnly } from "@/lib/contentType";
 import type { Database } from "@/lib/database.types";
 
 type ArticleRow = Database["public"]["Tables"]["articles"]["Row"];
@@ -31,16 +32,18 @@ const RELATIONS_FULL = `*, category:categories(*), author:authors(${PUBLIC_AUTHO
 
 export async function getFeaturedArticles(limit = 4): Promise<ArticleWithRelations[]> {
   const supabase = createPublicClient();
-  const { data } = await supabase
-    .from("articles")
-    .select(RELATIONS_SHORT)
-    .eq("status", "published")
+  const { data } = await editorialOnly(
+    supabase.from("articles").select(RELATIONS_SHORT).eq("status", "published"),
+  )
     .eq("is_featured", true)
     .order("published_at", { ascending: false })
     .limit(limit);
   return (data as ArticleWithRelations[] | null) ?? [];
 }
 
+// Rubrikseiten (getArticlesByCategory, getFeaturedByCategory,
+// getHeroOrLatestByCategory) filtern ueber die Kategorie: Unternehmensbeitraege
+// liegen immer in «showcase» (DB-Trigger) und tauchen dort nicht auf.
 export async function getArticlesByCategory(
   categorySlug: string,
   limit?: number,
@@ -114,11 +117,11 @@ export async function getArticleBySlug(
   slug: string,
 ): Promise<ArticleWithFullRelations | null> {
   const supabase = createPublicClient();
-  const { data } = await supabase
-    .from("articles")
-    .select(RELATIONS_FULL)
-    .eq("slug", slug)
-    .eq("status", "published")
-    .maybeSingle();
+  // Nur redaktionelle Artikel: /artikel/<slug> zeigt keinen
+  // Unternehmensbeitrag (er bekaeme dort keine Kennzeichnung). Mit S2b leitet
+  // die Route stattdessen auf /showcase/<slug> weiter.
+  const { data } = await editorialOnly(
+    supabase.from("articles").select(RELATIONS_FULL).eq("slug", slug).eq("status", "published"),
+  ).maybeSingle();
   return data as ArticleWithFullRelations | null;
 }

@@ -12,6 +12,11 @@ type CompanyCardProps = {
 
 export default function CompanyCard({ company, accent = "var(--da-green)" }: CompanyCardProps) {
   const sc = company.swiss_status_color;
+  // «Offen für Investoren» (.cc__inv) steht als zweite Zeile neben dem Logo
+  // statt als Badge oben rechts: Der längere Begriff überlappte dort auf dem
+  // Handy den Status (S1). Neutral statt orange, weil «Swiss Founded» selbst
+  // orange ist. Bewusst kein Kommentar im <style>: Der stuende pro Karte im
+  // HTML.
   return (
     <>
       <style>{`
@@ -32,10 +37,6 @@ export default function CompanyCard({ company, accent = "var(--da-green)" }: Com
           padding: 3px 8px; border-radius: var(--r-xs);
         }
         .cc__badge--feat { background: var(--accent, var(--da-green)); color: var(--da-dark); }
-        /* «Offen für Investoren» als zweite Zeile neben dem Logo statt als
-           Badge oben rechts: Der längere Begriff (vorher «Investor-Ready»)
-           überlappte dort auf dem Handy den Status (S1). Neutral statt
-           orange, weil «Swiss Founded» selbst orange ist. */
         .cc__inv {
           color: var(--da-text-strong); font-family: var(--da-font-mono);
           font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 5px;

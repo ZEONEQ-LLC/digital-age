@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import AuthorStatusBadge from "@/components/author/AuthorStatusBadge";
 import ArticleCoverVideo from "@/components/ArticleCoverVideo";
 import EditorDetailsTab from "@/components/author/EditorDetailsTab";
+import type { StartupOption } from "@/components/author/ContentTypeBox";
 import type { HeroStudioStatus } from "@/components/author/FeaturedImageBox";
 import EditorRevisions from "@/components/author/EditorRevisions";
 import EditorSeoPanel, { type ApplySuggestionResult, type SeoState, type EditorSeoPanelHandle } from "@/components/author/EditorSeoPanel";
@@ -98,6 +99,9 @@ type Props = {
   article: SuiteArticle;
   revisions: RevisionWithEditor[];
   categories: { id: string; slug: string; name_de: string }[];
+  // Unternehmen aus dem Verzeichnis fuer den Inhaltstyp (nur fuer Editoren
+  // gefuellt).
+  startups: StartupOption[];
   isEditor: boolean;
   allAuthors: { id: string; display_name: string; role: string }[];
 };
@@ -140,7 +144,7 @@ function discardCoverUploads(articleId: string, unsaved: Set<string>, keep: stri
   }
 }
 
-export default function EditorClient({ article, revisions, categories, isEditor, allAuthors }: Props) {
+export default function EditorClient({ article, revisions, categories, isEditor, allAuthors, startups }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("content");
   // Session-only Editor-Theme — kein localStorage, kein Server-Persist.
@@ -2163,6 +2167,14 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           articleIsFeatured={article.is_featured ?? false}
           articleIsHero={article.is_hero ?? false}
           articleCategoryId={article.category_id}
+          articleStatus={article.status}
+          initialContentType={{
+            content_type: article.content_type === "company" ? "company" : "editorial",
+            startup_id: article.startup_id,
+            is_paid: article.is_paid,
+          }}
+          startups={startups}
+          onCategorySynced={setCategoryId}
         />
       </div>
 

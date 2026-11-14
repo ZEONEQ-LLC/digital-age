@@ -1,5 +1,6 @@
 "use server";
 
+import { SHOWCASE_CATEGORY_SLUG } from "@/lib/contentType";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { inviteAuthorFromPitch, type PitchInviteOutcome } from "@/lib/inviteActions";
@@ -158,7 +159,11 @@ export async function createDraftFromPitch(
 
     const { data: categories, error: catErr } = await supabase.from("categories").select("id, slug");
     if (catErr) throw catErr;
-    const categorySlug = pitchCategorySlug(pitch.category, categories.map((c) => c.slug));
+    // «showcase» ist Unternehmensbeitraegen vorbehalten und nie Ziel eines Pitches.
+    const categorySlug = pitchCategorySlug(
+      pitch.category,
+      categories.map((c) => c.slug).filter((slug) => slug !== SHOWCASE_CATEGORY_SLUG),
+    );
     const category = categories.find((c) => c.slug === categorySlug);
     if (!category) return { ok: false, message: `Kategorie ${categorySlug} nicht gefunden.` };
 

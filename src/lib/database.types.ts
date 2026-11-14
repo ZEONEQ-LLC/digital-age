@@ -1110,6 +1110,7 @@ export type Database = {
           body_blocks: Json | null
           body_md: string | null
           category_id: string
+          content_type: string
           copilot_last_run: Json | null
           cover_image_alt: string | null
           cover_image_caption: string | null
@@ -1124,6 +1125,7 @@ export type Database = {
           id: string
           is_featured: boolean
           is_hero: boolean
+          is_paid: boolean
           locale: string
           og_image_url: string | null
           published_at: string | null
@@ -1135,6 +1137,7 @@ export type Database = {
           seo_review_at: string | null
           seo_title: string | null
           slug: string
+          startup_id: string | null
           status: Database["public"]["Enums"]["article_status"]
           subcategory: string | null
           subtitle: string | null
@@ -1148,6 +1151,7 @@ export type Database = {
           body_blocks?: Json | null
           body_md?: string | null
           category_id: string
+          content_type?: string
           copilot_last_run?: Json | null
           cover_image_alt?: string | null
           cover_image_caption?: string | null
@@ -1162,6 +1166,7 @@ export type Database = {
           id?: string
           is_featured?: boolean
           is_hero?: boolean
+          is_paid?: boolean
           locale?: string
           og_image_url?: string | null
           published_at?: string | null
@@ -1173,6 +1178,7 @@ export type Database = {
           seo_review_at?: string | null
           seo_title?: string | null
           slug: string
+          startup_id?: string | null
           status?: Database["public"]["Enums"]["article_status"]
           subcategory?: string | null
           subtitle?: string | null
@@ -1186,6 +1192,7 @@ export type Database = {
           body_blocks?: Json | null
           body_md?: string | null
           category_id?: string
+          content_type?: string
           copilot_last_run?: Json | null
           cover_image_alt?: string | null
           cover_image_caption?: string | null
@@ -1200,6 +1207,7 @@ export type Database = {
           id?: string
           is_featured?: boolean
           is_hero?: boolean
+          is_paid?: boolean
           locale?: string
           og_image_url?: string | null
           published_at?: string | null
@@ -1211,6 +1219,7 @@ export type Database = {
           seo_review_at?: string | null
           seo_title?: string | null
           slug?: string
+          startup_id?: string | null
           status?: Database["public"]["Enums"]["article_status"]
           subcategory?: string | null
           subtitle?: string | null
@@ -1232,6 +1241,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "articles_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "ai_startups"
             referencedColumns: ["id"]
           },
         ]

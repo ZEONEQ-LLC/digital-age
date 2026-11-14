@@ -3,6 +3,7 @@
 // Author/Editor bzw. Draft-Lookup im Suite-Editor) und bleiben am ssr-
 // Client mit cookies().
 import { createClient } from "@/lib/supabase/server";
+import { editorialOnly } from "@/lib/contentType";
 import { createPublicClient } from "@/lib/supabase/public";
 import type { Database } from "@/lib/database.types";
 
@@ -91,12 +92,10 @@ export async function getRelatedArticleCard(
   slug: string,
 ): Promise<RelatedArticleCard | null> {
   const supabase = createPublicClient();
-  const { data } = await supabase
-    .from("articles")
-    .select("slug, title, cover_image_url, excerpt")
-    .eq("slug", slug)
-    .eq("status", "published")
-    .maybeSingle();
+  // Die Karte verlinkt auf /artikel/<slug>: nur redaktionelle Artikel.
+  const { data } = await editorialOnly(
+    supabase.from("articles").select("slug, title, cover_image_url, excerpt").eq("slug", slug).eq("status", "published"),
+  ).maybeSingle();
   if (!data) return null;
   return {
     slug: data.slug,

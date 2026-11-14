@@ -1,5 +1,6 @@
 import "server-only";
 
+import { editorialOnly } from "@/lib/contentType";
 import {
   DRAFT_MAX_NEWS,
   NEWS_INPUT_MAX,
@@ -118,10 +119,14 @@ export async function createNewsletterDraft(opts: {
     .maybeSingle();
   const period = nextPeriod(last?.period_to ?? null, now);
 
-  const { data: rows, error: artErr } = await svc
-    .from("articles")
-    .select("id, slug, title, excerpt, body_md, cover_image_url, published_at, category:categories(name_de)")
-    .eq("status", "published")
+  // Nur redaktionelle Artikel: Unternehmensbeitraege stehen nie unter «Neu
+  // auf digital age» (eigene Rubrik folgt mit S4).
+  const { data: rows, error: artErr } = await editorialOnly(
+    svc
+      .from("articles")
+      .select("id, slug, title, excerpt, body_md, cover_image_url, published_at, category:categories(name_de)")
+      .eq("status", "published"),
+  )
     .gt("published_at", period.from.toISOString())
     .lte("published_at", period.to.toISOString())
     .order("published_at", { ascending: false })
@@ -152,10 +157,12 @@ export async function createNewsletterDraft(opts: {
   // keine alten Artikel; er erstellt den Entwurf dann nur mit genug News.
   let fallbackLatest = false;
   if (articles.length === 0 && opts.source === "manual") {
-    const { data: latest, error: latestErr } = await svc
-      .from("articles")
-      .select("id, slug, title, excerpt, body_md, cover_image_url, published_at, category:categories(name_de)")
-      .eq("status", "published")
+    const { data: latest, error: latestErr } = await editorialOnly(
+      svc
+        .from("articles")
+        .select("id, slug, title, excerpt, body_md, cover_image_url, published_at, category:categories(name_de)")
+        .eq("status", "published"),
+    )
       .order("published_at", { ascending: false })
       .limit(MANUAL_FALLBACK_ITEMS);
     if (latestErr) return { kind: "error", message: latestErr.message };

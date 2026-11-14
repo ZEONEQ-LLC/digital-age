@@ -3,6 +3,7 @@
 // Profil-Seite kann cachen. Alle anderen Funktionen sind Auth-gebunden
 // (eigenes Author-Lookup über auth.getUser, eigene Articles, eigene
 // Stats, signOut) und bleiben am ssr-Client mit cookies().
+import { editorialOnly } from "@/lib/contentType";
 import { createClient } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/public";
 import type { Database } from "@/lib/database.types";
@@ -87,12 +88,15 @@ export async function getAuthorByHandle(handle: string): Promise<PublicAuthorRow
 // PUBLIC: status=published, author_id ist Param (nicht aus Session).
 export async function getArticlesByAuthor(authorId: string): Promise<AuthorArticle[]> {
   const supabase = createPublicClient();
-  const { data } = await supabase
-    .from("articles")
-    .select("*, category:categories(slug, name_de, name_en)")
-    .eq("author_id", authorId)
-    .eq("status", "published")
-    .order("published_at", { ascending: false });
+  // Nur redaktionelle Artikel: Autorenprofil und «Mehr von diesem Autor»
+  // fuehren keine Unternehmensbeitraege.
+  const { data } = await editorialOnly(
+    supabase
+      .from("articles")
+      .select("*, category:categories(slug, name_de, name_en)")
+      .eq("author_id", authorId)
+      .eq("status", "published"),
+  ).order("published_at", { ascending: false });
   return (data as AuthorArticle[] | null) ?? [];
 }
 

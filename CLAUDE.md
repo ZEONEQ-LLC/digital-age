@@ -1338,6 +1338,50 @@ Die festen Apple-Pfade `/apple-touch-icon.png` und
 bestehendes Home-Bildschirm-Lesezeichen behaelt sein altes Icon, bis es
 geloescht und neu angelegt wird.
 
+### Showcase S2a: Datenmodell fuer Unternehmensbeitraege, unsichtbar (PR 209)
+
+Zweiter Schritt des Plans «Swiss AI Showcase». Auf der Website aendert sich
+nichts; die gekennzeichneten Seiten (`/showcase/<slug>`) kommen mit S2b.
+
+- **Felder an `articles`:** `content_type` ('editorial' | 'company'),
+  `startup_id` (Pflicht bei company), `is_paid` (nur bei company, Kennzeichnung
+  «Publireportage» statt «Unternehmensbeitrag»). CHECKs in der Migration
+  `20261114140000_showcase_datenmodell.sql`, dazu: company ist nie Featured
+  oder Hero.
+- **Kategorie `showcase`:** Unternehmensbeitraege liegen immer dort, redaktionelle
+  Artikel nie. Der Trigger `articles_guard_content_type` setzt das durch
+  (company: Kategorie wird ueberschrieben; redaktionell in showcase: Fehler
+  `showcase_category_reserved`). So bleibt `category_id` NOT NULL, und
+  Rubrikseiten schliessen Unternehmensbeitraege von selbst aus. Die Kategorie
+  ist im Editor-Dropdown nicht waehlbar und nie Ziel eines Pitches.
+- **Nur die Redaktion aendert die Einordnung.** Der Trigger weist Aenderungen
+  an den drei Feldern durch Nicht-Editoren ab (`content_type_editor_only`).
+  Autor:innen duerfen ihre Entwuerfe per RLS sonst frei bearbeiten. Ohne Login
+  (Service-Role, Migration) ist die Aenderung erlaubt.
+- **Ein Weg im Code:** `setArticleContentType` (`src/lib/contentTypeActions.ts`),
+  im Editor die Box «Inhaltstyp» im Details-Tab (`ContentTypeBox.tsx`), wirkt
+  sofort und nicht ueber «Speichern». `saveArticle` entfernt die drei Felder
+  aus dem Patch. Reine Logik und Meldungen: `src/lib/contentType.ts`.
+- **`editorialOnly(query)`** an jeder redaktionellen Liste: Startseite, Tags,
+  Autorenprofil, «Mehr von diesem Autor», `generateStaticParams`,
+  `getArticleBySlug`, Newsletter-Entwurf (2), Newsletter-Kandidaten, Sitemap,
+  Suche, Linkauswahl im Editor, Podcast-Karte, Werbe-Vorschau. Der Test
+  `contentType.manual.ts` prueft die Liste der Dateien. **Neue Abfrage auf
+  publizierte Artikel = `editorialOnly` setzen und im Test eintragen.**
+- **Publizieren gesperrt bis S2b:** `SHOWCASE_PUBLISHING_ENABLED = false` in
+  `contentType.ts`. Solange gilt: Ein Unternehmensbeitrag laesst sich nicht
+  publizieren, ein publizierter Artikel nicht umstellen. Sonst stuende er ohne
+  Kennzeichnung unter `/artikel/<slug>`. S2b stellt den Schalter um, leitet
+  `/artikel/<slug>` weiter und ersetzt den Filter in Suche und Sitemap durch
+  gekennzeichnete Eintraege.
+- **Revisionen:** Der Snapshot enthaelt die Einordnung, ein Wechsel erzeugt
+  eine Revision. Ein Restore aendert die Einordnung **nie**
+  (`REVISION_NOT_RESTORED_FIELDS`), und die Kategorie folgt der heutigen
+  Einordnung. Sonst machte ein alter Stand einen Unternehmensbeitrag still
+  wieder redaktionell.
+- **Startup loeschen:** `on delete restrict`. Ein Unternehmen mit Beitraegen
+  laesst sich nicht loeschen, die Meldung kommt aus `contentTypeDbError`.
+
 ### News-Ticker: mehrere Laeufe pro Tag, Gedaechtnis fuer Aussortiertes (PR 208)
 
 Ausloeser: Am Samstagmittag stand auf der Startseite als neueste Meldung

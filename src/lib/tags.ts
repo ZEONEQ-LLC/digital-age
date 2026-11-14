@@ -1,6 +1,7 @@
 // Alle Funktionen sind Public-Read (RLS: tags_public_read,
 // article_tags-public-read, status=published an articles).
 // Anon-Client → kein cookies(), Public-Pages bleiben cachebar.
+import { editorialOnly } from "@/lib/contentType";
 import { createPublicClient } from "@/lib/supabase/public";
 import type { ArticleWithRelations } from "@/lib/articleApi";
 
@@ -66,13 +67,15 @@ export async function getArticlesByTagSlug(
   const articleIds = (junction ?? []).map((j) => j.article_id);
   if (articleIds.length === 0) return [];
 
-  const { data: articles } = await supabase
-    .from("articles")
-    .select(
-      "*, category:categories(slug, name_de, name_en), author:authors(slug, display_name, avatar_url, handle, role)",
-    )
-    .in("id", articleIds)
-    .eq("status", "published")
+  const { data: articles } = await editorialOnly(
+    supabase
+      .from("articles")
+      .select(
+        "*, category:categories(slug, name_de, name_en), author:authors(slug, display_name, avatar_url, handle, role)",
+      )
+      .in("id", articleIds)
+      .eq("status", "published"),
+  )
     .order("published_at", { ascending: false })
     .limit(limit);
   return (articles as ArticleWithRelations[] | null) ?? [];

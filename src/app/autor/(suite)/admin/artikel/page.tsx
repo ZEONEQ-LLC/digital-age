@@ -1,6 +1,7 @@
 import PageTitle from "@/components/author/PageTitle";
 import { createClient } from "@/lib/supabase/server";
 import AdminArticlesClient, { type AdminArticleRow } from "./AdminArticlesClient";
+import { contentTypeLabel } from "@/lib/contentType";
 
 export default async function AdminArticlesPage() {
   const supabase = await createClient();
@@ -9,7 +10,7 @@ export default async function AdminArticlesPage() {
     supabase
       .from("articles")
       .select(
-        "id, slug, title, status, cover_image_url, published_at, reading_minutes, word_count, author_id, category_id, tags, is_featured, is_hero",
+        "id, slug, title, status, cover_image_url, published_at, reading_minutes, word_count, author_id, category_id, tags, is_featured, is_hero, content_type, is_paid",
       )
       .order("published_at", { ascending: false, nullsFirst: false }),
     supabase
@@ -46,6 +47,7 @@ export default async function AdminArticlesPage() {
     tags: a.tags ?? [],
     isFeatured: a.is_featured ?? false,
     isHero: a.is_hero ?? false,
+    contentLabel: contentTypeLabel(a),
   }));
 
   return (

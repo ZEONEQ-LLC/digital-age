@@ -1,5 +1,6 @@
 "use server";
 
+import { isCompany } from "@/lib/contentType";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/database.types";
@@ -130,11 +131,16 @@ export async function updateFeaturedStatus(
 
   const { data: article, error: articleErr } = await supabase
     .from("articles")
-    .select("id, category_id, is_featured, is_hero")
+    .select("id, category_id, is_featured, is_hero, content_type")
     .eq("id", articleId)
     .maybeSingle();
   if (articleErr || !article) {
     return { ok: false, code: "INVALID", message: "Artikel nicht gefunden." };
+  }
+  // Aufmacher und Featured sind redaktionelle Plaetze (DB-CHECK
+  // articles_company_not_featured).
+  if (isCompany(article) && (isFeatured || isHero)) {
+    return { ok: false, code: "INVALID", message: "Unternehmensbeiträge können nicht Featured oder Hero sein." };
   }
 
   // Max-3-Featured-Check: nur wenn der Artikel NEU featured wird

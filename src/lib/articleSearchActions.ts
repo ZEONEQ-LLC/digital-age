@@ -1,5 +1,6 @@
 "use server";
 
+import { editorialOnly } from "@/lib/contentType";
 import { createClient } from "@/lib/supabase/server";
 
 export type ArticleSearchResult = {
@@ -24,10 +25,14 @@ export async function searchPublishedArticles(
   const supabase = await createClient();
   const limit = Math.min(options.limit ?? 10, 25);
 
-  let req = supabase
-    .from("articles")
-    .select("id, slug, title, excerpt, cover_image_url, category:categories(slug)")
-    .eq("status", "published")
+  // Nur redaktionelle Artikel: Die interne Artikelkarte verlinkt auf
+  // /artikel/<slug>, dort gibt es keine Unternehmensbeitraege.
+  let req = editorialOnly(
+    supabase
+      .from("articles")
+      .select("id, slug, title, excerpt, cover_image_url, category:categories(slug)")
+      .eq("status", "published"),
+  )
     .ilike("title", `%${q}%`)
     .limit(limit);
 
