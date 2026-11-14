@@ -16,12 +16,17 @@ import { getBaseUrl } from "@/lib/siteUrl";
 
 export const revalidate = 300;
 
-export const metadata = buildListingMetadata({
-  path: "/swiss-ai",
-  title: "Swiss AI — Schweizer KI-Unternehmen im Verzeichnis",
-  description:
-    "Über 50 Schweizer KI-Unternehmen im kuratierten Verzeichnis: von Forschungs-Spin-offs bis Industrie-Anwender, mit Standort, Branche und Investor-Signal.",
-});
+// Eine Zahl fuer Liste, Filter und Meta-Beschreibung (S1; vorher «Über 50»
+// fest im Text neben 52 im Filter und 51 ueber der Liste).
+export async function generateMetadata() {
+  let count = 0;
+  try { count = (await getPublishedStartups()).length; } catch { /* Beschreibung ohne Zahl */ }
+  return buildListingMetadata({
+    path: "/swiss-ai",
+    title: "Swiss AI — Schweizer KI-Unternehmen im Verzeichnis",
+    description: `${count > 0 ? `${count} ` : ""}Schweizer KI-Unternehmen im kuratierten Verzeichnis: von Forschungs-Spin-offs bis Industrie-Anwender, mit Standort, Branche und Angaben für Investoren.`,
+  });
+}
 
 export default async function SwissAIPage() {
   const [allRows, featuredRows, industries, cities] = await Promise.all([

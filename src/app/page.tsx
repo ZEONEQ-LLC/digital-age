@@ -12,6 +12,7 @@ import Footer from "@/components/Footer";
 import { getHomeArticles } from "@/lib/homeApi";
 import { getLatestNews } from "@/lib/newsApi";
 import { getPublishedStartups } from "@/lib/startupApi";
+import { lookupSwissStatus } from "@/lib/mappers/startupMappers";
 import { buildListingMetadata } from "@/lib/listingMetadata";
 import { getBaseUrl } from "@/lib/siteUrl";
 import {
@@ -68,6 +69,8 @@ export default async function Home() {
     city: s.city,
     industry: s.industry,
     href: `/swiss-ai/${s.slug}`,
+    statusLabel: lookupSwissStatus(s.swiss_status).label,
+    affiliated: !!s.affiliation_note?.trim(),
   }));
 
   const baseUrl = getBaseUrl();

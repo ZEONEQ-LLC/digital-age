@@ -673,7 +673,7 @@ export default function EinreichenPage() {
                     <div className="field">
                       <label className="ein-check">
                         <input type="checkbox" checked={data.agreed} onChange={(e) => update("agreed", e.target.checked)} />
-                        <span>Ich bestätige, dass die Angaben korrekt sind und ich berechtigt bin, dieses Unternehmen einzutragen. Ich akzeptiere die <a href="/datenschutzerklaerung">Nutzungsbedingungen</a>.</span>
+                        <span>Ich bestätige, dass die Angaben korrekt sind und ich berechtigt bin, dieses Unternehmen einzutragen. Ich habe die <Link href="/swiss-ai/regeln" target="_blank">Regeln des Verzeichnisses</Link> und die <Link href="/datenschutzerklaerung" target="_blank">Datenschutzerklärung</Link> gelesen.</span>
                       </label>
                       {errors.agreed && <p className="err-msg">{errors.agreed}</p>}
                     </div>

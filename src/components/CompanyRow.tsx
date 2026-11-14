@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { StartupCardVM } from "@/lib/mappers/startupMappers";
+import { AFFILIATION_LABEL } from "@/lib/startupTrust";
 
 type CompanyRowProps = {
   company: StartupCardVM;
@@ -57,7 +58,10 @@ export default function CompanyRow({ company, accent = "var(--da-green)" }: Comp
         <div className="crow__bar" />
         <div className="crow__name">
           <div className="crow__name-text">{company.name}</div>
-          <div className="crow__name-sub">{company.city} · {company.founded_year}</div>
+          <div className="crow__name-sub">
+            {company.city} · {company.founded_year}
+            {company.affiliation_note && <span title={company.affiliation_note}> · {AFFILIATION_LABEL}</span>}
+          </div>
         </div>
         <div className="crow__tagline">{company.tagline}</div>
         <span className="crow__status">🇨🇭 {company.swiss_status_label}</span>

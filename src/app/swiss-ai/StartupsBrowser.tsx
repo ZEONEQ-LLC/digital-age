@@ -8,6 +8,7 @@ import ViewToggle, { type ViewMode } from "@/components/ViewToggle";
 import ModuleSlot, { type SlotReserve } from "@/components/module/ModuleSlot";
 import { SWISS_STATUSES, EMPLOYEE_RANGES, type StartupCardVM } from "@/lib/mappers/startupMappers";
 import type { SwissStatusCode, EmployeeRangeCode } from "@/lib/startupApi";
+import { RULES_PATH, directoryCountLabel } from "@/lib/startupTrust";
 
 type Props = {
   moduleReserve?: SlotReserve;
@@ -94,6 +95,11 @@ export default function StartupsBrowser({ moduleReserve, all, featured, industri
         .sa-section-h { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-6); }
         .sa-section-h__bar { width: 3px; height: 22px; background: var(--da-green); border-radius: 2px; }
         .sa-section-h__title { color: var(--da-text); font-family: var(--da-font-display); font-size: 22px; font-weight: 700; }
+        /* Verweise auf die Regelseite (S1). */
+        .sa-rules-link { color: var(--da-muted); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
+        .sa-rules-link:hover { color: var(--da-green); }
+        .sa-rules-link--head { margin-left: auto; }
+        .sa-rules-link--aside { display: block; line-height: 1.5; }
 
         .sa-feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-5); }
 
@@ -191,6 +197,7 @@ export default function StartupsBrowser({ moduleReserve, all, featured, industri
           <div className="sa-section-h">
             <span className="sa-section-h__bar" />
             <h2 className="sa-section-h__title">Spotlight</h2>
+            <Link href={`${RULES_PATH}#spotlight`} className="sa-rules-link sa-rules-link--head">Redaktionell vergeben, nicht käuflich</Link>
           </div>
           <div className="sa-feat-grid">
             {featured.map((c) => <CompanyCard key={c.id} company={c} accent={accent} />)}
@@ -305,13 +312,16 @@ export default function StartupsBrowser({ moduleReserve, all, featured, industri
               <p className="sa-cta-eintragen__hint">Kosten- und bedingungslos eintragen lassen.</p>
               <span className="sa-cta-eintragen__btn">Einreichen →</span>
             </Link>
+            <Link href={RULES_PATH} className="sa-rules-link sa-rules-link--aside">
+              Aufnahme, Status, Spotlight und Interessenbindungen: so führen wir das Verzeichnis →
+            </Link>
             <ModuleSlot code="swiss_ai_sidebar" ressortSlug="swiss-ai" reserve={moduleReserve} />
           </aside>
 
           <div>
             <div className="sa-toolbar">
               <p className="sa-toolbar__count">
-                {nonFeatured.length} {nonFeatured.length === 1 ? "Unternehmen" : "Unternehmen"}
+                {directoryCountLabel(filtered.length, filtered.filter((c) => c.is_featured).length)}
                 {hasFilter && (
                   <button type="button" className="sa-toolbar__reset" onClick={resetFilters}>
                     Filter zurücksetzen ×

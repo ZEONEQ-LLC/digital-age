@@ -1330,6 +1330,57 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+**Icons.** `src/app/favicon.ico` (16/32/48), `icon.png` (192 px, transparent)
+und `apple-icon.png` (180 px, deckend weiss; iOS fuellt Transparenz schwarz).
+Die festen Apple-Pfade `/apple-touch-icon.png` und
+`/apple-touch-icon-precomposed.png` laufen per Rewrite in `next.config.ts` auf
+`/apple-icon.png`. Bei einer neuen Figur alle drei Dateien neu erzeugen. Ein
+bestehendes Home-Bildschirm-Lesezeichen behaelt sein altes Icon, bis es
+geloescht und neu angelegt wird.
+
+### Swiss AI S1: Offenlegung, «Daten bestätigt», Regelseite, Zaehler (PR 207)
+
+Erster Schritt des Plans «Swiss AI Showcase» (Uebergabe und Diagnose vom
+13.11.2026 in `claude code workresults/swiss-ai-showcase-diagnose-2026-11-13.md`,
+Schnitt S1 → S2a → S2b → S3a → S3b → S4 → S5 → S6): Glaubwuerdigkeit des
+Verzeichnisses, bevor Unternehmensbeitraege kommen.
+- **DB** (`20261114090000_startup_trust_fields.sql`, additiv, vor dem Preview
+  gepusht): `ai_startups.affiliation_note` (max 300) und `verified_at`. **anon
+  liest `ai_startups` nur ueber Spaltenrechte** (PR 194), darum im selben File
+  `grant select (affiliation_note, verified_at) … to anon` und beide Spalten in
+  `PUBLIC_STARTUP_COLUMNS`; ohne das scheitert jede oeffentliche Abfrage. Dazu
+  Daten: Offenlegung fuer Connect AI Group und ZEONEQ GmbH (Herausgeberin),
+  Stadt «Zurich» → «Zürich».
+- **Offenlegung** (`AFFILIATION_LABEL` «Mit dem Herausgeber verbunden» in
+  `src/lib/startupTrust.ts`): Karte, Zeile, Startseiten-Streifen (nur Label),
+  Profil (Label plus Text plus Link `#interessen`). Pflege im Admin-Drawer.
+- **«Daten bestätigt am»:** `confirmStartupData` (Knopf im Drawer) setzt
+  `verified_at`; Anzeige unter der Tagline im Profil. Bewusst nicht `updated_at`.
+- **Ein Begriff «Offen für Investoren»** (`INVESTOR_LABEL`) statt «Investor-Ready»
+  auf der Karte und «Offen für Investoren» im Profil (dasselbe Feld
+  `open_to_investment`). Auf der Karte steht er als zweite Zeile neben dem Logo,
+  nicht mehr als Badge oben rechts (der laengere Begriff ueberlappte dort auf
+  dem Handy den Status). Profil: Hinweis «Angaben des Unternehmens …, keine
+  Anlageempfehlung». Admin: `investorInfoStale` (nie bestaetigt, aelter als 12
+  Monate, letzte Runde aelter als 18 Monate) zeigt «✓ prüfen» in der Liste und
+  einen Hinweis im Drawer; kein automatisches Ausblenden.
+- **Regelseite `/swiss-ai/regeln`** (Code-Seite, weil CMS-Ueberschriften
+  zufaellige IDs haben): Anker `#aufnahme`, `#status`, `#investoren`,
+  `#spotlight`, `#daten`, `#anzeigen`, `#interessen`. Status-Definitionen aus
+  `SWISS_STATUSES` (dieselben wie im Einreichformular; «Swiss Founded» heisst
+  jetzt «In der Schweiz gegründet»). Profil-Badges, Spotlight-Kopf und
+  Seitenleiste verlinken dorthin. Der Abschnitt «Showcase» kommt mit S2b.
+- **Zaehler aus einer Quelle:** `directoryCountLabel` («52 Unternehmen, davon 1
+  im Spotlight»), Meta-Beschreibung per `generateMetadata` mit der Zahl (vorher
+  52 im Filter, 51 ueber der Liste, «Über 50» im Meta).
+- **Stadt:** `normalizeCity` (`src/lib/startupCity.ts`) beim Einreichen und
+  Speichern. Tests `startupCity.manual.ts`, `startupTrust.manual.ts`.
+- Startseiten-Streifen zeigt das echte Status-Label (vorher fest «Swiss Based»).
+  Einreichformular: «Regeln des Verzeichnisses» und «Datenschutzerklärung»
+  statt «Nutzungsbedingungen» (Link fuehrte auf die Datenschutzerklaerung).
+- **Sitemap** `export const revalidate = 3600` (vorher nur beim Build erzeugt),
+  `/swiss-ai/regeln` eingetragen.
+
 ### KI-Plattformen aus festen Quellen, Inhaltskorrekturen (PR 206)
 
 **Plattform-Job ohne Websuche** (Wunsch Ali 13.11.2026: eine verlaessliche Quelle,

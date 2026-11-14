@@ -22,6 +22,8 @@ export type StartupCardVM = {
   founded_year: number;
   is_featured: boolean;
   is_open_to_investment: boolean;
+  // Offenlegung (S1): gesetzt = «Mit dem Herausgeber verbunden».
+  affiliation_note: string | null;
 };
 
 export const SWISS_STATUSES: readonly {
@@ -43,14 +45,14 @@ export const SWISS_STATUSES: readonly {
     label: "Swiss Founded",
     badge: "SWISS FOUNDED",
     color: "var(--da-orange)",
-    description: "Schweizer Gründer, international tätig",
+    description: "In der Schweiz gegründet",
   },
   {
     code: "active_in_ch",
     label: "Active in CH",
     badge: "ACTIVE IN CH",
     color: "var(--da-purple)",
-    description: "Internationale Firma mit Schweizer Präsenz",
+    description: "Hauptsitz im Ausland, mit wesentlicher Tätigkeit in der Schweiz",
   },
 ];
 
@@ -116,5 +118,6 @@ export function startupToCardVM(row: PublicStartupRow): StartupCardVM {
     founded_year: row.founded_year,
     is_featured: row.status === "featured",
     is_open_to_investment: row.open_to_investment,
+    affiliation_note: row.affiliation_note?.trim() || null,
   };
 }

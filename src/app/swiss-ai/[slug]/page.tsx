@@ -16,6 +16,7 @@ import { getBaseUrl } from "@/lib/siteUrl";
 import { createPublicClient } from "@/lib/supabase/public";
 import StartupContactForm from "@/components/StartupContactForm";
 import { startupAcceptsContact } from "@/lib/startupContact/data";
+import { AFFILIATION_LABEL, INVESTOR_LABEL, RULES_PATH, formatVerifiedDate } from "@/lib/startupTrust";
 
 type Params = Promise<{ slug: string }>;
 
@@ -75,6 +76,8 @@ export default async function StartupDetailPage({ params }: { params: Params }) 
   const lastRoundFormatted = formatDate(row.last_round_at);
   const hasInvestorBlock = row.open_to_investment || fundingLabel || row.total_funding_range || lastRoundFormatted || row.pitch_deck_url;
   const isFeatured = row.status === "featured";
+  const affiliation = row.affiliation_note?.trim() || null;
+  const verifiedOn = formatVerifiedDate(row.verified_at);
   // «Kontakt aufnehmen» nur mit Einverstaendnis des Startups (startup_contacts).
   const acceptsContact = await startupAcceptsContact(row.id);
 
@@ -121,6 +124,19 @@ export default async function StartupDetailPage({ params }: { params: Params }) 
         .sd-badge--swiss { background: rgba(50,255,126,0.10); border: 1px solid var(--swiss-color); color: var(--swiss-color); }
         .sd-badge--feat  { background: var(--da-green); color: var(--da-dark); }
         .sd-badge--inv   { background: rgba(255,140,66,0.18); color: var(--da-orange); border: 1px solid rgba(255,140,66,0.5); }
+        a.sd-badge { text-decoration: none; }
+        a.sd-badge:hover { filter: brightness(1.15); }
+        a.sd-badge:focus-visible { outline: 2px solid var(--da-green); outline-offset: 2px; }
+        /* Offenlegung und «Daten bestätigt am» (S1). */
+        .sd-aff {
+          margin: 0 0 28px; padding: 12px 16px; border-left: 3px solid var(--da-orange);
+          background: var(--da-card); color: var(--da-text-strong); font-size: 14px; line-height: 1.55;
+        }
+        .sd-aff b { color: var(--da-text); font-weight: 600; }
+        .sd-aff a, .sd-verified a, .sd-inv__note a { color: var(--da-muted); text-decoration: underline; text-underline-offset: 3px; }
+        .sd-aff a:hover, .sd-verified a:hover, .sd-inv__note a:hover { color: var(--da-green); }
+        .sd-verified { color: var(--da-muted); font-size: 13px; margin-top: 10px; }
+        .sd-inv__note { color: var(--da-muted); font-size: 13px; line-height: 1.5; margin: 14px 0 0; }
 
         .sd-name {
           color: var(--da-text); font-family: var(--da-font-display);
@@ -251,13 +267,22 @@ export default async function StartupDetailPage({ params }: { params: Params }) 
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="sd-head-meta">
               <span className="sd-badge sd-badge--swiss">🇨🇭 {swiss.badge}</span>
-              {isFeatured && <span className="sd-badge sd-badge--feat">Spotlight</span>}
-              {row.open_to_investment && <span className="sd-badge sd-badge--inv">Investor-Ready</span>}
+              {isFeatured && <Link href={`${RULES_PATH}#spotlight`} className="sd-badge sd-badge--feat" title="Was bedeutet Spotlight?">Spotlight</Link>}
+              {row.open_to_investment && <Link href={`${RULES_PATH}#investoren`} className="sd-badge sd-badge--inv" title={`Was bedeutet «${INVESTOR_LABEL}»?`}>{INVESTOR_LABEL}</Link>}
             </div>
             <h1 className="sd-name">{row.name}</h1>
             <p className="sd-tagline">{row.tagline}</p>
+            {verifiedOn && (
+              <p className="sd-verified">Daten bestätigt am {verifiedOn} · <Link href={`${RULES_PATH}#daten`}>Was heisst das?</Link></p>
+            )}
           </div>
         </div>
+
+        {affiliation && (
+          <p className="sd-aff">
+            <b>{AFFILIATION_LABEL}.</b> {affiliation} <Link href={`${RULES_PATH}#interessen`}>Interessenbindungen</Link>
+          </p>
+        )}
 
         <div className="sd-section">
           <p className="sd-section__label">Über das Unternehmen</p>
@@ -301,7 +326,7 @@ export default async function StartupDetailPage({ params }: { params: Params }) 
             <div className="sd-inv">
               <div className="sd-inv__head">
                 <span>✦</span>
-                <p className="sd-inv__title">{row.open_to_investment ? "Offen für Investoren" : "Investor-Info"}</p>
+                <p className="sd-inv__title">{row.open_to_investment ? INVESTOR_LABEL : "Investor-Info"}</p>
               </div>
               <div className="sd-inv__list">
                 {fundingLabel && (
@@ -328,6 +353,10 @@ export default async function StartupDetailPage({ params }: { params: Params }) 
                   Pitch Deck ansehen →
                 </a>
               )}
+              <p className="sd-inv__note">
+                Angaben des Unternehmens oder aus öffentlichen Quellen, von uns nicht geprüft. Keine Anlageempfehlung.{" "}
+                <Link href={`${RULES_PATH}#investoren`}>So lesen wir diese Angaben</Link>
+              </p>
             </div>
           </div>
         )}

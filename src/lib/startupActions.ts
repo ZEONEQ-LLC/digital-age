@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { normalizeCity } from "@/lib/startupCity";
 import { createClient } from "@/lib/supabase/server";
 import {
   sendSubmissionApproved,
@@ -93,7 +94,7 @@ async function submitStartupExternalInner(input: ExternalStartupSubmitInput): Pr
   const tagline = input.tagline.trim();
   const description = input.description.trim();
   const website = input.website.trim();
-  const city = input.city.trim();
+  const city = normalizeCity(input.city);
   const industry = input.industry.trim();
   const submitterName = input.submitter_name.trim();
   const submitterEmail = input.submitter_email.trim();
@@ -344,6 +345,22 @@ async function toggleInvestorReadyInner(id: string): Promise<void> {
   revalidateAll();
 }
 
+// «Daten bestätigt» (S1): setzt verified_at auf jetzt (Unternehmen oder
+// Redaktion hat die Angaben geprüft). Sichtbar auf dem Profil.
+export async function confirmStartupData(id: string): Promise<ActionResult<{ verifiedAt: string }>> {
+  return runAction("startup.confirmStartupData", async () => {
+    await requireEditor();
+    const supabase = await createClient();
+    const verifiedAt = new Date().toISOString();
+    const { data, error } = await supabase.from("ai_startups").update({ verified_at: verifiedAt }).eq("id", id).select("slug");
+    if (error) throw error;
+    if (!data || data.length === 0) throw new FormError("Startup nicht gefunden.");
+    revalidateAll();
+    revalidatePath(`/swiss-ai/${data[0].slug}`);
+    return { verifiedAt };
+  });
+}
+
 export type UpdateStartupPatch = Partial<{
   slug: string;
   name: string;
@@ -362,6 +379,7 @@ export type UpdateStartupPatch = Partial<{
   open_to_investment: boolean;
   pitch_deck_url: string | null;
   founder_names: string[] | null;
+  affiliation_note: string | null;
 }>;
 
 export async function updateStartup(id: string, patch: UpdateStartupPatch): Promise<ActionResult<StartupRow>> {
@@ -409,7 +427,7 @@ async function updateStartupInner(id: string, patch: UpdateStartupPatch): Promis
     update.industry = i;
   }
   if (patch.city !== undefined) {
-    const c = patch.city.trim();
+    const c = normalizeCity(patch.city);
     if (!c) throw new FormError("Stadt ist erforderlich.");
     update.city = c;
   }
@@ -425,6 +443,11 @@ async function updateStartupInner(id: string, patch: UpdateStartupPatch): Promis
   if (patch.last_round_at !== undefined) update.last_round_at = patch.last_round_at || null;
   if (patch.open_to_investment !== undefined) update.open_to_investment = patch.open_to_investment;
   if (patch.pitch_deck_url !== undefined) update.pitch_deck_url = patch.pitch_deck_url?.trim() || null;
+  if (patch.affiliation_note !== undefined) {
+    const a = patch.affiliation_note?.replace(/\s+/g, " ").trim() || null;
+    if (a && a.length > 300) throw new FormError("Offenlegung zu lang (max 300 Zeichen).");
+    update.affiliation_note = a;
+  }
   if (patch.founder_names !== undefined) {
     update.founder_names = patch.founder_names && patch.founder_names.length > 0 ? patch.founder_names : null;
   }
@@ -444,6 +467,8 @@ async function updateStartupInner(id: string, patch: UpdateStartupPatch): Promis
     throw error;
   }
   revalidateAll();
+  // Profilseite sofort neu (Offenlegung, Stadt, Status); sonst bis zu 5 Min ISR.
+  revalidatePath(`/swiss-ai/${data.slug}`);
   return data;
 }
 

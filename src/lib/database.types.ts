@@ -860,6 +860,7 @@ export type Database = {
       }
       ai_startups: {
         Row: {
+          affiliation_note: string | null
           city: string
           created_at: string
           description: string
@@ -887,9 +888,11 @@ export type Database = {
           tagline: string
           total_funding_range: string | null
           updated_at: string
+          verified_at: string | null
           website: string
         }
         Insert: {
+          affiliation_note?: string | null
           city: string
           created_at?: string
           description: string
@@ -917,9 +920,11 @@ export type Database = {
           tagline: string
           total_funding_range?: string | null
           updated_at?: string
+          verified_at?: string | null
           website: string
         }
         Update: {
+          affiliation_note?: string | null
           city?: string
           created_at?: string
           description?: string
@@ -947,6 +952,7 @@ export type Database = {
           tagline?: string
           total_funding_range?: string | null
           updated_at?: string
+          verified_at?: string | null
           website?: string
         }
         Relationships: [
