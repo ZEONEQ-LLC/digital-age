@@ -13,7 +13,7 @@ export type StartupRow = Database["public"]["Tables"]["ai_startups"]["Row"];
 // Spaltenrechten auch gar nicht mehr lesen (Migration 20261112100000), ein
 // select("*") am Anon-Client wuerde dann scheitern.
 export const PUBLIC_STARTUP_COLUMNS =
-  "id, slug, name, tagline, description, website, logo_url, swiss_status, industry, city, employee_range, founded_year, funding_stage, total_funding_range, last_round_at, open_to_investment, pitch_deck_url, founder_names, status, published_at, created_at, updated_at";
+  "id, slug, name, tagline, description, website, logo_url, swiss_status, industry, city, employee_range, founded_year, funding_stage, total_funding_range, last_round_at, open_to_investment, pitch_deck_url, founder_names, status, published_at, created_at, updated_at, affiliation_note, verified_at";
 
 export type PublicStartupRow = Omit<
   StartupRow,

@@ -10,12 +10,14 @@ import {
   rejectStartup,
   toggleStartupFeatured,
   toggleInvestorReady,
+  confirmStartupData,
   updateStartup,
   archiveStartup,
   restoreStartupToPending,
   restoreStartupToPublished,
   deleteStartup,
 } from "@/lib/startupActions";
+import { formatVerifiedDate, investorInfoStale } from "@/lib/startupTrust";
 import {
   SWISS_STATUSES,
   EMPLOYEE_RANGES,
@@ -68,6 +70,7 @@ type EditDraft = {
   open_to_investment: boolean;
   pitch_deck_url: string;
   founder_names: string;
+  affiliation_note: string;
 };
 
 function startupToDraft(s: StartupRow): EditDraft {
@@ -89,6 +92,7 @@ function startupToDraft(s: StartupRow): EditDraft {
     open_to_investment: s.open_to_investment,
     pitch_deck_url: s.pitch_deck_url ?? "",
     founder_names: s.founder_names ? s.founder_names.join(", ") : "",
+    affiliation_note: s.affiliation_note ?? "",
   };
 }
 
@@ -119,6 +123,8 @@ export default function AdminStartupsClient({ initialStartups, contacts, request
     return c;
   }, [startups]);
 
+  // Stichtag fuer «veraltet»-Hinweise (Monatsgenauigkeit, einmal pro Mount).
+  const [now] = useState(() => new Date());
   const featuredCount = counts.featured;
   const spotlightFull = featuredCount >= 3;
 
@@ -188,6 +194,7 @@ export default function AdminStartupsClient({ initialStartups, contacts, request
         open_to_investment: draft.open_to_investment,
         pitch_deck_url: draft.pitch_deck_url || null,
         founder_names: founders.length > 0 ? founders : null,
+        affiliation_note: draft.affiliation_note.trim() || null,
       }));
     });
   }
@@ -310,6 +317,9 @@ export default function AdminStartupsClient({ initialStartups, contacts, request
         .as-input--mono { font-family: var(--da-font-mono); font-size: 12px; }
         .as-field-label { display: block; font-size: 11px; font-weight: 600; color: var(--da-text-strong); margin-bottom: 5px; font-family: var(--da-font-mono); text-transform: uppercase; letter-spacing: 0.06em; }
         .as-check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--da-text); }
+        .as-hint { color: var(--da-muted); font-size: 12px; line-height: 1.5; margin: 6px 0 0; }
+        .as-hint--warn { color: var(--da-orange); }
+        .as-verify { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--da-text); }
         .as-check-row input { accent-color: var(--da-green); }
 
         @media (max-width: 1100px) {
@@ -372,8 +382,11 @@ export default function AdminStartupsClient({ initialStartups, contacts, request
                 <span className="as-badge" style={{ background: ss.bg, color: ss.color }}>
                   {tabLabels[s.status as TabKey]}
                 </span>
-                <span style={{ color: s.open_to_investment ? "var(--da-orange)" : "var(--da-faint)", fontSize: 11, fontFamily: "var(--da-font-mono)" }}>
-                  {s.open_to_investment ? "✓ Ready" : "—"}
+                <span
+                  title={investorInfoStale(s, now) ?? undefined}
+                  style={{ color: s.open_to_investment ? "var(--da-orange)" : "var(--da-faint)", fontSize: 11, fontFamily: "var(--da-font-mono)", whiteSpace: "nowrap" }}
+                >
+                  {!s.open_to_investment ? "—" : investorInfoStale(s, now) ? "✓ prüfen" : "✓ Offen"}
                 </span>
                 <div className="as-actions">
                   <button className="as-btn" onClick={() => setPreview(s)}>Vorschau</button>
@@ -624,8 +637,46 @@ export default function AdminStartupsClient({ initialStartups, contacts, request
             <div className="as-modal__block">
               <label className="as-check-row">
                 <input type="checkbox" checked={draft.open_to_investment} onChange={(e) => updateDraft("open_to_investment", e.target.checked)} />
-                Offen für Investorengespräche
+                Offen für Investoren
               </label>
+              {investorInfoStale({ open_to_investment: draft.open_to_investment, last_round_at: draft.last_round_at || null, verified_at: editFor.verified_at }, now) && (
+                <p className="as-hint as-hint--warn">
+                  {investorInfoStale({ open_to_investment: draft.open_to_investment, last_round_at: draft.last_round_at || null, verified_at: editFor.verified_at }, now)}. Bitte beim Unternehmen nachfragen oder das Häkchen entfernen.
+                </p>
+              )}
+            </div>
+
+            <div className="as-modal__block">
+              <label className="as-field-label">Offenlegung: Verbindung zum Herausgeber (leer = keine)</label>
+              <textarea
+                className="as-input"
+                rows={2}
+                maxLength={300}
+                value={draft.affiliation_note}
+                onChange={(e) => updateDraft("affiliation_note", e.target.value)}
+                placeholder="z. B. Ali Soy, Herausgeber von digital age, ist CGO der …"
+              />
+              <p className="as-hint">Ist das Feld gefüllt, steht auf Karte, Profil und Startseite «Mit dem Herausgeber verbunden».</p>
+            </div>
+
+            <div className="as-modal__block">
+              <label className="as-field-label">Daten bestätigt</label>
+              <div className="as-verify">
+                <span>{formatVerifiedDate(editFor.verified_at) ? `Zuletzt am ${formatVerifiedDate(editFor.verified_at)}` : "Noch nie bestätigt"}</span>
+                <button
+                  type="button"
+                  className="as-btn"
+                  onClick={() => {
+                    const id = editFor.id;
+                    setEditFor(null);
+                    setDraft(null);
+                    wrap(id, async () => { unwrapAction(await confirmStartupData(id)); });
+                  }}
+                >
+                  Heute bestätigen
+                </button>
+              </div>
+              <p className="as-hint">Nur klicken, wenn das Unternehmen oder die Redaktion die Angaben geprüft hat. Nicht gespeicherte Änderungen in diesem Formular gehen dabei verloren.</p>
             </div>
 
             <div className="as-modal__actions">

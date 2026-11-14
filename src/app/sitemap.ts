@@ -6,6 +6,11 @@ import type { Database } from "@/lib/database.types";
 // Statische Hauptrouten — manuell gepflegt, kein Auto-Discovery. Priorities
 // und changeFrequencies sind grobe Hints für Crawler (Google ignoriert sie
 // faktisch, Bing/Yandex nutzen sie noch).
+// Stuendlich neu erzeugen (seit PR 207). Vorher entstand die Sitemap nur beim
+// Build: Ein neuer Artikel-Slug oder eine frisch indexierbare CMS-Seite
+// erschien erst nach dem naechsten Deploy (Befund 13.11.2026).
+export const revalidate = 3600;
+
 type StaticEntry = {
   path: string;
   priority: number;
@@ -27,6 +32,7 @@ const STATIC_ROUTES: StaticEntry[] = [
   { path: "/artikel-pitchen", priority: 0.4, changeFrequency: "yearly" },
   { path: "/ai-prompts/einreichen", priority: 0.3, changeFrequency: "yearly" },
   { path: "/swiss-ai/einreichen", priority: 0.3, changeFrequency: "yearly" },
+  { path: "/swiss-ai/regeln", priority: 0.3, changeFrequency: "yearly" },
   { path: "/kontakt", priority: 0.3, changeFrequency: "yearly" },
 ];
 

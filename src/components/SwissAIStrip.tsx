@@ -1,10 +1,15 @@
 import Link from "next/link";
+import { AFFILIATION_LABEL } from "@/lib/startupTrust";
 
 type SwissAIItem = {
   name: string;
   city: string;
   industry: string;
   href?: string;
+  // Status-Label des Eintrags (vorher stand bei allen fest «Swiss Based»).
+  statusLabel?: string;
+  // Offenlegung (S1): «Mit dem Herausgeber verbunden».
+  affiliated?: boolean;
 };
 
 type SwissAIStripProps = {
@@ -71,6 +76,7 @@ export default function SwissAIStrip({ items, href = "/swiss-ai" }: SwissAIStrip
           font-family: var(--da-font-mono);
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
+        .swiss-card__aff { color: var(--da-text-strong); font-size: 11px; margin-top: 8px; padding-left: 8px; border-left: 2px solid var(--da-orange); }
         @media (max-width: 640px) {
           .swiss-section { padding: var(--sp-10) var(--gutter) 0; }
         }
@@ -87,9 +93,10 @@ export default function SwissAIStrip({ items, href = "/swiss-ai" }: SwissAIStrip
         <div className="swiss-strip">
           {items.map((item) => (
             <Link key={item.name} href={item.href ?? href} className="swiss-card">
-              <div className="swiss-card__tag">🇨🇭 Swiss Based</div>
+              <div className="swiss-card__tag">🇨🇭 {item.statusLabel ?? "Swiss AI"}</div>
               <div className="swiss-card__name">{item.name}</div>
               <div className="swiss-card__meta">{item.industry} · {item.city}</div>
+              {item.affiliated && <div className="swiss-card__aff">{AFFILIATION_LABEL}</div>}
             </Link>
           ))}
         </div>

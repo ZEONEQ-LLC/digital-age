@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { StartupCardVM } from "@/lib/mappers/startupMappers";
+import { AFFILIATION_LABEL, INVESTOR_LABEL } from "@/lib/startupTrust";
 
 type CompanyCardProps = {
   company: StartupCardVM;
@@ -31,7 +32,14 @@ export default function CompanyCard({ company, accent = "var(--da-green)" }: Com
           padding: 3px 8px; border-radius: var(--r-xs);
         }
         .cc__badge--feat { background: var(--accent, var(--da-green)); color: var(--da-dark); }
-        .cc__badge--inv  { background: rgba(255,140,66,0.18); color: var(--da-orange); border: 1px solid rgba(255,140,66,0.5); }
+        /* «Offen für Investoren» als zweite Zeile neben dem Logo statt als
+           Badge oben rechts: Der längere Begriff (vorher «Investor-Ready»)
+           überlappte dort auf dem Handy den Status (S1). Neutral statt
+           orange, weil «Swiss Founded» selbst orange ist. */
+        .cc__inv {
+          color: var(--da-text-strong); font-family: var(--da-font-mono);
+          font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 5px;
+        }
         .cc__head { display: flex; align-items: center; gap: 12px; margin-bottom: var(--sp-4); }
         .cc__logo {
           width: 36px; height: 36px; border-radius: 6px;
@@ -56,6 +64,8 @@ export default function CompanyCard({ company, accent = "var(--da-green)" }: Com
           color: var(--da-muted); font-size: 13px; line-height: 1.55;
           margin-bottom: var(--sp-5); min-height: 40px;
         }
+        /* Offenlegung (S1): ruhig, aber immer sichtbar. */
+        .cc__aff { color: var(--da-text-strong); font-size: 12px; margin: calc(-1 * var(--sp-2)) 0 var(--sp-4); padding-left: 9px; border-left: 2px solid var(--da-orange); }
         .cc__meta { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
         .cc__chip {
           background: var(--da-dark); border: 1px solid var(--da-border);
@@ -72,7 +82,6 @@ export default function CompanyCard({ company, accent = "var(--da-green)" }: Com
       >
         <div className="cc__badges">
           {company.is_featured && <span className="cc__badge cc__badge--feat">Spotlight</span>}
-          {company.is_open_to_investment && <span className="cc__badge cc__badge--inv">Investor-Ready</span>}
         </div>
         <div className="cc__head">
           <div className="cc__logo" aria-hidden>
@@ -82,13 +91,17 @@ export default function CompanyCard({ company, accent = "var(--da-green)" }: Com
               company.name.charAt(0).toUpperCase()
             )}
           </div>
-          <div className="cc__status">
-            <span className="cc__status-dot" />
-            <span className="cc__status-text">🇨🇭 {company.swiss_status_label}</span>
+          <div>
+            <div className="cc__status">
+              <span className="cc__status-dot" />
+              <span className="cc__status-text">🇨🇭 {company.swiss_status_label}</span>
+            </div>
+            {company.is_open_to_investment && <div className="cc__inv">{INVESTOR_LABEL}</div>}
           </div>
         </div>
         <h3 className="cc__name">{company.name}</h3>
         <p className="cc__tagline">{company.tagline}</p>
+        {company.affiliation_note && <p className="cc__aff" title={company.affiliation_note}>{AFFILIATION_LABEL}</p>}
         <div className="cc__meta">
           <span className="cc__chip cc__chip--city">📍 {company.city}</span>
           <span className="cc__chip cc__chip--industry">{company.industry}</span>
