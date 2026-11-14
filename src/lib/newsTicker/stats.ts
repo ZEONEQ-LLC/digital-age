@@ -18,6 +18,9 @@ export type RefreshStats = {
   items_skipped_dedup: number;
   // Vom Modell als unpassend aussortiert ({"skip": true}).
   items_skipped_generation: number;
+  // Schon in einem frueheren Lauf aussortiert (news_items_skipped): kein
+  // KI-Aufruf. Aeltere Laeufe in last_refresh_stats haben das Feld nicht.
+  items_skipped_known?: number;
   // Kein brauchbares Ergebnis (KI-Fehler, Antwort im falschen Format). Seit
   // PR 191; aeltere Laeufe in last_refresh_stats haben das Feld nicht.
   items_failed?: number;
@@ -37,6 +40,7 @@ export function emptyRefreshStats(): RefreshStats {
     items_generated: 0,
     items_skipped_dedup: 0,
     items_skipped_generation: 0,
+    items_skipped_known: 0,
     items_failed: 0,
     errors: [],
   };
@@ -86,7 +90,10 @@ export function parseRefreshStats(raw: unknown): RefreshStats | null {
     items_generated: num(r.items_generated),
     items_skipped_dedup: num(r.items_skipped_dedup),
     items_skipped_generation: num(r.items_skipped_generation),
+    ...(typeof r.items_skipped_known === "number" ? { items_skipped_known: r.items_skipped_known } : {}),
     ...(typeof r.items_failed === "number" ? { items_failed: r.items_failed } : {}),
+    ...(typeof r.items_assessed === "number" ? { items_assessed: r.items_assessed } : {}),
+    ...(typeof r.assess_failed === "number" ? { assess_failed: r.assess_failed } : {}),
     errors,
     ...(r.paused === true ? { paused: true } : {}),
   };

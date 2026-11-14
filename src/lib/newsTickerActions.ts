@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import type { Database } from "@/lib/database.types";
 import { FormError, runAction, type ActionResult } from "@/lib/actionResult";
+import { normalizeHours } from "@/lib/newsTicker/schedule";
 
 type NewsSourceRow = Database["public"]["Tables"]["news_sources"]["Row"];
 type NewsSourceInsert = Database["public"]["Tables"]["news_sources"]["Insert"];
@@ -161,12 +163,27 @@ async function saveGenerationPromptInner(prompt: string): Promise<void> {
   if (!prompt.trim()) throw new FormError("Der Prompt darf nicht leer sein.");
 
   const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("news_ticker_config")
+    .select("generation_prompt")
+    .eq("id", 1)
+    .maybeSingle();
   const { error } = await supabase
     .from("news_ticker_config")
     .update({ generation_prompt: prompt })
     .eq("id", 1);
 
   if (error) throw error;
+
+  // Neuer Prompt, neue Auswahlregeln: gemerkte Aussortierte vergessen, damit
+  // der naechste Lauf sie nach den neuen Regeln beurteilt.
+  if ((before?.generation_prompt ?? "") !== prompt) {
+    const { error: clearErr } = await createServiceClient()
+      .from("news_items_skipped")
+      .delete()
+      .gte("skipped_at", "1970-01-01T00:00:00Z");
+    if (clearErr) console.error("[news-ticker] Aussortierte nicht geleert:", clearErr.message);
+  }
   revalidatePath("/autor/news-ticker");
 }
 
@@ -198,7 +215,8 @@ export type TickerSettings = {
   items_per_source: number;
   is_paused: boolean;
   scheduler_enabled: boolean;
-  scheduled_hour_cet: number;
+  // Laufstunden in Schweizer Zeit (0–23), aufsteigend, mindestens eine.
+  scheduled_hours_cet: number[];
 };
 
 export async function saveTickerSettings(s: TickerSettings): Promise<ActionResult<void>> {
@@ -213,12 +231,12 @@ async function saveTickerSettingsInner(s: TickerSettings): Promise<void> {
   if (!Number.isInteger(s.items_per_source) || s.items_per_source < 1 || s.items_per_source > 30) {
     throw new FormError("Items pro Quelle muss zwischen 1 und 30 liegen.");
   }
-  if (
-    !Number.isInteger(s.scheduled_hour_cet) ||
-    s.scheduled_hour_cet < 0 ||
-    s.scheduled_hour_cet > 23
-  ) {
-    throw new FormError("Scheduler-Stunde muss zwischen 0 und 23 liegen.");
+  const hours = normalizeHours(s.scheduled_hours_cet);
+  if (!Array.isArray(s.scheduled_hours_cet) || hours.length !== s.scheduled_hours_cet.length) {
+    throw new FormError("Laufzeiten müssen volle Stunden zwischen 0 und 23 sein.");
+  }
+  if (hours.length === 0) {
+    throw new FormError("Bitte mindestens eine Laufzeit wählen.");
   }
 
   const supabase = await createClient();
@@ -229,7 +247,9 @@ async function saveTickerSettingsInner(s: TickerSettings): Promise<void> {
       items_per_source: s.items_per_source,
       is_paused: s.is_paused,
       scheduler_enabled: s.scheduler_enabled,
-      scheduled_hour_cet: s.scheduled_hour_cet,
+      scheduled_hours_cet: hours,
+      // Alte Spalte mitziehen, solange sie besteht.
+      scheduled_hour_cet: hours[0],
     })
     .eq("id", 1);
 

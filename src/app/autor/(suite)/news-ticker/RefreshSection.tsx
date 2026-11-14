@@ -13,9 +13,12 @@ type Props = {
   lastStats: RefreshStats | null;
   // Neuester Eintrag im Ticker; stale = laenger als ein paar Tage her.
   latestItem: { label: string; stale: boolean } | null;
+  // Naechster automatischer Lauf («heute 18:00»); null, wenn der Scheduler aus
+  // oder der Ticker pausiert ist.
+  nextRunLabel: string | null;
 };
 
-export default function RefreshSection({ lastRefreshLabel, lastStats, latestItem }: Props) {
+export default function RefreshSection({ lastRefreshLabel, lastStats, latestItem, nextRunLabel }: Props) {
   const router = useRouter();
   const [stats, setStats] = useState<RefreshStats | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +45,8 @@ export default function RefreshSection({ lastRefreshLabel, lastStats, latestItem
         <span style={{ color: "var(--da-muted)", fontSize: 11, fontFamily: "var(--da-font-mono)", textAlign: "right" }}>
           Letzter Lauf: {lastRefreshLabel}
           <br />
+          Nächster Lauf: {nextRunLabel ?? "keiner geplant"}
+          <br />
           <span style={{ color: latestItem?.stale ? "var(--da-orange)" : "var(--da-muted)" }}>
             Neuester Eintrag: {latestItem ? latestItem.label : "keiner"}
           </span>
@@ -60,8 +65,8 @@ export default function RefreshSection({ lastRefreshLabel, lastStats, latestItem
         }}
       >
         <p style={{ color: "var(--da-muted)", fontSize: 13, lineHeight: 1.5, margin: 0 }}>
-          Holt alle aktiven Quellen ab und generiert pro neuem Item einen Ticker-Eintrag via LLM. Duplikate werden anhand
-          der Original-URL erkannt und übersprungen.
+          Holt alle aktiven Quellen ab und generiert pro neuem Item einen Ticker-Eintrag via LLM. Duplikate und früher
+          aussortierte Meldungen werden anhand der Original-URL erkannt und übersprungen.
         </p>
         <button
           type="button"
@@ -173,6 +178,9 @@ function StatsBox({ stats, title }: { stats: RefreshStats; title: string }) {
           ) : (
             <>
               <Row label="Items aussortiert (passt nicht)" value={stats.items_skipped_generation} />
+              {stats.items_skipped_known !== undefined && (
+                <Row label="Schon früher aussortiert (ohne KI-Aufruf)" value={stats.items_skipped_known} />
+              )}
               <Row label="Items fehlgeschlagen" value={failed} accent={failed > 0 ? "orange" : undefined} />
             </>
           )}

@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { saveTickerSettings, type TickerSettings } from "@/lib/newsTickerActions";
 import { unwrapAction } from "@/lib/actionResult";
+import { describeHours, formatHour, toggleHour } from "@/lib/newsTicker/schedule";
 
 type Props = {
   initial: TickerSettings;
@@ -30,7 +31,8 @@ export default function SettingsSection({ initial }: Props) {
     settings.items_per_source !== initial.items_per_source ||
     settings.is_paused !== initial.is_paused ||
     settings.scheduler_enabled !== initial.scheduler_enabled ||
-    settings.scheduled_hour_cet !== initial.scheduled_hour_cet;
+    settings.scheduled_hours_cet.join(",") !== initial.scheduled_hours_cet.join(",");
+  const noHours = settings.scheduled_hours_cet.length === 0;
 
   function save(next?: TickerSettings) {
     const toSave = next ?? settings;
@@ -196,30 +198,62 @@ export default function SettingsSection({ initial }: Props) {
                 Scheduler aktiv
               </p>
               <p style={{ color: "var(--da-muted)", fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
-                Wenn aktiv: automatischer Refresh täglich zur gewählten Uhrzeit (Schweizer Zeit, Sommerzeit-aware).
+                Wenn aktiv: automatischer Refresh täglich zu den gewählten Uhrzeiten (Schweizer Zeit, Sommerzeit-aware).
                 Master-Switch <code style={{ background: "var(--da-dark)", padding: "1px 5px", borderRadius: 3, fontSize: 11 }}>NEWS_TICKER_CRON_ENABLED</code> über Vercel-Env muss zusätzlich auf <code style={{ background: "var(--da-dark)", padding: "1px 5px", borderRadius: 3, fontSize: 11 }}>true</code> stehen.
               </p>
             </div>
           </label>
 
           <div>
-            <p style={{ color: "var(--da-text)", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-              Uhrzeit (Schweizer Zeit)
+            <p style={{ color: "var(--da-text)", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+              Laufzeiten (Schweizer Zeit)
             </p>
-            <select
-              value={settings.scheduled_hour_cet}
-              onChange={(e) =>
-                setSettings({ ...settings, scheduled_hour_cet: parseInt(e.target.value, 10) })
-              }
-              disabled={pending || !settings.scheduler_enabled}
-              style={{ ...inputStyle, width: 120, fontFamily: "var(--da-font-mono)" }}
+            <p style={{ color: "var(--da-muted)", fontSize: 12, marginBottom: 10, lineHeight: 1.5 }}>
+              Mehrere Stunden wählbar. KI-Kosten entstehen pro neuer Meldung, nicht pro Lauf: Was schon
+              übernommen oder aussortiert ist, wird nicht erneut beurteilt.
+            </p>
+            <div role="group" aria-label="Laufzeiten" className="nt-hours">
+              {Array.from({ length: 24 }, (_, h) => {
+                const on = settings.scheduled_hours_cet.includes(h);
+                return (
+                  <button
+                    key={h}
+                    type="button"
+                    aria-pressed={on}
+                    aria-label={`${formatHour(h)} Uhr`}
+                    className={`nt-hour${on ? " nt-hour--on" : ""}`}
+                    disabled={pending || !settings.scheduler_enabled}
+                    onClick={() =>
+                      setSettings({ ...settings, scheduled_hours_cet: toggleHour(settings.scheduled_hours_cet, h) })
+                    }
+                  >
+                    {String(h).padStart(2, "0")}
+                  </button>
+                );
+              })}
+            </div>
+            <p
+              role={noHours ? "alert" : undefined}
+              style={{ color: noHours ? "var(--da-orange)" : "var(--da-muted)", fontSize: 12, marginTop: 10, lineHeight: 1.5 }}
             >
-              {Array.from({ length: 24 }, (_, i) => (
-                <option key={i} value={i}>
-                  {String(i).padStart(2, "0")}:00
-                </option>
-              ))}
-            </select>
+              {noHours
+                ? "Bitte mindestens eine Laufzeit wählen."
+                : `Läuft täglich um ${describeHours(settings.scheduled_hours_cet)}.`}
+            </p>
+            <style>{`
+              .nt-hours { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; max-width: 520px; }
+              .nt-hour {
+                background: var(--da-dark); color: var(--da-muted); border: 1px solid var(--da-border);
+                border-radius: 4px; padding: 7px 0; font-family: var(--da-font-mono); font-size: 12px;
+                font-variant-numeric: tabular-nums; cursor: pointer; transition: border-color 0.15s, color 0.15s;
+              }
+              .nt-hour:hover:not(:disabled) { border-color: var(--da-muted); color: var(--da-text); }
+              .nt-hour:focus-visible { outline: 2px solid var(--da-green); outline-offset: 2px; }
+              .nt-hour--on { background: var(--da-green); border-color: var(--da-green); color: var(--da-dark); font-weight: 700; }
+              .nt-hour--on:hover:not(:disabled) { border-color: var(--da-green); color: var(--da-dark); }
+              .nt-hour:disabled { cursor: not-allowed; opacity: 0.5; }
+              @media (max-width: 560px) { .nt-hours { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+            `}</style>
           </div>
         </div>
 
@@ -231,7 +265,7 @@ export default function SettingsSection({ initial }: Props) {
           <button
             type="button"
             onClick={() => save()}
-            disabled={pending || !dirty}
+            disabled={pending || !dirty || noHours}
             style={{
               background: "var(--da-green)",
               color: "var(--da-dark)",
@@ -240,8 +274,8 @@ export default function SettingsSection({ initial }: Props) {
               padding: "8px 16px",
               fontSize: 13,
               fontWeight: 700,
-              cursor: pending || !dirty ? "not-allowed" : "pointer",
-              opacity: pending || !dirty ? 0.6 : 1,
+              cursor: pending || !dirty || noHours ? "not-allowed" : "pointer",
+              opacity: pending || !dirty || noHours ? 0.6 : 1,
               fontFamily: "inherit",
             }}
           >

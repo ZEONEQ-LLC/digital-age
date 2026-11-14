@@ -3,6 +3,7 @@ import { getAllSources, getLatestNewsItemAt, getNewsTickerConfig, getRecentNewsI
 import { readAssessment, readImportance } from "@/lib/newsTicker/assessment";
 import ItemsSection, { type AdminNewsItem } from "./ItemsSection";
 import { parseRefreshStats } from "@/lib/newsTicker/stats";
+import { DEFAULT_TICKER_HOURS, formatHour, hoursOrDefault, nextRunHour } from "@/lib/newsTicker/schedule";
 import type { TickerSettings } from "@/lib/newsTickerActions";
 import SourcesSection from "./SourcesSection";
 import PromptSection from "./PromptSection";
@@ -15,7 +16,7 @@ const DEFAULT_SETTINGS: TickerSettings = {
   items_per_source: 10,
   is_paused: false,
   scheduler_enabled: false,
-  scheduled_hour_cet: 7,
+  scheduled_hours_cet: [...DEFAULT_TICKER_HOURS],
 };
 
 // Modellwahl des News-Tickers (Task news_item_generation) liegt seit PR 190
@@ -90,9 +91,17 @@ export default async function NewsTickerAdminPage() {
         items_per_source: config.items_per_source ?? DEFAULT_SETTINGS.items_per_source,
         is_paused: config.is_paused ?? DEFAULT_SETTINGS.is_paused,
         scheduler_enabled: config.scheduler_enabled ?? DEFAULT_SETTINGS.scheduler_enabled,
-        scheduled_hour_cet: config.scheduled_hour_cet ?? DEFAULT_SETTINGS.scheduled_hour_cet,
+        scheduled_hours_cet: hoursOrDefault(config.scheduled_hours_cet),
       }
     : DEFAULT_SETTINGS;
+
+  // Naechster automatischer Lauf in Schweizer Zeit; der Cron prueft zur vollen
+  // Stunde.
+  const zurichHourNow =
+    parseInt(new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Zurich", hour: "numeric", hour12: false }).format(new Date()), 10) % 24;
+  const nextRun =
+    settings.scheduler_enabled && !settings.is_paused ? nextRunHour(settings.scheduled_hours_cet, zurichHourNow) : null;
+  const nextRunLabel = nextRun ? `${nextRun.tomorrow ? "morgen" : "heute"} ${formatHour(nextRun.hour)}` : null;
 
   return (
     <>
@@ -101,7 +110,12 @@ export default async function NewsTickerAdminPage() {
         subtitle="RSS-Quellen, Prompt und Modell für den KI-News-Ticker. Nur für Editoren."
       />
 
-      <RefreshSection lastRefreshLabel={lastRefreshLabel} lastStats={lastStats} latestItem={latestItem} />
+      <RefreshSection
+        lastRefreshLabel={lastRefreshLabel}
+        lastStats={lastStats}
+        latestItem={latestItem}
+        nextRunLabel={nextRunLabel}
+      />
 
       <div style={{ height: 40 }} />
 
