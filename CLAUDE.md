@@ -1330,6 +1330,14 @@ für `ad_bookings.period` (gen types: `unknown`), gelesen wird nur über
 
 **Farb-Token.** `--da-faint` ist ein Alias auf `--da-muted-soft` (beide #888).
 
+**Icons.** `src/app/favicon.ico` (16/32/48), `icon.png` (192 px, transparent)
+und `apple-icon.png` (180 px, deckend weiss; iOS fuellt Transparenz schwarz).
+Die festen Apple-Pfade `/apple-touch-icon.png` und
+`/apple-touch-icon-precomposed.png` laufen per Rewrite in `next.config.ts` auf
+`/apple-icon.png`. Bei einer neuen Figur alle drei Dateien neu erzeugen. Ein
+bestehendes Home-Bildschirm-Lesezeichen behaelt sein altes Icon, bis es
+geloescht und neu angelegt wird.
+
 ### Swiss AI S1: Offenlegung, «Daten bestätigt», Regelseite, Zaehler (PR 207)
 
 Erster Schritt des Plans «Swiss AI Showcase» (Uebergabe und Diagnose vom

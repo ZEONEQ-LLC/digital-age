@@ -82,6 +82,15 @@ const nextConfig: NextConfig = {
     }
     return rules;
   },
+  // Geraete und Vorschau-Dienste fragen das Home-Bildschirm-Icon unter den
+  // festen Apple-Pfaden ab, ohne das HTML zu lesen. Die Datei selbst liegt
+  // nach App-Router-Konvention in src/app/apple-icon.png.
+  async rewrites() {
+    return [
+      { source: "/apple-touch-icon.png", destination: "/apple-icon.png" },
+      { source: "/apple-touch-icon-precomposed.png", destination: "/apple-icon.png" },
+    ];
+  },
   async headers() {
     return [
       {
