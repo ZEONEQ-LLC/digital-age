@@ -155,7 +155,7 @@ const EDITORIAL_LISTS: [file: string, min: number, what: string][] = [
   ["src/app/artikel/[slug]/page.tsx", 1, "generateStaticParams"],
   ["src/lib/newsletter/draftJob.ts", 2, "Newsletter-Entwurf und Fallback"],
   ["src/app/autor/(suite)/admin/newsletter/ausgaben/page.tsx", 1, "Newsletter-Kandidaten im Admin"],
-  ["src/app/sitemap.ts", 1, "Sitemap: Block der redaktionellen Artikel"],
+  ["src/lib/sitemap/entries.ts", 1, "Sitemap: Block der redaktionellen Artikel"],
   ["src/lib/articleSearchActions.ts", 1, "Linkauswahl im Editor"],
   ["src/lib/podcastApi.ts", 1, "Podcast: Karte «zum Beitrag»"],
   ["src/lib/ads/previewApi.ts", 1, "Werbe-Vorschau: neuester Artikel"],
@@ -179,7 +179,7 @@ ok("Showcase-Abfragen filtern auf company", count("src/lib/showcaseApi.ts", /\.e
 ok("Showcase-Abfragen verlangen ein sichtbares Unternehmen", count("src/lib/showcaseApi.ts", /ai_startups!inner/g) >= 3);
 ok("Suche kennzeichnet Unternehmensbeitraege", has("src/lib/search/articles.ts", "contentTypeLabel(article)"));
 ok("Suche laesst Treffer ohne sichtbares Unternehmen weg", has("src/lib/search/articles.ts", "if (!article.startup) return [];"));
-ok("Sitemap fuehrt Unternehmensbeitraege unter /showcase", has("src/app/sitemap.ts", "/showcase/${a.slug}"));
+ok("Sitemap fuehrt Unternehmensbeitraege unter /showcase", has("src/lib/sitemap/entries.ts", "/showcase/${a.slug}"));
 ok("/artikel/<slug> leitet Unternehmensbeitraege weiter", has("src/app/artikel/[slug]/page.tsx", /=== "company"\) permanentRedirect\(/));
 ok("/showcase/<slug> leitet redaktionelle Artikel zurueck", has("src/app/showcase/[slug]/page.tsx", /=== "editorial"\) redirect\(/));
 ok("Showcase-Seite: externe Links sponsored", count("src/components/showcase/ShowcaseArticleView.tsx", /linkRel="sponsored"/g) >= 2);

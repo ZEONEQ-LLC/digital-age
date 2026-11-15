@@ -1294,7 +1294,7 @@ Beschreibung, Canonical, OG): `/kontakt`, `/artikel-pitchen`,
 `robots: { index: false, follow: true }`. CMS-Seiten setzen ihren Canonical
 selbst. Die Sitemap enthält zusätzlich Podcasts (`/podcast/<slug>`), die vier
 Formularseiten und CMS-Seiten mit eigener Route, sofern publiziert und nicht
-auf noindex (`CMS_PAGE_SLUGS` in `src/app/sitemap.ts`; neue CMS-Route dort
+auf noindex (`CMS_PAGE_SLUGS` in `src/lib/sitemap/entries.ts`; neue CMS-Route dort
 eintragen).
 
 **Build-Info im Footer.** `next.config.ts` setzt per `env`
@@ -1344,6 +1344,29 @@ Die festen Apple-Pfade `/apple-touch-icon.png` und
 `/apple-icon.png`. Bei einer neuen Figur alle drei Dateien neu erzeugen. Ein
 bestehendes Home-Bildschirm-Lesezeichen behaelt sein altes Icon, bis es
 geloescht und neu angelegt wird.
+
+### Sitemap ueber eine Route mit fester CDN-Lebensdauer (PR 213)
+
+`/sitemap.xml` kommt nicht mehr aus `app/sitemap.ts`, sondern aus der Route
+`src/app/sitemap.xml/route.ts`: Eintraege aus `src/lib/sitemap/entries.ts`,
+XML aus `src/lib/sitemap/xml.ts` (rein, getestet, gleicher Aufbau wie
+vorher). Die Route setzt `Cache-Control: public, s-maxage=3600,
+stale-while-revalidate=86400`.
+
+Grund: `export const revalidate = 3600` in `app/sitemap.ts` stand zwar im
+Build-Manifest, Vercel lieferte aber bis zum naechsten Deploy die Fassung
+vom Build aus (15.11.2026 gemessen: `x-vercel-cache: HIT`, `age` ueber 3600,
+nie `STALE`; ISR-Seiten wie `/swiss-ai/<slug>` erneuerten sich in derselben
+Zeit normal). Ein neuer Artikel erschien so erst nach dem naechsten Deploy.
+
+- **Neue Sektion in der Sitemap** → `entries.ts` (eine `fetch…Entries`-
+  Funktion, in `buildSitemapEntries` einhaengen).
+- **Pruefen nach Aenderungen**: lokale Ausgabe mit der von Produktion
+  vergleichen (gleiche Adressen, gleiche Reihenfolge, gleiche Bilder);
+  abweichen duerfen nur die `lastmod` der statischen Routen.
+- Ein `revalidate` an einer Metadaten-Route (`sitemap.ts`, `robots.ts`) nicht
+  als Beweis nehmen, dass sie sich erneuert: mit `curl -sI` `age` und
+  `x-vercel-cache` ansehen.
 
 ### Showcase S3a: Einladung und Fragebogen (PR 213)
 
@@ -1750,7 +1773,8 @@ Verzeichnisses, bevor Unternehmensbeitraege kommen.
   Einreichformular: «Regeln des Verzeichnisses» und «Datenschutzerklärung»
   statt «Nutzungsbedingungen» (Link fuehrte auf die Datenschutzerklaerung).
 - **Sitemap** `export const revalidate = 3600` (vorher nur beim Build erzeugt),
-  `/swiss-ai/regeln` eingetragen.
+  `/swiss-ai/regeln` eingetragen. (Wirkte auf Vercel nicht, seit PR 213
+  liefert eine Route die Sitemap, siehe «Sitemap ueber eine Route».)
 
 ### KI-Plattformen aus festen Quellen, Inhaltskorrekturen (PR 206)
 

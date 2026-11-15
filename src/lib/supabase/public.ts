@@ -17,7 +17,7 @@ import type { Database } from "@/lib/database.types";
 // erzeugten Anon-Client um, fällt der `cookies()`-Aufruf weg → die Page
 // kann static prerendered + via `revalidate` ISR-cached werden.
 //
-// Pattern existiert bereits in `src/app/sitemap.ts` und in
+// Pattern existiert bereits in `src/lib/sitemap/entries.ts` und in
 // `generateStaticParams` der dynamischen Routen (`tag/[slug]`,
 // `swiss-ai/[slug]`), wo cookies() beim Build verboten ist. Dieser
 // Helper zieht das Pattern auf die regulären Public-Read-API-Funktionen.

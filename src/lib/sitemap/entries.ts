@@ -4,13 +4,19 @@ import { createClient as createSupabaseClient, type SupabaseClient } from "@supa
 import { getBaseUrl } from "@/lib/siteUrl";
 import type { Database } from "@/lib/database.types";
 
+// Eintraege der Sitemap. Ausgeliefert wird sie von der Route
+// src/app/sitemap.xml/route.ts (XML ueber src/lib/sitemap/xml.ts).
+//
+// Warum keine Datei app/sitemap.ts mehr: Mit `revalidate = 3600` (PR 207)
+// stand die Sitemap zwar im Build-Manifest als stuendlich erneuerbar, Vercel
+// lieferte aber bis zum naechsten Deploy die Fassung vom Build aus (gemessen
+// am 15.11.2026: `x-vercel-cache: HIT`, `age` ueber 3600, nie STALE). Ein
+// neuer Artikel erschien so erst nach dem naechsten Deploy. Die Route setzt
+// die Lebensdauer jetzt selbst (s-maxage), das haelt der CDN ein.
+//
 // Statische Hauptrouten — manuell gepflegt, kein Auto-Discovery. Priorities
 // und changeFrequencies sind grobe Hints für Crawler (Google ignoriert sie
 // faktisch, Bing/Yandex nutzen sie noch).
-// Stuendlich neu erzeugen (seit PR 207). Vorher entstand die Sitemap nur beim
-// Build: Ein neuer Artikel-Slug oder eine frisch indexierbare CMS-Seite
-// erschien erst nach dem naechsten Deploy (Befund 13.11.2026).
-export const revalidate = 3600;
 
 type StaticEntry = {
   path: string;
@@ -48,7 +54,7 @@ const CMS_PAGE_SLUGS = [
   "datenschutzerklaerung",
 ] as const;
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+export async function buildSitemapEntries(): Promise<MetadataRoute.Sitemap> {
   const base = getBaseUrl();
   const now = new Date();
 
@@ -59,8 +65,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: r.priority,
   }));
 
-  // Sitemap läuft potenziell zur Build-Zeit; der ssr-Client mit cookies()
-  // ist build-time verboten. Direkt `@supabase/supabase-js` mit Anon-Key —
+  // Ohne Cookies und ohne Sitzung: direkt `@supabase/supabase-js` mit Anon-Key —
   // alle Quellen unten haben anon-SELECT-Policies (`tags_public_read`,
   // Article/Prompt/Startup `*_public_read`, `public can read author
   // profiles` aus dem Initial-Schema).
