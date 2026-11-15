@@ -1345,6 +1345,72 @@ Die festen Apple-Pfade `/apple-touch-icon.png` und
 bestehendes Home-Bildschirm-Lesezeichen behaelt sein altes Icon, bis es
 geloescht und neu angelegt wird.
 
+### Lesestatistik fuer Autorinnen und Autoren (PR 213)
+
+Eigene, cookielose Zaehlung: wie oft Beitraege geoeffnet und gelesen werden.
+Autorinnen und Autoren sehen ihre Beitraege unter `/autor/statistiken`, die
+Redaktion alle (Filter `?autor=<id>`), pro Beitrag `/autor/statistiken/<id>`.
+Zeitraum `?zeit=7|30|90|365|alle`, Standard 30 Tage.
+
+**Messen** (`src/lib/stats/reading.ts`, rein; Zaehler
+`src/components/article/ReadingMeter.tsx`; Route `src/app/api/lektuere`):
+
+- Der Zaehler haengt in `ArticleView` und `ShowcaseArticleView`, nur wenn
+  `preview` nicht gesetzt ist. Er rendert nichts.
+- Begriffe: **Aufruf** (Beitrag geoeffnet, einmal pro Beitrag und
+  Seitenladung, nicht beim Neuladen), **gelesen** (Textende erreicht und ein
+  Viertel der Lesezeit aktiv, 15 bis 120 s), **Lesezeit** (Tab sichtbar und
+  Bewegung in der letzten Minute), **Lesetiefe** (Marken 25/50/75/100 %),
+  **Aktionen** («Teilen», «Anhören» ueber `signalReadAction`), **Herkunft**
+  (Suche, Soziale Medien, E-Mail, KI-Assistent, intern, direkt, andere).
+- Kein Cookie, kein localStorage, keine Kennung: Der Stand lebt im Modul
+  (`sessions`-Map) und endet mit der Seitenladung. Es sind Aufrufe, keine
+  Personen. Das so lassen, sonst braucht die Zaehlung eine Einwilligung.
+- Die Herkunft wird im Browser klassiert (`classifySource`), der Server sieht
+  die Adresse des Verweises nie. Neue Quelle → Host-Liste in `reading.ts`.
+- Gemeldet wird beim Oeffnen und beim Verlassen (visibilitychange, pagehide,
+  Unmount) per `sendBeacon`. Playwright und CDP zeigen Beacons beim Verlassen
+  nicht an: mit einem kleinen Durchreicher pruefen (Uebergabedoc PR 213).
+- Die Route antwortet immer 204. Sie verwirft Bots (`isbot`), fremde
+  Herkunft der Anfrage (`Sec-Fetch-Site`), Angemeldete (Sitzungs-Cookie
+  `sb-…-auth-token`, also Redaktion und Autoren) und alles ueber dem
+  IP-Rate-Limit (Aktion `article_read`). Deshalb zaehlen auch eigene
+  Testaufrufe mit Headless-Chrome nicht.
+
+**Speichern** (`20261115190000_lesestatistik.sql`): `article_stats_daily`,
+ein Tagesaggregat pro Beitrag (Zuercher Kalendertag), keine Rohereignisse.
+Schreiben nur ueber `article_stats_record` (service_role, zaehlt nur
+veroeffentlichte Beitraege, Sekunden pro Meldung auf 900 begrenzt). Lesen
+ueber RLS: Redaktion alles, sonst die Zeilen eigener Beitraege. Die Seiten
+lesen ueber `article_stats_summary` und `article_stats_series` (security
+invoker), nicht direkt aus der Tabelle: PostgREST schneidet bei 1000 Zeilen ab.
+
+**Auswerten** (`src/lib/stats/summary.ts`, rein; `statsApi.ts` server-only):
+Kennzahlen, Herkunft, Lesetiefe, Zeitfenster, Raster (bis 92 Tage Tage, bis
+750 Tage Wochen, darueber Monate). `getStatsOverview` begrenzt Beitraege
+ausdruecklich auf die eigene Person, weil veroeffentlichte Beitraege fuer
+alle lesbar sind.
+
+**Darstellen** (`src/components/author/stats/`): Ansichten ohne Datenzugriff
+(`StatsOverviewView`, `StatsArticleView`), Verlauf als gestapelte Saeulen
+(`StatsChart`, Client, Zeiger-Angabe und Tabelle darunter). Keine Karten,
+keine Pillen: Linien, Schrift, Abstand. Zwei Stufen eines Gruens
+(`STAT_COLORS`), mit dem Palette-Pruefer der Dataviz-Regeln geprueft.
+
+Regeln:
+
+- **Neue Kennzahl** → Spalte in `article_stats_daily`, Parameter in
+  `article_stats_record`, Feld in `ReadEvent` und `parseReadEvent`,
+  `StatTotals` und `TOTAL_KEYS`. Die Pruefung der Route ist streng: Ein Feld,
+  das `parseReadEvent` nicht kennt, zaehlt nie.
+- **Neue Artikelansicht** → `ReadingMeter` einhaengen, der Text muss in
+  `.article-body` stehen (daran misst der Zaehler die Lesetiefe).
+- **Sichtpruefung** der Statistikseiten: Mock-Route mit festen Daten unter
+  `/vorschau/…` (chromefrei), Build und Start auf 3107, vor dem Commit loeschen.
+- Die Datenschutzerklaerung nennt die Messung (Absatz
+  `bl-lesestatistik-2026-11`). Wer aendert, was gemessen wird, passt den
+  Absatz an.
+
 ### Beitragsvorschau wie publiziert, Vorschau-Link mit Freigabe (PR 212)
 
 Auftrag Ali 15.11.2026: Der Tab «Vorschau» im Editor soll den Beitrag so
@@ -2666,9 +2732,9 @@ direkt, fällt für Legacy-Artikel auf `markdownToBlocks(body_md)` zurück.
 Übergibt komplettes `BlockDocument` an `BlockReader` (damit Sources auch
 ohne body_blocks-Special-Blocks korrekt rendern).
 
-**Statistiken** zeigt nur Zahlen aus der DB (Counts, total Wörter). Sparklines/
-Heatmaps für Views/Reads wurden bewusst entfernt — kommen erst mit echter
-Event-Tracking-Integration (Phase 8 mit Plausible/PostHog/Supabase-Events).
+**Statistiken** zeigt seit PR 213 die Lesestatistik (Aufrufe, Lesequote,
+Lesezeit, Herkunft, Lesetiefe) aus eigener Zaehlung, siehe Abschnitt
+«Lesestatistik fuer Autorinnen und Autoren».
 
 **Merge-on-first-login (Session E):** Der Auth-Trigger `handle_new_user`
 prüft jetzt vor Insert ob ein authors-Row mit gleicher Email + `user_id IS NULL`

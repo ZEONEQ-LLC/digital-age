@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import { signalReadAction } from "@/lib/stats/reading";
+
 // Feature-Detection ueber useSyncExternalStore: liefert server-seitig `true`
 // (Button wird optimistisch als verfuegbar gerendert), client-seitig den
 // echten Wert. React versoehnt die Differenz nach der Hydration ohne
@@ -101,6 +103,7 @@ export default function ListenButton({
     if (state === "idle") {
       stoppedRef.current = false;
       setState("playing");
+      signalReadAction("listen");
       speakFrom(0);
     } else if (state === "playing") {
       window.speechSynthesis.pause();
@@ -121,6 +124,7 @@ export default function ListenButton({
       if (podcastPlayEvent) {
         window.dispatchEvent(new CustomEvent(podcastPlayEvent));
       }
+      signalReadAction("listen");
     };
     return (
       <>

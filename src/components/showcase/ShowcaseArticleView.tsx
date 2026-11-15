@@ -16,6 +16,7 @@ import HtmlLang from "@/components/HtmlLang";
 import InlineText from "@/components/InlineText";
 import ListenButton from "@/components/ListenButton";
 import ReadingProgress from "@/components/ReadingProgress";
+import ReadingMeter from "@/components/article/ReadingMeter";
 import ShareButtons from "@/components/ShareButtons";
 import TableOfContents from "@/components/TableOfContents";
 import {
@@ -107,6 +108,8 @@ export default function ShowcaseArticleView({ article, moreHeading, moreRows, ba
       {jsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />}
       {breadcrumbJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }} />}
       <ReadingProgress />
+      {/* Lesestatistik: nur auf der publizierten Seite, nie in der Vorschau. */}
+      {!preview && <ReadingMeter articleId={article.id} readingMinutes={article.reading_minutes} />}
       <ArticleHeadStyles />
       <ShowcaseStyles />
 
