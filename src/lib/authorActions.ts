@@ -16,6 +16,7 @@ import { revalidateArticlePage } from "@/lib/articleRevalidate";
 import { disclosureError, normalizeDisclosure } from "@/lib/disclosure";
 import { validatePublishGate } from "@/lib/publishGate";
 import { isArticleSlugConflict } from "@/lib/articleSlug";
+import { deleteBlockedMessage } from "@/lib/articles/deleteRule";
 import { FormError, isUniqueViolation, runAction, type ActionResult } from "@/lib/actionResult";
 import { countLocalImages, isLocalImageUrl, localImageMessage } from "@/lib/editor/localImageUrls";
 import type { Database, Json } from "@/lib/database.types";
@@ -570,15 +571,39 @@ export async function deleteArticle(id: string): Promise<ActionResult<void>> {
 
 async function deleteArticleInner(id: string): Promise<void> {
   const supabase = await createClient();
-  await requireCurrentAuthor();
+  const me = await requireCurrentAuthor();
+  const isEditor = me.role === "editor";
+
+  // Regel zuerst pruefen (deleteRule.ts, dieselbe wie fuer den Knopf im
+  // Editor). Ohne diese Pruefung waeren bei einem Beitrag, den die RLS nicht
+  // loeschen laesst, zuerst die Bilder weg und der Beitrag bliebe stehen: Ein
+  // nicht erlaubtes DELETE meldet keinen Fehler, es trifft nur keine Zeile.
+  const { data: article } = await supabase
+    .from("articles")
+    .select("status, author_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!article) throw new FormError("Beitrag nicht gefunden.");
+  if (!isEditor && article.author_id !== me.id) {
+    throw new FormError("Nur die Redaktion kann diesen Beitrag löschen.");
+  }
+  const blocked = deleteBlockedMessage(article.status, isEditor);
+  if (blocked) throw new FormError(blocked);
 
   // Cascade: Storage-Objects vor DB-Row löschen. Wenn Storage-Cleanup
   // fehlschlägt, brechen wir ab — verwaiste Storage-Files sind teurer als
   // ein temporär nicht löschbarer Article. RLS gated den Storage-Zugriff.
   await deleteAllArticleImages(id);
 
-  const { error } = await supabase.from("articles").delete().eq("id", id);
+  const { data: removed, error } = await supabase
+    .from("articles")
+    .delete()
+    .eq("id", id)
+    .select("id");
   if (error) throw error;
+  if (!removed || removed.length === 0) {
+    throw new FormError("Der Beitrag liess sich nicht löschen. Bitte die Seite neu laden und nochmals versuchen.");
+  }
   revalidatePath("/autor/artikel");
 }
 

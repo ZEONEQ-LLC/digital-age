@@ -270,6 +270,13 @@ Retina-Variants oder Crop-Optionen — `uploadAvatar` müsste dann
   Auth doppelt-gated (Application-Layer Owner-Check + Storage-RLS-Policy)
 - Cleanup-Cascade: `deleteArticle` in `authorActions.ts` ruft
   `deleteAllArticleImages(id)` vor dem DB-Delete (Option B, kein DB-Trigger)
+- Wer was löschen darf, steht in `src/lib/articles/deleteRule.ts` und gilt
+  für den Knopf im Editor wie für die Action: Autorinnen und Autoren den
+  eigenen Entwurf, die Redaktion zusätzlich «In Review» und «Archiv».
+  Veröffentlichtes wird zuerst archiviert. Die Action prüft die Regel VOR dem
+  Bilder-Cleanup und danach, ob wirklich eine Zeile gelöscht wurde: Ein von
+  der RLS nicht erlaubtes DELETE meldet keinen Fehler, es trifft nur keine
+  Zeile. Neuer Status oder neue Rolle → zuerst `deleteRule.ts` anpassen.
 - Orphan-Cleanup: Edge Function `supabase/functions/cleanup-orphan-drafts/`
   findet Drafts mit `title='Unbenannter Artikel'`, `body_md=''`,
   `updated_at < now() - 7d` und löscht Row + Storage-Files. Deploy + Cron-
