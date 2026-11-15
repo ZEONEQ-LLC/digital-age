@@ -1071,6 +1071,66 @@ export type Database = {
           },
         ]
       }
+      article_preview_links: {
+        Row: {
+          article_id: string
+          created_at: string
+          created_by: string | null
+          decided_at: string | null
+          decided_by: string | null
+          decided_fingerprint: string | null
+          decision: string | null
+          decision_note: string | null
+          expires_at: string
+          id: string
+          revoked_at: string | null
+          token: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          created_by?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_fingerprint?: string | null
+          decision?: string | null
+          decision_note?: string | null
+          expires_at?: string
+          id?: string
+          revoked_at?: string | null
+          token?: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          created_by?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_fingerprint?: string | null
+          decision?: string | null
+          decision_note?: string | null
+          expires_at?: string
+          id?: string
+          revoked_at?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_preview_links_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_preview_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_tags: {
         Row: {
           article_id: string
@@ -2010,6 +2070,130 @@ export type Database = {
             columns: ["editor_id"]
             isOneToOne: false
             referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      showcase_submissions: {
+        Row: {
+          answers: Json
+          article_id: string | null
+          consent_contact_email: string | null
+          consent_data_confirmed: boolean
+          consent_labelling: boolean
+          consent_media_rights: boolean
+          contact_email: string | null
+          contact_name: string | null
+          contact_role: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          image_path: string | null
+          invite_sent_at: string | null
+          invited_at: string
+          invited_by: string | null
+          invitee_email: string | null
+          invitee_name: string | null
+          links: Json
+          logo_applied_at: string | null
+          logo_path: string | null
+          own_text: string | null
+          profile_applied_at: string | null
+          profile_changes: Json
+          reminded_at: string | null
+          reply_by: string | null
+          startup_id: string
+          status: string
+          submitted_at: string | null
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          answers?: Json
+          article_id?: string | null
+          consent_contact_email?: string | null
+          consent_data_confirmed?: boolean
+          consent_labelling?: boolean
+          consent_media_rights?: boolean
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_role?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          image_path?: string | null
+          invite_sent_at?: string | null
+          invited_at?: string
+          invited_by?: string | null
+          invitee_email?: string | null
+          invitee_name?: string | null
+          links?: Json
+          logo_applied_at?: string | null
+          logo_path?: string | null
+          own_text?: string | null
+          profile_applied_at?: string | null
+          profile_changes?: Json
+          reminded_at?: string | null
+          reply_by?: string | null
+          startup_id: string
+          status?: string
+          submitted_at?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          answers?: Json
+          article_id?: string | null
+          consent_contact_email?: string | null
+          consent_data_confirmed?: boolean
+          consent_labelling?: boolean
+          consent_media_rights?: boolean
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_role?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          image_path?: string | null
+          invite_sent_at?: string | null
+          invited_at?: string
+          invited_by?: string | null
+          invitee_email?: string | null
+          invitee_name?: string | null
+          links?: Json
+          logo_applied_at?: string | null
+          logo_path?: string | null
+          own_text?: string | null
+          profile_applied_at?: string | null
+          profile_changes?: Json
+          reminded_at?: string | null
+          reply_by?: string | null
+          startup_id?: string
+          status?: string
+          submitted_at?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "showcase_submissions_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "showcase_submissions_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "showcase_submissions_startup_id_fkey"
+            columns: ["startup_id"]
+            isOneToOne: false
+            referencedRelation: "ai_startups"
             referencedColumns: ["id"]
           },
         ]

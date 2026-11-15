@@ -20,7 +20,7 @@ export default function StartupRejected({
       <Paragraph>Hallo {name},</Paragraph>
       <Paragraph>
         danke für deinen Vorschlag <strong>„{startupName}“</strong>. Leider
-        passt der Eintrag aktuell nicht in unsere Swiss-AI-Landscape — wir
+        passt der Eintrag aktuell nicht in unser Swiss-AI-Verzeichnis. Wir
         freuen uns über weitere Einreichungen von dir.
       </Paragraph>
       {reasonText && reasonText.length > 0 && (

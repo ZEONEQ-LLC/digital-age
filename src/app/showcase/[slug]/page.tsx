@@ -10,6 +10,7 @@ import {
   getShowcaseArticles,
   showcaseToListRow,
 } from "@/lib/showcaseApi";
+import { getPodcastsByArticleSlug } from "@/lib/podcastApi";
 import { getBaseUrl } from "@/lib/siteUrl";
 import { createPublicClient } from "@/lib/supabase/public";
 
@@ -54,13 +55,18 @@ export default async function ShowcaseArticlePage({ params }: PageProps) {
   }
   if (!article.author) notFound();
   // Zuerst weitere Beitraege desselben Unternehmens, sonst andere aus dem Showcase.
-  const sameCompany = await getShowcaseArticles({ startupId: article.startup.id, excludeId: article.id, limit: 3 });
+  const [sameCompany, linkedPodcasts] = await Promise.all([
+    getShowcaseArticles({ startupId: article.startup.id, excludeId: article.id, limit: 3 }),
+    getPodcastsByArticleSlug(article.slug),
+  ]);
   const more = sameCompany.length > 0 ? sameCompany : await getShowcaseArticles({ excludeId: article.id, limit: 3 });
   return (
     <ShowcaseArticleView
       article={article}
       moreHeading={sameCompany.length > 0 ? `Weitere Beiträge von ${article.startup.name}` : "Weitere Beiträge im Showcase"}
       moreRows={more.map(showcaseToListRow)}
+      baseUrl={getBaseUrl()}
+      linkedPodcasts={linkedPodcasts}
     />
   );
 }

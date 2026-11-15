@@ -22,7 +22,8 @@ export type RateLimitAction =
   | "pitch"
   | "podcast_ingest"
   | "module_event"
-  | "startup_contact";
+  | "startup_contact"
+  | "preview_response";
 
 type SbClient = SupabaseClient<Database>;
 
