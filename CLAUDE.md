@@ -1338,6 +1338,42 @@ Die festen Apple-Pfade `/apple-touch-icon.png` und
 bestehendes Home-Bildschirm-Lesezeichen behaelt sein altes Icon, bis es
 geloescht und neu angelegt wird.
 
+### Inhalte aufgeraeumt, Showcase befuellt (PR 211)
+
+Auftrag Ali 15.11.2026 («möglichst viel selbst machen»): Punkte von seiner Liste,
+die sich per Daten-Migration erledigen lassen
+(`20261115120000_inhalte_aufraeumen_und_showcase.sql`, nach dem Merge gepusht).
+
+- **Artikeltexte per SQL statt im Editor:** Eine Anweisung mit einer Zeile pro
+  Artikel (`ops`: Bloecke entfernen, ALT setzen, Textstelle ersetzen,
+  Titelbild-ALT). Sie aendert nur `body_blocks` gezielt ueber die Block-ID und
+  prueft den heutigen Stand (ALT nur wenn leer, Ersetzen nur wenn die Stelle
+  noch so dasteht). Pro Artikel entsteht eine Revision mit dem Stand davor.
+  `body_md` bleibt unveraendert, der Editor erzeugt es beim naechsten Speichern.
+  Muster fuer kuenftige Inhaltskorrekturen an vielen Artikeln.
+- **Kaputte Bilder:** 12 Bildbloecke ohne Datei entfernt (3 `blob:`, 9
+  `http://digital-age.ch/wp-content/uploads/…`). Ursache der neun: Das
+  Umzugsskript (Phase 8e) suchte nur `https://`-Adressen. Im Web-Archiv liegen
+  sie nicht. Die entfernten Bloecke stehen in
+  `claude code workresults/PR211-entfernte-bloecke.json`.
+- **Tote Datei-Links** (PDF, XLSX, JPEG aus WordPress) entfernt bzw. entlinkt;
+  **rohe Adressen** frueher eingebetteter Player (SoundCloud, Vimeo) sind jetzt
+  Links.
+- **ALT-Texte:** alle 53 Bilder im Text und 30 Titelbilder ohne ALT ergaenzt,
+  in der Sprache des Artikels. Publizierte Artikel haben damit keine leeren
+  ALT mehr.
+- **Showcase:** Die zwei Kooperationsartikel der Connect AI Group sind
+  Unternehmensbeitraege (`is_paid = false`: Es floss kein Geld. Die
+  Kennzeichnung «Publireportage» gilt nur fuer bezahlte Beitraege, auch nicht
+  «zum Anschein»).
+- **Datenschutzerklaerung:** Absatz zur Weiterleitung von Anfragen an
+  Unternehmen im Verzeichnis (Block `bl-pr211-startup-kontakt` in Ziffer 7).
+- **Hausanzeige** «Werben auf digital age» (Ziel `/mediadaten`), dritte
+  House-Kampagne neben Newsletter und Swiss AI.
+- **Prompts-Seitenleiste** scrollt selbst, wenn sie hoeher als das Fenster ist
+  (wie die News-Leiste). Die Swiss-AI-Leiste bewusst nicht: Dort steht unten
+  eine Anzeige, die sonst seltener sichtbar waere.
+
 ### Showcase S2b: Seiten fuer Unternehmensbeitraege, Interessenbindung (PR 210)
 
 Dritter Schritt des Plans «Swiss AI Showcase». Entscheide Ali 15.11.2026:
