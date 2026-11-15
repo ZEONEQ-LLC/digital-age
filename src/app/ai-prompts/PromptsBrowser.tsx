@@ -64,7 +64,16 @@ export default function PromptsBrowser({ all, featured }: Props) {
         .ap-feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); }
 
         .ap-grid-wrap { display: grid; grid-template-columns: 220px 1fr; gap: 48px; align-items: start; }
-        .ap-aside { position: sticky; top: var(--aside-sticky-top); display: flex; flex-direction: column; gap: var(--sp-6); }
+        /* Die Leiste laeuft mit. Ist sie hoeher als das Fenster (Kategorien,
+           Modelle, Schwierigkeit, Einreichen-Karte), scrollt sie selbst, sonst
+           waere der untere Teil erst am Seitenende erreichbar. Gleiche Loesung
+           wie die News-Leiste, Scrollbalken im Spaltenabstand. */
+        .ap-aside {
+          position: sticky; top: var(--aside-sticky-top); display: flex; flex-direction: column; gap: var(--sp-6);
+          max-height: calc(100vh - var(--aside-sticky-top) - var(--sp-4)); overflow-y: auto; overscroll-behavior: contain;
+          scrollbar-width: thin; scrollbar-color: var(--da-border) transparent;
+          margin-right: -20px; padding-right: 20px;
+        }
 
         .ap-flabel {
           color: var(--da-faint);
@@ -136,7 +145,7 @@ export default function PromptsBrowser({ all, featured }: Props) {
 
         @media (max-width: 1024px) {
           .ap-grid-wrap { grid-template-columns: 1fr; gap: var(--sp-8); }
-          .ap-aside { position: static; }
+          .ap-aside { position: static; max-height: none; overflow: visible; margin-right: 0; padding-right: 0; }
           .ap-feat-grid { grid-template-columns: repeat(2, 1fr); }
         }
         @media (max-width: 720px) {
