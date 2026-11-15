@@ -9,6 +9,10 @@ import ArticlePublished, {
 import ArticleSubmittedForReview, {
   SUBJECT_PREFIX as ARTICLE_REVIEW_SUBJECT_PREFIX,
 } from "@/emails/ArticleSubmittedForReview";
+import ArticlePreviewResponse, {
+  SUBJECT_APPROVED as PREVIEW_SUBJECT_APPROVED,
+  SUBJECT_CHANGES as PREVIEW_SUBJECT_CHANGES,
+} from "@/emails/ArticlePreviewResponse";
 import { SITE_URL } from "@/lib/newsletter/mail";
 
 type SendResult = { ok: true } | { ok: false; error: string };
@@ -116,5 +120,36 @@ export async function sendArticlePublishedNotification(args: {
       liveUrl: `${SITE_URL}${args.path}`,
     }),
     context: "published",
+  });
+}
+
+// Meldung an die Redaktion: Rueckmeldung ueber den Vorschau-Link
+// (/vorschau/artikel/<token>). Der Link in der Mail fuehrt in den Editor.
+export async function sendPreviewResponseNotification(args: {
+  articleId: string;
+  title: string;
+  decision: "approved" | "changes";
+  name: string;
+  note: string | null;
+  when: string;
+}): Promise<SendResult> {
+  const editor = getEditorEmail();
+  if (!editor) {
+    console.error("[article] NEWSLETTER_REPLY_TO env not set");
+    return { ok: false, error: "editor recipient not configured" };
+  }
+  const prefix = args.decision === "approved" ? PREVIEW_SUBJECT_APPROVED : PREVIEW_SUBJECT_CHANGES;
+  return renderAndSend({
+    to: editor,
+    subject: `${prefix}: ${args.title}`,
+    element: ArticlePreviewResponse({
+      title: args.title,
+      decision: args.decision,
+      name: args.name,
+      note: args.note,
+      when: args.when,
+      editorUrl: `${SITE_URL}/autor/artikel/${args.articleId}`,
+    }),
+    context: "preview-response",
   });
 }

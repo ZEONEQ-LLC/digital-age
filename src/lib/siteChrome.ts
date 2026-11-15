@@ -22,6 +22,11 @@ export const AUTHOR_SUITE_PREFIXES = [
 // Seiten ohne Site-Chrome und ohne Tracking (Kunden-Vorschau, #158).
 export const CHROMELESS_PREFIXES = ["/vorschau"] as const;
 
+// Beitragsvorschau (/vorschau/artikel/…): zeigt den Beitrag wie publiziert,
+// also mit Navbar und Ticker. Tracking, CMP und Anzeigen bleiben aus wie auf
+// allen /vorschau-Seiten.
+export const ARTICLE_PREVIEW_PREFIX = "/vorschau/artikel";
+
 function matchesPrefix(pathname: string, prefixes: readonly string[]): boolean {
   return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
@@ -32,6 +37,16 @@ export function isAuthorSuitePath(pathname: string): boolean {
 
 export function isChromelessPath(pathname: string): boolean {
   return matchesPrefix(pathname, CHROMELESS_PREFIXES);
+}
+
+export function isArticlePreviewPath(pathname: string): boolean {
+  return matchesPrefix(pathname, [ARTICLE_PREVIEW_PREFIX]);
+}
+
+// Navbar und Ticker: weg in der Autoren-Suite und auf chrome-freien Seiten,
+// ausser in der Beitragsvorschau.
+export function hidesSiteNav(pathname: string): boolean {
+  return isAuthorSuitePath(pathname) || (isChromelessPath(pathname) && !isArticlePreviewPath(pathname));
 }
 
 // Handles, die mit Suite-Routen kollidieren wuerden (/autor/<handle>), plus "neu"

@@ -15,11 +15,11 @@ export default function StartupApproved({
 }: Props) {
   return (
     <Layout previewText={`Dein Startup ist gelistet: ${startupName}`}>
-      <Heading>Willkommen in der Swiss-AI-Landscape.</Heading>
+      <Heading>Willkommen im Swiss-AI-Verzeichnis.</Heading>
       <Paragraph>Hallo {name},</Paragraph>
       <Paragraph>
-        gute Nachricht: <strong>„{startupName}“</strong> ist ab sofort in der
-        digital-age Swiss-AI-Landscape gelistet und für alle Besucher sichtbar.
+        gute Nachricht: <strong>„{startupName}“</strong> ist ab sofort im
+        Swiss-AI-Verzeichnis von digital age gelistet und für alle Besucher sichtbar.
       </Paragraph>
       <CtaButton href={liveUrl}>Eintrag ansehen →</CtaButton>
       <Paragraph muted small>

@@ -5,6 +5,7 @@
 import type { Metadata } from "next";
 
 import type { ArticleWithFullRelations } from "@/lib/articleApi";
+import { getCoverUrl } from "@/lib/coverImage";
 import { markdownToBlocks } from "@/lib/markdownBlocks";
 import type { TocItem } from "@/components/TableOfContents";
 import {
@@ -18,6 +19,45 @@ export function formatDateDE(iso: string | null): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+// Karten fuer «Mehr von diesem Autor»: die drei neuesten anderen Artikel.
+export type RelatedCard = {
+  category: string;
+  title: string;
+  author: string;
+  date: string;
+  image: string;
+  href: string;
+  external: boolean;
+};
+
+type RelatedRow = {
+  id: string;
+  slug: string;
+  title: string;
+  subcategory: string | null;
+  published_at: string | null;
+  cover_image_url: string | null;
+  category: { name_de: string } | null;
+};
+
+export function buildRelatedCards(
+  rows: RelatedRow[],
+  opts: { excludeId: string; authorName: string; external: boolean },
+): RelatedCard[] {
+  return rows
+    .filter((a) => a.id !== opts.excludeId)
+    .slice(0, 3)
+    .map((a) => ({
+      category: a.subcategory ?? a.category?.name_de ?? "",
+      title: a.title,
+      author: opts.authorName,
+      date: formatDateDE(a.published_at),
+      image: getCoverUrl(a),
+      href: `/artikel/${a.slug}`,
+      external: opts.external,
+    }));
 }
 
 export function deriveTocItems(blocks: Block[]): TocItem[] {

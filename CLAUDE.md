@@ -1338,6 +1338,76 @@ Die festen Apple-Pfade `/apple-touch-icon.png` und
 bestehendes Home-Bildschirm-Lesezeichen behaelt sein altes Icon, bis es
 geloescht und neu angelegt wird.
 
+### Beitragsvorschau wie publiziert, Vorschau-Link mit Freigabe (PR 212)
+
+Auftrag Ali 15.11.2026: Der Tab «Vorschau» im Editor soll den Beitrag so
+zeigen, wie er erscheint, und es soll einen Link geben, den er per E-Mail oder
+WhatsApp weitergibt; wer ihn oeffnet, gibt frei oder wuenscht Aenderungen.
+
+- **Eine Ansicht, drei Stellen.** `src/components/article/ArticleView.tsx`
+  (redaktionell) und `ShowcaseArticleView.tsx` (Unternehmensbeitrag) laden
+  nichts mehr selbst und haben keine Server-Importe: Die Route laedt Podcasts,
+  weitere Beitraege und die Anzeigen-Reservierung und reicht sie herein
+  (`baseUrl` ebenfalls, `getBaseUrl()` kennt im Browser `VERCEL_URL` nicht).
+  So rendert dieselbe Komponente die publizierte Seite auf dem Server und die
+  Vorschau im Browser. **Neue Daten fuer die Beitragsseite kommen als Prop,
+  nie als Abfrage in der Ansicht**, sonst bricht die Vorschau. Prop `preview`
+  = keine strukturierten Daten, keine Anzeigen (`ads={false}`).
+- **Routen** (alle `force-dynamic`, noindex, `robots.ts` sperrt `/vorschau/`):
+  `/vorschau/artikel/<token>` (Link, Service-Client, ohne Login) und
+  `/vorschau/artikel/entwurf/<id>` (gespeicherter Stand, Sitzung + RLS; ohne
+  Login 404). `/vorschau/<token>` bleibt die Kunden-Vorschau der Werbung.
+  `siteChrome.ts`: Die Beitragsvorschau zeigt Navbar und Ticker
+  (`hidesSiteNav`), bleibt aber ohne Tracking, CMP und Anzeigen.
+- **Tab «Vorschau»** (`EditorPreviewTab.tsx`): bettet die Entwurfsseite mit
+  `?embed=1` in einen Rahmen mit Geraetebreite ein (Desktop 1440, Tablet 834,
+  Handy 390) und verkleinert ihn auf den Platz (`fitScale`). Der Editor schickt
+  den aktuellen Stand per `postMessage` (`PreviewOverrides`,
+  `applyPreviewOverrides`), also auch Ungespeichertes; es wird dafuer nichts
+  gespeichert. Im Rahmen sind Links aus (Sprungmarken gehen). Nach dem Speichern
+  laedt der Rahmen neu. Wechselt der Autor ungespeichert, kennt der Editor nur
+  Name und Rolle: Bild und Bio folgen nach dem Speichern.
+- **Vorschau-Link** (Tabelle `article_preview_links`, nur Editor:innen per RLS;
+  `previewActions.ts`, `EditorPreviewLink.tsx`): pro Beitrag ein gueltiger Link
+  (ein neuer sperrt den alten), 30 Tage gueltig, sperrbar. Die Rueckmeldung
+  (`approved` | `changes`, Name, Bemerkung; bei `changes` Pflicht) steht in der
+  Zeile, eine neue ersetzt die alte. `decided_fingerprint` ist die Pruefsumme
+  der sichtbaren Felder (`previewFingerprint`): Aendert sich der Beitrag
+  danach, gilt die Freigabe «fuer die fruehere Fassung» (Editor und Linkseite
+  zeigen das). Ein neues sichtbares Feld am Artikel gehoert in
+  `FINGERPRINT_FIELDS`.
+- **Freigabe veroeffentlicht nichts.** Die Redaktion bekommt eine Mail
+  (`ArticlePreviewResponse`, an `NEWSLETTER_REPLY_TO`) und publiziert im Editor.
+  Nach dem Erscheinen nimmt die Linkseite keine Rueckmeldung mehr an.
+- **Was an Dritte geht:** Die Vorschau rendert im Browser, der Beitrag reist als
+  Props mit. `forClient` in `previewApi.ts` leert interne Felder (Co-Pilot,
+  SEO-Pruefung, Hero-Rezept, Bildvorschlaege, SEO-Felder). Eine neue interne
+  Spalte an `articles` muss dort ebenfalls geleert werden.
+- Rate-Limit-Aktion `preview_response` (10 pro Stunde, 30 pro Tag), verstecktes
+  Feld gegen Bots. Tests: `src/lib/articles/__tests__/preview.manual.ts`.
+- Lokal ohne Service-Key laesst sich die Linkseite nicht mit echten Daten
+  oeffnen: fuer Render-Pruefungen eine temporaere Route
+  `src/app/vorschau/artikel/mock/` mit einem publizierten Beitrag (Anon-Client)
+  bauen und vor dem Commit loeschen.
+
+Mit im PR: sechs ungenutzte npm-Pakete entfernt (`lodash.throttle`,
+`@types/lodash.throttle`, `@tiptap/extension-horizontal-rule`,
+`@tiptap/extension-list`, `@tiptap/extension-typography`, `@tiptap/extensions`;
+Listen kommen aus dem StarterKit, die Linie ist dort bewusst aus), Tabelle
+`showcase_submissions` als Grundlage fuer S3a (noch ohne Code), «Swiss-AI-
+Verzeichnis» statt «Landscape» in drei Mails (E1), Verzeichniseintrag ZEONEQ
+per Daten-Migration (`20261115170000_zeoneq_eintrag.sql`, nach dem Merge).
+
+**Vercel-Previews pruefen:** Der Schutz-Bypass fuer Automation ist eingerichtet
+(Ali ok 15.11.2026). Das Geheimnis liegt nur lokal ausserhalb des Repos
+(`/root/.config/digital-age/vercel-bypass`) und geht als Header
+`x-vercel-protection-bypass` mit; nie ausgeben, nie committen.
+
+**ISR nach Daten-Migrationen:** Per SQL geaenderte Inhalte erscheinen erst nach
+bis zu zwei Revalidate-Fenstern plus je einem Aufruf (Artikel 600 s, Listen
+300 s, Sitemap 3600 s). Eine «veraltete» Live-Seite direkt nach dem Push ist
+kein Fehler.
+
 ### Inhalte aufgeraeumt, Showcase befuellt (PR 211)
 
 Auftrag Ali 15.11.2026 («möglichst viel selbst machen»): Punkte von seiner Liste,

@@ -5,6 +5,7 @@
 import type { ArticleWithFullRelations } from "../articleApi";
 import {
   buildArticleJsonLd,
+  buildRelatedCards,
   buildArticleMetadata,
   deriveTocItems,
   resolveOgImage,
@@ -106,6 +107,16 @@ eq(
   ] as never),
   [{ id: "a", label: "Eins", level: 2 }, { id: "d", label: "Drei", level: 3 }],
 );
+
+// --- «Mehr von diesem Autor»
+{
+  const row = (n: number) => ({ id: `r${n}`, slug: `s${n}`, title: `Titel ${n}`, subcategory: n === 2 ? "Agenten" : null, published_at: "2026-11-03T08:00:00Z", cover_image_url: `https://x.ch/${n}.png`, category: { name_de: "KI & Business" } });
+  const cards = buildRelatedCards([row(1), row(2), row(3), row(4), row(5)], { excludeId: "r1", authorName: "Andreas Kamm", external: true });
+  eq("drei Karten, ohne den aktuellen Artikel", cards.map((c) => c.href), ["/artikel/s2", "/artikel/s3", "/artikel/s4"]);
+  eq("Rubrik: Subkategorie, sonst Kategorie", [cards[0].category, cards[1].category], ["Agenten", "KI & Business"]);
+  eq("Autor und Kennzeichnung extern", [cards[0].author, cards[0].external, cards[0].image], ["Andreas Kamm", true, "https://x.ch/2.png"]);
+  eq("keine weiteren Artikel", buildRelatedCards([row(1)], { excludeId: "r1", authorName: "A", external: false }), []);
+}
 
 // --- Interessenbindung
 eq("leer ist kein Hinweis", normalizeDisclosure("   "), null);

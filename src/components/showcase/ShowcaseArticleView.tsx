@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import ArticleBody from "@/components/ArticleBody";
 import {
@@ -38,9 +39,8 @@ import {
   ARTICLE_PODCAST_ANCHOR,
   ARTICLE_PODCAST_PLAY_EVENT,
 } from "@/lib/podcast/articleAudio";
-import { getPodcastsByArticleSlug } from "@/lib/podcastApi";
+import type { PodcastWithRecommender } from "@/lib/podcastApi";
 import type { ShowcaseArticle } from "@/lib/showcaseApi";
-import { getBaseUrl } from "@/lib/siteUrl";
 import { slugifyTag } from "@/lib/tagSlug";
 
 // Ansicht eines Unternehmensbeitrags (Showcase, S2b). Entscheid Ali
@@ -51,6 +51,10 @@ import { slugifyTag } from "@/lib/tagSlug";
 // Neben dem Text bleibt der Absender ueber dem Inhaltsverzeichnis stehen, am
 // Ende steht «Über das Unternehmen» anstelle der Autorenbox. Externe Links
 // tragen rel="sponsored", Anzeigen gibt es hier keine.
+//
+// Ohne Datenzugriff und ohne Server-Importe (wie ArticleView): Die Route laedt
+// Podcasts und weitere Beitraege, die Vorschau rendert dieselbe Ansicht im
+// Browser.
 
 type Props = {
   article: ShowcaseArticle;
@@ -58,14 +62,18 @@ type Props = {
   // andere aus dem Showcase).
   moreHeading: string;
   moreRows: ListArticle[];
+  baseUrl: string;
+  linkedPodcasts: PodcastWithRecommender[];
+  // Gesetzt = Vorschau: keine strukturierten Daten. dateLabel kommt vom
+  // Server, afterBody steht nach dem Text (Rueckmeldung).
+  preview?: { dateLabel?: string; afterBody?: ReactNode };
 };
 
-export default async function ShowcaseArticleView({ article, moreHeading, moreRows }: Props) {
+export default function ShowcaseArticleView({ article, moreHeading, moreRows, baseUrl, linkedPodcasts, preview }: Props) {
   const author = article.author!;
   const company = article.startup;
   const label = contentTypeLabel(article) ?? "Unternehmensbeitrag";
-  const dateLabel = formatDateDE(article.published_at);
-  const baseUrl = getBaseUrl();
+  const dateLabel = preview?.dateLabel ?? formatDateDE(article.published_at);
   const path = `${SHOWCASE_PATH}/${article.slug}`;
   const url = `${baseUrl}${path}`;
   const doc = resolveBlockDocument(article);
@@ -74,28 +82,30 @@ export default async function ShowcaseArticleView({ article, moreHeading, moreRo
   const htmlLang = article.locale === "en" ? "en" : "de";
   const authorHandle = author.handle ?? author.slug;
 
-  const linkedPodcasts = await getPodcastsByArticleSlug(article.slug);
-
   const hasPlayablePodcast = linkedPodcasts.some((p) => p.source_type === "self_hosted" && !!p.audio_url);
   const baseToc = deriveTocItems(doc.blocks);
   const tocItems = hasPlayablePodcast ? [{ id: ARTICLE_PODCAST_ANCHOR, label: "Play Podcast" }, ...baseToc] : baseToc;
 
-  const jsonLd = buildArticleJsonLd(article, baseUrl, path, {
-    name: company.name,
-    profileUrl: `${baseUrl}/swiss-ai/${company.slug}`,
-    website: company.website,
-    paid: article.is_paid === true,
-  });
-  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
-    { name: "Home", url: `${baseUrl}/` },
-    { name: "Showcase", url: `${baseUrl}${SHOWCASE_PATH}` },
-    { name: article.title },
-  ]);
+  const jsonLd = preview
+    ? null
+    : buildArticleJsonLd(article, baseUrl, path, {
+        name: company.name,
+        profileUrl: `${baseUrl}/swiss-ai/${company.slug}`,
+        website: company.website,
+        paid: article.is_paid === true,
+      });
+  const breadcrumbJsonLd = preview
+    ? null
+    : buildBreadcrumbJsonLd([
+        { name: "Home", url: `${baseUrl}/` },
+        { name: "Showcase", url: `${baseUrl}${SHOWCASE_PATH}` },
+        { name: article.title },
+      ]);
 
   return (
     <main style={{ paddingTop: "var(--nav-h)", backgroundColor: "var(--da-dark)", minHeight: "100vh" }}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }} />
+      {jsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />}
+      {breadcrumbJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: breadcrumbJsonLd }} />}
       <ReadingProgress />
       <ArticleHeadStyles />
       <ShowcaseStyles />
@@ -176,6 +186,8 @@ export default async function ShowcaseArticleView({ article, moreHeading, moreRo
           {tocItems.length > 0 && <TableOfContents items={tocItems} />}
         </aside>
       </ArticleBodyGrid>
+
+      {preview?.afterBody}
 
       {moreRows.length > 0 && (
         <div className="sc-more">

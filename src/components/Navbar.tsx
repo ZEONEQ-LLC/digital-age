@@ -4,15 +4,16 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { isAuthorSuitePath, isChromelessPath } from "@/lib/siteChrome";
+import { hidesSiteNav } from "@/lib/siteChrome";
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const pathname = usePathname() ?? "";
-  // Keine Navbar in der Autoren-Suite und auf chrome-freien Seiten (Vorschau);
-  // oeffentliche Profile /autor/<handle> zeigen sie (siteChrome.ts).
-  if (isAuthorSuitePath(pathname) || isChromelessPath(pathname)) return null;
+  // Keine Navbar in der Autoren-Suite und auf chrome-freien Seiten
+  // (Kunden-Vorschau); oeffentliche Profile /autor/<handle> und die
+  // Beitragsvorschau zeigen sie (siteChrome.ts).
+  if (hidesSiteNav(pathname)) return null;
 
   return (
     <>

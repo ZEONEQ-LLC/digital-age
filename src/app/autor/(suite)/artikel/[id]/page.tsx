@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import MobileEditorWarning from "@/components/author/MobileEditorWarning";
 import EditorClient from "@/components/author/EditorClient";
+import { previewDecisionStatus, previewFingerprint, type PreviewDecisionStatus } from "@/lib/articles/preview";
+import { getActivePreviewLink } from "@/lib/articles/previewApi";
 import { createClient } from "@/lib/supabase/server";
 import {
   getArticleById,
@@ -56,6 +58,15 @@ export default async function EditorPage({ params }: PageProps) {
     }));
   }
 
+  // Rueckmeldung ueber den Vorschau-Link (Freigabe oder Aenderungswunsch):
+  // steht im Editor gleich unter der Werkzeugleiste. Die Mail an die Redaktion
+  // fuehrt hierher.
+  let previewDecision: PreviewDecisionStatus = { kind: "none" };
+  if (isEditor) {
+    const link = await getActivePreviewLink(supabase, id);
+    if (link) previewDecision = previewDecisionStatus(link, previewFingerprint(article));
+  }
+
   return (
     <>
       <MobileEditorWarning />
@@ -67,6 +78,7 @@ export default async function EditorPage({ params }: PageProps) {
           isEditor={isEditor}
           allAuthors={allAuthors}
           startups={startups}
+          previewDecision={previewDecision}
         />
       </div>
     </>

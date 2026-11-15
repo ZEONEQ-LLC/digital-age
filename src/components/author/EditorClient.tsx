@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import AuthorStatusBadge from "@/components/author/AuthorStatusBadge";
-import ArticleCoverVideo from "@/components/ArticleCoverVideo";
 import EditorDetailsTab from "@/components/author/EditorDetailsTab";
+import EditorPreviewTab from "@/components/author/EditorPreviewTab";
+import { formatDecisionTime, type PreviewDecisionStatus, type PreviewOverrides } from "@/lib/articles/preview";
 import type { StartupOption } from "@/components/author/ContentTypeBox";
 import type { HeroStudioStatus } from "@/components/author/FeaturedImageBox";
 import EditorRevisions from "@/components/author/EditorRevisions";
@@ -29,9 +30,6 @@ import {
   type ImageAltTarget,
 } from "@/lib/copilot";
 import type { Json } from "@/lib/database.types";
-import ArticleBody from "@/components/ArticleBody";
-import BlockReader from "@/components/BlockReader";
-import InlineText from "@/components/InlineText";
 import MdCleanupModal from "@/components/editor/MdCleanupModal";
 import SourcePicker, { newSourceId } from "@/components/editor/SourcePicker";
 import SourceList from "@/components/editor/SourceList";
@@ -62,7 +60,7 @@ import {
 } from "@/lib/authorActions";
 import { unwrapAction } from "@/lib/actionResult";
 import { SHOWCASE_PATH } from "@/lib/contentType";
-import { DISCLOSURE_LABEL, normalizeDisclosure } from "@/lib/disclosure";
+import { normalizeDisclosure } from "@/lib/disclosure";
 import { validatePublishGate } from "@/lib/publishGate";
 import type { SuiteArticle, RevisionWithEditor, ArticleStatus } from "@/lib/authorApi";
 import { markdownToBlocks } from "@/lib/markdownBlocks";
@@ -106,6 +104,9 @@ type Props = {
   startups: StartupOption[];
   isEditor: boolean;
   allAuthors: { id: string; display_name: string; role: string }[];
+  // Rueckmeldung ueber den Vorschau-Link, Stand beim Laden der Seite (nach
+  // jedem Speichern neu, router.refresh). Nur fuer Editoren gefuellt.
+  previewDecision: PreviewDecisionStatus;
 };
 
 // Sammelt die Storage-N der daSourceRef-Nodes aus einem Tiptap-Doc-JSON in
@@ -146,7 +147,7 @@ function discardCoverUploads(articleId: string, unsaved: Set<string>, keep: stri
   }
 }
 
-export default function EditorClient({ article, revisions, categories, isEditor, allAuthors, startups }: Props) {
+export default function EditorClient({ article, revisions, categories, isEditor, allAuthors, startups, previewDecision }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("content");
   // Session-only Editor-Theme — kein localStorage, kein Server-Persist.
@@ -1061,20 +1062,31 @@ export default function EditorClient({ article, revisions, categories, isEditor,
     };
   }, [article.id, article.slug, article.category?.name_de, article.author?.display_name, seo.slug, seo.keyword, title, categories, categoryId, allAuthors, assignedAuthorId, publishedAtDate, readMinutes, excerpt, bodyText, locale]);
 
-  // Vorschau-Tab: Rubrik und Autor-Zeile wie auf der Beitragsseite. Rubrik =
-  // Subkategorie, sonst Kategorie; Datum = gesetztes Veroeffentlichungsdatum,
-  // sonst heute (wie beim ersten Publizieren).
-  const previewMeta = useMemo(() => {
+  // Vorschau-Tab: aktueller Stand des Editors fuer die eingebettete
+  // Entwurfsseite (EditorPreviewTab, applyPreviewOverrides). Autor und Rubrik
+  // nur mit dem, was der Editor kennt; der Rest kommt vom gespeicherten Beitrag.
+  const previewOverrides = useMemo<PreviewOverrides>(() => {
     const assigned = allAuthors.find((a) => a.id === assignedAuthorId);
-    const author = assigned?.display_name ?? article.author?.display_name ?? "";
+    const cat = categories.find((c) => c.id === categoryId);
     return {
-      rubric: subcategory.trim() || heroArticle.rubrik,
-      author,
-      initial: author.trim().charAt(0).toUpperCase() || "?",
-      external: assigned?.role === "external",
-      date: heroArticle.date,
+      title: title || "(Ohne Titel)",
+      excerpt,
+      body_blocks: doc ?? { version: BLOCK_SCHEMA_VERSION, blocks: markdownToBlocks(markdown), sources: [] },
+      cover_image_url: cover || null,
+      cover_image_alt: coverMetadata.alt.trim() || null,
+      cover_image_caption: coverMetadata.caption.trim() || null,
+      cover_image_source: coverMetadata.source.trim() || null,
+      cover_video_url: coverVideoUrl,
+      disclosure_note: normalizeDisclosure(disclosureNote) || null,
+      tags: tagList,
+      subcategory: subcategory.trim() || null,
+      locale,
+      published_date: publishedAtDate,
+      reading_minutes: readMinutes,
+      category: cat ? { id: cat.id, slug: cat.slug, name_de: cat.name_de } : null,
+      author: assigned ? { id: assigned.id, display_name: assigned.display_name, role: assigned.role } : null,
     };
-  }, [allAuthors, assignedAuthorId, article.author?.display_name, subcategory, heroArticle.rubrik, heroArticle.date]);
+  }, [allAuthors, assignedAuthorId, categories, categoryId, title, excerpt, doc, markdown, cover, coverMetadata, coverVideoUrl, disclosureNote, tagList, subcategory, locale, publishedAtDate, readMinutes]);
 
   // Aktives Studio-Hero fuer die Box «Beitragsbild»: Rezept vorhanden und Cover = Hero des Rezepts.
   const heroStudioStatus = useMemo<HeroStudioStatus | null>(() => (
@@ -1542,6 +1554,14 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           background: transparent; color: var(--da-red, #ff5c5c);
           border: 1px solid var(--da-red, #ff5c5c);
         }
+        .a-edit-decision {
+          margin: 0 0 20px; padding: 2px 0 2px 14px;
+          border-left: 2px solid var(--da-orange);
+          color: var(--da-text-strong); font-size: 13px; line-height: 1.55; max-width: 860px;
+        }
+        .a-edit-decision--ok { border-left-color: var(--da-green); }
+        .a-edit-decision strong { color: var(--da-text); font-weight: 600; }
+        .a-edit-decision span { display: block; white-space: pre-wrap; color: var(--da-muted); margin-top: 4px; }
         .a-edit-error {
           background: rgba(255,92,92,0.12);
           border: 1px solid var(--da-red, #ff5c5c);
@@ -1812,6 +1832,27 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       </div>
 
       {error && <div className="a-edit-error">{error}</div>}
+
+      {/* Rueckmeldung ueber den Vorschau-Link. Nach dem Erscheinen ist sie
+          erledigt und steht nur noch im Tab «Vorschau». */}
+      {previewDecision.kind !== "none" && status !== "published" && status !== "archived" && (
+        <p
+          role="status"
+          className={`a-edit-decision${previewDecision.kind === "approved" && !previewDecision.stale ? " a-edit-decision--ok" : ""}`}
+        >
+          <strong>
+            {previewDecision.kind === "approved" ? "Freigegeben" : "Änderungen gewünscht"} am{" "}
+            {formatDecisionTime(previewDecision.at)} von {previewDecision.by}
+          </strong>{" "}
+          über den Vorschau-Link.{" "}
+          {previewDecision.stale
+            ? "Der Beitrag wurde seither geändert: Die Rückmeldung gilt für die frühere Fassung."
+            : previewDecision.kind === "approved"
+              ? "Du kannst publizieren."
+              : ""}
+          {previewDecision.note && <span>{previewDecision.note}</span>}
+        </p>
+      )}
 
       {mdCleanupWarning && (
         <div
@@ -2260,191 +2301,14 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       />
 
       {tab === "preview" && (
-        <div
-          style={{
-            maxWidth: 860,
-            margin: "0 auto",
-            background: "var(--da-darker)",
-            border: "1px solid var(--da-border)",
-            borderRadius: 8,
-            padding: "32px 36px 48px",
-          }}
-        >
-          <div
-            style={{
-              color: "var(--da-faint)",
-              fontFamily: "var(--da-font-mono)",
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              marginBottom: 16,
-            }}
-          >
-            Vorschau · So sieht der Artikel auf der Public-Page aus
-            {coverVideoUrl && (
-              <span style={{ marginLeft: 10, padding: "2px 7px", border: "1px solid var(--da-green)", borderRadius: 4, color: "var(--da-green)", letterSpacing: "0.1em" }}>
-                Animation aktiv
-              </span>
-            )}
-          </div>
-          {/* Gleiche Reihenfolge wie die Beitragsseite (src/app/artikel/[slug]/page.tsx):
-              Rubrik, Titel, Abstract, Autor-Zeile, dann Beitragsbild mit
-              Bildunterschrift und Quelle, dann Text. Anhören/Teilen nur angedeutet. */}
-          <nav
-            aria-label="Breadcrumb (Vorschau)"
-            data-preview="rubric"
-            style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24 }}
-          >
-            <span style={{ color: "var(--da-muted)", fontSize: "var(--fs-body-sm)" }}>Home</span>
-            <span style={{ color: "var(--da-faint)", fontSize: "var(--fs-body-sm)" }}>/</span>
-            <span
-              style={{
-                color: "var(--da-green)",
-                fontFamily: "var(--da-font-mono)",
-                fontSize: "var(--fs-body-sm)",
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-              }}
-            >
-              {previewMeta.rubric}
-            </span>
-          </nav>
-          <h1
-            style={{
-              color: "var(--da-text)",
-              fontFamily: "var(--da-font-display)",
-              fontSize: "clamp(30px, 4vw, 48px)",
-              fontWeight: 700,
-              lineHeight: 1.15,
-              letterSpacing: "-0.02em",
-              marginBottom: 24,
-            }}
-          >
-            {title || "(Ohne Titel)"}
-          </h1>
-          {excerpt && (
-            <p style={{ color: "#c0c0c0", fontSize: 20, lineHeight: 1.65, marginBottom: 36, fontWeight: 300 }}>
-              <InlineText content={excerpt} sources={doc?.sources ?? []} />
-            </p>
-          )}
-          <div
-            data-preview="byline"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: 16,
-              paddingBottom: 28,
-              marginBottom: 28,
-              borderBottom: "1px solid var(--da-card)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <span
-                aria-hidden
-                style={{
-                  width: 44,
-                  height: 44,
-                  flexShrink: 0,
-                  borderRadius: "50%",
-                  border: `2px solid ${previewMeta.external ? "var(--da-orange)" : "var(--da-green)"}`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "var(--da-muted)",
-                  fontWeight: 700,
-                  fontSize: 15,
-                }}
-              >
-                {previewMeta.initial}
-              </span>
-              <div>
-                <div style={{ color: "var(--da-text)", fontSize: "var(--fs-body)", fontWeight: 600 }}>
-                  {previewMeta.author || "(Kein Autor)"}
-                </div>
-                <p style={{ color: "var(--da-muted)", fontFamily: "var(--da-font-mono)", fontSize: "var(--fs-body-sm)", margin: 0 }}>
-                  {previewMeta.date} · {readMinutes} min Lesezeit
-                </p>
-              </div>
-            </div>
-            <span style={{ color: "var(--da-faint)", fontFamily: "var(--da-font-mono)", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              Anhören · Teilen
-            </span>
-          </div>
-          {cover && (
-            // Wie auf der Beitragsseite: Bild als Poster, bei gesetzter Animation
-            // dieselbe Komponente ArticleCoverVideo darueber (Pause-Knopf, reduced motion).
-            <figure style={{ margin: "0 0 32px" }} data-preview="cover">
-              <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", background: "var(--da-dark)" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={cover}
-                  alt={coverMetadata.alt}
-                  style={{ display: "block", width: "100%", height: "auto", maxHeight: 520, objectFit: "cover" }}
-                />
-                {coverVideoUrl && <ArticleCoverVideo src={coverVideoUrl} poster={cover} />}
-              </div>
-              {coverMetadata.caption.trim() && (
-                <figcaption style={{ marginTop: 10, color: "var(--da-text)", fontSize: 14, fontWeight: 600, textAlign: "center" }}>
-                  {coverMetadata.caption}
-                </figcaption>
-              )}
-              {coverMetadata.source.trim() && (
-                <small style={{ display: "block", marginTop: 4, color: "var(--da-muted-soft)", fontSize: 12, fontStyle: "italic", textAlign: "center" }}>
-                  {coverMetadata.source}
-                </small>
-              )}
-            </figure>
-          )}
-          {normalizeDisclosure(disclosureNote) && (
-            <p
-              data-preview="disclosure"
-              style={{ margin: "0 0 32px", padding: "2px 0 2px 16px", borderLeft: "2px solid var(--da-orange)", color: "var(--da-text-strong)", fontSize: 15, lineHeight: 1.6 }}
-            >
-              <strong style={{ color: "var(--da-text)", fontWeight: 600 }}>{DISCLOSURE_LABEL}:</strong>{" "}
-              {normalizeDisclosure(disclosureNote)}
-            </p>
-          )}
-          <ArticleBody>
-            <BlockReader
-              locale={locale}
-              doc={
-                doc ?? {
-                  version: BLOCK_SCHEMA_VERSION,
-                  blocks: markdownToBlocks(markdown),
-                  sources: [],
-                }
-              }
-            />
-          </ArticleBody>
-          {(() => {
-            const tags = tagList;
-            if (tags.length === 0) return null;
-            return (
-              <div style={{ marginTop: 32, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {tags.map((tag) => (
-                  <span
-                    key={tag}
-                    style={{
-                      background: "var(--da-card)",
-                      border: "1px solid var(--da-border)",
-                      color: "var(--da-text-strong)",
-                      fontSize: 12,
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                      fontFamily: "var(--da-font-mono)",
-                    }}
-                  >
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            );
-          })()}
-        </div>
+        <EditorPreviewTab
+          articleId={article.id}
+          title={title}
+          isEditor={isEditor}
+          published={status === "published"}
+          dirty={dirty}
+          overrides={previewOverrides}
+        />
       )}
 
       {tab === "sources" && (() => {
