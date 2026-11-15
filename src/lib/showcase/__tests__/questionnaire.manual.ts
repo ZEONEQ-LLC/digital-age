@@ -8,6 +8,7 @@ import {
   countWords,
   diffProfile,
   firstName,
+  formatLongDate,
   inviteState,
   isHttpUrl,
   looksLikeBot,
@@ -210,6 +211,10 @@ ok("normale Ausfuellzeit = Mensch", !looksLikeBot({ website: "", openedAt: 1000 
   const good = validateInvite({ name: " Anna Muster ", email: "Anna@B.ch", replyBy: "2026-12-20", sendMail: true }, today);
   ok("vollstaendige Einladung", good.ok && good.value.invitee_email === "anna@b.ch" && good.value.invitee_name === "Anna Muster");
 }
+
+// ── Datum ─────────────────────────────────────────────────────────────────
+ok("langes Datum", formatLongDate("2026-12-19") === "19. Dezember 2026" && formatLongDate("2027-03-01T08:00:00Z") === "1. März 2027");
+ok("kaputtes Datum ist leer", formatLongDate("") === "" && formatLongDate(null) === "" && formatLongDate("2026-13-01") === "");
 
 console.log(fails === 0 ? "\nAlle Tests gruen." : `\n${fails} Test(s) fehlgeschlagen.`);
 process.exit(fails === 0 ? 0 : 1);

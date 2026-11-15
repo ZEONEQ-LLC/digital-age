@@ -19,8 +19,9 @@ export const AUTHOR_SUITE_PREFIXES = [
   "/autor/freigaben",
 ] as const;
 
-// Seiten ohne Site-Chrome und ohne Tracking (Kunden-Vorschau, #158).
-export const CHROMELESS_PREFIXES = ["/vorschau"] as const;
+// Seiten ohne Site-Chrome und ohne Tracking: Kunden-Vorschau (#158) und der
+// Fragebogen des Showcase (Token-Seite fuer Unternehmen).
+export const CHROMELESS_PREFIXES = ["/vorschau", "/showcase/mitmachen"] as const;
 
 // Beitragsvorschau (/vorschau/artikel/…): zeigt den Beitrag wie publiziert,
 // also mit Navbar und Ticker. Tracking, CMP und Anzeigen bleiben aus wie auf

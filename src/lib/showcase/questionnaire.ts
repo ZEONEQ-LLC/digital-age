@@ -345,6 +345,16 @@ export function inviteState(row: { status: string; expires_at: string }, now: nu
   return new Date(row.expires_at).getTime() <= now ? "expired" : "open";
 }
 
+const LONG_MONTHS = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+
+// «2026-12-19» → «19. Dezember 2026». Leer bei kaputtem Datum.
+export function formatLongDate(iso: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? "");
+  if (!m) return "";
+  const month = LONG_MONTHS[parseInt(m[2], 10) - 1];
+  return month ? `${parseInt(m[3], 10)}. ${month} ${m[1]}` : "";
+}
+
 export function firstName(name: string | null | undefined): string {
   return (name ?? "").trim().split(/\s+/)[0] ?? "";
 }

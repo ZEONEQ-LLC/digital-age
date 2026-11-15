@@ -1345,6 +1345,53 @@ Die festen Apple-Pfade `/apple-touch-icon.png` und
 bestehendes Home-Bildschirm-Lesezeichen behaelt sein altes Icon, bis es
 geloescht und neu angelegt wird.
 
+### Showcase S3a: Einladung und Fragebogen (PR 213)
+
+Die Redaktion laedt ein Unternehmen aus dem Verzeichnis zum Showcase ein. Es
+bekommt einen Link mit Token (`/showcase/mitmachen/<token>`, ohne Login),
+beantwortet den Fragebogen (Anhang B der Uebergabe vom 13.11.2026), laedt
+Logo und Bild hoch, bestaetigt seine Profildaten und gibt sein Einverstaendnis.
+Der KI-Entwurf und die Freigabe folgen in S3b (Baustein: Vorschau-Link aus
+PR 212, nicht neu bauen).
+
+- **Regeln und Pruefung** (rein, getestet): `src/lib/showcase/questionnaire.ts`
+  (Fragen, Grenzen, Profil-Abgleich, Bot-Signale, Zustand der Einladung,
+  Dateityp aus den ersten Bytes, Pfade im Bucket).
+- **Unternehmen** (`submitActions.ts`, "use server", Service-Role): Token ist
+  der Zugang. `uploadShowcaseMedia` nimmt nur PNG und WebP an (Bucket
+  `startup-media`, hoechstens 900 KB wegen der 1-MB-Grenze von Server
+  Actions); JPEG, SVG und zu grosse Dateien zeichnet der Browser vorher neu
+  (`prepareImage`, ein SVG wird dabei zum Rasterbild). `submitShowcase`
+  speichert, traegt ein Einverstaendnis zur Kontaktweiterleitung sofort in
+  `startup_contacts` ein (`consent_source` 'showcase') und schickt zwei Mails.
+- **Redaktion** (`adminActions.ts`, Sitzungs-Client + RLS): einladen, Mail
+  senden, erinnern, «Test an mich», zurueckziehen, Profil uebernehmen (jede
+  Aenderung nochmals geprueft, setzt `verified_at`), Logo uebernehmen. UI:
+  `ShowcaseInvitesAdmin.tsx` unter `/autor/admin/startups#showcase`.
+- **Mails** (`src/lib/showcase/mail.ts`, `src/emails/Showcase*.tsx`): Die
+  Einladung folgt wortgetreu Anhang C (Entwurf von Ali). Text nur mit seinem
+  Wort aendern.
+- **Seite**: chromefrei (`CHROMELESS_PREFIXES`), noindex, `referrer:
+  same-origin`, in robots.txt gesperrt. Unbekannt oder zurueckgezogen: 404;
+  abgelaufen oder abgeschickt: ein Satz, kein Formular.
+- Der Zwischenstand liegt im localStorage (`da-showcase-<Tokenanfang>`). Das
+  Formular rendert deshalb erst im Browser (`useSyncExternalStore`), der Kopf
+  schon auf dem Server.
+
+Regeln:
+
+- **Neue Frage oder neues Profilfeld** → zuerst `questionnaire.ts` (Typ,
+  `validateSubmission`, `PROFILE_LABELS`, Test), dann Formular und Admin.
+  Neue oeffentliche Spalte in `ai_startups` braucht ein anon-Spaltenrecht.
+- **Dateien**: Der Server vertraut weder Name noch gemeldetem Typ. Ein Pfad
+  in einer Einreichung muss zum Unternehmen gehoeren (`mediaPathBelongsTo`).
+- **Lokal** fehlt der Service-Schluessel: Die Token-Seite gibt 500, Upload
+  und Absenden melden «gerade nicht moeglich». Sichtpruefung ueber eine
+  Mock-Route unter `/vorschau/…`, echter Durchlauf nur live.
+- S3b: Fragebogen-Antworten gehen dann an die KI. Den Absatz zu Anthropic in
+  der Datenschutzerklaerung vorher anpassen (heute steht dort, es gingen
+  keine Daten von Besucherinnen und Besuchern dorthin).
+
 ### Lesestatistik fuer Autorinnen und Autoren (PR 213)
 
 Eigene, cookielose Zaehlung: wie oft Beitraege geoeffnet und gelesen werden.

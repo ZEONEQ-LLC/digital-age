@@ -24,7 +24,9 @@ export type RateLimitAction =
   | "module_event"
   | "startup_contact"
   | "preview_response"
-  | "article_read";
+  | "article_read"
+  | "showcase_submit"
+  | "showcase_upload";
 
 type SbClient = SupabaseClient<Database>;
 
