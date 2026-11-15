@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateContentTypeChange } from "@/lib/articleRevalidate";
 import { createClient } from "@/lib/supabase/server";
 import { FormError, runAction, type ActionResult } from "@/lib/actionResult";
 import {
@@ -40,19 +41,25 @@ async function setArticleContentTypeInner(articleId: string, input: ContentTypeI
   if (!isContentType(input?.content_type)) throw new FormError("Ungültiger Inhaltstyp.");
 
   const [{ data: article }, { data: categories }] = await Promise.all([
-    supabase.from("articles").select("id, slug, status, category_id").eq("id", articleId).maybeSingle(),
+    supabase
+      .from("articles")
+      .select("id, slug, status, category_id, startup:ai_startups(slug)")
+      .eq("id", articleId)
+      .maybeSingle(),
     supabase.from("categories").select("id, slug"),
   ]);
   if (!article) throw new FormError("Artikel nicht gefunden.");
 
   let startupListed = false;
+  let newStartupSlug: string | null = null;
   if (input.content_type === "company" && input.startup_id) {
     const { data: startup } = await supabase
       .from("ai_startups")
-      .select("id, status")
+      .select("id, status, slug")
       .eq("id", input.startup_id)
       .maybeSingle();
     startupListed = startup?.status === "published" || startup?.status === "featured";
+    newStartupSlug = startup?.slug ?? null;
   }
 
   const cats = categories ?? [];
@@ -77,11 +84,12 @@ async function setArticleContentTypeInner(articleId: string, input: ContentTypeI
   revalidatePath(`/autor/artikel/${articleId}`);
   revalidatePath("/autor/artikel");
   revalidatePath("/autor/admin/artikel");
-  // Ein publizierter Artikel wechselt die Listen: Startseite und Beitragsseite
-  // neu bauen.
+  // Ein publizierter Artikel wechselt die Welt: /artikel/<slug> und
+  // /showcase/<slug> (eine der beiden leitet danach weiter), Listen und die
+  // Profile der beteiligten Unternehmen neu bauen.
   if (data.status === "published") {
-    revalidatePath("/");
-    revalidatePath(`/artikel/${data.slug}`);
+    const oldStartupSlug = (article.startup as { slug?: string } | null)?.slug ?? null;
+    revalidateContentTypeChange(data.slug, [oldStartupSlug, newStartupSlug]);
   }
   return {
     content_type: data.content_type,

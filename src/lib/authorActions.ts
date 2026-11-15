@@ -11,7 +11,9 @@ import {
 } from "@/lib/articles/mail";
 import { emptyBlockDocument, type BlockDocument } from "@/types/blocks";
 import { checkSourcesUrls } from "@/lib/editor/urlCheck";
-import { SHOWCASE_PUBLISHING_ENABLED, companyPublishBlockers, contentTypeDbError } from "@/lib/contentType";
+import { SHOWCASE_PUBLISHING_ENABLED, articlePath, companyPublishBlockers, contentTypeDbError, isCompany } from "@/lib/contentType";
+import { revalidateArticlePage } from "@/lib/articleRevalidate";
+import { disclosureError, normalizeDisclosure } from "@/lib/disclosure";
 import { validatePublishGate } from "@/lib/publishGate";
 import { isArticleSlugConflict } from "@/lib/articleSlug";
 import { FormError, isUniqueViolation, runAction, type ActionResult } from "@/lib/actionResult";
@@ -117,6 +119,9 @@ export type ArticlePatch = {
   cover_video_url?: string | null;
   cover_video_alt?: string | null;
   cover_recipe?: Json | null;
+  // Interessenbindung (Migration 20261115090000): Hinweis ueber dem Text.
+  // Im Revisions-Snapshot, wird beim Restore nie geaendert.
+  disclosure_note?: string | null;
 };
 
 // Serverseitige Plausibilitaet der Hero-Studio-Felder. saveArticle wirft
@@ -184,6 +189,13 @@ async function saveArticleInner(id: string, patch: ArticlePatch): Promise<Articl
   delete dbPatch.content_type;
   delete dbPatch.startup_id;
   delete dbPatch.is_paid;
+  // Interessenbindung: ein Absatz, leer = kein Hinweis.
+  if (patch.disclosure_note !== undefined) {
+    const note = normalizeDisclosure(patch.disclosure_note);
+    const noteError = disclosureError(note);
+    if (noteError) throw new FormError(noteError);
+    dbPatch.disclosure_note = note;
+  }
   if (patchBlocks !== undefined && patchBlocks !== null) {
     dbPatch.body_md = renderBlockDocumentToMarkdown(patchBlocks);
     dbPatch.body_blocks = patchBlocks as unknown as Json;
@@ -249,10 +261,7 @@ async function saveArticleInner(id: string, patch: ArticlePatch): Promise<Articl
   // Publizierte Beitragsseite sofort neu bauen statt erst nach dem ISR-Fenster
   // (revalidate = 600 in /artikel/[slug]); bei Slug-Wechsel alten und neuen Pfad.
   // Startseite und Rubrikseiten bleiben beim ISR.
-  if (data.status === "published") {
-    revalidatePath(`/artikel/${data.slug}`);
-    if (previousSlug && previousSlug !== data.slug) revalidatePath(`/artikel/${previousSlug}`);
-  }
+  if (data.status === "published") revalidateArticlePage(data, previousSlug);
   return data;
 }
 
@@ -433,7 +442,7 @@ async function publishArticleInner(id: string): Promise<ArticleRow> {
   const { data: current, error: currentErr } = await supabase
     .from("articles")
     .select(
-      "published_at, slug, title, excerpt, seo_title, seo_description, seo_keyword_primary, cover_image_url, cover_image_alt, content_type, startup_id, author:authors(display_name, email), category:categories(slug), startup:ai_startups(status)",
+      "published_at, slug, title, excerpt, seo_title, seo_description, seo_keyword_primary, cover_image_url, cover_image_alt, content_type, startup_id, author:authors(display_name, email), category:categories(slug), startup:ai_startups(status, slug)",
     )
     .eq("id", id)
     .single();
@@ -445,8 +454,9 @@ async function publishArticleInner(id: string): Promise<ArticleRow> {
   const wasPublishedBefore = current.published_at != null;
 
   // Unternehmensbeitraege: eigene Pruefung, bei JEDEM Publizieren (nicht nur
-  // beim ersten). In S2a ist das Publizieren ganz gesperrt, weil die
-  // gekennzeichneten Showcase-Seiten noch fehlen.
+  // beim ersten): Unternehmen zugeordnet und im Verzeichnis sichtbar,
+  // Kategorie «showcase». Der Schalter SHOWCASE_PUBLISHING_ENABLED sperrt das
+  // Publizieren bei Bedarf wieder ganz.
   {
     const startupStatus = (current.startup as { status: string } | null)?.status;
     const blockers = companyPublishBlockers(
@@ -509,7 +519,7 @@ async function publishArticleInner(id: string): Promise<ArticleRow> {
         authorEmail: author.email,
         authorName: author.display_name,
         title: current.title,
-        slug: current.slug,
+        path: articlePath({ slug: current.slug, content_type: current.content_type }),
       });
     } else {
       console.log(
@@ -521,6 +531,11 @@ async function publishArticleInner(id: string): Promise<ArticleRow> {
   revalidatePath("/autor/artikel");
   revalidatePath(`/autor/artikel/${id}`);
   revalidatePath("/");
+  revalidateArticlePage(data);
+  if (isCompany(data)) {
+    const startupSlug = (current.startup as { slug?: string } | null)?.slug;
+    if (startupSlug) revalidatePath(`/swiss-ai/${startupSlug}`);
+  }
   return data;
 }
 
@@ -545,6 +560,7 @@ async function archiveArticleInner(id: string): Promise<ArticleRow> {
   revalidatePath("/autor/artikel");
   revalidatePath(`/autor/artikel/${id}`);
   revalidatePath("/");
+  revalidateArticlePage(data);
   return data;
 }
 

@@ -1,13 +1,19 @@
 import "server-only";
 
-import { editorialOnly } from "@/lib/contentType";
+import { contentTypeLabel } from "@/lib/contentType";
 import { createPublicClient } from "@/lib/supabase/public";
 import { RELATIONS_SHORT, type ArticleWithRelations } from "@/lib/articleApi";
 
 // Volltextsuche ueber publizierte Artikel (RPC search_articles, Postgres-FTS,
 // Migration 20261111230000). Anon-Client: nur oeffentliche Inhalte.
 
-export type ArticleHit = { article: ArticleWithRelations; snippet: string };
+// `sender` ist nur bei Unternehmensbeitraegen gesetzt: Kennzeichnung und Name
+// des Unternehmens fuer die Trefferzeile.
+export type ArticleHit = {
+  article: ArticleWithRelations;
+  snippet: string;
+  sender: { label: string; name: string } | null;
+};
 
 export const SEARCH_LIMIT = 30;
 
@@ -23,20 +29,29 @@ export async function searchArticles(
   }
   if (!ranked || ranked.length === 0) return { hits: [], failed: false };
 
-  // Nur redaktionelle Artikel. Mit S2b zeigt die Suche Unternehmensbeitraege
-  // gekennzeichnet und mit Link auf /showcase/<slug>.
-  const { data: rows, error: rowsErr } = await editorialOnly(
-    supabase.from("articles").select(RELATIONS_SHORT).eq("status", "published"),
-  ).in("id", ranked.map((r) => r.id));
+  // Redaktionelle Artikel und Unternehmensbeitraege (seit S2b). Letztere
+  // erscheinen gekennzeichnet und verlinken auf /showcase/<slug>. Ist das
+  // Unternehmen fuer anon nicht lesbar (archiviert), faellt der Treffer weg:
+  // Ohne Absender gibt es keine Kennzeichnung und keine Seite.
+  const { data: rows, error: rowsErr } = await supabase
+    .from("articles")
+    .select(`${RELATIONS_SHORT}, startup:ai_startups(name)`)
+    .eq("status", "published")
+    .in("id", ranked.map((r) => r.id));
   if (rowsErr) {
     console.error("[search] article rows failed:", rowsErr.message);
     return { hits: [], failed: true };
   }
-  const byId = new Map(((rows as ArticleWithRelations[] | null) ?? []).map((a) => [a.id, a]));
+  type Row = ArticleWithRelations & { startup: { name: string } | null };
+  const byId = new Map(((rows as Row[] | null) ?? []).map((a) => [a.id, a]));
   // Reihenfolge der RPC (Rang) behalten.
-  const hits = ranked.flatMap((r) => {
+  const hits = ranked.flatMap((r): ArticleHit[] => {
     const article = byId.get(r.id);
-    return article ? [{ article, snippet: r.snippet }] : [];
+    if (!article) return [];
+    const label = contentTypeLabel(article);
+    if (!label) return [{ article, snippet: r.snippet, sender: null }];
+    if (!article.startup) return [];
+    return [{ article, snippet: r.snippet, sender: { label, name: article.startup.name } }];
   });
   return { hits, failed: false };
 }

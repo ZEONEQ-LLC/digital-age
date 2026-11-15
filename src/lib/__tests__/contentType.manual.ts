@@ -1,12 +1,15 @@
 // Manueller Test-Runner fuer die Einordnung von Artikeln
 // (src/lib/contentType.ts) und dafuer, dass alle redaktionellen Listen
-// Unternehmensbeitraege ausschliessen (Showcase S2a).
+// Unternehmensbeitraege ausschliessen (Showcase S2a) und die Showcase-Seiten
+// sie getrennt und gekennzeichnet zeigen (S2b).
 //
 //   npx tsx src/lib/__tests__/contentType.manual.ts
 import { readFileSync } from "node:fs";
 import {
   SHOWCASE_CATEGORY_SLUG,
+  SHOWCASE_PATH,
   SHOWCASE_PUBLISHING_ENABLED,
+  articlePath,
   companyPublishBlockers,
   contentTypeDbError,
   contentTypeLabel,
@@ -32,7 +35,13 @@ ok("anderes ist keiner", !isContentType("sponsored") && !isContentType(null) && 
 ok("isCompany erkennt company", isCompany({ content_type: "company" }));
 ok("isCompany: editorial, null und fehlend sind redaktionell", !isCompany({ content_type: "editorial" }) && !isCompany({ content_type: null }) && !isCompany({}));
 eq("Kategorie heisst showcase", SHOWCASE_CATEGORY_SLUG, "showcase");
-ok("S2a: Publizieren ist gesperrt", SHOWCASE_PUBLISHING_ENABLED === false);
+ok("S2b: Publizieren ist freigegeben", (SHOWCASE_PUBLISHING_ENABLED as boolean) === true);
+
+// --- Oeffentlicher Pfad je Inhaltstyp
+eq("redaktionell steht unter /artikel", articlePath({ slug: "ki-im-alltag", content_type: "editorial" }), "/artikel/ki-im-alltag");
+eq("Unternehmensbeitrag steht unter /showcase", articlePath({ slug: "ai-act", content_type: "company" }), "/showcase/ai-act");
+eq("ohne Typ gilt redaktionell", articlePath({ slug: "x" }), "/artikel/x");
+eq("Uebersicht heisst /showcase", SHOWCASE_PATH, "/showcase");
 
 // --- Kennzeichnung
 eq("redaktionell traegt keine Kennzeichnung", contentTypeLabel({ content_type: "editorial", is_paid: false }), null);
@@ -83,11 +92,11 @@ const ctx: ContentTypeContext = {
 }
 {
   const plan = planContentTypeChange({ content_type: "company", startup_id: "s1", is_paid: false, category_id: null }, { ...ctx, status: "published" });
-  ok("S2a: publizierter Artikel laesst sich nicht umstellen", !plan.ok && plan.message.includes("Showcase-Seiten"));
+  ok("Schalter aus: publizierter Artikel laesst sich nicht umstellen", !plan.ok && plan.message.includes("gesperrt"));
 }
 {
   const plan = planContentTypeChange({ content_type: "company", startup_id: "s1", is_paid: false, category_id: null }, { ...ctx, status: "published", publishingEnabled: true });
-  ok("ab S2b: publizierter Artikel laesst sich umstellen", plan.ok);
+  ok("Schalter an: publizierter Artikel laesst sich umstellen", plan.ok);
 }
 {
   const plan = planContentTypeChange({ content_type: "company", startup_id: "s1", is_paid: false, category_id: null }, { ...ctx, status: "in_review" });
@@ -121,7 +130,7 @@ const ctx: ContentTypeContext = {
 eq("redaktionell: nie blockiert", companyPublishBlockers({ content_type: "editorial", startup_id: null, categorySlug: "ki-business", startupListed: false }, false), []);
 {
   const b = companyPublishBlockers({ content_type: "company", startup_id: "s1", categorySlug: "showcase", startupListed: true }, false);
-  ok("S2a: Unternehmensbeitrag ist nicht publizierbar", b.length === 1 && b[0].includes("Showcase-Seiten"));
+  ok("Schalter aus: Unternehmensbeitrag ist nicht publizierbar", b.length === 1 && b[0].includes("gesperrt"));
 }
 eq("ab S2b: vollstaendiger Beitrag ist publizierbar", companyPublishBlockers({ content_type: "company", startup_id: "s1", categorySlug: "showcase", startupListed: true }, true), []);
 ok("ab S2b: ohne Unternehmen blockiert", companyPublishBlockers({ content_type: "company", startup_id: null, categorySlug: "showcase", startupListed: false }, true).some((m) => m.includes("kein Unternehmen")));
@@ -146,8 +155,7 @@ const EDITORIAL_LISTS: [file: string, min: number, what: string][] = [
   ["src/app/artikel/[slug]/page.tsx", 1, "generateStaticParams"],
   ["src/lib/newsletter/draftJob.ts", 2, "Newsletter-Entwurf und Fallback"],
   ["src/app/autor/(suite)/admin/newsletter/ausgaben/page.tsx", 1, "Newsletter-Kandidaten im Admin"],
-  ["src/app/sitemap.ts", 1, "Sitemap"],
-  ["src/lib/search/articles.ts", 1, "Suche"],
+  ["src/app/sitemap.ts", 1, "Sitemap: Block der redaktionellen Artikel"],
   ["src/lib/articleSearchActions.ts", 1, "Linkauswahl im Editor"],
   ["src/lib/podcastApi.ts", 1, "Podcast: Karte «zum Beitrag»"],
   ["src/lib/ads/previewApi.ts", 1, "Werbe-Vorschau: neuester Artikel"],
@@ -157,6 +165,30 @@ for (const [file, min, what] of EDITORIAL_LISTS) {
   const n = (src.match(/editorialOnly\(/g) ?? []).length;
   ok(`${what}: editorialOnly in ${file}`, n >= min, `gefunden ${n}, erwartet mindestens ${min}`);
 }
+
+// --- S2b: Wo Unternehmensbeitraege erscheinen, sind sie getrennt und
+// gekennzeichnet. Quelltext-Pruefung der Stellen, die das sicherstellen.
+function has(file: string, needle: string | RegExp): boolean {
+  const src = readFileSync(file, "utf8");
+  return typeof needle === "string" ? src.includes(needle) : needle.test(src);
+}
+function count(file: string, needle: RegExp): number {
+  return (readFileSync(file, "utf8").match(needle) ?? []).length;
+}
+ok("Showcase-Abfragen filtern auf company", count("src/lib/showcaseApi.ts", /\.eq\("content_type", "company"\)/g) >= 4);
+ok("Showcase-Abfragen verlangen ein sichtbares Unternehmen", count("src/lib/showcaseApi.ts", /ai_startups!inner/g) >= 3);
+ok("Suche kennzeichnet Unternehmensbeitraege", has("src/lib/search/articles.ts", "contentTypeLabel(article)"));
+ok("Suche laesst Treffer ohne sichtbares Unternehmen weg", has("src/lib/search/articles.ts", "if (!article.startup) return [];"));
+ok("Sitemap fuehrt Unternehmensbeitraege unter /showcase", has("src/app/sitemap.ts", "/showcase/${a.slug}"));
+ok("/artikel/<slug> leitet Unternehmensbeitraege weiter", has("src/app/artikel/[slug]/page.tsx", /=== "company"\) permanentRedirect\(/));
+ok("/showcase/<slug> leitet redaktionelle Artikel zurueck", has("src/app/showcase/[slug]/page.tsx", /=== "editorial"\) redirect\(/));
+ok("Showcase-Seite: externe Links sponsored", count("src/components/showcase/ShowcaseArticleView.tsx", /linkRel="sponsored"/g) >= 2);
+ok("Showcase-Seite: kein Anzeigen-Slot im Text", has("src/components/showcase/ShowcaseArticleView.tsx", "ads={false}"));
+ok("Showcase-Seite: feste Zeile mit der Kennzeichnung", has("src/components/showcase/ShowcaseArticleView.tsx", "<ShowcaseBand company={company} label={label} />"));
+ok("Keine Rails im Showcase", has("src/components/module/RailModules.tsx", '"/showcase"'));
+ok("BlockReader: rel aus linkRel, nicht fest", !has("src/components/BlockReader.tsx", 'rel="noopener noreferrer"') && has("src/components/BlockReader.tsx", '"sponsored noopener noreferrer"'));
+ok("Werbung: keine Buchung auf Unternehmensbeitraege", has("src/lib/ads/adActions.ts", "if (isCompany(art))"));
+ok("Listenzeile zeigt Kennzeichnung und Absender", has("src/components/ArticleListRow.tsx", "<strong>{article.sender.label}</strong>") && has("src/components/ArticleListRow.tsx", "{article.sender.name}</span>"));
 
 // Rubrik-Abfragen filtern ueber die Kategorie. Der DB-Trigger haelt
 // Unternehmensbeitraege in «showcase»; die Rubrikseiten fragen feste Slugs ab.

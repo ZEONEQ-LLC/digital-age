@@ -11,10 +11,19 @@ export type ContentType = (typeof CONTENT_TYPES)[number];
 // der Navigation und ist im Editor nicht waehlbar.
 export const SHOWCASE_CATEGORY_SLUG = "showcase";
 
-// S2a: Das Datenmodell steht, die gekennzeichneten Seiten (/showcase/<slug>)
-// noch nicht. Bis S2b darf deshalb kein Unternehmensbeitrag live gehen. Sonst
-// stuende er ohne Kennzeichnung unter /artikel/<slug>.
-export const SHOWCASE_PUBLISHING_ENABLED = false;
+// Seit S2b gibt es die gekennzeichneten Seiten (/showcase/<slug>):
+// Unternehmensbeitraege lassen sich publizieren, publizierte Artikel
+// umstellen. Der Schalter bleibt als Notbremse: false sperrt beides wieder.
+export const SHOWCASE_PUBLISHING_ENABLED = true;
+
+export const SHOWCASE_PATH = "/showcase";
+
+// Oeffentlicher Pfad eines Artikels. Unternehmensbeitraege stehen unter
+// /showcase/<slug>, alles andere unter /artikel/<slug>. Beide Routen leiten
+// auf die jeweils richtige weiter, falls ein alter Link die falsche trifft.
+export function articlePath(a: { slug: string; content_type?: string | null }): string {
+  return `${isCompany(a) ? SHOWCASE_PATH : "/artikel"}/${a.slug}`;
+}
 
 export function isContentType(v: unknown): v is ContentType {
   return typeof v === "string" && (CONTENT_TYPES as readonly string[]).includes(v);
@@ -32,8 +41,8 @@ export function contentTypeLabel(a: { content_type?: string | null; is_paid?: bo
 }
 
 // Filter fuer alle redaktionellen Listen (Startseite, Tags, Autorenprofil,
-// Newsletter, Sitemap, Suche). Rubrikseiten filtern ueber die Kategorie und
-// brauchen ihn nicht.
+// Newsletter, Sitemap-Block der Artikel). Rubrikseiten filtern ueber die
+// Kategorie und brauchen ihn nicht. Die Suche filtert nicht, sie kennzeichnet.
 type EqQuery = { eq(column: "content_type", value: string): unknown };
 export function editorialOnly<Q extends EqQuery>(query: Q): Q {
   return query.eq("content_type", "editorial") as Q;
@@ -88,7 +97,7 @@ export function planContentTypeChange(input: ContentTypeInput, ctx: ContentTypeC
       return {
         ok: false,
         message:
-          "Publizierte Artikel lassen sich erst umstellen, wenn die Showcase-Seiten live sind. Bis dahin stünde der Beitrag ohne Kennzeichnung online.",
+          "Die Umstellung publizierter Artikel ist zurzeit gesperrt. Der Beitrag stünde sonst ohne Kennzeichnung online.",
       };
     }
     return {
@@ -132,7 +141,7 @@ export function companyPublishBlockers(a: CompanyPublishFields, publishingEnable
   if (!isCompany(a)) return [];
   const out: string[] = [];
   if (!publishingEnabled) {
-    out.push("Unternehmensbeiträge können erst publiziert werden, wenn die Showcase-Seiten live sind.");
+    out.push("Das Publizieren von Unternehmensbeiträgen ist zurzeit gesperrt.");
     return out;
   }
   if (!a.startup_id) out.push("Dem Beitrag ist kein Unternehmen zugeordnet.");

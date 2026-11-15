@@ -64,6 +64,9 @@ type EditorSeoPanelProps = {
   onChange: (next: SeoState) => void;
   /** Slug laeuft noch dem Artikel-Titel nach (Hinweis unter dem Feld) */
   slugAuto?: boolean;
+  // Oeffentlicher Pfad vor dem Slug: "/artikel" oder, bei
+  // Unternehmensbeitraegen, "/showcase". Nur Anzeige.
+  pathPrefix?: string;
   articleId: string;
   articleTitle?: string;
   articleBodyText?: string;
@@ -292,6 +295,7 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
   seo,
   onChange,
   slugAuto = false,
+  pathPrefix = "/artikel",
   articleId,
   articleTitle = "",
   articleBodyText = "",
@@ -1072,7 +1076,7 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
                   wordBreak: "break-word",
                 }}
               >
-                digital-age.ch/artikel/{normalizeArticleSlug(pipelineFields.slugSuggestion)}
+                digital-age.ch{pathPrefix}/{normalizeArticleSlug(pipelineFields.slugSuggestion)}
               </p>
               <div style={{ display: "flex", gap: 8 }}>
                 <button
@@ -1520,7 +1524,7 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
             <span style={{ color: "var(--da-text-strong)", fontSize: 13, fontWeight: 600 }}>URL-Slug</span>
             <span style={{ color: "var(--da-muted)", fontSize: 11, fontFamily: "var(--da-font-mono)" }}>
-              digital-age.ch/artikel/{seo.slug || "..."}
+              digital-age.ch{pathPrefix}/{seo.slug || "..."}
             </span>
           </div>
           <div style={{ display: "flex", gap: 8 }}>

@@ -1338,10 +1338,89 @@ Die festen Apple-Pfade `/apple-touch-icon.png` und
 bestehendes Home-Bildschirm-Lesezeichen behaelt sein altes Icon, bis es
 geloescht und neu angelegt wird.
 
+### Showcase S2b: Seiten fuer Unternehmensbeitraege, Interessenbindung (PR 210)
+
+Dritter Schritt des Plans «Swiss AI Showcase». Entscheide Ali 15.11.2026:
+Gestaltung Variante B «Bühne», **ausdruecklich ohne KI-Schablonen-Look**
+(keine Karten mit Rahmen, keine farbigen Oberkanten, keine Pillen; Trennung
+ueber Linien, Satz und Aufbau), Texte der Kennzeichnung wie vorgeschlagen,
+Interessenbindung ueber ein Feld, `rel="sponsored"` im BlockReader erlaubt,
+Spotlight bleibt.
+
+- **Routen:** `/showcase` (Uebersicht, `ShowcaseBrowser`: links Einordnung und
+  ab zwei Branchen der Filter, rechts die Liste; ohne Beitrag `noindex` und
+  nicht in der Sitemap) und `/showcase/<slug>` (`ShowcaseArticleView`).
+  `articlePath(a)` in `contentType.ts` liefert den oeffentlichen Pfad;
+  **neue Links auf Artikel immer darueber**, nicht `/artikel/${slug}` von Hand.
+- **Weiterleitung:** `/artikel/<slug>` leitet Unternehmensbeitraege permanent
+  auf `/showcase/<slug>` (`getPublishedContentType`), umgekehrt leitet
+  `/showcase/<slug>` redaktionelle Artikel nur temporaer zurueck (stellt die
+  Redaktion zurueck, soll kein Browser die alte Richtung fest gespeichert
+  haben). Keine Eintraege in `redirect-map.json` noetig.
+- **Aufbau der Beitragsseite** (von oben): feste Zeile `ShowcaseBand`
+  («Unternehmensbeitrag von <Firma>. Nicht von der Redaktion verfasst.», bleibt
+  beim Scrollen unter Navigation und Ticker stehen, Link auf
+  `/swiss-ai/regeln#showcase`), Rubrik «Showcase / Branche» in Orange,
+  `CompanyMasthead` zwischen zwei Linien («Ein Beitrag von»), Titel, links
+  Abstract und Autorzeile, rechts das Bild (kleiner als im redaktionellen
+  Artikel: der Text fuehrt, 16:9 bleibt unbeschnitten). Neben dem Text steht
+  `CompanySide` ueber dem Inhaltsverzeichnis, am Ende `CompanyAbout` statt der
+  Autorenbox (mit «Mit dem Herausgeber verbunden» aus `affiliation_note`), dann
+  «Weitere Beiträge von <Firma>» bzw. «im Showcase». Kein Newsletter-Block im
+  Beitrag. Bausteine in `src/components/showcase/`.
+- **Geteilte Teile der Beitragsseiten:** `src/lib/articlePage.ts` (Datum,
+  Inhaltsverzeichnis, Metadaten, JSON-LD) und
+  `src/components/article/ArticlePageParts.tsx` (Bild, Podcast-Leiste, Raster,
+  Kopf-Stile, `DisclosureNote`). Die redaktionelle Seite ist bis auf das neue
+  CSS unveraendert (HTML vor und nach dem Umbau verglichen).
+- **Kennzeichnung in Listen:** `ArticleListRow` kennt `sender` (Kennzeichnung
+  und Unternehmen ausgeschrieben statt der Rubrik). `showcaseToListRow`
+  (`showcaseApi.ts`) setzt ihn. Unternehmensbeitraege stehen **nie in einer
+  redaktionellen Liste**, sondern als eigener, gekennzeichneter Abschnitt:
+  Firmenprofil und Autorenprofil «Beiträge im Showcase», Tag-Seite «Aus dem
+  Showcase». Die Suche zeigt sie im Rang gemischt, aber gekennzeichnet und mit
+  Link auf `/showcase/<slug>`.
+- **Absender ist Pflicht:** Alle Showcase-Abfragen nutzen `ai_startups!inner`.
+  Ist das Unternehmen fuer anon nicht lesbar (archiviert), gibt es keine Seite.
+  `archiveStartup`, `rejectStartup` und `restoreStartupToPending` lehnen
+  deshalb ab, solange Beitraege publiziert sind. Neue Spalte in
+  `SHOWCASE_COMPANY_COLUMNS` = anon-Spaltenrecht auf `ai_startups` noetig.
+- **Links und Anzeigen:** `BlockReader` und `InlineText` haben
+  `linkRel="sponsored"` (externe Links im Text, in der Quellenliste und im
+  Abstract; der Link im Disclaimer-Block liegt in `renderBlock` und bleibt),
+  `BlockReader ads={false}` laesst den Slot im Text weg, `RailModules` schliesst
+  `/showcase` aus, `adActions` lehnt Buchungen auf einen Unternehmensbeitrag ab.
+- **JSON-LD:** `sourceOrganization` nennt das Unternehmen. Nur bezahlte
+  Beitraege sind `AdvertiserContentArticle` mit `sponsor`.
+- **Interessenbindung** (`articles.disclosure_note`, Migration
+  `20261115090000`, max 400 Zeichen): Feld im Details-Tab, geht ueber
+  «Speichern». Steht als Absatz mit dem Wort «Interessenbindung» vor dem ersten
+  Absatz (`DisclosureNote`, beide Routen). Im Revisions-Snapshot, **ein Restore
+  aendert den Hinweis nie** (`REVISION_NOT_RESTORED_FIELDS`), sonst entfernte
+  ein alter Stand ihn still. Reine Logik `src/lib/disclosure.ts`.
+- **Regelseite:** Abschnitt `#showcase` (Text nach Anhang A der Uebergabe).
+- **Editor:** Der SEO-Tab zeigt bei Unternehmensbeitraegen die Adresse
+  `/showcase/…`; die Box «Inhaltstyp» weist bei publizierten Artikeln auf den
+  Adresswechsel hin. Die Vorschau zeigt weiter den redaktionellen Aufbau.
+- **Revalidierung:** `src/lib/articleRevalidate.ts` (`revalidateArticlePage`,
+  `revalidateContentTypeChange`). Die Mail «Artikel veröffentlicht» verlinkt
+  den richtigen Pfad.
+- **Daten** (`20261115100000_interessenbindung_und_logo.sql`, nach dem Merge
+  pushen): Interessenbindung in sieben Artikeln mit Connect-AI-Bezug, Logo der
+  Connect AI Group vom eigenen Server (`public/images/startups/`) statt als
+  Fremdbild von Trustpilot.
+- **Tests:** `articlePage.manual.ts` (JSON-LD, Metadaten, Interessenbindung),
+  `contentType.manual.ts` (Pfade, Quelltext-Pruefung der Trennung),
+  `revisionSnapshot.manual.ts` (Liste gegen SQL).
+- **Offen:** Die zwei Kooperationsartikel stellt die Redaktion im Editor um
+  (E10). Schreibt in S3b die KI den Entwurf aus dem Fragebogen, muss der
+  Schlusssatz «… verfasst sie aber nicht» geprueft werden.
+
 ### Showcase S2a: Datenmodell fuer Unternehmensbeitraege, unsichtbar (PR 209)
 
-Zweiter Schritt des Plans «Swiss AI Showcase». Auf der Website aendert sich
-nichts; die gekennzeichneten Seiten (`/showcase/<slug>`) kommen mit S2b.
+Zweiter Schritt des Plans «Swiss AI Showcase». Auf der Website aenderte sich
+damit nichts; die gekennzeichneten Seiten (`/showcase/<slug>`) kamen mit S2b
+(Abschnitt oben).
 
 - **Felder an `articles`:** `content_type` ('editorial' | 'company'),
   `startup_id` (Pflicht bei company), `is_paid` (nur bei company, Kennzeichnung
@@ -1364,16 +1443,14 @@ nichts; die gekennzeichneten Seiten (`/showcase/<slug>`) kommen mit S2b.
   aus dem Patch. Reine Logik und Meldungen: `src/lib/contentType.ts`.
 - **`editorialOnly(query)`** an jeder redaktionellen Liste: Startseite, Tags,
   Autorenprofil, «Mehr von diesem Autor», `generateStaticParams`,
-  `getArticleBySlug`, Newsletter-Entwurf (2), Newsletter-Kandidaten, Sitemap,
-  Suche, Linkauswahl im Editor, Podcast-Karte, Werbe-Vorschau. Der Test
+  `getArticleBySlug`, Newsletter-Entwurf (2), Newsletter-Kandidaten, Sitemap
+  (Block der redaktionellen Artikel), Linkauswahl im Editor, Podcast-Karte,
+  Werbe-Vorschau. Die Suche filtert seit S2b nicht mehr, sie kennzeichnet. Der Test
   `contentType.manual.ts` prueft die Liste der Dateien. **Neue Abfrage auf
   publizierte Artikel = `editorialOnly` setzen und im Test eintragen.**
-- **Publizieren gesperrt bis S2b:** `SHOWCASE_PUBLISHING_ENABLED = false` in
-  `contentType.ts`. Solange gilt: Ein Unternehmensbeitrag laesst sich nicht
-  publizieren, ein publizierter Artikel nicht umstellen. Sonst stuende er ohne
-  Kennzeichnung unter `/artikel/<slug>`. S2b stellt den Schalter um, leitet
-  `/artikel/<slug>` weiter und ersetzt den Filter in Suche und Sitemap durch
-  gekennzeichnete Eintraege.
+- **Schalter `SHOWCASE_PUBLISHING_ENABLED`** in `contentType.ts`: seit S2b
+  `true`. Auf `false` gestellt (Notbremse) laesst sich kein Unternehmensbeitrag
+  publizieren und kein publizierter Artikel umstellen.
 - **Revisionen:** Der Snapshot enthaelt die Einordnung, ein Wechsel erzeugt
   eine Revision. Ein Restore aendert die Einordnung **nie**
   (`REVISION_NOT_RESTORED_FIELDS`), und die Kategorie folgt der heutigen

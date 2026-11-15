@@ -18,6 +18,10 @@ export type ListArticle = {
   external?: boolean;
   // Abstract als Klartext (plainExcerpt), in der Liste zweizeilig.
   excerpt?: string;
+  // Unternehmensbeitrag (Showcase): Kennzeichnung und Absender stehen im Kopf
+  // der Zeile anstelle der Rubrik, ausgeschrieben und nicht in Versalien,
+  // damit man sie als Kennzeichnung liest.
+  sender?: { label: string; name: string };
 };
 
 type ArticleListRowProps = {
@@ -57,6 +61,8 @@ export default function ArticleListRow({ article, dotColor }: ArticleListRowProp
           text-transform: uppercase;
         }
         .alr__read { color: var(--da-muted-soft); font-family: var(--da-font-mono); font-size: 11px; }
+        .alr__sender { color: var(--da-muted); font-size: 13px; line-height: 1.3; }
+        .alr__sender strong { color: var(--da-orange); font-weight: 700; }
         .alr__title {
           color: var(--da-text);
           font-family: var(--da-font-display);
@@ -68,6 +74,8 @@ export default function ArticleListRow({ article, dotColor }: ArticleListRowProp
           transition: color var(--t-fast);
         }
         .alr:hover .alr__title { color: var(--da-green); }
+        .alr--sender:hover .alr__title { color: var(--da-orange); }
+        .alr--sender .alr__title, .alr--sender .alr__excerpt { max-width: 720px; }
         .alr__excerpt {
           color: var(--da-muted);
           font-size: 15px;
@@ -93,9 +101,11 @@ export default function ArticleListRow({ article, dotColor }: ArticleListRowProp
           .alr__cover { order: 2; }
           .alr__title { font-size: 17px; }
           .alr__excerpt { display: none; }
+          .alr__sender strong, .alr__sender-name { display: block; }
+          .alr__sender-sep, .alr--sender .alr__read { display: none; }
         }
       `}</style>
-      <Link href={article.href} className="alr">
+      <Link href={article.href} className={article.sender ? "alr alr--sender" : "alr"}>
         <article className="alr__in">
           <div className="alr__cover">
             <Image
@@ -109,7 +119,15 @@ export default function ArticleListRow({ article, dotColor }: ArticleListRowProp
           </div>
           <div className="alr__body">
             <div className="alr__head">
-              <span className="alr__cat" style={{ color: dotColor }}>{article.category}</span>
+              {article.sender ? (
+                <span className="alr__sender">
+                  <strong>{article.sender.label}</strong>
+                  <span className="alr__sender-sep" aria-hidden> · </span>
+                  <span className="alr__sender-name">{article.sender.name}</span>
+                </span>
+              ) : (
+                <span className="alr__cat" style={{ color: dotColor }}>{article.category}</span>
+              )}
               {article.readTime !== "—" && <span className="alr__read">· {article.readTime}</span>}
             </div>
             <h3 className="alr__title">{article.title}</h3>

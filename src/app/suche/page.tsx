@@ -141,6 +141,9 @@ export default async function SuchePage({ searchParams }: { searchParams: Search
         .sr-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
         .sr-head { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
         .sr-cat { font-family: var(--da-font-mono); font-size: var(--fs-overline); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+        /* Unternehmensbeitrag (Showcase): Kennzeichnung ausgeschrieben statt Rubrik. */
+        .sr-sender { color: var(--da-muted); font-size: 13px; }
+        .sr-sender strong { color: var(--da-orange); font-weight: 700; }
         .sr-meta { color: var(--da-faint); font-family: var(--da-font-mono); font-size: var(--fs-meta); display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; }
         .sr-title { color: var(--da-text); font-size: var(--fs-lead); font-weight: 600; line-height: 1.35; margin: 0; transition: color var(--t-base); }
         .sr-snippet {
@@ -253,7 +256,7 @@ export default async function SuchePage({ searchParams }: { searchParams: Search
                 </div>
                 {failed && <p className="sr-note" role="alert">Die Artikelsuche ist gerade nicht erreichbar.</p>}
                 {!failed && hits.length === 0 && <p className="sr-note">Keine Artikel für «{query}».</p>}
-                {hits.map(({ article, snippet }, i) => {
+                {hits.map(({ article, snippet, sender }, i) => {
                   const row = articleToListRow(article, i);
                   const accent = accentFor(article.category?.slug);
                   return (
@@ -263,7 +266,11 @@ export default async function SuchePage({ searchParams }: { searchParams: Search
                       </div>
                       <div className="sr-body">
                         <div className="sr-head">
-                          <span className="sr-cat" style={{ color: accent }}>{row.category}</span>
+                          {sender ? (
+                            <span className="sr-sender"><strong>{sender.label}</strong> · {sender.name}</span>
+                          ) : (
+                            <span className="sr-cat" style={{ color: accent }}>{row.category}</span>
+                          )}
                         </div>
                         <h3 className="sr-title">{row.title}</h3>
                         <Snippet text={snippet} />

@@ -118,8 +118,8 @@ export async function getArticleBySlug(
 ): Promise<ArticleWithFullRelations | null> {
   const supabase = createPublicClient();
   // Nur redaktionelle Artikel: /artikel/<slug> zeigt keinen
-  // Unternehmensbeitrag (er bekaeme dort keine Kennzeichnung). Mit S2b leitet
-  // die Route stattdessen auf /showcase/<slug> weiter.
+  // Unternehmensbeitrag (er bekaeme dort keine Kennzeichnung). Die Route
+  // leitet solche Slugs auf /showcase/<slug> weiter.
   const { data } = await editorialOnly(
     supabase.from("articles").select(RELATIONS_FULL).eq("slug", slug).eq("status", "published"),
   ).maybeSingle();

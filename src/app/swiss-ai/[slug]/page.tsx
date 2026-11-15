@@ -17,6 +17,8 @@ import { createPublicClient } from "@/lib/supabase/public";
 import StartupContactForm from "@/components/StartupContactForm";
 import { startupAcceptsContact } from "@/lib/startupContact/data";
 import { AFFILIATION_LABEL, INVESTOR_LABEL, RULES_PATH, formatVerifiedDate } from "@/lib/startupTrust";
+import ArticleListRow from "@/components/ArticleListRow";
+import { getShowcaseArticles, showcaseToListRow } from "@/lib/showcaseApi";
 
 type Params = Promise<{ slug: string }>;
 
@@ -80,6 +82,8 @@ export default async function StartupDetailPage({ params }: { params: Params }) 
   const verifiedOn = formatVerifiedDate(row.verified_at);
   // «Kontakt aufnehmen» nur mit Einverstaendnis des Startups (startup_contacts).
   const acceptsContact = await startupAcceptsContact(row.id);
+  // Unternehmensbeitraege dieses Unternehmens (Showcase, S2b).
+  const showcaseRows = (await getShowcaseArticles({ startupId: row.id, limit: 20 })).map(showcaseToListRow);
 
   const baseUrl = getBaseUrl();
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
@@ -195,6 +199,11 @@ export default async function StartupDetailPage({ params }: { params: Params }) 
           border-radius: var(--r-sm); text-decoration: none;
         }
         .sd-inv__pitch:hover { background: var(--da-orange); color: var(--da-dark); }
+
+        .sd-showcase { border-top: 1px solid var(--da-border); }
+        .sd-showcase__note { color: var(--da-muted); font-size: 13px; line-height: 1.5; margin: 14px 0 0; }
+        .sd-showcase__note a { color: var(--da-muted); text-decoration: underline; text-underline-offset: 3px; }
+        .sd-showcase__note a:hover { color: var(--da-green); }
 
         .sd-founders {
           color: var(--da-text); font-size: 15px; line-height: 1.6;
@@ -365,6 +374,21 @@ export default async function StartupDetailPage({ params }: { params: Params }) 
           <div className="sd-section">
             <p className="sd-section__label">Gründer:innen</p>
             <p className="sd-founders">{row.founder_names.join(" · ")}</p>
+          </div>
+        )}
+
+        {showcaseRows.length > 0 && (
+          <div className="sd-section">
+            <p className="sd-section__label">Beiträge im Showcase</p>
+            <div className="sd-showcase">
+              {showcaseRows.map((r) => (
+                <ArticleListRow key={r.id} article={r} dotColor="var(--da-orange)" />
+              ))}
+            </div>
+            <p className="sd-showcase__note">
+              Diese Beiträge stammen vom Unternehmen, nicht von der Redaktion.{" "}
+              <Link href={`${RULES_PATH}#showcase`}>Regeln des Showcase</Link>
+            </p>
           </div>
         )}
 

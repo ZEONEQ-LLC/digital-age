@@ -20,7 +20,19 @@ type BlockReaderProps = {
   // Artikelsprache (articles.locale: "de-CH" | "en") fuer UI-Texte des Readers,
   // z. B. die Ueberschrift der Quellenliste. Default Deutsch.
   locale?: string | null;
+  // Unternehmensbeitraege (Showcase): externe Links im Text und in der
+  // Quellenliste tragen rel="sponsored". Interne Links bleiben unveraendert.
+  linkRel?: "sponsored";
+  // false = kein Anzeigen-Slot im Text (Unternehmensbeitraege zeigen keine
+  // Kundenanzeigen). Standard: Slot wie bisher.
+  ads?: boolean;
 };
+
+// rel fuer externe Links. "sponsored" sagt Suchmaschinen, dass der Link aus
+// einem Unternehmensbeitrag stammt und keine redaktionelle Empfehlung ist.
+function externalRel(linkRel?: "sponsored"): string {
+  return linkRel === "sponsored" ? "sponsored noopener noreferrer" : "noopener noreferrer";
+}
 
 // Platzierung article_inline: rein render-seitig NACH dem N-ten Block
 // (PLACEMENTS.article_inline.insertAfterBlock, menschlich gezaehlt) eingefuegt,
@@ -43,7 +55,8 @@ type Pattern = {
   render: (m: RegExpExecArray, key: number, renderInner: RenderInner) => ReactNode;
 };
 
-function buildPatterns(): Pattern[] {
+function buildPatterns(linkRel?: "sponsored"): Pattern[] {
+  const rel = externalRel(linkRel);
   return [
     {
       re: /\[\^(\d+)\]/,
@@ -75,7 +88,7 @@ function buildPatterns(): Pattern[] {
       // enthalten (siehe @/lib/markdownLinkUrl). Group 1 = Text, 2 = URL.
       re: externalLinkRe(),
       render: (m, key, renderInner) => (
-        <a key={key} href={m[2]} target="_blank" rel="noopener noreferrer">
+        <a key={key} href={m[2]} target="_blank" rel={rel}>
           {renderInner(m[1])}
         </a>
       ),
@@ -399,7 +412,7 @@ function renderBlock(
 //   - Body MIT [^N]-Refs → in Auftrittsreihenfolge (Auto-Renumber-Spec)
 //   - Body OHNE Refs aber sources vorhanden → alle in Array-Reihenfolge
 // Visuelle Gestaltung unveraendert.
-function renderSourceList(sources: Source[], order: number[], locale?: string | null): ReactNode {
+function renderSourceList(sources: Source[], order: number[], locale?: string | null, linkRel?: "sponsored"): ReactNode {
   const items = computeSourceListItems(sources, order);
   if (items.length === 0) return null;
   const heading = locale === "en" ? "Sources" : "Quellen";
@@ -422,7 +435,7 @@ function renderSourceList(sources: Source[], order: number[], locale?: string | 
             style={{ marginBottom: 8, color: "var(--da-muted)", fontSize: 14, scrollMarginTop: "calc(var(--nav-h) + 80px)" }}
           >
             {s.url ? (
-              <a href={s.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--da-green)" }}>
+              <a href={s.url} target="_blank" rel={externalRel(linkRel)} style={{ color: "var(--da-green)" }}>
                 {s.text}
               </a>
             ) : (
@@ -435,15 +448,15 @@ function renderSourceList(sources: Source[], order: number[], locale?: string | 
   );
 }
 
-export default function BlockReader({ doc, blocks, articleSlug, ressortSlug, moduleReserve, locale }: BlockReaderProps) {
+export default function BlockReader({ doc, blocks, articleSlug, ressortSlug, moduleReserve, locale, linkRel, ads }: BlockReaderProps) {
   // Backward-compat: alte Aufrufe mit blocks={...} unterstützen.
   const effectiveBlocks: Block[] = doc?.blocks ?? blocks ?? [];
   const sources: Source[] = doc?.sources ?? [];
   const { mapping, order } = buildSourceOrder(effectiveBlocks);
-  const patterns = buildPatterns();
+  const patterns = buildPatterns(linkRel);
   const inlineAfter = PLACEMENTS.article_inline.insertAfterBlock;
   const showInlineModule =
-    !!articleSlug && inlineAfter !== undefined && effectiveBlocks.length >= INLINE_MODULE_MIN_BLOCKS;
+    ads !== false && !!articleSlug && inlineAfter !== undefined && effectiveBlocks.length >= INLINE_MODULE_MIN_BLOCKS;
 
   return (
     <>
@@ -458,7 +471,7 @@ export default function BlockReader({ doc, blocks, articleSlug, ressortSlug, mod
           )}
         </span>
       ))}
-      {renderSourceList(sources, order, locale)}
+      {renderSourceList(sources, order, locale, linkRel)}
     </>
   );
 }

@@ -246,6 +246,27 @@ async function approveStartupInner(id: string, opts?: { feature?: boolean }): Pr
   revalidateAll();
 }
 
+// Ein Unternehmen mit publizierten Beitraegen im Showcase darf nicht aus dem
+// Verzeichnis verschwinden: Die Beitragsseiten brauchen den Absender (Name,
+// Profil) fuer die Kennzeichnung und waeren sonst ohne Hinweis weg (S2b).
+async function assertNoPublishedShowcase(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  startupId: string,
+): Promise<void> {
+  const { count, error } = await supabase
+    .from("articles")
+    .select("id", { count: "exact", head: true })
+    .eq("startup_id", startupId)
+    .eq("content_type", "company")
+    .eq("status", "published");
+  if (error) throw error;
+  if ((count ?? 0) > 0) {
+    throw new FormError(
+      `Zu diesem Unternehmen ${count === 1 ? "ist 1 Beitrag" : `sind ${count} Beiträge`} im Showcase publiziert. Bitte zuerst ${count === 1 ? "den Beitrag" : "die Beiträge"} archivieren oder umstellen.`,
+    );
+  }
+}
+
 export async function rejectStartup(
   id: string,
   reason?: string | null,
@@ -263,6 +284,7 @@ async function rejectStartupInner(
   const r = (reason ?? "").trim();
   const reasonValue = r === "" ? null : r;
   const supabase = await createClient();
+  await assertNoPublishedShowcase(supabase, id);
 
   const { data: current } = await supabase
     .from("ai_startups")
@@ -480,6 +502,7 @@ export async function archiveStartup(id: string): Promise<ActionResult<void>> {
 async function archiveStartupInner(id: string): Promise<void> {
   await requireEditor();
   const supabase = await createClient();
+  await assertNoPublishedShowcase(supabase, id);
   const { error } = await supabase
     .from("ai_startups")
     .update({ status: "archived" })
@@ -495,6 +518,7 @@ export async function restoreStartupToPending(id: string): Promise<ActionResult<
 async function restoreStartupToPendingInner(id: string): Promise<void> {
   await requireEditor();
   const supabase = await createClient();
+  await assertNoPublishedShowcase(supabase, id);
   const { error } = await supabase
     .from("ai_startups")
     .update({
