@@ -4,6 +4,7 @@
 // DB-Abfrage-Layer brechen.
 
 import type { ArticleWithRelations } from "@/lib/articleApi";
+import { articlePath } from "@/lib/contentType";
 import { plainExcerpt } from "@/lib/excerpt";
 import type { Database } from "@/lib/database.types";
 import { getCoverUrl } from "@/lib/coverImage";
@@ -40,7 +41,7 @@ export function articleToCard(article: ArticleWithRelations): CardArticle {
     author: article.author?.display_name ?? "Unbekannt",
     date: formatDateDE(article.published_at),
     image: getCoverUrl(article),
-    href: `/artikel/${article.slug}`,
+    href: articlePath(article),
     external: article.author?.role === "external",
   };
 }

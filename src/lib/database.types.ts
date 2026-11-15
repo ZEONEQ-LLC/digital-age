@@ -1121,6 +1121,7 @@ export type Database = {
           cover_video_alt: string | null
           cover_video_url: string | null
           created_at: string
+          disclosure_note: string | null
           excerpt: string | null
           id: string
           is_featured: boolean
@@ -1162,6 +1163,7 @@ export type Database = {
           cover_video_alt?: string | null
           cover_video_url?: string | null
           created_at?: string
+          disclosure_note?: string | null
           excerpt?: string | null
           id?: string
           is_featured?: boolean
@@ -1203,6 +1205,7 @@ export type Database = {
           cover_video_alt?: string | null
           cover_video_url?: string | null
           created_at?: string
+          disclosure_note?: string | null
           excerpt?: string | null
           id?: string
           is_featured?: boolean

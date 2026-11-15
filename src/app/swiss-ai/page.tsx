@@ -9,6 +9,7 @@ import {
 } from "@/lib/startupApi";
 import { startupToCardVM } from "@/lib/mappers/startupMappers";
 import StartupsBrowser from "./StartupsBrowser";
+import { getShowcaseCount } from "@/lib/showcaseApi";
 import { buildListingMetadata } from "@/lib/listingMetadata";
 import { getSlotReservation } from "@/lib/ads/slotReservation";
 import { buildItemListJsonLd } from "@/lib/jsonLd";
@@ -29,11 +30,12 @@ export async function generateMetadata() {
 }
 
 export default async function SwissAIPage() {
-  const [allRows, featuredRows, industries, cities] = await Promise.all([
+  const [allRows, featuredRows, industries, cities, showcaseCount] = await Promise.all([
     getPublishedStartups(),
     getFeaturedStartups(),
     getStartupIndustries(),
     getStartupCities(),
+    getShowcaseCount(),
   ]);
   const all = allRows.map(startupToCardVM);
   const featured = featuredRows.map(startupToCardVM);
@@ -64,6 +66,7 @@ export default async function SwissAIPage() {
         featured={featured}
         industries={industries}
         cities={cities}
+        showcaseCount={showcaseCount}
       />
 
       <div style={{ height: "var(--sp-20)" }} />

@@ -5,6 +5,8 @@ import { notFound } from "next/navigation";
 
 import Footer from "@/components/Footer";
 import ArticleCard from "@/components/ArticleCard";
+import ArticleListRow from "@/components/ArticleListRow";
+import { getShowcaseArticles, showcaseToListRow } from "@/lib/showcaseApi";
 import ExternalBadge from "@/components/ExternalBadge";
 import { getAuthorByHandle, getArticlesByAuthor } from "@/lib/authorApi";
 import { getCoverUrl } from "@/lib/coverImage";
@@ -89,6 +91,9 @@ export default async function AuthorPage({ params }: PageProps) {
 
   const author = authorToProfileViewModel(row);
   const articles = await getArticlesByAuthor(row.id);
+  // Unternehmensbeitraege dieser Person: nie unter «Alle Artikel», sondern
+  // als eigener, gekennzeichneter Abschnitt (S2b).
+  const showcaseRows = (await getShowcaseArticles({ authorId: row.id, limit: 20 })).map(showcaseToListRow);
   const categories = Array.from(
     new Set(articles.map((a) => a.category?.name_de).filter((x): x is string => !!x)),
   );
@@ -266,6 +271,20 @@ export default async function AuthorPage({ params }: PageProps) {
           </div>
         )}
       </section>
+
+      {showcaseRows.length > 0 && (
+        <section style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 var(--gutter) 64px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", flexWrap: "wrap", borderBottom: "1px solid var(--da-border)", paddingBottom: "16px" }}>
+            <h2 style={{ color: "var(--da-text)", fontSize: "24px", fontWeight: 700 }}>Beiträge im Showcase</h2>
+            <span style={{ color: "var(--da-muted)", fontSize: "14px" }}>
+              Unternehmensbeiträge, nicht Teil des redaktionellen Angebots
+            </span>
+          </div>
+          {showcaseRows.map((r) => (
+            <ArticleListRow key={r.id} article={r} dotColor="var(--da-orange)" />
+          ))}
+        </section>
+      )}
 
       <div style={{ height: "80px" }} />
       <Footer />

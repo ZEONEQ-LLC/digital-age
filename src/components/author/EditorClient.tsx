@@ -61,6 +61,8 @@ import {
   type ArticlePatch,
 } from "@/lib/authorActions";
 import { unwrapAction } from "@/lib/actionResult";
+import { SHOWCASE_PATH } from "@/lib/contentType";
+import { DISCLOSURE_LABEL, normalizeDisclosure } from "@/lib/disclosure";
 import { validatePublishGate } from "@/lib/publishGate";
 import type { SuiteArticle, RevisionWithEditor, ArticleStatus } from "@/lib/authorApi";
 import { markdownToBlocks } from "@/lib/markdownBlocks";
@@ -187,6 +189,11 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   const getHeroSession = useCallback(() => heroSessionRef.current, []);
   const [categoryId, setCategoryId] = useState(article.category_id);
   const [subcategory, setSubcategory] = useState(article.subcategory ?? "");
+  // Unternehmensbeitrag? Bestimmt nur die angezeigte Adresse im SEO-Tab; die
+  // Einordnung selbst aendert die Box «Inhaltstyp» im Details-Tab.
+  const [isCompanyArticle, setIsCompanyArticle] = useState(article.content_type === "company");
+  // Interessenbindung: Hinweis ueber dem Text (articles.disclosure_note).
+  const [disclosureNote, setDisclosureNote] = useState(article.disclosure_note ?? "");
   const [tagList, setTagList] = useState<string[]>(article.tags ?? []);
   // Sprache: bestimmt das `lang`-Attribut auf der Detail-Page und das
   // og:locale-Meta-Tag. DB-Werte sind "de-CH" oder "en" (CHECK constraint).
@@ -813,6 +820,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
       cover_video_url: coverVideoUrl || null,
       cover_video_alt: coverVideoAlt || null,
       cover_recipe: coverRecipe ? recipeToJson(coverRecipe) : null,
+      disclosure_note: normalizeDisclosure(disclosureNote),
       body_blocks: finalDoc,
     };
     if (seo.slug && seo.slug !== article.slug) {
@@ -2162,6 +2170,8 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           categories={categories}
           subcategory={subcategory}
           onSubcategoryChange={(v) => { markDirty(); setSubcategory(v); }}
+          disclosureNote={disclosureNote}
+          onDisclosureNoteChange={(v) => { markDirty(); setDisclosureNote(v); }}
           tagList={tagList}
           onTagListChange={(v) => { markDirty(); setTagList(v); }}
           articleIsFeatured={article.is_featured ?? false}
@@ -2174,7 +2184,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
             is_paid: article.is_paid,
           }}
           startups={startups}
-          onCategorySynced={setCategoryId}
+          onCategorySynced={(id, type) => { setCategoryId(id); setIsCompanyArticle(type === "company"); }}
         />
       </div>
 
@@ -2389,6 +2399,15 @@ export default function EditorClient({ article, revisions, categories, isEditor,
               )}
             </figure>
           )}
+          {normalizeDisclosure(disclosureNote) && (
+            <p
+              data-preview="disclosure"
+              style={{ margin: "0 0 32px", padding: "2px 0 2px 16px", borderLeft: "2px solid var(--da-orange)", color: "var(--da-text-strong)", fontSize: 15, lineHeight: 1.6 }}
+            >
+              <strong style={{ color: "var(--da-text)", fontWeight: 600 }}>{DISCLOSURE_LABEL}:</strong>{" "}
+              {normalizeDisclosure(disclosureNote)}
+            </p>
+          )}
           <ArticleBody>
             <BlockReader
               locale={locale}
@@ -2532,6 +2551,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
           seo={seo}
           onChange={(next) => { markDirty(); setSeo(next); }}
           slugAuto={slugAuto}
+          pathPrefix={isCompanyArticle ? SHOWCASE_PATH : "/artikel"}
           articleId={article.id}
           articleTitle={title}
           articleBodyText={bodyText}

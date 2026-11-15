@@ -19,7 +19,9 @@ type Pattern = {
   render: (m: RegExpExecArray, key: number, renderInner: RenderInner) => ReactNode;
 };
 
-function buildPatterns(sourceUrlByN: Map<number, string>): Pattern[] {
+function buildPatterns(sourceUrlByN: Map<number, string>, linkRel?: "sponsored"): Pattern[] {
+  // Unternehmensbeitraege: externe Links tragen rel="sponsored" (wie im BlockReader).
+  const rel = linkRel === "sponsored" ? "sponsored noopener noreferrer" : "noopener noreferrer";
   return [
     {
       re: /\[\^(\d+)\]/,
@@ -33,7 +35,7 @@ function buildPatterns(sourceUrlByN: Map<number, string>): Pattern[] {
               <a
                 href={url}
                 target="_blank"
-                rel="noopener noreferrer"
+                rel={rel}
                 className="article-source-ref"
               >
                 {n}
@@ -63,7 +65,7 @@ function buildPatterns(sourceUrlByN: Map<number, string>): Pattern[] {
       // enthalten (siehe @/lib/markdownLinkUrl). Group 1 = Text, 2 = URL.
       re: externalLinkRe(),
       render: (m, key, renderInner) => (
-        <a key={key} href={m[2]} target="_blank" rel="noopener noreferrer">
+        <a key={key} href={m[2]} target="_blank" rel={rel}>
           {renderInner(m[1])}
         </a>
       ),
@@ -146,13 +148,14 @@ function renderTokens(content: string, patterns: Pattern[]): ReactNode[] {
 type Props = {
   content: string;
   sources?: Source[];
+  linkRel?: "sponsored";
 };
 
-export default function InlineText({ content, sources = [] }: Props) {
+export default function InlineText({ content, sources = [], linkRel }: Props) {
   const sourceUrlByN = new Map<number, string>();
   sources.forEach((s, i) => {
     if (s.url) sourceUrlByN.set(i + 1, s.url);
   });
-  const patterns = buildPatterns(sourceUrlByN);
+  const patterns = buildPatterns(sourceUrlByN, linkRel);
   return <>{renderTokens(content, patterns)}</>;
 }

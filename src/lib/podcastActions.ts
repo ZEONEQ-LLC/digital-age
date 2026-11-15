@@ -164,7 +164,9 @@ async function updatePodcastInner(
   revalidatePath("/podcasts");
   if (data.slug) revalidatePath("/podcast/" + data.slug);
   if (data.related_article_slug) {
+    // Der Beitrag kann redaktionell oder ein Unternehmensbeitrag sein.
     revalidatePath("/artikel/" + data.related_article_slug);
+    revalidatePath("/showcase/" + data.related_article_slug);
   }
   return data;
 }

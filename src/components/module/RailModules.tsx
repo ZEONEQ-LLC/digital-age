@@ -11,7 +11,9 @@ import { PLACEMENTS } from "@/lib/ads/placements";
 // wegen minViewport gar nicht erst. Nicht in der Editor-Suite.
 // Keine Rails auf Funktionsseiten (H11): Login, Onboarding, Kontakt,
 // Newsletter-Bestaetigungs-/Abmeldeseiten, Pitch-Formular. Prefix-Match.
-const RAIL_EXCLUDED_PREFIXES = ["/login", "/onboarding", "/kontakt", "/newsletter", "/artikel-pitchen"];
+// Ebenso nicht im Showcase (S2b): Neben Unternehmensbeitraegen stehen keine
+// Anzeigen von Dritten.
+const RAIL_EXCLUDED_PREFIXES = ["/login", "/onboarding", "/kontakt", "/newsletter", "/artikel-pitchen", "/showcase"];
 const RAIL_MIN = PLACEMENTS.rail_left.minViewport ?? 1680;
 const RAIL_WIDTH = 160;
 

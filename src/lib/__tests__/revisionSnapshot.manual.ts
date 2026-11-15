@@ -37,16 +37,16 @@ section("REVISION_SNAPSHOT_FIELDS — Inhalt");
   }
 }
 
-section("Einordnung: im Snapshot, nie restauriert (Showcase S2a)");
+section("Einordnung und Interessenbindung: im Snapshot, nie restauriert (Showcase S2a/S2b)");
 {
   const set = new Set<string>(REVISION_SNAPSHOT_FIELDS);
   for (const f of REVISION_NOT_RESTORED_FIELDS) ok(`Snapshot enthaelt ${f}`, set.has(f));
-  ok("genau drei Felder", REVISION_NOT_RESTORED_FIELDS.join(",") === "content_type,startup_id,is_paid");
+  ok("genau vier Felder", REVISION_NOT_RESTORED_FIELDS.join(",") === "content_type,startup_id,is_paid,disclosure_note");
 
   // Die SQL-Seite ist die ausfuehrende Quelle: Die juengste Migration mit
   // article_editorial_snapshot muss jedes Feld der Liste enthalten, und das
   // Restore darf die Einordnung nicht setzen.
-  const sql = readFileSync("supabase/migrations/20261114140000_showcase_datenmodell.sql", "utf8");
+  const sql = readFileSync("supabase/migrations/20261115090000_article_disclosure_note.sql", "utf8");
   const snapStart = sql.indexOf("function public.article_editorial_snapshot");
   const snapBody = sql.slice(snapStart, sql.indexOf("$fn$;", snapStart));
   for (const f of REVISION_SNAPSHOT_FIELDS) ok(`SQL-Snapshot enthaelt '${f}'`, snapBody.includes(`'${f}'`));

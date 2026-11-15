@@ -16,6 +16,9 @@ type Props = {
   featured: StartupCardVM[];
   industries: string[];
   cities: string[];
+  // Publizierte Unternehmensbeitraege: ab 1 zeigt die Seitenleiste den
+  // Verweis auf /showcase.
+  showcaseCount?: number;
 };
 
 const PAGE_SIZE = 9;
@@ -24,7 +27,7 @@ const PAGE_INCREMENT = 6;
 type SwissFilter = "all" | SwissStatusCode;
 type EmpFilter = "all" | EmployeeRangeCode;
 
-export default function StartupsBrowser({ moduleReserve, all, featured, industries, cities }: Props) {
+export default function StartupsBrowser({ moduleReserve, all, featured, industries, cities, showcaseCount = 0 }: Props) {
   const [industry, setIndustry]   = useState<"Alle Branchen" | string>("Alle Branchen");
   const [city, setCity]           = useState<"Alle Städte" | string>("Alle Städte");
   const [status, setStatus]       = useState<SwissFilter>("all");
@@ -312,6 +315,11 @@ export default function StartupsBrowser({ moduleReserve, all, featured, industri
               <p className="sa-cta-eintragen__hint">Kosten- und bedingungslos eintragen lassen.</p>
               <span className="sa-cta-eintragen__btn">Einreichen →</span>
             </Link>
+            {showcaseCount > 0 && (
+              <Link href="/showcase" className="sa-rules-link sa-rules-link--aside">
+                Showcase: Unternehmen aus dem Verzeichnis über ihre Arbeit ({showcaseCount === 1 ? "1 Beitrag" : `${showcaseCount} Beiträge`}) →
+              </Link>
+            )}
             <Link href={RULES_PATH} className="sa-rules-link sa-rules-link--aside">
               Aufnahme, Status, Spotlight und Interessenbindungen: so führen wir das Verzeichnis →
             </Link>

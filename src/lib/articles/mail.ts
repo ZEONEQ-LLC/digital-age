@@ -98,12 +98,13 @@ export async function sendArticleSubmittedForReviewNotification(args: {
 }
 
 // Author-Notification, wenn der Editor den Artikel auf published setzt.
-// Public-URL ist slug-based: /artikel/[slug].
+// `path` ist der oeffentliche Pfad: /artikel/<slug>, bei Unternehmensbeitraegen
+// /showcase/<slug> (articlePath).
 export async function sendArticlePublishedNotification(args: {
   authorEmail: string;
   authorName: string;
   title: string;
-  slug: string;
+  path: string;
 }): Promise<SendResult> {
   return renderAndSend({
     to: args.authorEmail,
@@ -112,7 +113,7 @@ export async function sendArticlePublishedNotification(args: {
     element: ArticlePublished({
       authorName: args.authorName,
       title: args.title,
-      liveUrl: `${SITE_URL}/artikel/${args.slug}`,
+      liveUrl: `${SITE_URL}${args.path}`,
     }),
     context: "published",
   });

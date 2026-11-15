@@ -25,6 +25,7 @@ import {
   type CreativeInput,
   type UidLookupResult, type PeriodValue } from "@/lib/ads/types";
 import { PLACEMENTS, isPlacementCode } from "@/lib/ads/placements";
+import { isCompany } from "@/lib/contentType";
 import { isCreativeTheme, isHex } from "@/lib/ads/creativeTheme";
 
 type AdvertiserInsert = Database["public"]["Tables"]["ad_advertisers"]["Insert"];
@@ -405,10 +406,15 @@ export async function createBooking(input: BookingInput): Promise<ActionResult> 
     if (input.scope === "article") {
       const { data: art } = await supabase
         .from("articles")
-        .select("id")
+        .select("id, content_type")
         .eq("slug", scopeRef!)
         .maybeSingle();
       if (!art) return { ok: false, error: `Artikel-Slug „${scopeRef}" nicht gefunden.` };
+      // Unternehmensbeitraege (Showcase) zeigen keine Anzeigen: Die Buchung
+      // wuerde nie ausgeliefert.
+      if (isCompany(art)) {
+        return { ok: false, error: `„${scopeRef}" ist ein Unternehmensbeitrag. Dort stehen keine Anzeigen.` };
+      }
     }
 
     const { error } = await supabase.from("ad_bookings").insert({

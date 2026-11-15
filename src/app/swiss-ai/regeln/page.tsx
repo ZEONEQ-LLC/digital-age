@@ -10,13 +10,15 @@ import { AFFILIATION_LABEL, INVESTOR_LABEL } from "@/lib/startupTrust";
 // für Investoren», «Daten bestätigt am», «Mit dem Herausgeber verbunden»)
 // verlinken auf feste Sprungmarken; CMS-Überschriften haben zufällige IDs.
 // Status-Definitionen kommen aus SWISS_STATUSES (dieselben wie im
-// Einreichformular). Der Abschnitt zum Showcase folgt mit der Rubrik.
+// Einreichformular). Der Abschnitt «Showcase» (S2b) erklaert die
+// Kennzeichnungen der Unternehmensbeitraege; die feste Zeile ueber jedem
+// Beitrag verlinkt auf #showcase.
 
 export const metadata = buildListingMetadata({
   path: "/swiss-ai/regeln",
-  title: "Swiss AI: Aufnahme, Status, Spotlight und Interessenbindungen",
+  title: "Swiss AI: Aufnahme, Status, Spotlight, Showcase und Interessenbindungen",
   description:
-    "So führen wir das Verzeichnis der Schweizer KI-Unternehmen: wer aufgenommen wird, was die Kennzeichnungen bedeuten, wie der Spotlight vergeben wird und wo der Herausgeber eigene Interessen hat.",
+    "So führen wir das Verzeichnis der Schweizer KI-Unternehmen: wer aufgenommen wird, was die Kennzeichnungen bedeuten, wie Spotlight und Showcase funktionieren und wo der Herausgeber eigene Interessen hat.",
 });
 
 const SECTIONS = [
@@ -25,6 +27,7 @@ const SECTIONS = [
   { id: "investoren", title: INVESTOR_LABEL },
   { id: "spotlight", title: "Spotlight" },
   { id: "daten", title: "Daten bestätigt am" },
+  { id: "showcase", title: "Showcase" },
   { id: "anzeigen", title: "Anzeigen" },
   { id: "interessen", title: "Interessenbindungen" },
 ] as const;
@@ -116,6 +119,37 @@ export default function SwissAiRulesPage() {
               bestätigt. Stimmt etwas nicht? <Link href="/kontakt">Schreib uns.</Link>
             </p>
 
+            <h2 id="showcase">Showcase</h2>
+            <p>
+              Im <Link href="/showcase">Showcase</Link> schreiben Schweizer KI-Unternehmen aus dem Verzeichnis über ihre
+              Arbeit. Showcase-Beiträge sind Unternehmensbeiträge, keine redaktionellen Artikel. Sie stehen unter einer
+              eigenen Adresse und erscheinen weder auf der Startseite noch in den Rubriken des Magazins.
+            </p>
+            <dl>
+              <div>
+                <dt>Unternehmensbeitrag</dt>
+                <dd>Das Unternehmen hat den Beitrag verfasst oder verfassen lassen und nichts dafür bezahlt.</dd>
+              </div>
+              <div>
+                <dt>Publireportage</dt>
+                <dd>Das Unternehmen hat für die Veröffentlichung bezahlt.</dd>
+              </div>
+            </dl>
+            <p>
+              Die Kennzeichnung nennt immer das Unternehmen. Sie steht über dem Beitrag, bleibt beim Lesen sichtbar und
+              erscheint auch in Listen und in der Suche.
+            </p>
+            <p>
+              Die Redaktion prüft jeden Beitrag auf Verständlichkeit, Kennzeichnung und offensichtliche Fehler und lehnt
+              reine Werbung ab. Sie verfasst die Beiträge nicht. Beiträge enthalten keine Aufforderung zum Investieren.
+              Links in Showcase-Beiträgen sind für Suchmaschinen als gesponsert ausgezeichnet. Anzeigen von Dritten
+              stehen in diesen Beiträgen keine.
+            </p>
+            <p>
+              Ein Showcase-Beitrag ist keine Gegenleistung für redaktionelle Berichterstattung und umgekehrt. Er hat
+              keinen Einfluss auf Aufnahme, Reihenfolge oder Spotlight im Verzeichnis.
+            </p>
+
             <h2 id="anzeigen">Anzeigen</h2>
             <p>
               Bezahlte Sichtbarkeit ist immer als «Anzeige» gekennzeichnet und vom übrigen Inhalt getrennt. Anzeigen
@@ -130,7 +164,7 @@ export default function SwissAiRulesPage() {
               <Link href="/redaktion">Redaktion</Link>.
             </p>
           </ArticleBody>
-          <p className="sr-stand">Stand: 14. November 2026</p>
+          <p className="sr-stand">Stand: 15. November 2026</p>
         </div>
       </div>
       <Footer />

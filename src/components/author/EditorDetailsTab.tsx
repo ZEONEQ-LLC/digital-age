@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import AuthorCard from "./AuthorCard";
 import FeaturedImageBox, { type CoverMetadata, type HeroStudioStatus } from "./FeaturedImageBox";
 import MonoCaption from "./MonoCaption";
 import TagInput from "./TagInput";
 import ContentTypeBox, { type ContentTypeValue, type StartupOption } from "./ContentTypeBox";
 import { SHOWCASE_CATEGORY_SLUG } from "@/lib/contentType";
+import { DISCLOSURE_LABEL, DISCLOSURE_MAX } from "@/lib/disclosure";
 import { updateArticleAuthor, updateFeaturedStatus } from "@/lib/authorAdminActions";
 import { unwrapAction } from "@/lib/actionResult";
 
@@ -64,6 +65,11 @@ type Props = {
   tagList: string[];
   onTagListChange: (next: string[]) => void;
 
+  // Interessenbindung: Hinweis ueber dem Text, leer = keiner. Geht ueber
+  // «Speichern» wie die uebrigen Felder.
+  disclosureNote: string;
+  onDisclosureNoteChange: (next: string) => void;
+
   // Kategorie-Wechsel-Warning: heutige Featured/Hero-Werte aus dem
   // article-Prop, damit wir vor dem Kategorie-Wechsel warnen koennen
   // (Server resettet beides, aber wir geben Usern die Chance abzubrechen).
@@ -77,7 +83,7 @@ type Props = {
   articleStatus: string;
   initialContentType: ContentTypeValue;
   startups: StartupOption[];
-  onCategorySynced: (id: string) => void;
+  onCategorySynced: (id: string, contentType: "editorial" | "company") => void;
 };
 
 export default function EditorDetailsTab({
@@ -106,6 +112,8 @@ export default function EditorDetailsTab({
   onSubcategoryChange,
   tagList,
   onTagListChange,
+  disclosureNote,
+  onDisclosureNoteChange,
   articleIsFeatured,
   articleIsHero,
   articleCategoryId,
@@ -115,6 +123,7 @@ export default function EditorDetailsTab({
   onCategorySynced,
 }: Props) {
   const [contentType, setContentType] = useState<ContentTypeValue>(initialContentType);
+  const disclosureId = useId();
   const isCompanyArticle = contentType.content_type === "company";
   // «Showcase» ist Unternehmensbeitraegen vorbehalten und im Dropdown nie
   // waehlbar.
@@ -245,6 +254,7 @@ export default function EditorDetailsTab({
           color: var(--da-text); padding: 8px 12px;
           font-size: 13px; font-family: inherit;
         }
+        .a-edit-details__help { color: var(--da-muted); font-size: 12px; line-height: 1.55; margin: 8px 0 0; }
         .a-edit-details__label {
           color: var(--da-faint); font-size: 10px; font-weight: 700;
           font-family: var(--da-font-mono); letter-spacing: 0.12em;
@@ -314,7 +324,7 @@ export default function EditorDetailsTab({
                 startup_id: result.startup_id,
                 is_paid: result.is_paid,
               });
-              onCategorySynced(result.category_id);
+              onCategorySynced(result.category_id, result.content_type === "company" ? "company" : "editorial");
               // Der Server nimmt Featured/Hero beim Wechsel zum
               // Unternehmensbeitrag zurueck.
               if (result.content_type === "company") {
@@ -324,6 +334,28 @@ export default function EditorDetailsTab({
             }}
           />
         )}
+
+        <AuthorCard padding={18}>
+          <MonoCaption>{DISCLOSURE_LABEL}</MonoCaption>
+          <label className="a-edit-details__label" htmlFor={disclosureId} style={{ marginTop: 12 }}>
+            Hinweis über dem Text
+          </label>
+          <textarea
+            id={disclosureId}
+            className="a-edit-details__input"
+            rows={3}
+            maxLength={DISCLOSURE_MAX}
+            value={disclosureNote}
+            onChange={(e) => onDisclosureNoteChange(e.target.value)}
+            placeholder="Leer lassen, wenn es keine eigenen Interessen gibt."
+            style={{ resize: "vertical", lineHeight: 1.5 }}
+          />
+          <p className="a-edit-details__help">
+            Ausfüllen, wenn Autor:in oder Herausgeber eigene Interessen am Thema haben, zum Beispiel wenn das eigene
+            Unternehmen im Text vorkommt. Der Hinweis steht mit dem Wort «{DISCLOSURE_LABEL}» vor dem ersten Absatz.
+            {" "}{disclosureNote.trim().length}/{DISCLOSURE_MAX} Zeichen.
+          </p>
+        </AuthorCard>
 
         <FeaturedImageBox
           articleId={articleId}

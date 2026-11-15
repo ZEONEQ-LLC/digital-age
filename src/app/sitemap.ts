@@ -69,8 +69,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return staticEntries;
   }
 
-  const [articles, tags, authors, prompts, startups, podcasts, pages] = await Promise.all([
+  const [articles, showcase, tags, authors, prompts, startups, podcasts, pages] = await Promise.all([
     fetchArticleEntries(supabase, base),
+    fetchShowcaseEntries(supabase, base),
     fetchTagEntries(supabase, base),
     fetchAuthorEntries(supabase, base),
     fetchPromptEntries(supabase, base),
@@ -82,6 +83,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...staticEntries,
     ...articles,
+    ...showcase,
     ...tags,
     ...authors,
     ...prompts,
@@ -89,6 +91,53 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...podcasts,
     ...pages,
   ];
+}
+
+// Unternehmensbeitraege (Showcase, S2b): eigene Adressen /showcase/<slug>,
+// dazu die Uebersicht /showcase, sobald es mindestens einen Beitrag gibt.
+// `!inner` auf ai_startups: Ein Beitrag ohne sichtbares Unternehmen hat keine
+// Seite (siehe showcaseApi).
+async function fetchShowcaseEntries(
+  supabase: SupabaseClient<Database>,
+  base: string,
+): Promise<MetadataRoute.Sitemap> {
+  try {
+    const { data, error } = await supabase
+      .from("articles")
+      .select("slug, updated_at, cover_image_url, startup:ai_startups!inner(slug)")
+      .eq("status", "published")
+      .eq("content_type", "company");
+    if (error) {
+      console.error("[sitemap] showcase error:", error.message);
+      return [];
+    }
+    const rows = data ?? [];
+    if (rows.length === 0) return [];
+    const newest = rows.reduce<string | null>((max, a) => (a.updated_at && (!max || a.updated_at > max) ? a.updated_at : max), null);
+    const entries: MetadataRoute.Sitemap = [
+      {
+        url: `${base}/showcase`,
+        lastModified: newest ? new Date(newest) : undefined,
+        changeFrequency: "weekly",
+        priority: 0.6,
+      },
+    ];
+    for (const a of rows) {
+      const cover = absolutizeCoverUrl(a.cover_image_url, base);
+      const entry: MetadataRoute.Sitemap[number] = {
+        url: `${base}/showcase/${a.slug}`,
+        lastModified: a.updated_at ? new Date(a.updated_at) : undefined,
+        changeFrequency: "monthly",
+        priority: 0.5,
+      };
+      if (cover) entry.images = [cover];
+      entries.push(entry);
+    }
+    return entries;
+  } catch (err) {
+    console.error("[sitemap] showcase threw:", err instanceof Error ? err.message : String(err));
+    return [];
+  }
 }
 
 function createBuildtimeClient(): SupabaseClient<Database> | null {
@@ -108,8 +157,8 @@ async function fetchArticleEntries(
   base: string,
 ): Promise<MetadataRoute.Sitemap> {
   try {
-    // Nur redaktionelle Artikel. Unternehmensbeitraege bekommen mit S2b einen
-    // eigenen Block unter /showcase/<slug>.
+    // Nur redaktionelle Artikel. Unternehmensbeitraege stehen in einem eigenen
+    // Block unter /showcase/<slug> (fetchShowcaseEntries).
     const { data, error } = await editorialOnly(
       supabase.from("articles").select("slug, updated_at, cover_image_url").eq("status", "published"),
     );

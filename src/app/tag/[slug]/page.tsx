@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 
 import Footer from "@/components/Footer";
 import ArticleListRow from "@/components/ArticleListRow";
+import { ShowcaseRows, ShowcaseStyles } from "@/components/showcase/ShowcaseParts";
+import { SHOWCASE_PATH } from "@/lib/contentType";
+import { getShowcaseArticlesByTagSlug, showcaseToListRow } from "@/lib/showcaseApi";
 import { getArticlesByTagSlug, getTagBySlug } from "@/lib/tags";
 import { articleToListRow } from "@/lib/mappers/articleMappers";
 import type { Database } from "@/lib/database.types";
@@ -51,8 +54,14 @@ export default async function TagPage({ params }: PageProps) {
   const tag = await getTagBySlug(slug);
   if (!tag) notFound();
 
-  const rows = await getArticlesByTagSlug(slug, 50);
+  const [rows, showcaseArticles] = await Promise.all([
+    getArticlesByTagSlug(slug, 50),
+    getShowcaseArticlesByTagSlug(slug, 10),
+  ]);
   const articles = rows.map((row, idx) => articleToListRow(row, idx));
+  // Unternehmensbeitraege zum Thema: nie in der redaktionellen Liste, sondern
+  // als eigener, gekennzeichneter Abschnitt darunter (S2b).
+  const showcaseRows = showcaseArticles.map(showcaseToListRow);
 
   const baseUrl = getBaseUrl();
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
@@ -181,14 +190,14 @@ export default async function TagPage({ params }: PageProps) {
         {articles.length === 0 ? (
           <p
             style={{
-              padding: "var(--sp-12) 0",
-              textAlign: "center",
+              padding: showcaseRows.length > 0 ? "0 0 var(--sp-4)" : "var(--sp-12) 0",
+              textAlign: showcaseRows.length > 0 ? "left" : "center",
               color: "var(--da-muted)",
               fontFamily: "var(--da-font-mono)",
               fontSize: "var(--fs-body-sm)",
             }}
           >
-            Noch keine Artikel zu diesem Thema.
+            Noch keine Artikel der Redaktion zu diesem Thema.
           </p>
         ) : (
           articles.map((a) => (
@@ -198,6 +207,17 @@ export default async function TagPage({ params }: PageProps) {
               dotColor="var(--da-green)"
             />
           ))
+        )}
+        {showcaseRows.length > 0 && (
+          <div style={{ marginTop: "var(--sp-12)" }}>
+            <ShowcaseStyles />
+            <ShowcaseRows
+              heading="Aus dem Showcase"
+              rows={showcaseRows}
+              moreHref={SHOWCASE_PATH}
+              moreLabel="Zum Showcase"
+            />
+          </div>
         )}
       </section>
 

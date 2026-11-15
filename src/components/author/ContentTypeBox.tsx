@@ -52,8 +52,8 @@ export default function ContentTypeBox({
 
   const savedIsCompany = saved.content_type === "company";
   const isCompany = draft.content_type === "company";
-  // S2a: Ein publizierter Artikel stuende als Unternehmensbeitrag ohne
-  // Kennzeichnung online. Die Umstellung kommt mit den Showcase-Seiten.
+  // Nur solange der Schalter aus ist (Notbremse): Ein publizierter Artikel
+  // stuende als Unternehmensbeitrag ohne Kennzeichnung online.
   const companyLocked = !SHOWCASE_PUBLISHING_ENABLED && articleStatus === "published" && !savedIsCompany;
 
   const dirty =
@@ -166,7 +166,7 @@ export default function ContentTypeBox({
             <span className="ct-box__title">Unternehmensbeitrag</span>
             <span className="ct-box__hint">
               {companyLocked
-                ? "Publizierte Artikel lassen sich erst umstellen, wenn die Showcase-Seiten live sind."
+                ? "Die Umstellung publizierter Artikel ist zurzeit gesperrt."
                 : "Ein Unternehmen aus dem Verzeichnis stellt sich vor. Erscheint gekennzeichnet im Showcase."}
             </span>
           </span>
@@ -229,9 +229,18 @@ export default function ContentTypeBox({
 
       {isCompany && (
         <p className="ct-box__note">
-          Unternehmensbeiträge liegen in der Kategorie «Showcase» und erscheinen weder auf der Startseite noch in
-          Rubriken, Tag-Seiten, Autorenprofilen oder im Newsletter-Entwurf. Featured und Hero sind nicht möglich.
-          {!SHOWCASE_PUBLISHING_ENABLED && " Publizieren geht erst, wenn die Showcase-Seiten live sind."}
+          Unternehmensbeiträge erscheinen gekennzeichnet unter /showcase, nicht auf der Startseite, nicht in den
+          Rubriken und nicht im Newsletter-Entwurf. Auf Tag-Seiten, im Autorenprofil und in der Suche stehen sie
+          getrennt und gekennzeichnet. Featured und Hero sind nicht möglich.
+          {!SHOWCASE_PUBLISHING_ENABLED && " Publizieren ist zurzeit gesperrt."}
+        </p>
+      )}
+
+      {articleStatus === "published" && dirty && draft.content_type !== saved.content_type && (
+        <p className="ct-box__note">
+          Der Artikel ist publiziert. Mit der Umstellung wechselt seine Adresse sofort{" "}
+          {isCompany ? "von /artikel/… auf /showcase/…" : "von /showcase/… auf /artikel/…"}. Die bisherige Adresse
+          leitet weiter.
         </p>
       )}
 
