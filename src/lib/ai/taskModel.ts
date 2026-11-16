@@ -22,6 +22,10 @@ import type { AiTask } from "@/lib/ai/types";
 // veroeffentlicht. Urteil und Qualitaet zaehlen mehr als die Kosten (ein Lauf
 // pro Woche): Sonnet 5.5.
 //
+// showcase_draft (S3b): ein Beitrag von 600 bis 1000 Woertern, der unter dem
+// Namen eines Unternehmens erscheint und nichts erfinden darf. Wenige
+// Aufrufe (einer pro Unternehmen), Qualitaet zaehlt: Sonnet 5.5.
+//
 // platform_research (seit PR 206 ohne Websuche): kurze Auswertungen von
 // Preisseiten und Listen, Kosten im Griff halten (Wunsch Ali): Haiku 5.5.
 export const TASK_MODEL_DEFAULTS: Partial<Record<AiTask, string>> = {
@@ -30,6 +34,7 @@ export const TASK_MODEL_DEFAULTS: Partial<Record<AiTask, string>> = {
   hero_proposals: "claude-haiku-5-5",
   platform_research: "claude-haiku-5-5",
   prompt_generation: "claude-sonnet-5-5",
+  showcase_draft: "claude-sonnet-5-5",
 };
 
 // Auflösung: gueltiger Override → Task-Default → genereller Default.

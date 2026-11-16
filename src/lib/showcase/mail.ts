@@ -3,7 +3,9 @@ import "server-only";
 import { render } from "@react-email/render";
 import { Resend } from "resend";
 
+import ShowcaseDraftReady, { showcaseDraftReadySubject, type ShowcaseDraftReadyProps } from "@/emails/ShowcaseDraftReady";
 import ShowcaseInvite, { showcaseInviteSubject, type ShowcaseInviteProps } from "@/emails/ShowcaseInvite";
+import ShowcaseOnline, { SHOWCASE_ONLINE_SUBJECT, type ShowcaseOnlineProps } from "@/emails/ShowcaseOnline";
 import ShowcaseReceived, { SHOWCASE_RECEIVED_SUBJECT, type ShowcaseReceivedProps } from "@/emails/ShowcaseReceived";
 import ShowcaseSubmitted, { showcaseSubmittedSubject, type ShowcaseSubmittedProps } from "@/emails/ShowcaseSubmitted";
 
@@ -71,6 +73,32 @@ export async function sendShowcaseSubmittedMail(props: ShowcaseSubmittedProps): 
     return await send({ to, subject: showcaseSubmittedSubject(props.company), html, context: "submitted" });
   } catch (err) {
     console.error("[showcase:submitted] render failed:", err);
+    return { ok: false, error: err instanceof Error ? err.message : "unknown" };
+  }
+}
+
+// S3b: «Entwurf bereit» an das Unternehmen (oder als Test an die Redaktion).
+export async function sendShowcaseDraftReadyMail(
+  to: string,
+  props: ShowcaseDraftReadyProps,
+  opts: { test?: boolean } = {},
+): Promise<SendResult> {
+  try {
+    const html = await render(ShowcaseDraftReady(props));
+    return await send({ to, subject: showcaseDraftReadySubject(props.again === true, opts.test === true), html, context: "draft-ready" });
+  } catch (err) {
+    console.error("[showcase:draft-ready] render failed:", err);
+    return { ok: false, error: err instanceof Error ? err.message : "unknown" };
+  }
+}
+
+// S3b: «Beitrag ist online» an das Unternehmen, beim ersten Publizieren.
+export async function sendShowcaseOnlineMail(to: string, props: ShowcaseOnlineProps): Promise<SendResult> {
+  try {
+    const html = await render(ShowcaseOnline(props));
+    return await send({ to, subject: SHOWCASE_ONLINE_SUBJECT, html, context: "online" });
+  } catch (err) {
+    console.error("[showcase:online] render failed:", err);
     return { ok: false, error: err instanceof Error ? err.message : "unknown" };
   }
 }

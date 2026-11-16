@@ -4,6 +4,7 @@ import {
   PREVIEW_TOKEN_RE,
   applyPreviewOverrides,
   canRespondToPreview,
+  companyApprovalBlocker,
   draftPreviewPath,
   fitScale,
   formatDecisionTime,
@@ -68,9 +69,25 @@ eq("Rueckmeldung nur vor dem Erscheinen", ["draft", "in_review", "published", "a
   ok("fehlend und null sind gleich", fp === previewFingerprint({ ...base, cover_image_url: null }));
 
   const link = { decision: "approved", decided_at: "2026-11-15T13:05:00Z", decided_by: "Andreas Kamm", decision_note: null, decided_fingerprint: fp };
-  eq("Freigabe gilt fuer die aktuelle Fassung", previewDecisionStatus(link, fp), { kind: "approved", at: "2026-11-15T13:05:00Z", by: "Andreas Kamm", note: null, stale: false });
+  eq("Freigabe gilt fuer die aktuelle Fassung", previewDecisionStatus(link, fp), { kind: "approved", at: "2026-11-15T13:05:00Z", by: "Andreas Kamm", note: null, stale: false, confirmedAt: null });
   ok("nach einer Aenderung gilt sie fuer eine fruehere Fassung", (() => { const s = previewDecisionStatus(link, previewFingerprint({ ...base, title: "Neu" })); return s.kind === "approved" && s.stale; })());
   eq("ohne Rueckmeldung", previewDecisionStatus({ decision: null, decided_at: null, decided_by: null, decision_note: null, decided_fingerprint: null }, fp), { kind: "none" });
+
+  // Showcase S3b: Freigabe des Unternehmens als Bedingung fuers Publizieren.
+  const approved = previewDecisionStatus(link, fp);
+  const stale = previewDecisionStatus(link, previewFingerprint({ ...base, title: "Neu" }));
+  const changes = previewDecisionStatus({ ...link, decision: "changes", decision_note: "Bitte den zweiten Absatz kürzen." }, fp);
+  eq("freigegebene Fassung: publizierbar", companyApprovalBlocker(approved), null);
+  ok("ohne Vorschau-Link: gesperrt", (companyApprovalBlocker(null) ?? "").includes("noch nicht freigegeben"));
+  ok("Link ohne Rueckmeldung: gesperrt", (companyApprovalBlocker({ kind: "none" }) ?? "").includes("noch nicht freigegeben"));
+  ok("Aenderungswunsch: gesperrt", (companyApprovalBlocker(changes) ?? "").includes("wünscht Änderungen"));
+  ok("nach der Freigabe geaendert: gesperrt", (companyApprovalBlocker(stale) ?? "").includes("nach der Freigabe geändert"));
+  // Die Redaktion uebertraegt die Freigabe: Pruefsumme der neuen Fassung, Zeitpunkt in der Zeile.
+  const newFp = previewFingerprint({ ...base, tags: ["ki", "showcase"] });
+  const confirmed = previewDecisionStatus({ ...link, decided_fingerprint: newFp, editor_confirmed_at: "2026-11-16T09:00:00Z" }, newFp);
+  eq("uebertragene Freigabe: publizierbar", companyApprovalBlocker(confirmed), null);
+  eq("uebertragene Freigabe nennt den Zeitpunkt", confirmed.kind === "approved" ? confirmed.confirmedAt : "", "2026-11-16T09:00:00Z");
+  eq("Aenderungswunsch traegt keine Uebertragung", changes.kind === "changes" ? changes.confirmedAt : "", null);
 }
 eq("Zeit in Schweizer Zeit", formatDecisionTime("2026-11-15T13:05:00Z"), "15.11.2026, 14:05");
 

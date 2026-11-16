@@ -17,6 +17,9 @@ import { disclosureError, normalizeDisclosure } from "@/lib/disclosure";
 import { validatePublishGate } from "@/lib/publishGate";
 import { isArticleSlugConflict } from "@/lib/articleSlug";
 import { deleteBlockedMessage } from "@/lib/articles/deleteRule";
+import { companyApprovalBlocker, previewDecisionStatus, previewFingerprint } from "@/lib/articles/preview";
+import { getActivePreviewLink } from "@/lib/articles/previewApi";
+import { sendShowcaseOnlineNotice } from "@/lib/showcase/onlineNotice";
 import { FormError, isUniqueViolation, runAction, type ActionResult } from "@/lib/actionResult";
 import { countLocalImages, isLocalImageUrl, localImageMessage } from "@/lib/editor/localImageUrls";
 import type { Database, Json } from "@/lib/database.types";
@@ -443,7 +446,7 @@ async function publishArticleInner(id: string): Promise<ArticleRow> {
   const { data: current, error: currentErr } = await supabase
     .from("articles")
     .select(
-      "published_at, slug, title, excerpt, seo_title, seo_description, seo_keyword_primary, cover_image_url, cover_image_alt, content_type, startup_id, author:authors(display_name, email), category:categories(slug), startup:ai_startups(status, slug)",
+      "published_at, slug, title, excerpt, seo_title, seo_description, seo_keyword_primary, cover_image_url, cover_image_alt, content_type, startup_id, author:authors(display_name, email), category:categories(slug), startup:ai_startups(status, slug, name)",
     )
     .eq("id", id)
     .single();
@@ -493,6 +496,20 @@ async function publishArticleInner(id: string): Promise<ArticleRow> {
     }
   }
 
+  // Unternehmensbeitraege (S3b): Beim ersten Publizieren braucht es die
+  // Freigabe des Unternehmens fuer genau diese Fassung (Vorschau-Link,
+  // article_preview_links). Nach den Pflichtfeldern geprueft: Abstract und
+  // Bildbeschreibung gehoeren zur Fassung, die das Unternehmen freigibt.
+  if (isCompany(current) && !wasPublishedBefore) {
+    const [link, { data: full }] = await Promise.all([
+      getActivePreviewLink(supabase, id),
+      supabase.from("articles").select("*").eq("id", id).maybeSingle(),
+    ]);
+    const approval = link && full ? previewDecisionStatus(link, previewFingerprint(full)) : null;
+    const blocker = companyApprovalBlocker(approval);
+    if (blocker) throw new FormError(blocker);
+  }
+
   const patch: Partial<ArticleRow> = { status: "published" };
   if (!wasPublishedBefore) {
     patch.published_at = new Date().toISOString();
@@ -510,7 +527,19 @@ async function publishArticleInner(id: string): Promise<ArticleRow> {
   // vorhanden ist. authors.email ist im Schema NOT NULL — der Skip-Pfad
   // ist defensiv für den Fall dass mal jemand Daten manuell manipuliert
   // oder ein zukünftiger Gast-Author ohne Mail-Adresse existiert.
-  if (!wasPublishedBefore) {
+  // Unternehmensbeitrag aus einer Einreichung (S3b): Das Unternehmen bekommt
+  // «Beitrag ist online» mit dem Link und den Texten zum Teilen statt der
+  // allgemeinen Autoren-Mail.
+  let companyNotified = false;
+  if (!wasPublishedBefore && isCompany(data)) {
+    const startup = current.startup as { name?: string; slug?: string } | null;
+    companyNotified = await sendShowcaseOnlineNotice(
+      supabase,
+      { id: data.id, title: data.title, slug: data.slug },
+      startup?.name && startup.slug ? { name: startup.name, slug: startup.slug } : null,
+    );
+  }
+  if (!wasPublishedBefore && !companyNotified) {
     const author = (current?.author ?? null) as {
       display_name: string;
       email: string | null;

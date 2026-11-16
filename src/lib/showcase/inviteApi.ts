@@ -1,5 +1,7 @@
 import "server-only";
 
+import { previewDecisionStatus, previewFingerprint, previewLinkState, type PreviewDecisionStatus } from "@/lib/articles/preview";
+import { articlePath } from "@/lib/contentType";
 import type { Database } from "@/lib/database.types";
 import { MEDIA_BUCKET, SHOWCASE_TOKEN_RE, inviteState, type InviteState } from "@/lib/showcase/questionnaire";
 import { createClient } from "@/lib/supabase/server";
@@ -65,11 +67,28 @@ export async function getInviteByToken(token: string): Promise<Invite | null> {
 
 // --- Redaktion ---------------------------------------------------------------
 
+// Stand des Beitrags zu einer Einreichung (S3b): Entwurf, Freigabe durch das
+// Unternehmen, Publikation.
+export type SubmissionDraft = {
+  articleId: string;
+  title: string;
+  status: string;
+  // Oeffentlicher Pfad, sobald publiziert.
+  path: string | null;
+  publishedAt: string | null;
+  approval: PreviewDecisionStatus;
+  // Der Vorschau-Link ist abgelaufen (eine Freigabe bleibt gueltig).
+  linkExpired: boolean;
+  // Was vor dem Senden zur Freigabe noch fehlt (Abstract, Bildbeschreibung).
+  missing: string[];
+};
+
 export type AdminSubmission = SubmissionRow & {
   state: InviteState;
   startup: InviteStartup | null;
   logoUrl: string | null;
   imageUrl: string | null;
+  draft: SubmissionDraft | null;
 };
 
 export type InvitableStartup = { id: string; name: string; hasOwnInterest: boolean };
@@ -92,12 +111,43 @@ export async function getShowcaseAdminData(): Promise<{ submissions: AdminSubmis
   ]);
   if (subs.error) console.error("[showcase] submissions failed:", subs.error.message);
   const now = Date.now();
+  const rows = (subs.data as (SubmissionRow & { startup: InviteStartup | null })[] | null) ?? [];
+
+  // Beitraege und ihre Vorschau-Links (Freigabe) zu den Einreichungen.
+  const articleIds = rows.map((r) => r.article_id).filter((id): id is string => !!id);
+  const drafts = new Map<string, SubmissionDraft>();
+  if (articleIds.length > 0) {
+    const [articles, links] = await Promise.all([
+      supabase.from("articles").select("*").in("id", articleIds),
+      supabase.from("article_preview_links").select("*").in("article_id", articleIds).is("revoked_at", null),
+    ]);
+    if (articles.error) console.error("[showcase] drafts failed:", articles.error.message);
+    const linkByArticle = new Map((links.data ?? []).map((l) => [l.article_id, l]));
+    for (const a of articles.data ?? []) {
+      const link = linkByArticle.get(a.id);
+      const missing: string[] = [];
+      if (!a.excerpt?.trim()) missing.push("Abstract");
+      if (a.cover_image_url?.trim() && !a.cover_image_alt?.trim()) missing.push("Bildbeschreibung");
+      drafts.set(a.id, {
+        articleId: a.id,
+        title: a.title,
+        status: a.status,
+        path: a.status === "published" ? articlePath(a) : null,
+        publishedAt: a.published_at,
+        approval: link ? previewDecisionStatus(link, previewFingerprint(a)) : { kind: "none" },
+        linkExpired: link ? previewLinkState(link, now) === "expired" : false,
+        missing,
+      });
+    }
+  }
+
   return {
-    submissions: ((subs.data as (SubmissionRow & { startup: InviteStartup | null })[] | null) ?? []).map((r) => ({
+    submissions: rows.map((r) => ({
       ...r,
       state: inviteState(r, now),
       logoUrl: mediaPublicUrl(r.logo_path),
       imageUrl: mediaPublicUrl(r.image_path),
+      draft: r.article_id ? drafts.get(r.article_id) ?? null : null,
     })),
     startups: (startups.data ?? []).map((s) => ({ id: s.id, name: s.name, hasOwnInterest: !!s.affiliation_note })),
   };

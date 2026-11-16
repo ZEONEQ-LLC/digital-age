@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { unwrapAction } from "@/lib/actionResult";
+import { formatDecisionTime } from "@/lib/articles/preview";
 import {
   applyShowcaseLogo,
   applyShowcaseProfile,
@@ -12,6 +13,7 @@ import {
   sendShowcaseInvite,
   withdrawShowcaseInvite,
 } from "@/lib/showcase/adminActions";
+import { createShowcaseDraft, sendShowcaseDraftReady } from "@/lib/showcase/draftActions";
 import type { AdminSubmission, InvitableStartup } from "@/lib/showcase/inviteApi";
 import {
   PROFILE_LABELS,
@@ -25,7 +27,8 @@ import {
 
 // Verwaltung der Showcase-Einladungen (S3a): einladen, Link weitergeben,
 // erinnern, zurueckziehen; eingereichte Frageboegen ansehen, Profil und Logo
-// uebernehmen. Der Entwurf des Beitrags folgt in S3b.
+// uebernehmen. Seit S3b: Entwurf des Beitrags erzeugen (KI), dem Unternehmen
+// zur Freigabe schicken und die Rueckmeldung lesen.
 //
 // Gestaltung: Liste mit Linien, keine Karten. Eine Einreichung klappt auf.
 
@@ -47,6 +50,19 @@ function stateText(s: AdminSubmission): string {
   if (s.state === "withdrawn") return "Zurückgezogen";
   if (s.state === "expired") return `Abgelaufen am ${formatLongDate(s.expires_at)}`;
   return s.reply_by ? `Offen, Antwort bis ${formatLongDate(s.reply_by)}` : "Offen";
+}
+
+const ARTICLE_STATUS: Record<string, string> = { draft: "Entwurf", in_review: "In Review", published: "Publiziert", archived: "Archiviert" };
+
+// Eine Zeile zum Stand des Beitrags, fuer die Liste.
+function draftSummary(s: AdminSubmission): string {
+  const d = s.draft;
+  if (!d) return "Beitrag: noch kein Entwurf";
+  if (d.status === "published") return `Beitrag publiziert am ${dayTime(d.publishedAt)}`;
+  if (d.approval.kind === "approved") return d.approval.stale ? "Beitrag: freigegeben, seither geändert" : "Beitrag: vom Unternehmen freigegeben";
+  if (d.approval.kind === "changes") return "Beitrag: Unternehmen wünscht Änderungen";
+  if (s.draft_ready_sent_at) return `Beitrag: zur Freigabe gesendet am ${dayTime(s.draft_ready_sent_at)}`;
+  return "Beitrag: Entwurf erstellt, noch nicht gesendet";
 }
 
 function mailText(s: AdminSubmission): string {
@@ -167,6 +183,20 @@ export default function ShowcaseInvitesAdmin({ submissions, startups, siteUrl }:
         .sia-thumb--logo { width: 96px; background: #fff; }
         .sia-note { color: var(--da-muted); font-size: 13px; line-height: 1.5; margin: 6px 0 0; }
         .sia-empty { color: var(--da-muted); font-size: 14px; margin: 0; padding: 16px 0; }
+        .sia-line { color: var(--da-text-strong); font-size: 14.5px; line-height: 1.6; margin: 0 0 8px; max-width: 78ch; }
+        .sia-line a { color: var(--da-green); text-decoration: underline; text-underline-offset: 3px; }
+        .sia-line strong { color: var(--da-text); font-weight: 600; }
+        .sia-state-line { margin: 0 0 12px; padding: 2px 0 2px 14px; border-left: 2px solid var(--da-border); color: var(--da-text-strong); font-size: 14px; line-height: 1.55; max-width: 78ch; }
+        .sia-state-line--ok { border-left-color: var(--da-green); }
+        .sia-state-line--warn { border-left-color: var(--da-orange); }
+        .sia-state-line span { display: block; white-space: pre-wrap; color: var(--da-muted); margin-top: 4px; }
+        .sia-hints { margin: 0 0 14px; padding: 0 0 0 18px; list-style: disc; color: var(--da-text-strong); font-size: 13.5px; line-height: 1.55; max-width: 78ch; }
+        .sia-hints li::marker { color: var(--da-muted-soft); }
+        .sia-hints li { margin-bottom: 4px; }
+        .sia-btns { display: flex; gap: 10px 18px; flex-wrap: wrap; align-items: center; }
+        .sia-posts { margin-top: 14px; }
+        .sia-posts summary { color: var(--da-muted); font-size: 13px; cursor: pointer; }
+        .sia-posts p { color: var(--da-text-strong); font-size: 14px; line-height: 1.6; margin: 12px 0 0; white-space: pre-wrap; max-width: 78ch; padding-left: 14px; border-left: 2px solid var(--da-border); }
         @media (max-width: 1100px) {
           .sia-form { grid-template-columns: 1fr 1fr; }
           .sia-top { grid-template-columns: minmax(0, 1fr); }
@@ -242,6 +272,7 @@ export default function ShowcaseInvitesAdmin({ submissions, startups, siteUrl }:
                   <div>
                     <div className={`sia-state${submitted ? " sia-state--done" : open ? "" : " sia-state--off"}`}>{stateText(s)}</div>
                     {!submitted && s.state !== "withdrawn" && <div className="sia-mail">{mailText(s)}</div>}
+                    {submitted && <div className="sia-mail">{draftSummary(s)}</div>}
                   </div>
                   <div className="sia-actions">
                     {open && (
@@ -327,6 +358,8 @@ function Detail({
 
   return (
     <div className="sia-detail">
+      <DraftBlock s={s} pending={pending} run={run} />
+
       <div>
         <h3 className="sia-h3">Kontakt</h3>
         <p className="sia-note" style={{ margin: 0, color: "var(--da-text-strong)" }}>
@@ -462,6 +495,167 @@ function Detail({
             : "Keine Kontaktweiterleitung gewünscht."}
         </p>
       </div>
+    </div>
+  );
+}
+
+// Beitrag zur Einreichung (S3b): Entwurf erzeugen, Hinweise lesen, zur
+// Freigabe schicken, Rueckmeldung sehen. Publiziert wird im Editor.
+function DraftBlock({
+  s,
+  pending,
+  run,
+}: {
+  s: AdminSubmission;
+  pending: boolean;
+  run: (work: () => Promise<string | null>) => void;
+}) {
+  const d = s.draft;
+  const notes = Array.isArray(s.draft_notes) ? (s.draft_notes as unknown[]).filter((n): n is string => typeof n === "string") : [];
+  const posts = Array.isArray(s.linkedin_texts) ? (s.linkedin_texts as unknown[]).filter((n): n is string => typeof n === "string") : [];
+
+  if (!d) {
+    return (
+      <div>
+        <h3 className="sia-h3">Beitrag</h3>
+        <p className="sia-line">
+          Noch kein Entwurf.{" "}
+          {s.own_text
+            ? "Der eigene Text des Unternehmens wird unverändert übernommen. Die KI schlägt dazu Titel, Abstract und drei LinkedIn-Texte vor."
+            : "Die KI schreibt aus den Antworten einen Beitrag mit Titel, Abstract und drei LinkedIn-Texten. Sie verwendet nur, was in den Antworten steht."}
+        </p>
+        <button
+          type="button"
+          className="sia-btn sia-btn--primary"
+          disabled={pending}
+          onClick={() =>
+            run(async () => {
+              const res = unwrapAction(await createShowcaseDraft(s.id));
+              if (!res.created) return "Es gibt schon einen Entwurf zu dieser Einreichung.";
+              const parts = [res.aiOk ? "Entwurf erstellt." : "Entwurf ohne KI erstellt (siehe Hinweise)."];
+              if (res.authorCreated) parts.push(`${s.contact_name ?? "Die Kontaktperson"} ist als Autorin oder Autor angelegt.`);
+              if (res.notes.length > 0) parts.push(`${res.notes.length} ${res.notes.length === 1 ? "Hinweis" : "Hinweise"} zum Durchsehen.`);
+              return parts.join(" ");
+            })
+          }
+        >
+          {pending ? "Bitte warten …" : "Entwurf erzeugen"}
+        </button>
+        <p className="sia-note">
+          Das dauert bis zu zwei Minuten. {s.contact_name ?? "Die Kontaktperson"} wird als Autorin oder Autor des Beitrags geführt
+          {s.imageUrl && s.consent_media_rights ? ", das Bild des Unternehmens als Titelbild gesetzt" : ""}.
+        </p>
+      </div>
+    );
+  }
+
+  const published = d.status === "published";
+  const a = d.approval;
+  return (
+    <div>
+      <h3 className="sia-h3">Beitrag</h3>
+      <p className="sia-line">
+        <strong>«{d.title}»</strong> · {ARTICLE_STATUS[d.status] ?? d.status} ·{" "}
+        <a href={`/autor/artikel/${d.articleId}`}>Im Editor öffnen</a>
+        {d.path && (
+          <>
+            {" · "}
+            <a href={d.path} target="_blank" rel="noopener">Ansehen</a>
+          </>
+        )}
+      </p>
+
+      {published ? (
+        <p className="sia-state-line sia-state-line--ok">
+          Publiziert am {dayTime(d.publishedAt)}.{" "}
+          {s.online_sent_at
+            ? `«Beitrag ist online» mit den Texten zum Teilen ging am ${dayTime(s.online_sent_at)} an ${s.contact_email}.`
+            : "Die Mail «Beitrag ist online» ist nicht verschickt worden."}
+        </p>
+      ) : a.kind === "approved" ? (
+        <p className={`sia-state-line ${a.stale ? "sia-state-line--warn" : "sia-state-line--ok"}`}>
+          Freigegeben am {formatDecisionTime(a.at)} von {a.by}.{" "}
+          {a.stale
+            ? "Der Beitrag wurde seither geändert. Nochmals senden, oder im Editor im Tab «Vorschau» die Freigabe für diese Fassung bestätigen (nur bei Kleinigkeiten)."
+            : "Du kannst den Beitrag im Editor publizieren."}
+          {a.note && <span>{a.note}</span>}
+        </p>
+      ) : a.kind === "changes" ? (
+        <p className="sia-state-line sia-state-line--warn">
+          Änderungen gewünscht am {formatDecisionTime(a.at)} von {a.by}.{" "}
+          {a.stale ? "Seither überarbeitet: bitte nochmals senden." : "Im Editor überarbeiten, dann nochmals senden."}
+          {a.note && <span>{a.note}</span>}
+        </p>
+      ) : (
+        <p className="sia-state-line">
+          {s.draft_ready_sent_at
+            ? `Zur Freigabe gesendet am ${dayTime(s.draft_ready_sent_at)} an ${s.contact_email}. Noch keine Rückmeldung.`
+            : "Noch nicht beim Unternehmen. Bitte zuerst im Editor durchsehen. Publizieren geht erst nach der Freigabe."}
+        </p>
+      )}
+
+      {!published && notes.length > 0 && (
+        <>
+          <p className="sia-note" style={{ margin: "0 0 6px" }}>Hinweise zum Entwurf:</p>
+          <ul className="sia-hints">
+            {notes.map((n, i) => (
+              <li key={i}>{n}</li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {!published && (
+        <>
+          <div className="sia-btns">
+            <button
+              type="button"
+              className={`sia-btn${a.kind === "approved" && !a.stale ? "" : " sia-btn--primary"}`}
+              disabled={pending || d.missing.length > 0}
+              title={d.missing.length > 0 ? `Fehlt noch im Editor: ${d.missing.join(", ")}` : undefined}
+              onClick={() => {
+                if (!confirm(`Entwurf «${d.title}» an ${s.contact_email} zur Freigabe senden?`)) return;
+                run(async () => {
+                  const res = unwrapAction(await sendShowcaseDraftReady(s.id, "send"));
+                  return `Entwurf zur Freigabe gesendet an ${res.to}.`;
+                });
+              }}
+            >
+              {s.draft_ready_sent_at ? "Nochmals zur Freigabe senden" : "Zur Freigabe senden"}
+            </button>
+            <button
+              type="button"
+              className="sia-btn sia-btn--quiet"
+              disabled={pending}
+              onClick={() =>
+                run(async () => {
+                  const res = unwrapAction(await sendShowcaseDraftReady(s.id, "test"));
+                  return `Test gesendet an ${res.to}.`;
+                })
+              }
+            >
+              Test an mich
+            </button>
+          </div>
+          {d.missing.length > 0 && (
+            <p className="sia-note">
+              Vor dem Senden im Editor ergänzen: {d.missing.join(", ")}. {d.missing.length === 1 ? "Das gehört" : "Beides gehört"} zur Fassung, die das Unternehmen freigibt.
+            </p>
+          )}
+          {d.linkExpired && <p className="sia-note">Der bisherige Vorschau-Link ist abgelaufen. Beim Senden entsteht ein neuer.</p>}
+        </>
+      )}
+
+      {posts.length > 0 && (
+        <details className="sia-posts">
+          <summary>
+            {posts.length === 1 ? "Ein LinkedIn-Text" : `${posts.length} LinkedIn-Texte`} für das Unternehmen (gehen mit «Beitrag ist online» mit)
+          </summary>
+          {posts.map((t, i) => (
+            <p key={i}>{t}</p>
+          ))}
+        </details>
+      )}
     </div>
   );
 }

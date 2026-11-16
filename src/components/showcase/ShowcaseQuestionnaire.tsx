@@ -367,7 +367,7 @@ function QuestionnaireForm(props: Props) {
           <label>
             <input type="radio" name="mode" checked={s.mode === "questions"} onChange={() => set("mode", "questions")} />
             <span>
-              <strong>Fragen beantworten.</strong> Wir schreiben daraus den Entwurf.
+              <strong>Fragen beantworten.</strong> Wir erstellen daraus mit KI-Unterstützung einen Entwurf, den ihr prüft und freigebt.
             </span>
           </label>
           <label>
@@ -633,7 +633,7 @@ function QuestionnaireForm(props: Props) {
           {pending ? "Wird abgeschickt …" : "Fragebogen abschicken"}
         </button>
         <p className="sq-meta">
-          Was mit euren Angaben geschieht, steht in der <a href="/datenschutzerklaerung" target="_blank" rel="noopener noreferrer">Datenschutzerklärung</a>.
+          Für den Entwurf verarbeiten wir eure Antworten mit einem KI-Dienst (Claude von Anthropic); eure E-Mail-Adressen gehen nicht dorthin. Was sonst mit euren Angaben geschieht, steht in der <a href="/datenschutzerklaerung" target="_blank" rel="noopener noreferrer">Datenschutzerklärung</a>.
         </p>
       </div>
     </form>
