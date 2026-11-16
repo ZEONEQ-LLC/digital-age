@@ -178,6 +178,7 @@ export type Database = {
           approved_note: string | null
           created_at: string
           id: string
+          in_newsletter: boolean
           is_house: boolean
           name: string
           notes: string | null
@@ -196,6 +197,7 @@ export type Database = {
           approved_note?: string | null
           created_at?: string
           id?: string
+          in_newsletter?: boolean
           is_house?: boolean
           name: string
           notes?: string | null
@@ -214,6 +216,7 @@ export type Database = {
           approved_note?: string | null
           created_at?: string
           id?: string
+          in_newsletter?: boolean
           is_house?: boolean
           name?: string
           notes?: string | null
@@ -1081,6 +1084,8 @@ export type Database = {
           decided_fingerprint: string | null
           decision: string | null
           decision_note: string | null
+          editor_confirmed_at: string | null
+          editor_confirmed_by: string | null
           expires_at: string
           id: string
           revoked_at: string | null
@@ -1095,6 +1100,8 @@ export type Database = {
           decided_fingerprint?: string | null
           decision?: string | null
           decision_note?: string | null
+          editor_confirmed_at?: string | null
+          editor_confirmed_by?: string | null
           expires_at?: string
           id?: string
           revoked_at?: string | null
@@ -1109,6 +1116,8 @@ export type Database = {
           decided_fingerprint?: string | null
           decision?: string | null
           decision_note?: string | null
+          editor_confirmed_at?: string | null
+          editor_confirmed_by?: string | null
           expires_at?: string
           id?: string
           revoked_at?: string | null
@@ -1125,6 +1134,13 @@ export type Database = {
           {
             foreignKeyName: "article_preview_links_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "article_preview_links_editor_confirmed_by_fkey"
+            columns: ["editor_confirmed_by"]
             isOneToOne: false
             referencedRelation: "authors"
             referencedColumns: ["id"]
@@ -1735,6 +1751,45 @@ export type Database = {
         }
         Relationships: []
       }
+      newsletter_ad_clicks: {
+        Row: {
+          campaign_id: string
+          clicks: number
+          first_click_at: string
+          issue_id: string
+          last_click_at: string
+        }
+        Insert: {
+          campaign_id: string
+          clicks?: number
+          first_click_at?: string
+          issue_id: string
+          last_click_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          clicks?: number
+          first_click_at?: string
+          issue_id?: string
+          last_click_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "newsletter_ad_clicks_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ad_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "newsletter_ad_clicks_issue_id_fkey"
+            columns: ["issue_id"]
+            isOneToOne: false
+            referencedRelation: "newsletter_issues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       newsletter_deliveries: {
         Row: {
           created_at: string
@@ -2157,6 +2212,9 @@ export type Database = {
           contact_name: string | null
           contact_role: string | null
           created_at: string
+          draft_created_at: string | null
+          draft_notes: Json
+          draft_ready_sent_at: string | null
           expires_at: string
           id: string
           image_path: string | null
@@ -2165,9 +2223,11 @@ export type Database = {
           invited_by: string | null
           invitee_email: string | null
           invitee_name: string | null
+          linkedin_texts: Json
           links: Json
           logo_applied_at: string | null
           logo_path: string | null
+          online_sent_at: string | null
           own_text: string | null
           profile_applied_at: string | null
           profile_changes: Json
@@ -2190,6 +2250,9 @@ export type Database = {
           contact_name?: string | null
           contact_role?: string | null
           created_at?: string
+          draft_created_at?: string | null
+          draft_notes?: Json
+          draft_ready_sent_at?: string | null
           expires_at?: string
           id?: string
           image_path?: string | null
@@ -2198,9 +2261,11 @@ export type Database = {
           invited_by?: string | null
           invitee_email?: string | null
           invitee_name?: string | null
+          linkedin_texts?: Json
           links?: Json
           logo_applied_at?: string | null
           logo_path?: string | null
+          online_sent_at?: string | null
           own_text?: string | null
           profile_applied_at?: string | null
           profile_changes?: Json
@@ -2223,6 +2288,9 @@ export type Database = {
           contact_name?: string | null
           contact_role?: string | null
           created_at?: string
+          draft_created_at?: string | null
+          draft_notes?: Json
+          draft_ready_sent_at?: string | null
           expires_at?: string
           id?: string
           image_path?: string | null
@@ -2231,9 +2299,11 @@ export type Database = {
           invited_by?: string | null
           invitee_email?: string | null
           invitee_name?: string | null
+          linkedin_texts?: Json
           links?: Json
           logo_applied_at?: string | null
           logo_path?: string | null
+          online_sent_at?: string | null
           own_text?: string | null
           profile_applied_at?: string | null
           profile_changes?: Json
@@ -2535,6 +2605,10 @@ export type Database = {
           p_placement: string
         }
         Returns: undefined
+      }
+      newsletter_ad_click: {
+        Args: { p_campaign: string; p_issue: string }
+        Returns: boolean
       }
       regenerate_ad_preview_token: {
         Args: { p_campaign_id: string }
