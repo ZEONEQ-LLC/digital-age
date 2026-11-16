@@ -3,6 +3,7 @@ import Link from "next/link";
 import PageTitle from "@/components/author/PageTitle";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_COVER_URL } from "@/lib/coverImage";
+import { loadAdCandidates } from "@/lib/newsletter/adsApi";
 import { isIssueStatus, sanitizeItems, sanitizeSections, type IssueItem } from "@/lib/newsletter/issue";
 import {
   NEWS_SELECT,
@@ -16,13 +17,14 @@ import {
   type PodcastRow,
   type PromptRow,
 } from "@/lib/newsletter/sections";
-import NewsletterIssuesClient, { type IssueView, type NewsCandidate } from "./NewsletterIssuesClient";
+import NewsletterIssuesClient, { type AdCandidateView, type IssueView, type NewsCandidate } from "./NewsletterIssuesClient";
 
 // Newsletter-Ausgaben (PR 195, Entscheid Ali 12.11.2026: Entwurf + Freigabe).
 // Server-Teil: offene Ausgabe, Verlauf, Zahl der bestaetigten Abonnenten und
 // Kandidaten fuer «Artikel hinzufuegen» sowie (PR 203) fuer die Rubriken:
-// News der letzten 21 Tage (nach Einordnung), Prompts und Podcasts. Editor-
-// Gate ueber das Admin-Layout, RLS (newsletter_issues_editor_*) zusaetzlich.
+// News der letzten 21 Tage (nach Einordnung), Prompts und Podcasts, seit
+// PR 214 auch die Kampagnen fuer «Anzeigen» (adsApi.ts). Editor-Gate ueber
+// das Admin-Layout, RLS (newsletter_issues_editor_*) zusaetzlich.
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +49,10 @@ function candidatesSince(days = 60): string {
   return new Date(Date.now() - days * 86_400_000).toISOString();
 }
 
+function fullDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Zurich" });
+}
+
 function shortDate(iso: string): string {
   return new Date(iso).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", timeZone: "Europe/Zurich" });
 }
@@ -54,7 +60,7 @@ function shortDate(iso: string): string {
 export default async function NewsletterIssuesPage() {
   const supabase = await createClient();
   const since = candidatesSince();
-  const [{ data: issues, error }, { count: confirmed }, { data: recent }, { data: newsData }, { data: promptData }, { data: podcastData }] = await Promise.all([
+  const [{ data: issues, error }, { count: confirmed }, { data: recent }, { data: newsData }, { data: promptData }, { data: podcastData }, adRows] = await Promise.all([
     supabase.from("newsletter_issues").select("*").neq("status", "discarded").order("created_at", { ascending: false }).limit(30),
     supabase.from("newsletter_subscribers").select("id", { count: "exact", head: true }).eq("status", "confirmed"),
     // Kandidaten: nur redaktionelle Artikel.
@@ -73,6 +79,7 @@ export default async function NewsletterIssuesPage() {
       .order("published_at", { ascending: false }).limit(40),
     supabase.from("podcasts").select(PODCAST_SELECT).eq("is_published", true)
       .order("recommended_at", { ascending: false }).limit(40),
+    loadAdCandidates(supabase),
   ]);
 
   const views: IssueView[] = (issues ?? []).map((r) => ({
@@ -119,6 +126,14 @@ export default async function NewsletterIssuesPage() {
   }));
   const promptCandidates = ((promptData ?? []) as PromptRow[]).map((r) => promptToPick(r));
   const podcastCandidates = ((podcastData ?? []) as PodcastRow[]).map((r) => podcastToPick(r, base));
+  const adCandidates: AdCandidateView[] = adRows.map((c) => ({
+    ad: c.ad,
+    proposed: c.proposed,
+    creativeLabel: c.creativeLabel,
+    // Obergrenze exklusiv (24:00): der letzte Tag ist der Tag davor.
+    until: c.runsUntil ? fullDate(new Date(new Date(c.runsUntil).getTime() - 1).toISOString()) : null,
+    running: c.running,
+  }));
 
   return (
     <>
@@ -137,6 +152,7 @@ export default async function NewsletterIssuesPage() {
           newsCandidates={newsCandidates}
           promptCandidates={promptCandidates}
           podcastCandidates={podcastCandidates}
+          adCandidates={adCandidates}
         />
       )}
     </>

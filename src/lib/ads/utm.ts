@@ -55,16 +55,31 @@ export type TrackedUrlOptions = { campaign: string; placementCode: string; varia
 
 // Haengt die vier Parameter an. Bestehende Query bleibt wortwoertlich stehen
 // (kein erneutes Encodieren), #Fragment bleibt am Ende.
-export function buildTrackedUrl(targetUrl: string, opts: TrackedUrlOptions): string {
+function appendUtm(targetUrl: string, medium: string, campaign: string, content: string): string {
   const u = parseAbsolute(targetUrl);
   if (!u) return targetUrl;
   if (hasOwnUtmParams(targetUrl)) return targetUrl;
   const params = new URLSearchParams({
     utm_source: UTM_SOURCE,
-    utm_medium: UTM_MEDIUM,
-    utm_campaign: opts.campaign,
-    utm_content: utmContentFor(opts.placementCode, opts.variant),
+    utm_medium: medium,
+    utm_campaign: campaign,
+    utm_content: content,
   });
   const sep = u.search ? "&" : "?";
   return `${u.origin}${u.pathname}${u.search}${sep}${params.toString()}${u.hash}`;
+}
+
+export function buildTrackedUrl(targetUrl: string, opts: TrackedUrlOptions): string {
+  return appendUtm(targetUrl, UTM_MEDIUM, opts.campaign, utmContentFor(opts.placementCode, opts.variant));
+}
+
+// Anzeigen im Newsletter (PR 214): gleiche Quelle und Kennung, aber
+// utm_medium = email (GA4-Kanal «Email») und utm_content = newsletter. So
+// trennt der Kunde in seinem Analytics die Klicks aus dem Newsletter von
+// denen der Website.
+export const UTM_MEDIUM_NEWSLETTER = "email";
+export const UTM_CONTENT_NEWSLETTER = "newsletter";
+
+export function buildNewsletterAdUrl(targetUrl: string, campaign: string): string {
+  return appendUtm(targetUrl, UTM_MEDIUM_NEWSLETTER, campaign, UTM_CONTENT_NEWSLETTER);
 }

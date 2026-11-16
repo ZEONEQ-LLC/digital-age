@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { FormError, runAction, type ActionResult } from "@/lib/actionResult";
+import { resolveAds } from "@/lib/newsletter/adsApi";
 import { createNewsletterDraft } from "@/lib/newsletter/draftJob";
 import {
   INTRO_MAX,
@@ -41,7 +42,10 @@ async function loadOpenDraft(id: string) {
   return supabase;
 }
 
-export async function saveIssue(id: string, patch: IssuePatch): Promise<ActionResult<{ items: IssueItem[]; sections: IssueSections }>> {
+export async function saveIssue(
+  id: string,
+  patch: IssuePatch,
+): Promise<ActionResult<{ items: IssueItem[]; sections: IssueSections; droppedAds: number }>> {
   return runAction("newsletter.saveIssue", async () => {
     await requireEditor();
     const subject = patch.subject.replace(/\s+/g, " ").trim();
@@ -50,8 +54,12 @@ export async function saveIssue(id: string, patch: IssuePatch): Promise<ActionRe
     if (subject.length > SUBJECT_MAX) throw new FormError(`Betreff zu lang (höchstens ${SUBJECT_MAX} Zeichen).`);
     if (intro.length > INTRO_MAX) throw new FormError(`Einleitung zu lang (höchstens ${INTRO_MAX} Zeichen).`);
     const items = sanitizeItems(patch.items);
-    const sections = sanitizeSections(patch.sections);
     const supabase = await loadOpenDraft(id);
+    // Anzeigen: Vom Browser zaehlt nur, welche Kampagnen in welcher
+    // Reihenfolge. Inhalt und Ziel kommen aus der Kampagne (adsApi.ts).
+    const wanted = sanitizeSections(patch.sections);
+    const resolved = await resolveAds(supabase, wanted.ads);
+    const sections = { ...wanted, ads: resolved.ads };
     const { error } = await supabase
       .from("newsletter_issues")
       .update({ subject, intro, items, sections, edited_at: new Date().toISOString() })
@@ -59,7 +67,7 @@ export async function saveIssue(id: string, patch: IssuePatch): Promise<ActionRe
       .eq("status", "draft");
     if (error) throw error;
     revalidatePath(PAGE);
-    return { items, sections };
+    return { items, sections, droppedAds: resolved.missing.length };
   });
 }
 
@@ -103,16 +111,21 @@ export async function discardIssue(id: string): Promise<ActionResult<null>> {
   });
 }
 
-// Vorschau im Admin: dasselbe HTML wie im Versand (Abmeldelink ohne Token).
-export async function renderIssuePreview(patch: IssuePatch): Promise<ActionResult<string>> {
+// Vorschau im Admin: dasselbe HTML wie im Versand (Abmeldelink ohne Token,
+// Anzeigen ohne Zaehl-Link). Entwurf: Anzeigen mit dem aktuellen Stand der
+// Kampagnen. `sent`: versendete Ausgabe, die Anzeigen bleiben, wie sie
+// verschickt wurden.
+export async function renderIssuePreview(patch: IssuePatch, sent = false): Promise<ActionResult<string>> {
   return runAction("newsletter.renderIssuePreview", async () => {
     await requireEditor();
+    const wanted = sanitizeSections(patch.sections);
+    const sections = sent ? wanted : { ...wanted, ads: (await resolveAds(await createClient(), wanted.ads)).ads };
     return renderIssueHtml(
       {
         subject: patch.subject.trim() || "(Betreff fehlt)",
         intro: patch.intro.trim(),
         items: sanitizeItems(patch.items),
-        sections: sanitizeSections(patch.sections),
+        sections,
       },
       { date: new Date(), test: true },
     );

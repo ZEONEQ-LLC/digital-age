@@ -3,6 +3,7 @@
 import { useId, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { unwrapAction } from "@/lib/actionResult";
+import { MAX_ADS, NEWSLETTER_AD_FORMAT, adLabel, type IssueAd } from "@/lib/newsletter/ads";
 import {
   HYPE_TEXT_MAX,
   ISSUE_STATUS_LABEL,
@@ -33,7 +34,8 @@ import {
 // Admin «Newsletter-Ausgaben» (PR 195): offener Entwurf bearbeiten, Vorschau,
 // Test an sich selbst, Freigabe; darunter der Verlauf. Seit PR 203 mit den
 // Rubriken News, Hype-Check, Prompt der Woche und Podcast-Tipp (je
-// bearbeiten, entfernen, aus einer Liste waehlen).
+// bearbeiten, entfernen, aus einer Liste waehlen). Seit PR 214 mit «Anzeigen»:
+// laufende Kampagnen der Werbepartner, vorgeschlagen oder von Hand gewaehlt.
 
 export type NewsCandidate = IssueNews & { date: string; importance: number | null };
 
@@ -60,11 +62,23 @@ export type IssueView = {
   updatedAt: string;
 };
 
+// Kampagne, die im Newsletter stehen kann (Server: adsApi.loadAdCandidates).
+export type AdCandidateView = {
+  ad: IssueAd;
+  // Mit «Im Newsletter zeigen» und gerade laufend.
+  proposed: boolean;
+  running: boolean;
+  creativeLabel: string;
+  // Letzter Tag der laufenden Buchung, null = offen oder keine.
+  until: string | null;
+};
+
 type Candidates = {
   candidates: IssueItem[];
   newsCandidates: NewsCandidate[];
   promptCandidates: IssuePick[];
   podcastCandidates: IssuePick[];
+  adCandidates: AdCandidateView[];
 };
 
 type Props = Candidates & { issues: IssueView[]; confirmedCount: number };
@@ -108,6 +122,11 @@ const CSS = `
   .nl-icon:hover:not(:disabled) { border-color: var(--da-green); color: var(--da-green); }
   .nl-icon:disabled { opacity: 0.35; cursor: default; }
   .nl-item--text { grid-template-columns: minmax(0, 1fr) auto; }
+  .nl-item--ad img { height: 70px; object-fit: contain; background: #fff; }
+  .nl-ad-text { color: var(--da-text-strong); font-size: 13px; line-height: 1.5; margin: 0; }
+  .nl-ad-links { display: flex; gap: 6px 16px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; }
+  .nl-ad-links a { color: var(--da-green); text-decoration: none; font-weight: 600; }
+  .nl-ad-links a:hover { text-decoration: underline; }
   .nl-item-meta { color: var(--da-muted); font-size: 12px; line-height: 1.4; }
   .nl-sec { border-top: 1px solid var(--da-border); padding-top: 18px; }
   .nl-sec-hint { color: var(--da-muted); font-size: 12px; line-height: 1.5; margin: -2px 0 4px; }
@@ -264,7 +283,21 @@ function PickSection({ title, hint, value, candidates, locked, onChange, linkBas
   );
 }
 
-function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandidates, podcastCandidates, onPreview }: Candidates & {
+function adMeta(ad: IssueAd, c: AdCandidateView | undefined): string {
+  const who = ad.isHouse ? "House-Kampagne" : ad.advertiser || "Kunde";
+  const parts = [who, ad.name];
+  if (c?.until) parts.push(`läuft bis ${c.until}`);
+  else if (c && !c.running && !ad.isHouse) parts.push("keine laufende Buchung");
+  return parts.filter(Boolean).join(" · ");
+}
+
+function adOption(c: AdCandidateView): { value: string; text: string } {
+  const who = c.ad.isHouse ? "House" : c.ad.advertiser || "Kunde";
+  const flags = [c.creativeLabel, c.until ? `bis ${c.until}` : "", c.proposed ? "für den Newsletter vorgesehen" : ""].filter(Boolean).join(", ");
+  return { value: c.ad.campaignId, text: `${who} · ${c.ad.name} (${flags})` };
+}
+
+function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandidates, podcastCandidates, adCandidates, onPreview }: Candidates & {
   issue: IssueView;
   confirmedCount: number;
   onPreview: (html: string, title: string) => void;
@@ -287,6 +320,18 @@ function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandi
   const patch = { subject, intro, items, sections };
   const usedNews = new Set([...sections.news.map((n) => n.newsId), sections.hype?.newsId].filter(Boolean));
   const newsOptions = newsCandidates.filter((n) => !usedNews.has(n.newsId)).map(newsOption);
+
+  const adOptions = adCandidates.filter((c) => !sections.ads.some((a) => a.campaignId === c.ad.campaignId)).map(adOption);
+
+  function moveAd(index: number, delta: -1 | 1) {
+    setSections((s) => {
+      const target = index + delta;
+      if (target < 0 || target >= s.ads.length) return s;
+      const ads = [...s.ads];
+      [ads[index], ads[target]] = [ads[target], ads[index]];
+      return { ...s, ads };
+    });
+  }
 
   function setNews(update: (list: IssueNews[]) => IssueNews[]) {
     setSections((s) => ({ ...s, news: update(s.news) }));
@@ -313,6 +358,15 @@ function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandi
         setNotice({ kind: "err", text: e instanceof Error ? e.message : String(e) });
       }
     });
+  }
+
+  // Meldung nach dem Speichern. Eine Anzeige, deren Kampagne nicht mehr live
+  // ist oder kein passendes Motiv mehr hat, nimmt der Server heraus.
+  function savedText(dropped: number): string {
+    if (dropped === 0) return "Gespeichert.";
+    return dropped === 1
+      ? "Gespeichert. Eine Anzeige ist nicht mehr verfügbar und wurde entfernt."
+      : `Gespeichert. ${dropped} Anzeigen sind nicht mehr verfügbar und wurden entfernt.`;
   }
 
   async function saveIfDirty(): Promise<void> {
@@ -533,6 +587,59 @@ function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandi
         emptyText="Keine veröffentlichten Podcasts"
       />
 
+      <div className="nl-field nl-sec">
+        <span className="nl-label">Anzeigen ({sections.ads.length}/{MAX_ADS})</span>
+        <p className="nl-sec-hint">
+          Stehen zwischen den Rubriken, gekennzeichnet als «Anzeige»: die erste nach dem ersten Block, die zweite weiter unten.
+          Vorgeschlagen werden laufende Kampagnen mit dem Häkchen «Im Newsletter zeigen». Motiv und Link kommen aus der Kampagne.
+        </p>
+        <div className="nl-items">
+          {sections.ads.length === 0 && <p className="nl-empty">Keine Anzeige in dieser Ausgabe.</p>}
+          {sections.ads.map((ad, i) => (
+            <div key={ad.campaignId} className={ad.imageUrl ? "nl-item nl-item--ad" : "nl-item nl-item--text"}>
+              {ad.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element -- Vorschau des Motivs, kein LCP
+                <img src={ad.imageUrl} alt={ad.alt} />
+              )}
+              <div>
+                <div className="nl-item-meta">{adMeta(ad, adCandidates.find((c) => c.ad.campaignId === ad.campaignId))}</div>
+                <div className="nl-item-title" style={{ marginBottom: 4 }}>{ad.kind === "image" ? ad.alt || "Bildmotiv" : ad.headline}</div>
+                {ad.kind === "text" && (ad.body || ad.cta) && (
+                  <p className="nl-ad-text">{[ad.body, ad.cta ? `Knopf: ${ad.cta}` : ""].filter(Boolean).join(" · ")}</p>
+                )}
+                <div className="nl-ad-links">
+                  <span className="nl-item-meta">Im Newsletter: «{adLabel(ad)}»</span>
+                  <a href={ad.href} target="_blank" rel="noopener noreferrer">Ziel öffnen</a>
+                  <a href={`/autor/admin/werbung/${ad.campaignId}`} target="_blank" rel="noopener">Kampagne öffnen</a>
+                </div>
+              </div>
+              <Tools
+                index={i}
+                count={sections.ads.length}
+                locked={locked}
+                label={ad.name}
+                onMove={moveAd}
+                onRemove={() => setSections((s) => ({ ...s, ads: s.ads.filter((x) => x.campaignId !== ad.campaignId) }))}
+              />
+            </div>
+          ))}
+        </div>
+        {!sending && sections.ads.length < MAX_ADS && (
+          <AddRow
+            label="Anzeige hinzufügen"
+            placeholder="Laufende Kampagne hinzufügen …"
+            empty={`Keine weitere Kampagne auf «Live» mit passendem Motiv (${NEWSLETTER_AD_FORMAT})`}
+            options={adOptions}
+            locked={locked}
+            button="Hinzufügen"
+            onAdd={(id) => {
+              const c = adCandidates.find((x) => x.ad.campaignId === id);
+              if (c) setSections((s) => ({ ...s, ads: [...s.ads, c.ad] }));
+            }}
+          />
+        )}
+      </div>
+
       {notice && <div className={notice.kind === "ok" ? "nl-note nl-note--ok" : "nl-note nl-note--err"} role={notice.kind === "err" ? "alert" : "status"}>{notice.text}</div>}
 
       <div className="nl-bar">
@@ -542,7 +649,7 @@ function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandi
           </button>
         ) : (
           <>
-            <button type="button" className="nl-btn" disabled={locked || !dirty} onClick={() => run(async () => { unwrapAction(await saveIssue(issue.id, patch)); return "Gespeichert."; })}>
+            <button type="button" className="nl-btn" disabled={locked || !dirty} onClick={() => run(async () => savedText(unwrapAction(await saveIssue(issue.id, patch)).droppedAds))}>
               {dirty ? "Speichern" : "Gespeichert"}
             </button>
             <button
@@ -622,7 +729,7 @@ export default function NewsletterIssuesClient({ issues, confirmedCount, ...list
   function showSent(i: IssueView) {
     startTransition(async () => {
       try {
-        setPreview({ html: unwrapAction(await renderIssuePreview({ subject: i.subject, intro: i.intro, items: i.items, sections: i.sections })), title: i.subject });
+        setPreview({ html: unwrapAction(await renderIssuePreview({ subject: i.subject, intro: i.intro, items: i.items, sections: i.sections }, true)), title: i.subject });
       } catch (e) {
         setNotice({ kind: "err", text: e instanceof Error ? e.message : String(e) });
       }
@@ -680,7 +787,10 @@ export default function NewsletterIssuesClient({ issues, confirmedCount, ...list
                   <tr key={i.id}>
                     <td className="nl-num" style={{ textAlign: "left" }}>{dateTime(i.sentAt)}</td>
                     <td>{i.subject}</td>
-                    <td className="nl-num">{i.items.length} Artikel{i.sections.news.length > 0 ? ` · ${i.sections.news.length} News` : ""}</td>
+                    <td className="nl-num">
+                      {i.items.length} Artikel{i.sections.news.length > 0 ? ` · ${i.sections.news.length} News` : ""}
+                      {i.sections.ads.length > 0 ? ` · ${i.sections.ads.length} ${i.sections.ads.length === 1 ? "Anzeige" : "Anzeigen"}` : ""}
+                    </td>
                     <td className="nl-num">{i.recipients ?? "—"}</td>
                     <td className="nl-num">{i.delivered}</td>
                     <td className="nl-num">{i.failed}</td>

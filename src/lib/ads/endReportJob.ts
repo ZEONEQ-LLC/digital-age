@@ -7,6 +7,7 @@ import { COUNT_RULE_SIE, formatCount, formatCtr } from "@/lib/ads/statsFormat";
 import type { PeriodValue } from "@/lib/ads/types";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getBaseUrl } from "@/lib/siteUrl";
+import { NEWSLETTER_COUNT_RULE_SIE } from "@/lib/newsletter/ads";
 
 // Abschlussbericht (Entscheid Ali 12.11.2026): taeglich im Cron
 // /api/module/daily nach der Ablaufwarnung. Faellig ist eine gelaufene
@@ -87,6 +88,14 @@ export async function runEndReports(now: Date = new Date()): Promise<EndReportRu
         previewUrl: `${base}/vorschau/${c.preview_token}`,
         validUntil: formatLastDay(previewExpiresAt(end)),
         countRule: COUNT_RULE_SIE,
+        newsletter: stats.newsletter
+          ? {
+              issues: stats.newsletter.issues.length,
+              sends: formatCount(stats.newsletter.sends),
+              clicks: formatCount(stats.newsletter.clicks),
+              rule: NEWSLETTER_COUNT_RULE_SIE,
+            }
+          : null,
       }),
     });
     if (!res.ok) {

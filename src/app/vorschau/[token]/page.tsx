@@ -8,6 +8,7 @@ import { getPreviewCampaign, type PreviewCreative } from "@/lib/ads/previewApi";
 import { RESSORT_SLUGS, formatPeriod } from "@/lib/ads/types";
 import { getCampaignStats, type CampaignStats } from "@/lib/ads/statsApi";
 import { COUNT_RULE_SIE, formatCount, formatCtr, formatRuntime } from "@/lib/ads/statsFormat";
+import { NEWSLETTER_COUNT_RULE_SIE } from "@/lib/newsletter/ads";
 import { UTM_MEDIUM, UTM_SOURCE, utmContentFor } from "@/lib/ads/utm";
 import { createServiceClient } from "@/lib/supabase/service";
 import StatsSeries from "@/components/module/StatsSeries";
@@ -206,6 +207,32 @@ export default async function PreviewPage({ params }: PageProps) {
               </div>
             )}
             <p style={{ color: "var(--da-faint)", fontSize: 12, margin: "14px 0 0", lineHeight: 1.5 }}>{COUNT_RULE_SIE}</p>
+            {stats.newsletter && (
+              <div style={{ borderTop: "1px solid var(--da-border)", marginTop: 20, paddingTop: 18 }}>
+                <div style={{ ...overline, marginBottom: 8 }}>Newsletter</div>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...overline, textAlign: "left", padding: "8px 0", borderBottom: "1px solid var(--da-border)" }}>Ausgabe</th>
+                      <th style={{ ...overline, textAlign: "right", padding: "8px 0", borderBottom: "1px solid var(--da-border)" }}>Zustellungen</th>
+                      <th style={{ ...overline, textAlign: "right", padding: "8px 0", borderBottom: "1px solid var(--da-border)" }}>Klicks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.newsletter.issues.map((i) => (
+                      <tr key={i.issueId}>
+                        <td style={{ color: "var(--da-text)", fontSize: 14, fontWeight: 600, padding: "10px 12px 10px 0", borderBottom: "1px solid var(--da-border)" }}>
+                          {i.sentAt ? `Newsletter vom ${formatDate(i.sentAt)}` : "Newsletter"}
+                        </td>
+                        <td style={{ color: "var(--da-text)", fontSize: 14, fontFamily: "var(--da-font-mono)", textAlign: "right", padding: "10px 0", borderBottom: "1px solid var(--da-border)" }}>{formatCount(i.sends)}</td>
+                        <td style={{ color: "var(--da-text)", fontSize: 14, fontFamily: "var(--da-font-mono)", textAlign: "right", padding: "10px 0", borderBottom: "1px solid var(--da-border)" }}>{formatCount(i.clicks)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p style={{ color: "var(--da-faint)", fontSize: 12, margin: "14px 0 0", lineHeight: 1.5 }}>{NEWSLETTER_COUNT_RULE_SIE}</p>
+              </div>
+            )}
           </section>
         )}
 

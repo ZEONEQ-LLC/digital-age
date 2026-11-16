@@ -4,6 +4,8 @@ import { createHash } from "node:crypto";
 import { render } from "@react-email/render";
 import { Resend } from "resend";
 import NewsletterIssue from "@/emails/NewsletterIssue";
+import { resolveAds } from "@/lib/newsletter/adsApi";
+import { adClickUrl } from "@/lib/newsletter/adToken";
 import {
   UNSUBSCRIBE_PLACEHOLDER,
   formatIssueDate,
@@ -28,6 +30,12 @@ import { createServiceClient } from "@/lib/supabase/service";
 // (Resend) halten die Ausgabe auf «sending», der Editor setzt fort; endgueltig
 // ausgelassen («skip: …») werden nur seit dem Start Abgemeldete. Laeuft die
 // Zeit ab, bleibt die Ausgabe ebenfalls auf «sending».
+//
+// Anzeigen (PR 214): Beim Start werden sie nochmals aus den Kampagnen gelesen
+// und als Momentaufnahme in der Ausgabe festgehalten. Ist eine Kampagne nicht
+// mehr live oder fehlt das Kreativ, startet der Versand nicht. In der Mail
+// fuehrt der Link ueber die Zaehl-Weiterleitung (adToken.ts); Test und
+// Vorschau verlinken direkt und zaehlen nichts.
 
 export type SendSummary = { ok: true; sent: number; failed: number; pending: number; done: boolean } | { ok: false; error: string };
 
@@ -65,7 +73,7 @@ export function oneClickUnsubscribeUrl(token: string): string {
 // HTML einmal rendern; der Abmeldelink enthaelt den Platzhalter.
 export async function renderIssueHtml(
   issue: { subject: string; intro: string; items: IssueItem[]; sections: IssueSections },
-  opts: { date: Date; test?: boolean },
+  opts: { date: Date; test?: boolean; adLinks?: Record<string, string> },
 ): Promise<string> {
   return render(
     NewsletterIssue({
@@ -78,6 +86,7 @@ export async function renderIssueHtml(
       siteUrl: SITE_URL,
       unsubscribeUrl: unsubscribePageUrl(UNSUBSCRIBE_PLACEHOLDER),
       test: opts.test,
+      adLinks: opts.adLinks,
     }),
   );
 }
@@ -90,7 +99,9 @@ export async function sendIssueTest(issueId: string, to: string): Promise<{ ok: 
   if (error || !data) return { ok: false, error: "Ausgabe nicht gefunden." };
   const issue = data as IssueRow;
   const items = sanitizeItems(issue.items);
-  const sections = sanitizeSections(issue.sections);
+  const stored = sanitizeSections(issue.sections);
+  // Anzeigen im Test mit dem aktuellen Stand der Kampagnen, ohne Zaehl-Link.
+  const sections = { ...stored, ads: (await resolveAds(svc, stored.ads)).ads };
   try {
     const html = personalize(await renderIssueHtml({ subject: issue.subject, intro: issue.intro, items, sections }, { date: new Date(), test: true }), "test");
     const res = await s.resend.emails.send({ from: s.from, replyTo: s.replyTo, to, subject: `[Test] ${issue.subject}`, html });
@@ -112,7 +123,7 @@ export async function sendIssueToSubscribers(issueId: string, editorId: string):
   if (error || !data) return { ok: false, error: "Ausgabe nicht gefunden." };
   const issue = data as IssueRow;
   const items = sanitizeItems(issue.items);
-  const sections = sanitizeSections(issue.sections);
+  let sections = sanitizeSections(issue.sections);
   if (issue.status !== "draft" && issue.status !== "sending") return { ok: false, error: "Diese Ausgabe ist nicht mehr offen." };
 
   let startedAt = issue.send_started_at ? new Date(issue.send_started_at) : new Date();
@@ -125,11 +136,24 @@ export async function sendIssueToSubscribers(issueId: string, editorId: string):
       .eq("status", "confirmed");
     if (cntErr) return { ok: false, error: cntErr.message };
     if (!confirmed) return { ok: false, error: "Es gibt keine bestätigten Abonnenten." };
+    // Anzeigen: aktueller Stand der Kampagnen. Was jetzt in der Ausgabe steht,
+    // wird versendet und ist das Ziel der Zaehl-Links.
+    if (sections.ads.length > 0) {
+      const resolved = await resolveAds(svc, sections.ads);
+      if (resolved.missing.length > 0) {
+        const names = sections.ads.filter((a) => resolved.missing.includes(a.campaignId)).map((a) => `«${a.name || "ohne Namen"}»`);
+        return {
+          ok: false,
+          error: `Die Anzeige ${names.join(", ")} lässt sich nicht mehr ausliefern (Kampagne nicht mehr live oder ohne passendes Motiv). Bitte im Entwurf entfernen und erneut senden.`,
+        };
+      }
+      sections = { ...sections, ads: resolved.ads };
+    }
     // Status zuerst (nur aus draft): Ein zweiter Klick findet «sending» und setzt fort.
     startedAt = new Date();
     const { data: moved, error: moveErr } = await svc
       .from("newsletter_issues")
-      .update({ status: "sending", send_started_at: startedAt.toISOString(), sent_by: editorId, last_error: null })
+      .update({ status: "sending", send_started_at: startedAt.toISOString(), sent_by: editorId, last_error: null, sections })
       .eq("id", issueId)
       .eq("status", "draft")
       .select("id");
@@ -157,7 +181,14 @@ export async function sendIssueToSubscribers(issueId: string, editorId: string):
       .not("error", "like", `${SKIP_PREFIX}%`);
   }
 
-  const baseHtml = await renderIssueHtml({ subject: issue.subject, intro: issue.intro, items, sections }, { date: startedAt });
+  // Zaehl-Links der Anzeigen. Ohne Service-Schluessel (lokal) gibt es keinen
+  // Link und die Anzeige fuehrt direkt zum Ziel.
+  const adLinks: Record<string, string> = {};
+  for (const ad of sections.ads) {
+    const link = adClickUrl(SITE_URL, issueId, ad.campaignId);
+    if (link) adLinks[ad.campaignId] = link;
+  }
+  const baseHtml = await renderIssueHtml({ subject: issue.subject, intro: issue.intro, items, sections }, { date: startedAt, adLinks });
 
   let sent = 0;
   let failed = 0;

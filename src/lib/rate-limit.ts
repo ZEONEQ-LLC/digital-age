@@ -26,7 +26,8 @@ export type RateLimitAction =
   | "preview_response"
   | "article_read"
   | "showcase_submit"
-  | "showcase_upload";
+  | "showcase_upload"
+  | "newsletter_ad_click";
 
 type SbClient = SupabaseClient<Database>;
 

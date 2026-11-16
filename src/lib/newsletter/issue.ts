@@ -12,6 +12,8 @@ export type IssueItem = {
   coverUrl: string | null;
 };
 
+import { sanitizeAds, type IssueAd } from "@/lib/newsletter/ads";
+
 // Rubriken neben den Artikeln (Wunsch Ali 13.11.2026, PR 203), gespeichert in
 // newsletter_issues.sections. Jede Rubrik ist im Entwurf editierbar und
 // entfernbar; leere Rubriken erscheinen nicht in der Mail.
@@ -47,9 +49,12 @@ export type IssueSections = {
   hype: IssueHype | null;
   prompt: IssuePick | null;
   podcast: IssuePick | null;
+  // Anzeigen (PR 214, ads.ts): Momentaufnahmen der Kampagnen, vom Server
+  // gebaut. Keine Rubrik: zaehlen nicht fuer hasSections und validateForSend.
+  ads: IssueAd[];
 };
 
-export const EMPTY_SECTIONS: IssueSections = { news: [], hype: null, prompt: null, podcast: null };
+export const EMPTY_SECTIONS: IssueSections = { news: [], hype: null, prompt: null, podcast: null, ads: [] };
 
 export type IssueStatus = "draft" | "sending" | "sent" | "discarded";
 
@@ -132,7 +137,7 @@ function pickOf(raw: unknown): IssuePick | null {
 // Eintraege, News ohne Dubletten und hoechstens MAX_NEWS, Texte gekuerzt.
 // Alte Ausgaben ohne Rubriken ('{}') ergeben EMPTY_SECTIONS.
 export function sanitizeSections(raw: unknown): IssueSections {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...EMPTY_SECTIONS, news: [] };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...EMPTY_SECTIONS, news: [], ads: [] };
   const o = raw as Record<string, unknown>;
   const news: IssueNews[] = [];
   const seen = new Set<string>();
@@ -162,7 +167,7 @@ export function sanitizeSections(raw: unknown): IssueSections {
     const title = str(h.title, 300);
     if (newsId && title) hype = { newsId, title, text: str(h.text, HYPE_TEXT_MAX), source: str(h.source, 120), anchor: anchorOf(h.anchor) };
   }
-  return { news, hype, prompt: pickOf(o.prompt), podcast: pickOf(o.podcast) };
+  return { news, hype, prompt: pickOf(o.prompt), podcast: pickOf(o.podcast), ads: sanitizeAds(o.ads) };
 }
 
 export function hasSections(s: IssueSections): boolean {

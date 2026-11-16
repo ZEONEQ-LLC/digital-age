@@ -13,6 +13,8 @@ type Props = {
   previewUrl: string;
   validUntil: string;                 // dd.MM.yyyy, letzter gueltiger Tag
   countRule: string;
+  // Anzeigen im Newsletter (PR 214), getrennt von den Zahlen der Website.
+  newsletter?: { issues: number; sends: string; clicks: string; rule: string } | null;
 };
 
 export function endReportSubject(campaignName: string): string {
@@ -74,6 +76,15 @@ export default function CampaignEndReport(p: Props) {
         </tbody>
       </table>
       <Paragraph muted small>{p.countRule}</Paragraph>
+      {p.newsletter && (
+        <>
+          <Paragraph>
+            Dazu kommt der Newsletter: Ihre Anzeige stand in {p.newsletter.issues === 1 ? "einer Ausgabe" : `${p.newsletter.issues} Ausgaben`},{" "}
+            <strong>{p.newsletter.sends} Zustellungen</strong> und <strong>{p.newsletter.clicks} Klicks</strong>.
+          </Paragraph>
+          <Paragraph muted small>{p.newsletter.rule}</Paragraph>
+        </>
+      )}
       <Paragraph>
         Den Verlauf pro Tag und Ihre Motive finden Sie in Ihrer Vorschau. Der Link ist bis zum{" "}
         <strong>{p.validUntil}</strong> gültig.
