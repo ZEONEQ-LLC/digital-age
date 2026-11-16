@@ -369,9 +369,11 @@ function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandi
       : `Gespeichert. ${dropped} Anzeigen sind nicht mehr verfügbar und wurden entfernt.`;
   }
 
-  async function saveIfDirty(): Promise<void> {
-    if (!dirty) return;
-    unwrapAction(await saveIssue(issue.id, patch));
+  // Speichert, falls noetig. Rueckgabe: Anzahl Anzeigen, die der Server dabei
+  // herausgenommen hat.
+  async function saveIfDirty(): Promise<number> {
+    if (!dirty) return 0;
+    return unwrapAction(await saveIssue(issue.id, patch)).droppedAds;
   }
 
   function move(index: number, delta: -1 | 1) {
@@ -693,7 +695,13 @@ function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandi
                 }
                 const noTest = issue.testSentAt ? "" : "\n\nHinweis: Für diesen Entwurf wurde noch kein Test verschickt.";
                 if (!confirm(`Newsletter «${subject.trim()}» jetzt an ${confirmedCount} bestätigte Abonnent:innen senden? Das lässt sich nicht zurücknehmen.${noTest}`)) return;
-                run(async () => { await saveIfDirty(); return unwrapAction(await sendIssueNow(issue.id)).message; });
+                run(async () => {
+                  // Faellt beim Speichern eine Anzeige weg, wird nicht still ohne sie versendet.
+                  if ((await saveIfDirty()) > 0) {
+                    throw new Error("Nicht gesendet: Eine Anzeige ist nicht mehr verfügbar und wurde aus dem Entwurf genommen. Bitte den Entwurf ansehen und nochmals senden.");
+                  }
+                  return unwrapAction(await sendIssueNow(issue.id)).message;
+                });
               }}
             >
               Freigeben und senden
