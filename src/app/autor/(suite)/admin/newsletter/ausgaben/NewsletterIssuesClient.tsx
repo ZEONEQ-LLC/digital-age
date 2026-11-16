@@ -694,7 +694,7 @@ function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandi
                   return;
                 }
                 const noTest = issue.testSentAt ? "" : "\n\nHinweis: Für diesen Entwurf wurde noch kein Test verschickt.";
-                if (!confirm(`Newsletter «${subject.trim()}» jetzt an ${confirmedCount} bestätigte Abonnent:innen senden? Das lässt sich nicht zurücknehmen.${noTest}`)) return;
+                if (!confirm(`Newsletter «${subject.trim()}» jetzt an ${confirmedCount} Empfänger:innen senden (Abonnent:innen sowie Autorinnen und Autoren)? Das lässt sich nicht zurücknehmen.${noTest}`)) return;
                 run(async () => {
                   // Faellt beim Speichern eine Anzeige weg, wird nicht still ohne sie versendet.
                   if ((await saveIfDirty()) > 0) {

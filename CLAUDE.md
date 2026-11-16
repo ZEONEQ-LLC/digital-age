@@ -1387,6 +1387,31 @@ eigener Sache») in einer abgesetzten Flaeche.
 - Offen (Entscheid Ali): Newsletter-Anzeige in die Mediadaten und ins
   Komplettpaket aufnehmen oder einzeln verkaufen. Bis dahin steht dort nichts.
 
+### Newsletter: Autorinnen und Autoren automatisch, Rubrik als utm_content (PR 214)
+
+Wunsch Ali 16.11.2026: Wer fuer digital age schreibt, bekommt den Newsletter
+automatisch.
+
+- **Wer**: Autorenprofile mit Konto (`authors.user_id` gesetzt), jede Rolle.
+  Profile ohne Konto (Gast aus einem Pitch, Kontaktperson eines Unternehmens
+  im Showcase) nie: Sie haben keine Einladung angenommen.
+- **Wie** (`src/lib/newsletter/authorSync.ts` rein und getestet,
+  `authorSubscribers.ts` mit dem Service-Client): Abgleich beim Erstellen
+  eines Entwurfs und nochmals vor dem Versand. Kein Cron, kein Trigger. Neue
+  Zeilen tragen `source = 'author'`, `author_id` und als Nachweis einen festen
+  Text in `consent_text`.
+- **Abgemeldet bleibt abgemeldet**: Eine Zeile mit `author_id` wird nie neu
+  angelegt, auch nicht nach einer neuen Adresse im Profil. Eine abgemeldete
+  Adresse wird nur verknuepft, nie wieder aktiv. Eine unbestaetigte Anmeldung
+  einer Autorin gilt mit dem Abgleich als bestaetigt.
+- Die Fusszeile der Mail sagt deshalb «abonniert hast oder für digital age
+  schreibst». Nicht auf «abonniert» zurueckkuerzen.
+- **UTM**: Links im Newsletter tragen seit PR 195 `utm_source=newsletter`,
+  `utm_medium=email`, `utm_campaign=newsletter-<Datum>`; neu dazu
+  `utm_content` mit der Rubrik (`UTM_CONTENT` in `issue.ts`: artikel, news,
+  alle-news, hype-check, prompt, podcast). Die Lesestatistik zaehlt solche
+  Aufrufe unter «E-Mail und Newsletter».
+
 ### Showcase S3b: Entwurf aus dem Fragebogen, Freigabe (PR 214)
 
 Aus einer Einreichung (S3a) entsteht der Beitrag. Die Redaktion klickt unter

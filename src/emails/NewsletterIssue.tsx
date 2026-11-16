@@ -4,6 +4,7 @@ import Layout, { Paragraph } from "./_layout";
 import { adLabel, adSlots, NEWSLETTER_AD_SIZE, type IssueAd } from "@/lib/newsletter/ads";
 import {
   EMPTY_SECTIONS,
+  UTM_CONTENT,
   hasSections,
   trackedArticleUrl,
   trackedNewsUrl,
@@ -11,6 +12,7 @@ import {
   type IssueItem,
   type IssuePick,
   type IssueSections,
+  type UtmContent,
 } from "@/lib/newsletter/issue";
 
 // Woechentlicher Newsletter (PR 195): Einleitung, dann pro Artikel Bild,
@@ -160,7 +162,7 @@ function AdBlock({ ad, href }: { ad: IssueAd; href: string }) {
 export default function NewsletterIssue(p: NewsletterIssueProps) {
   const s = p.sections ?? EMPTY_SECTIONS;
   const withSections = hasSections(s);
-  const url = (path: string) => trackedUrl(p.siteUrl, path, p.campaign);
+  const url = (path: string, content: UtmContent) => trackedUrl(p.siteUrl, path, p.campaign, "", content);
 
   // Inhaltsbloecke in der Reihenfolge der Mail; leere fallen weg. Die
   // Anzeigen stehen dazwischen.
@@ -229,7 +231,7 @@ export default function NewsletterIssue(p: NewsletterIssueProps) {
             </Section>
           ))}
           <Section style={{ margin: "18px 0 0" }}>
-            <More href={url("/news")}>Alle News →</More>
+            <More href={url("/news", UTM_CONTENT.allNews)}>Alle News →</More>
           </Section>
         </>
       ),
@@ -243,7 +245,7 @@ export default function NewsletterIssue(p: NewsletterIssueProps) {
         <>
           <SectionHead title="Hype-Check" sub="Viel Echo, wenig Substanz? Eine Meldung der Woche, nüchtern betrachtet." />
           <Section style={{ margin: "18px 0 0" }}>
-            <EntryTitle href={trackedNewsUrl(p.siteUrl, s.hype.anchor, p.campaign)}>{s.hype.title}</EntryTitle>
+            <EntryTitle href={trackedNewsUrl(p.siteUrl, s.hype.anchor, p.campaign, UTM_CONTENT.hype)}>{s.hype.title}</EntryTitle>
             <Body>{s.hype.text}</Body>
             {s.hype.source && <Meta>{s.hype.source}</Meta>}
           </Section>
@@ -258,7 +260,7 @@ export default function NewsletterIssue(p: NewsletterIssueProps) {
       node: (
         <>
           <SectionHead title="Prompt der Woche" />
-          <PickBlock pick={s.prompt} href={url(`/ai-prompts/${encodeURIComponent(s.prompt.slug)}`)} more="Prompt ansehen →" />
+          <PickBlock pick={s.prompt} href={url(`/ai-prompts/${encodeURIComponent(s.prompt.slug)}`, UTM_CONTENT.prompt)} more="Prompt ansehen →" />
         </>
       ),
     });
@@ -270,7 +272,7 @@ export default function NewsletterIssue(p: NewsletterIssueProps) {
       node: (
         <>
           <SectionHead title="Podcast-Tipp" />
-          <PickBlock pick={s.podcast} href={url(`/podcast/${encodeURIComponent(s.podcast.slug)}`)} more="Zur Folge →" />
+          <PickBlock pick={s.podcast} href={url(`/podcast/${encodeURIComponent(s.podcast.slug)}`, UTM_CONTENT.podcast)} more="Zur Folge →" />
         </>
       ),
     });
@@ -287,7 +289,7 @@ export default function NewsletterIssue(p: NewsletterIssueProps) {
       previewText={p.intro.slice(0, 140)}
       footerExtra={
         <>
-          Du bekommst diese E-Mail, weil du den Newsletter von digital-age abonniert hast.{" "}
+          Du bekommst diese E-Mail, weil du den Newsletter von digital age abonniert hast oder für digital age schreibst.{" "}
           <Link href={p.unsubscribeUrl} className="footer-text" style={{ color: "#71717a", textDecoration: "underline" }}>
             Abmelden
           </Link>

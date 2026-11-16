@@ -12,7 +12,7 @@ export type SubscriberRow = {
   email: string;
   emailDomain: string | null;
   status: "pending" | "confirmed" | "unsubscribed";
-  source: "footer" | "inline" | "full" | "sidebar";
+  source: "footer" | "inline" | "full" | "sidebar" | "author";
   consentAt: string;
   confirmedAt: string | null;
   unsubscribedAt: string | null;

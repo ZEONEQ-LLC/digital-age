@@ -6,6 +6,7 @@ import { Resend } from "resend";
 import NewsletterIssue from "@/emails/NewsletterIssue";
 import { resolveAds } from "@/lib/newsletter/adsApi";
 import { adClickUrl } from "@/lib/newsletter/adToken";
+import { syncAuthorSubscribers } from "@/lib/newsletter/authorSubscribers";
 import {
   UNSUBSCRIBE_PLACEHOLDER,
   formatIssueDate,
@@ -130,6 +131,9 @@ export async function sendIssueToSubscribers(issueId: string, editorId: string):
   if (issue.status === "draft") {
     const v = validateForSend({ subject: issue.subject, items, sections });
     if (!v.ok) return { ok: false, error: v.error };
+    // Wer seit dem Entwurf als Autorin oder Autor dazugekommen ist, bekommt
+    // diese Ausgabe schon (authorSubscribers.ts). Abgemeldete bleiben draussen.
+    await syncAuthorSubscribers(svc);
     const { count: confirmed, error: cntErr } = await svc
       .from("newsletter_subscribers")
       .select("id", { count: "exact", head: true })

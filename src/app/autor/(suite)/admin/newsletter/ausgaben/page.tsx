@@ -4,6 +4,7 @@ import PageTitle from "@/components/author/PageTitle";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_COVER_URL } from "@/lib/coverImage";
 import { loadAdCandidates } from "@/lib/newsletter/adsApi";
+import { getAuthorSubscriberCounts } from "@/lib/newsletter/authorSubscribers";
 import { isIssueStatus, sanitizeItems, sanitizeSections, type IssueItem } from "@/lib/newsletter/issue";
 import {
   NEWS_SELECT,
@@ -81,6 +82,12 @@ export default async function NewsletterIssuesPage() {
       .order("recommended_at", { ascending: false }).limit(40),
     loadAdCandidates(supabase),
   ]);
+  // Autorinnen und Autoren mit Konto bekommen den Newsletter automatisch
+  // (PR 214). Eingetragen wird beim Erstellen eines Entwurfs und vor dem Versand.
+  const authorCounts = await getAuthorSubscriberCounts(supabase);
+  const recipientNote =
+    (authorCounts.onList > 0 ? `, davon ${authorCounts.onList} Autor:innen` : "") +
+    (authorCounts.toAdd > 0 ? `, ${authorCounts.toAdd} weitere Autor:innen kommen beim nächsten Entwurf dazu` : "");
 
   const views: IssueView[] = (issues ?? []).map((r) => ({
     id: r.id,
@@ -139,7 +146,7 @@ export default async function NewsletterIssuesPage() {
     <>
       <PageTitle
         title="Newsletter-Ausgaben"
-        subtitle={`${confirmed ?? 0} bestätigte Abonnent:innen · Entwurf montags 06:30 automatisch, Versand nur nach Freigabe`}
+        subtitle={`${confirmed ?? 0} Empfänger:innen${recipientNote} · Entwurf montags 06:30 automatisch, Versand nur nach Freigabe`}
         right={<Link href="/autor/admin/newsletter" style={linkStyle}>Abonnent:innen →</Link>}
       />
       {error ? (
@@ -147,7 +154,7 @@ export default async function NewsletterIssuesPage() {
       ) : (
         <NewsletterIssuesClient
           issues={views}
-          confirmedCount={confirmed ?? 0}
+          confirmedCount={(confirmed ?? 0) + authorCounts.toAdd}
           candidates={candidates}
           newsCandidates={newsCandidates}
           promptCandidates={promptCandidates}

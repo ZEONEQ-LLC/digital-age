@@ -15,6 +15,7 @@ import { callLLMForAuthor } from "@/lib/ai/systemCall";
 import { resolveSystemAuthorId } from "@/lib/ai/systemAuthor";
 import { DEFAULT_COVER_URL } from "@/lib/coverImage";
 import { proposeAds } from "@/lib/newsletter/adsApi";
+import { syncAuthorSubscribers } from "@/lib/newsletter/authorSubscribers";
 import { MAX_ITEMS, nextPeriod, sanitizeItems, sanitizeSections, type IssueItem, type IssueSections } from "@/lib/newsletter/issue";
 import { SITE_URL } from "@/lib/newsletter/mail";
 import {
@@ -101,6 +102,11 @@ export async function createNewsletterDraft(opts: {
   } catch (err) {
     return { kind: "error", message: err instanceof Error ? err.message : String(err) };
   }
+
+  // Autorinnen und Autoren mit Konto stehen automatisch auf der Liste
+  // (PR 214). Hier, damit die Zahl der Empfaenger im Entwurf schon stimmt;
+  // vor dem Versand laeuft der Abgleich nochmals.
+  await syncAuthorSubscribers(svc);
 
   const { data: open, error: openErr } = await svc
     .from("newsletter_issues")

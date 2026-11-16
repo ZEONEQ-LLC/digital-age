@@ -191,6 +191,9 @@ async function mail(): Promise<void> {
   const iAd2 = withAds.indexOf("Zahlst du zu viel?");
   ok("erste Anzeige zwischen Artikeln und News", iArticle > 0 && iArticle < iAd1 && iAd1 < iNews, `${iArticle}/${iAd1}/${iNews}`);
   ok("zweite Anzeige nach den News", iNews < iAd2);
+  ok("redaktionelle Links tragen die Rubrik als utm_content", withAds.includes("utm_content=artikel") && withAds.includes("utm_content=news") && withAds.includes("utm_content=alle-news"));
+  ok("die Anzeige traegt keine Newsletter-Kennung der Redaktion", !withAds.includes("muster.ch/angebot?utm_source=newsletter"));
+  ok("Fusszeile stimmt fuer Abonnenten und Autoren", withAds.includes("abonniert hast oder für digital age schreibst"));
   ok("Kundenname und Kampagnenname stehen nicht in der Mail", !withAds.includes("Beispiel AG") && !withAds.includes("Herbstkampagne") && !withAds.includes("Muster GmbH"));
 
   const counted = await render(NewsletterIssue({

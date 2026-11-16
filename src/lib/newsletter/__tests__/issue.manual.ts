@@ -113,14 +113,15 @@ ok("bis jetzt", nextPeriod(null, now).to.getTime() === now.getTime());
 console.log("=== Links und Personalisierung ===");
 ok("Kampagne nach Zuercher Datum", issueCampaign(new Date("2026-11-15T23:30:00Z")) === "newsletter-2026-11-16");
 ok("UTM-Link", trackedArticleUrl("https://digital-age.ch", "ki-in-banken", "newsletter-2026-11-16")
-  === "https://digital-age.ch/artikel/ki-in-banken?utm_source=newsletter&utm_medium=email&utm_campaign=newsletter-2026-11-16");
+  === "https://digital-age.ch/artikel/ki-in-banken?utm_source=newsletter&utm_medium=email&utm_campaign=newsletter-2026-11-16&utm_content=artikel");
 const html = `<a href="https://x/abmelden/${UNSUBSCRIBE_PLACEHOLDER}">Abmelden</a> ${UNSUBSCRIBE_PLACEHOLDER}`;
 const tok = "0f8fad5b-d9cb-469f-a165-70867728950e";
 ok("Platzhalter ueberall ersetzt", personalize(html, tok) === `<a href="https://x/abmelden/${tok}">Abmelden</a> ${tok}`);
 ok("Token wird kodiert", personalize(UNSUBSCRIBE_PLACEHOLDER, 'a"b') === "a%22b");
 ok("News-Link auf /news mit Marke", trackedNewsUrl("https://digital-age.ch", "jensen-huang", "newsletter-2026-11-16")
-  === "https://digital-age.ch/news?utm_source=newsletter&utm_medium=email&utm_campaign=newsletter-2026-11-16#jensen-huang");
-ok("News-Link ohne Marke", trackedNewsUrl("https://digital-age.ch", "", "c").endsWith("utm_campaign=c"));
+  === "https://digital-age.ch/news?utm_source=newsletter&utm_medium=email&utm_campaign=newsletter-2026-11-16&utm_content=news#jensen-huang");
+ok("News-Link ohne Marke", trackedNewsUrl("https://digital-age.ch", "", "c").endsWith("utm_campaign=c&utm_content=news"));
+ok("Hype-Check traegt die eigene Rubrik", trackedNewsUrl("https://digital-age.ch", "x", "c", "hype-check").includes("utm_content=hype-check#x"));
 
 console.log("=== Prompt und Parser ===");
 const arts = [

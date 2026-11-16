@@ -202,25 +202,39 @@ export function nextPeriod(lastSentPeriodTo: string | null, now: Date): { from: 
 }
 
 // Links im Newsletter mit UTM (GA4): Quelle newsletter, Medium email,
-// Kampagne = Datum der Ausgabe.
+// Kampagne = Datum der Ausgabe. Seit PR 214 dazu utm_content = Rubrik, in der
+// der Link steht (UTM_CONTENT): So zeigt die Auswertung, welche Rubrik die
+// Klicks bringt. Die Lesestatistik erkennt den Aufruf am Medium als «E-Mail
+// und Newsletter» (classifySource).
 export function issueCampaign(date: Date): string {
   const d = date.toLocaleDateString("en-CA", { timeZone: "Europe/Zurich" });
   return `newsletter-${d}`;
 }
 
-export function trackedUrl(siteUrl: string, path: string, campaign: string, hash = ""): string {
+export const UTM_CONTENT = {
+  article: "artikel",
+  news: "news",
+  allNews: "alle-news",
+  hype: "hype-check",
+  prompt: "prompt",
+  podcast: "podcast",
+} as const;
+export type UtmContent = (typeof UTM_CONTENT)[keyof typeof UTM_CONTENT];
+
+export function trackedUrl(siteUrl: string, path: string, campaign: string, hash = "", content?: UtmContent): string {
   const q = new URLSearchParams({ utm_source: "newsletter", utm_medium: "email", utm_campaign: campaign });
+  if (content) q.set("utm_content", content);
   return `${siteUrl}${path}?${q.toString()}${hash ? `#${hash}` : ""}`;
 }
 
 export function trackedArticleUrl(siteUrl: string, slug: string, campaign: string): string {
-  return trackedUrl(siteUrl, `/artikel/${encodeURIComponent(slug)}`, campaign);
+  return trackedUrl(siteUrl, `/artikel/${encodeURIComponent(slug)}`, campaign, "", UTM_CONTENT.article);
 }
 
 // News verlinken auf /news (mit Einordnung und Kehrseite), nicht direkt auf
 // die Quelle; dort steht der Link zur Quelle.
-export function trackedNewsUrl(siteUrl: string, anchor: string, campaign: string): string {
-  return trackedUrl(siteUrl, "/news", campaign, anchor);
+export function trackedNewsUrl(siteUrl: string, anchor: string, campaign: string, content: UtmContent = UTM_CONTENT.news): string {
+  return trackedUrl(siteUrl, "/news", campaign, anchor, content);
 }
 
 // Platzhalter fuer den Abmeldelink: Das Mail-HTML wird einmal gerendert und
