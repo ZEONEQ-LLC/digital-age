@@ -1,7 +1,10 @@
 import PageTitle from "@/components/author/PageTitle";
 import { getAllStartupsForAdmin } from "@/lib/startupApi";
 import { createClient } from "@/lib/supabase/server";
+import { SITE_URL } from "@/lib/newsletter/mail";
+import { getShowcaseAdminData } from "@/lib/showcase/inviteApi";
 import AdminStartupsClient from "./AdminStartupsClient";
+import ShowcaseInvitesAdmin from "./ShowcaseInvitesAdmin";
 import type { ContactView, RequestView } from "./StartupContactAdmin";
 
 // Kontakte und Anfragen (nur Metadaten) fuer «Kontakt aufnehmen»; RLS: Editoren.
@@ -20,7 +23,7 @@ async function loadContactData(): Promise<{ contacts: ContactView[]; requests: R
       startupId: x.startup_id,
       email: x.email,
       consentAt: x.consent_at,
-      consentSource: x.consent_source === "submission" ? "submission" : "editor",
+      consentSource: x.consent_source === "submission" ? "submission" : x.consent_source === "showcase" ? "showcase" : "editor",
       consentNote: x.consent_note,
       revokedAt: x.revoked_at,
     })),
@@ -36,7 +39,11 @@ async function loadContactData(): Promise<{ contacts: ContactView[]; requests: R
 }
 
 export default async function AdminStartupsPage() {
-  const [startups, contactData] = await Promise.all([getAllStartupsForAdmin(), loadContactData()]);
+  const [startups, contactData, showcase] = await Promise.all([
+    getAllStartupsForAdmin(),
+    loadContactData(),
+    getShowcaseAdminData(),
+  ]);
   return (
     <>
       <PageTitle
@@ -48,6 +55,7 @@ export default async function AdminStartupsPage() {
         contacts={contactData.contacts}
         requests={contactData.requests}
       />
+      <ShowcaseInvitesAdmin submissions={showcase.submissions} startups={showcase.startups} siteUrl={SITE_URL} />
     </>
   );
 }

@@ -13,7 +13,7 @@ export type ContactView = {
   startupId: string;
   email: string;
   consentAt: string;
-  consentSource: "submission" | "editor";
+  consentSource: "submission" | "editor" | "showcase";
   consentNote: string | null;
   revokedAt: string | null;
 };
@@ -103,7 +103,11 @@ export function ContactModal({
             {contact && active && (
               <>
                 Aktiv: Anfragen gehen an {contact.email}. Einverständnis vom {fmt(contact.consentAt)} (
-                {contact.consentSource === "submission" ? "Einreichformular" : "von der Redaktion eingetragen"}
+                {contact.consentSource === "submission"
+                  ? "Einreichformular"
+                  : contact.consentSource === "showcase"
+                    ? "Showcase-Fragebogen"
+                    : "von der Redaktion eingetragen"}
                 {contact.consentNote ? `: ${contact.consentNote}` : ""}).
               </>
             )}

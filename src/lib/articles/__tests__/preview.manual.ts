@@ -120,6 +120,11 @@ eq("Massstab", [fitScale(1000, 1440), fitScale(1600, 1440), fitScale(800, 390), 
   eq("Beitragsvorschau erkannt", [isArticlePreviewPath(token), isArticlePreviewPath("/vorschau/artikel/entwurf/x"), isArticlePreviewPath(`/vorschau/${"ab".repeat(24)}`), isArticlePreviewPath("/vorschau/artikelx")], [true, true, false, false]);
   eq("Navbar und Ticker", [hidesSiteNav(token), hidesSiteNav(`/vorschau/${"ab".repeat(24)}`), hidesSiteNav("/autor/artikel/1"), hidesSiteNav("/artikel/x")], [false, true, true, false]);
   ok("Tracking, CMP und Anzeigen bleiben aus", isChromelessPath(token) && isChromelessPath("/vorschau/artikel/entwurf/x"));
+  // Fragebogen des Showcase: chromefrei, die Showcase-Seiten selbst nicht.
+  ok(
+    "Showcase-Fragebogen ist chromefrei",
+    isChromelessPath("/showcase/mitmachen/abc") && hidesSiteNav("/showcase/mitmachen/abc") && !isChromelessPath("/showcase") && !isChromelessPath("/showcase/mitmachen-beitrag"),
+  );
 }
 
 console.log(fails === 0 ? "\nAlle Tests gruen." : `\n${fails} Test(s) fehlgeschlagen.`);

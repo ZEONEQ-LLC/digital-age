@@ -13,6 +13,7 @@ import InlineText from "@/components/InlineText";
 import ListenButton from "@/components/ListenButton";
 import NewsletterSignup from "@/components/NewsletterSignup";
 import ReadingProgress from "@/components/ReadingProgress";
+import ReadingMeter from "@/components/article/ReadingMeter";
 import ShareButtons from "@/components/ShareButtons";
 import TableOfContents from "@/components/TableOfContents";
 import {
@@ -125,6 +126,8 @@ export default function ArticleView({ article, baseUrl, linkedPodcasts, related,
         </>
       )}
       <ReadingProgress />
+      {/* Lesestatistik: nur auf der publizierten Seite, nie in der Vorschau. */}
+      {!preview && <ReadingMeter articleId={article.id} readingMinutes={article.reading_minutes} />}
 
       <ArticleHeadStyles />
       <header className="ah">

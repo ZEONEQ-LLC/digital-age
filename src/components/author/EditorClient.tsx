@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import AuthorStatusBadge from "@/components/author/AuthorStatusBadge";
 import EditorDetailsTab from "@/components/author/EditorDetailsTab";
 import EditorPreviewTab from "@/components/author/EditorPreviewTab";
+import { canDeleteArticle, deleteConfirmText } from "@/lib/articles/deleteRule";
 import { formatDecisionTime, type PreviewDecisionStatus, type PreviewOverrides } from "@/lib/articles/preview";
 import type { StartupOption } from "@/components/author/ContentTypeBox";
 import type { HeroStudioStatus } from "@/components/author/FeaturedImageBox";
@@ -1509,7 +1510,10 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   }
 
   async function handleDelete() {
-    if (!confirm("Diesen Draft endgültig löschen?")) return;
+    // Text und Regel: src/lib/articles/deleteRule.ts. Die Redaktion sieht den
+    // Namen, weil sie auch fremde Beitraege loeschen kann.
+    const authorName = allAuthors.find((a) => a.id === assignedAuthorId)?.display_name ?? article.author?.display_name;
+    if (!confirm(deleteConfirmText(status, { title, authorName, own: !isEditor }))) return;
     setError(null);
     startTransition(async () => {
       try {
@@ -1524,7 +1528,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
   const canSubmit = status === "draft";
   const canPublish = isEditor && (status === "draft" || status === "in_review");
   const canArchive = isEditor && status === "published";
-  const canDelete = status === "draft";
+  const canDelete = canDeleteArticle(status, isEditor);
 
   return (
     <>

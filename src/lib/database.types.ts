@@ -1131,6 +1131,77 @@ export type Database = {
           },
         ]
       }
+      article_stats_daily: {
+        Row: {
+          article_id: string
+          d100: number
+          d25: number
+          d50: number
+          d75: number
+          day: string
+          listens: number
+          reads: number
+          seconds: number
+          shares: number
+          src_ai: number
+          src_direct: number
+          src_internal: number
+          src_mail: number
+          src_other: number
+          src_search: number
+          src_social: number
+          views: number
+        }
+        Insert: {
+          article_id: string
+          d100?: number
+          d25?: number
+          d50?: number
+          d75?: number
+          day: string
+          listens?: number
+          reads?: number
+          seconds?: number
+          shares?: number
+          src_ai?: number
+          src_direct?: number
+          src_internal?: number
+          src_mail?: number
+          src_other?: number
+          src_search?: number
+          src_social?: number
+          views?: number
+        }
+        Update: {
+          article_id?: string
+          d100?: number
+          d25?: number
+          d50?: number
+          d75?: number
+          day?: string
+          listens?: number
+          reads?: number
+          seconds?: number
+          shares?: number
+          src_ai?: number
+          src_direct?: number
+          src_internal?: number
+          src_mail?: number
+          src_other?: number
+          src_search?: number
+          src_social?: number
+          views?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_stats_daily_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_tags: {
         Row: {
           article_id: string
@@ -2364,6 +2435,60 @@ export type Database = {
           p_title: string
         }
         Returns: unknown
+      }
+      article_stats_record: {
+        Args: {
+          p_action?: string
+          p_article: string
+          p_d100?: boolean
+          p_d25?: boolean
+          p_d50?: boolean
+          p_d75?: boolean
+          p_read?: boolean
+          p_seconds?: number
+          p_source?: string
+          p_view?: boolean
+        }
+        Returns: boolean
+      }
+      article_stats_series: {
+        Args: {
+          p_article?: string
+          p_author?: string
+          p_bucket?: string
+          p_from?: string
+          p_to?: string
+        }
+        Returns: {
+          bucket: string
+          reads: number
+          seconds: number
+          views: number
+        }[]
+      }
+      article_stats_summary: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          article_id: string
+          d100: number
+          d25: number
+          d50: number
+          d75: number
+          first_day: string
+          last_day: string
+          listens: number
+          reads: number
+          seconds: number
+          shares: number
+          src_ai: number
+          src_direct: number
+          src_internal: number
+          src_mail: number
+          src_other: number
+          src_search: number
+          src_social: number
+          views: number
+        }[]
       }
       can_modify_article_image: {
         Args: { article_id_text: string }

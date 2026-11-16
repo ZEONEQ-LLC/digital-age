@@ -270,6 +270,13 @@ Retina-Variants oder Crop-Optionen — `uploadAvatar` müsste dann
   Auth doppelt-gated (Application-Layer Owner-Check + Storage-RLS-Policy)
 - Cleanup-Cascade: `deleteArticle` in `authorActions.ts` ruft
   `deleteAllArticleImages(id)` vor dem DB-Delete (Option B, kein DB-Trigger)
+- Wer was löschen darf, steht in `src/lib/articles/deleteRule.ts` und gilt
+  für den Knopf im Editor wie für die Action: Autorinnen und Autoren den
+  eigenen Entwurf, die Redaktion zusätzlich «In Review» und «Archiv».
+  Veröffentlichtes wird zuerst archiviert. Die Action prüft die Regel VOR dem
+  Bilder-Cleanup und danach, ob wirklich eine Zeile gelöscht wurde: Ein von
+  der RLS nicht erlaubtes DELETE meldet keinen Fehler, es trifft nur keine
+  Zeile. Neuer Status oder neue Rolle → zuerst `deleteRule.ts` anpassen.
 - Orphan-Cleanup: Edge Function `supabase/functions/cleanup-orphan-drafts/`
   findet Drafts mit `title='Unbenannter Artikel'`, `body_md=''`,
   `updated_at < now() - 7d` und löscht Row + Storage-Files. Deploy + Cron-
@@ -1287,7 +1294,7 @@ Beschreibung, Canonical, OG): `/kontakt`, `/artikel-pitchen`,
 `robots: { index: false, follow: true }`. CMS-Seiten setzen ihren Canonical
 selbst. Die Sitemap enthält zusätzlich Podcasts (`/podcast/<slug>`), die vier
 Formularseiten und CMS-Seiten mit eigener Route, sofern publiziert und nicht
-auf noindex (`CMS_PAGE_SLUGS` in `src/app/sitemap.ts`; neue CMS-Route dort
+auf noindex (`CMS_PAGE_SLUGS` in `src/lib/sitemap/entries.ts`; neue CMS-Route dort
 eintragen).
 
 **Build-Info im Footer.** `next.config.ts` setzt per `env`
@@ -1337,6 +1344,142 @@ Die festen Apple-Pfade `/apple-touch-icon.png` und
 `/apple-icon.png`. Bei einer neuen Figur alle drei Dateien neu erzeugen. Ein
 bestehendes Home-Bildschirm-Lesezeichen behaelt sein altes Icon, bis es
 geloescht und neu angelegt wird.
+
+### Sitemap ueber eine Route mit fester CDN-Lebensdauer (PR 213)
+
+`/sitemap.xml` kommt nicht mehr aus `app/sitemap.ts`, sondern aus der Route
+`src/app/sitemap.xml/route.ts`: Eintraege aus `src/lib/sitemap/entries.ts`,
+XML aus `src/lib/sitemap/xml.ts` (rein, getestet, gleicher Aufbau wie
+vorher). Die Route setzt `Cache-Control: public, s-maxage=3600,
+stale-while-revalidate=86400`.
+
+Grund: `export const revalidate = 3600` in `app/sitemap.ts` stand zwar im
+Build-Manifest, Vercel lieferte aber bis zum naechsten Deploy die Fassung
+vom Build aus (15.11.2026 gemessen: `x-vercel-cache: HIT`, `age` ueber 3600,
+nie `STALE`; ISR-Seiten wie `/swiss-ai/<slug>` erneuerten sich in derselben
+Zeit normal). Ein neuer Artikel erschien so erst nach dem naechsten Deploy.
+
+- **Neue Sektion in der Sitemap** → `entries.ts` (eine `fetch…Entries`-
+  Funktion, in `buildSitemapEntries` einhaengen).
+- **Pruefen nach Aenderungen**: lokale Ausgabe mit der von Produktion
+  vergleichen (gleiche Adressen, gleiche Reihenfolge, gleiche Bilder);
+  abweichen duerfen nur die `lastmod` der statischen Routen.
+- Ein `revalidate` an einer Metadaten-Route (`sitemap.ts`, `robots.ts`) nicht
+  als Beweis nehmen, dass sie sich erneuert: mit `curl -sI` `age` und
+  `x-vercel-cache` ansehen.
+
+### Showcase S3a: Einladung und Fragebogen (PR 213)
+
+Die Redaktion laedt ein Unternehmen aus dem Verzeichnis zum Showcase ein. Es
+bekommt einen Link mit Token (`/showcase/mitmachen/<token>`, ohne Login),
+beantwortet den Fragebogen (Anhang B der Uebergabe vom 13.11.2026), laedt
+Logo und Bild hoch, bestaetigt seine Profildaten und gibt sein Einverstaendnis.
+Der KI-Entwurf und die Freigabe folgen in S3b (Baustein: Vorschau-Link aus
+PR 212, nicht neu bauen).
+
+- **Regeln und Pruefung** (rein, getestet): `src/lib/showcase/questionnaire.ts`
+  (Fragen, Grenzen, Profil-Abgleich, Bot-Signale, Zustand der Einladung,
+  Dateityp aus den ersten Bytes, Pfade im Bucket).
+- **Unternehmen** (`submitActions.ts`, "use server", Service-Role): Token ist
+  der Zugang. `uploadShowcaseMedia` nimmt nur PNG und WebP an (Bucket
+  `startup-media`, hoechstens 900 KB wegen der 1-MB-Grenze von Server
+  Actions); JPEG, SVG und zu grosse Dateien zeichnet der Browser vorher neu
+  (`prepareImage`, ein SVG wird dabei zum Rasterbild). `submitShowcase`
+  speichert, traegt ein Einverstaendnis zur Kontaktweiterleitung sofort in
+  `startup_contacts` ein (`consent_source` 'showcase') und schickt zwei Mails.
+- **Redaktion** (`adminActions.ts`, Sitzungs-Client + RLS): einladen, Mail
+  senden, erinnern, «Test an mich», zurueckziehen, Profil uebernehmen (jede
+  Aenderung nochmals geprueft, setzt `verified_at`), Logo uebernehmen. UI:
+  `ShowcaseInvitesAdmin.tsx` unter `/autor/admin/startups#showcase`.
+- **Mails** (`src/lib/showcase/mail.ts`, `src/emails/Showcase*.tsx`): Die
+  Einladung folgt wortgetreu Anhang C (Entwurf von Ali). Text nur mit seinem
+  Wort aendern.
+- **Seite**: chromefrei (`CHROMELESS_PREFIXES`), noindex, `referrer:
+  same-origin`, in robots.txt gesperrt. Unbekannt oder zurueckgezogen: 404;
+  abgelaufen oder abgeschickt: ein Satz, kein Formular.
+- Der Zwischenstand liegt im localStorage (`da-showcase-<Tokenanfang>`). Das
+  Formular rendert deshalb erst im Browser (`useSyncExternalStore`), der Kopf
+  schon auf dem Server.
+
+Regeln:
+
+- **Neue Frage oder neues Profilfeld** → zuerst `questionnaire.ts` (Typ,
+  `validateSubmission`, `PROFILE_LABELS`, Test), dann Formular und Admin.
+  Neue oeffentliche Spalte in `ai_startups` braucht ein anon-Spaltenrecht.
+- **Dateien**: Der Server vertraut weder Name noch gemeldetem Typ. Ein Pfad
+  in einer Einreichung muss zum Unternehmen gehoeren (`mediaPathBelongsTo`).
+- **Lokal** fehlt der Service-Schluessel: Die Token-Seite gibt 500, Upload
+  und Absenden melden «gerade nicht moeglich». Sichtpruefung ueber eine
+  Mock-Route unter `/vorschau/…`, echter Durchlauf nur live.
+- S3b: Fragebogen-Antworten gehen dann an die KI. Den Absatz zu Anthropic in
+  der Datenschutzerklaerung vorher anpassen (heute steht dort, es gingen
+  keine Daten von Besucherinnen und Besuchern dorthin).
+
+### Lesestatistik fuer Autorinnen und Autoren (PR 213)
+
+Eigene, cookielose Zaehlung: wie oft Beitraege geoeffnet und gelesen werden.
+Autorinnen und Autoren sehen ihre Beitraege unter `/autor/statistiken`, die
+Redaktion alle (Filter `?autor=<id>`), pro Beitrag `/autor/statistiken/<id>`.
+Zeitraum `?zeit=7|30|90|365|alle`, Standard 30 Tage.
+
+**Messen** (`src/lib/stats/reading.ts`, rein; Zaehler
+`src/components/article/ReadingMeter.tsx`; Route `src/app/api/lektuere`):
+
+- Der Zaehler haengt in `ArticleView` und `ShowcaseArticleView`, nur wenn
+  `preview` nicht gesetzt ist. Er rendert nichts.
+- Begriffe: **Aufruf** (Beitrag geoeffnet, einmal pro Beitrag und
+  Seitenladung, nicht beim Neuladen), **gelesen** (Textende erreicht und ein
+  Viertel der Lesezeit aktiv, 15 bis 120 s), **Lesezeit** (Tab sichtbar und
+  Bewegung in der letzten Minute), **Lesetiefe** (Marken 25/50/75/100 %),
+  **Aktionen** («Teilen», «Anhören» ueber `signalReadAction`), **Herkunft**
+  (Suche, Soziale Medien, E-Mail, KI-Assistent, intern, direkt, andere).
+- Kein Cookie, kein localStorage, keine Kennung: Der Stand lebt im Modul
+  (`sessions`-Map) und endet mit der Seitenladung. Es sind Aufrufe, keine
+  Personen. Das so lassen, sonst braucht die Zaehlung eine Einwilligung.
+- Die Herkunft wird im Browser klassiert (`classifySource`), der Server sieht
+  die Adresse des Verweises nie. Neue Quelle → Host-Liste in `reading.ts`.
+- Gemeldet wird beim Oeffnen und beim Verlassen (visibilitychange, pagehide,
+  Unmount) per `sendBeacon`. Playwright und CDP zeigen Beacons beim Verlassen
+  nicht an: mit einem kleinen Durchreicher pruefen (Uebergabedoc PR 213).
+- Die Route antwortet immer 204. Sie verwirft Bots (`isbot`), fremde
+  Herkunft der Anfrage (`Sec-Fetch-Site`), Angemeldete (Sitzungs-Cookie
+  `sb-…-auth-token`, also Redaktion und Autoren) und alles ueber dem
+  IP-Rate-Limit (Aktion `article_read`). Deshalb zaehlen auch eigene
+  Testaufrufe mit Headless-Chrome nicht.
+
+**Speichern** (`20261115190000_lesestatistik.sql`): `article_stats_daily`,
+ein Tagesaggregat pro Beitrag (Zuercher Kalendertag), keine Rohereignisse.
+Schreiben nur ueber `article_stats_record` (service_role, zaehlt nur
+veroeffentlichte Beitraege, Sekunden pro Meldung auf 900 begrenzt). Lesen
+ueber RLS: Redaktion alles, sonst die Zeilen eigener Beitraege. Die Seiten
+lesen ueber `article_stats_summary` und `article_stats_series` (security
+invoker), nicht direkt aus der Tabelle: PostgREST schneidet bei 1000 Zeilen ab.
+
+**Auswerten** (`src/lib/stats/summary.ts`, rein; `statsApi.ts` server-only):
+Kennzahlen, Herkunft, Lesetiefe, Zeitfenster, Raster (bis 92 Tage Tage, bis
+750 Tage Wochen, darueber Monate). `getStatsOverview` begrenzt Beitraege
+ausdruecklich auf die eigene Person, weil veroeffentlichte Beitraege fuer
+alle lesbar sind.
+
+**Darstellen** (`src/components/author/stats/`): Ansichten ohne Datenzugriff
+(`StatsOverviewView`, `StatsArticleView`), Verlauf als gestapelte Saeulen
+(`StatsChart`, Client, Zeiger-Angabe und Tabelle darunter). Keine Karten,
+keine Pillen: Linien, Schrift, Abstand. Zwei Stufen eines Gruens
+(`STAT_COLORS`), mit dem Palette-Pruefer der Dataviz-Regeln geprueft.
+
+Regeln:
+
+- **Neue Kennzahl** → Spalte in `article_stats_daily`, Parameter in
+  `article_stats_record`, Feld in `ReadEvent` und `parseReadEvent`,
+  `StatTotals` und `TOTAL_KEYS`. Die Pruefung der Route ist streng: Ein Feld,
+  das `parseReadEvent` nicht kennt, zaehlt nie.
+- **Neue Artikelansicht** → `ReadingMeter` einhaengen, der Text muss in
+  `.article-body` stehen (daran misst der Zaehler die Lesetiefe).
+- **Sichtpruefung** der Statistikseiten: Mock-Route mit festen Daten unter
+  `/vorschau/…` (chromefrei), Build und Start auf 3107, vor dem Commit loeschen.
+- Die Datenschutzerklaerung nennt die Messung (Absatz
+  `bl-lesestatistik-2026-11`). Wer aendert, was gemessen wird, passt den
+  Absatz an.
 
 ### Beitragsvorschau wie publiziert, Vorschau-Link mit Freigabe (PR 212)
 
@@ -1630,7 +1773,8 @@ Verzeichnisses, bevor Unternehmensbeitraege kommen.
   Einreichformular: «Regeln des Verzeichnisses» und «Datenschutzerklärung»
   statt «Nutzungsbedingungen» (Link fuehrte auf die Datenschutzerklaerung).
 - **Sitemap** `export const revalidate = 3600` (vorher nur beim Build erzeugt),
-  `/swiss-ai/regeln` eingetragen.
+  `/swiss-ai/regeln` eingetragen. (Wirkte auf Vercel nicht, seit PR 213
+  liefert eine Route die Sitemap, siehe «Sitemap ueber eine Route».)
 
 ### KI-Plattformen aus festen Quellen, Inhaltskorrekturen (PR 206)
 
@@ -2659,9 +2803,9 @@ direkt, fällt für Legacy-Artikel auf `markdownToBlocks(body_md)` zurück.
 Übergibt komplettes `BlockDocument` an `BlockReader` (damit Sources auch
 ohne body_blocks-Special-Blocks korrekt rendern).
 
-**Statistiken** zeigt nur Zahlen aus der DB (Counts, total Wörter). Sparklines/
-Heatmaps für Views/Reads wurden bewusst entfernt — kommen erst mit echter
-Event-Tracking-Integration (Phase 8 mit Plausible/PostHog/Supabase-Events).
+**Statistiken** zeigt seit PR 213 die Lesestatistik (Aufrufe, Lesequote,
+Lesezeit, Herkunft, Lesetiefe) aus eigener Zaehlung, siehe Abschnitt
+«Lesestatistik fuer Autorinnen und Autoren».
 
 **Merge-on-first-login (Session E):** Der Auth-Trigger `handle_new_user`
 prüft jetzt vor Insert ob ein authors-Row mit gleicher Email + `user_id IS NULL`

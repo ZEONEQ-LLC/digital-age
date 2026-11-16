@@ -11,8 +11,9 @@ import { getBaseUrl } from "@/lib/siteUrl";
 export default function robots(): MetadataRoute.Robots {
   if (process.env.VERCEL_ENV === "production") {
     return {
-      // /vorschau: Kunden-Vorschau nur ueber den Link erreichbar, nie indexieren.
-      rules: [{ userAgent: "*", allow: "/", disallow: "/vorschau/" }],
+      // /vorschau und /showcase/mitmachen: nur ueber einen Token-Link
+      // erreichbar, nie indexieren.
+      rules: [{ userAgent: "*", allow: "/", disallow: ["/vorschau/", "/showcase/mitmachen/"] }],
       sitemap: `${getBaseUrl()}/sitemap.xml`,
     };
   }
