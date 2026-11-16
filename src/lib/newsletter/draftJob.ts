@@ -19,6 +19,7 @@ import { syncAuthorSubscribers } from "@/lib/newsletter/authorSubscribers";
 import { MAX_ITEMS, nextPeriod, sanitizeItems, sanitizeSections, type IssueItem, type IssueSections } from "@/lib/newsletter/issue";
 import { SITE_URL } from "@/lib/newsletter/mail";
 import {
+  FALLBACK_TEASER_CHARS,
   NEWS_SELECT,
   PODCAST_SELECT,
   PROMPT_SELECT,
@@ -36,6 +37,7 @@ import {
 } from "@/lib/newsletter/sections";
 import { readAssessment, readImportance } from "@/lib/newsTicker/assessment";
 import { createServiceClient } from "@/lib/supabase/service";
+import { clipAtSentence } from "@/lib/textClip";
 import { stripAllMarkup } from "@/lib/tiptap/roundtripGuard";
 
 // Newsletter-Entwurf (PR 195): neue Artikel seit der letzten gesendeten
@@ -77,7 +79,6 @@ type ArticleRow = {
   category: { name_de: string } | null;
 };
 
-const TEASER_FALLBACK_CHARS = 200;
 const MANUAL_FALLBACK_ITEMS = 4;
 const MIN_NEWS_WITHOUT_ARTICLES = 3;
 const PROMPT_CANDIDATES = 8;
@@ -267,7 +268,7 @@ export async function createNewsletterDraft(opts: {
       articleId: a.id,
       slug: a.slug,
       title: a.title,
-      teaser: parsed?.teasers[a.id] ?? shorten(stripAllMarkup(a.excerpt ?? ""), TEASER_FALLBACK_CHARS),
+      teaser: parsed?.teasers[a.id] ?? clipAtSentence(stripAllMarkup(a.excerpt ?? ""), FALLBACK_TEASER_CHARS),
       category: a.category?.name_de ?? "",
       coverUrl: absoluteCover(a.cover_image_url),
     })),

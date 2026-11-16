@@ -4,6 +4,8 @@
 // Satz, warum sie fuer die DACH-Region wichtig ist. Test:
 // __tests__/assessment.manual.ts.
 
+import { clipAtSentence } from "@/lib/textClip";
+
 export const ASSESSMENT_DIMENSIONS = [
   { key: "wirtschaft", label: "Wirtschaft" },
   { key: "gesellschaft", label: "Gesellschaft" },
@@ -32,8 +34,11 @@ export type Importance = 1 | 2 | 3;
 export const LEVEL_LABEL: Record<Level, string> = { 0: "nicht betroffen", 1: "gering", 2: "mittel", 3: "hoch" };
 export const IMPORTANCE_LABEL: Record<Importance, string> = { 1: "Randnotiz", 2: "Relevant", 3: "Wichtig" };
 
-export const MAX_WARUM = 220;
-export const MAX_KEHRSEITE = 220;
+// Der Prompt verlangt einen Satz von hoechstens 200 Zeichen. Die Grenze hier
+// liegt bewusst hoeher (PR 215): Ein etwas zu langer Satz erscheint ganz
+// statt bei 220 Zeichen mit « …» abgeschnitten.
+export const MAX_WARUM = 300;
+export const MAX_KEHRSEITE = 300;
 
 // Rubrik, an jeden Ticker-Prompt angehaengt (der editierbare Prompt-Teil
 // bleibt unveraendert) und Kern des Nachtrag-Prompts.
@@ -91,11 +96,10 @@ function importance(v: unknown): Importance | null {
   return (l === 0 ? 1 : l) as Importance;
 }
 
+// Ueber der Grenze: am letzten ganzen Satz enden, erst ohne Satzgrenze an
+// einer Wortgrenze mit « …» (textClip.ts).
 function clipSentence(s: string, max: number): string {
-  const t = s.replace(/ß/g, "ss").replace(/\s+/g, " ").trim();
-  if (t.length <= max) return t;
-  const cut = t.slice(0, max - 1).replace(/\s+\S*$/, "");
-  return `${cut} …`;
+  return clipAtSentence(s.replace(/ß/g, "ss"), max);
 }
 
 // Prueft ein Objekt {wirtschaft, gesellschaft, umwelt, dringlichkeit,

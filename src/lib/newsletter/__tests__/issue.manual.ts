@@ -95,7 +95,11 @@ const ns = newsToSection(row("x", 3, [3, 0, 0, 2], undefined, { title: "Jensen H
 ok("News: Warum, Quelle, Marke, Einordnung", ns.why === "Warum wichtig x" && ns.source === "Heise" && ns.anchor === "jensen-huang-tritt-zurueck" && ns.einordnung === "Wirtschaft hoch · Dringlichkeit mittel", JSON.stringify(ns));
 ok("Einordnung leer ohne Werte ab mittel", einordnungLine({ v: 1, wirtschaft: 1, gesellschaft: 1, umwelt: 0, dringlichkeit: 0, warum: "weil es zaehlt", by: "ai" }) === "");
 const prow = (id: string, status: string): PromptRow => ({ id, slug: `s-${id}`, title: `P ${id}`, category: "business", difficulty: "expert", context: "Für KMU, die ".repeat(40), status, published_at: "2026-11-12T10:00:00Z" });
-ok("Prompt: Label und gekuerzter Kontext", (() => { const p = promptToPick(prow("1", "published")); return p.label === "Business · Expert" && p.teaser.length <= 202 && p.teaser.endsWith("…"); })(), promptToPick(prow("1", "published")).label);
+ok("Prompt: Label und gekuerzter Kontext", (() => { const p = promptToPick(prow("1", "published")); return p.label === "Business · Expert" && p.teaser.length <= 260 && p.teaser.endsWith("…"); })(), promptToPick(prow("1", "published")).label);
+ok("Prompt ohne KI: endet am ganzen Satz statt mit Auslassung", (() => {
+  const p = promptToPick({ ...prow("1", "published"), context: "Der Prompt macht aus losen Stichworten ein sauberes Protokoll einer Sitzung. Er nennt die Beschlüsse, die Verantwortlichen und die offenen Punkte. " + "Danach folgt viel weiterer Text ohne Ende ".repeat(12) });
+  return p.teaser === "Der Prompt macht aus losen Stichworten ein sauberes Protokoll einer Sitzung. Er nennt die Beschlüsse, die Verantwortlichen und die offenen Punkte.";
+})());
 ok("Prompt: KI-Kurztext gewinnt", promptToPick(prow("1", "published"), "Eigener Text").teaser === "Eigener Text");
 ok("Prompt ohne KI: featured zuerst", defaultPrompt([prow("1", "published"), prow("2", "featured")])?.id === "2" && defaultPrompt([prow("1", "published")])?.id === "1" && defaultPrompt([]) === null);
 ok("Podcast: Label, relatives Bild absolut", (() => {
