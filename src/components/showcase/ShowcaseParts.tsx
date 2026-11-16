@@ -49,11 +49,11 @@ export function CompanyLogo({ company, size }: { company: ShowcaseCompanyView; s
 // und sagt jederzeit, was man liest und von wem.
 export function ShowcaseBand({ company, label }: { company: ShowcaseCompanyView; label: string }) {
   return (
-    <div className="sc-band" role="note" aria-label={`${label} von ${company.name}. Nicht von der Redaktion verfasst.`}>
+    <div className="sc-band" role="note" aria-label={`${label} von ${company.name}. Kein redaktioneller Beitrag.`}>
       <div className="sc-band__in">
         <p className="sc-band__text">
           <strong>{label}</strong> von {company.name}
-          <span className="sc-band__long">. Nicht von der Redaktion verfasst.</span>
+          <span className="sc-band__long">. Kein redaktioneller Beitrag.</span>
         </p>
         <Link href={SHOWCASE_RULES_HREF} className="sc-band__link" aria-label={`Was heisst ${label}?`}>
           <span className="sc-band__q">Was heisst das?</span>
@@ -141,8 +141,9 @@ export function CompanyAbout({ company }: { company: ShowcaseCompanyView }) {
         </p>
       )}
       <p className="sc-about__note">
-        Unternehmensbeiträge stammen von den Unternehmen selbst. Die Redaktion prüft sie auf Verständlichkeit und auf
-        die <Link href={SHOWCASE_RULES_HREF}>Regeln des Showcase</Link>, verfasst sie aber nicht.
+        Unternehmensbeiträge geben die Sicht des Unternehmens wieder. Der Text stammt vom Unternehmen oder entsteht mit
+        KI-Unterstützung aus seinen Antworten auf unseren Fragebogen, und das Unternehmen gibt ihn frei. Die Redaktion
+        prüft ihn auf Verständlichkeit und auf die <Link href={SHOWCASE_RULES_HREF}>Regeln des Showcase</Link>.
       </p>
     </section>
   );

@@ -61,7 +61,11 @@ export type AiTask =
   | "platform_research"
   // Prompts der KI-Redaktion (PR 197): woechentlich drei neue Prompts als
   // JSON; je Prompt ein zweiter Aufruf erzeugt das Beispiel-Ergebnis.
-  | "prompt_generation";
+  | "prompt_generation"
+  // Showcase (S3b): Entwurf eines Unternehmensbeitrags aus den Antworten des
+  // Fragebogens, als JSON (Titel, Abstract, Beitrag, drei LinkedIn-Texte,
+  // Hinweise). Knopf in der Showcase-Verwaltung, Kosten beim Editor.
+  | "showcase_draft";
 
 // Laufzeit-Liste aller Tasks (Resolver, Speichern der Konfiguration). Der
 // Record erzwingt beim Kompilieren, dass jeder AiTask-Wert hier steht; eine
@@ -79,6 +83,7 @@ const AI_TASK_FLAGS: Record<AiTask, true> = {
   newsletter_draft: true,
   platform_research: true,
   prompt_generation: true,
+  showcase_draft: true,
 };
 
 export const AI_TASKS = Object.keys(AI_TASK_FLAGS) as AiTask[];

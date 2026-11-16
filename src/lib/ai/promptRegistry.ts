@@ -21,6 +21,7 @@ import { ABSTRACT_STRATEGY } from "@/lib/ai/abstractPrompts";
 import { NEWSLETTER_DRAFT_STRATEGY } from "@/lib/ai/newsletterPrompts";
 import { PLATFORM_RESEARCH_STRATEGY } from "@/lib/platforms/research";
 import { PROMPT_GENERATION_STRATEGY } from "@/lib/promptGen/generate";
+import { SHOWCASE_DRAFT_STRATEGY } from "@/lib/showcase/draft";
 
 export const EDITABLE_PROMPT_IDS = [
   "seo_keyword_candidates",
@@ -34,6 +35,7 @@ export const EDITABLE_PROMPT_IDS = [
   "newsletter_draft",
   "platform_research",
   "prompt_generation",
+  "showcase_draft",
 ] as const;
 
 export type EditablePromptId = (typeof EDITABLE_PROMPT_IDS)[number];
@@ -52,6 +54,7 @@ export const EDITABLE_DEFAULT_STRATEGIES: Record<EditablePromptId, string> = {
   newsletter_draft: NEWSLETTER_DRAFT_STRATEGY,
   platform_research: PLATFORM_RESEARCH_STRATEGY,
   prompt_generation: PROMPT_GENERATION_STRATEGY,
+  showcase_draft: SHOWCASE_DRAFT_STRATEGY,
 };
 
 // Saeuberung analog Modell-Overrides: nur bekannte Prompt-IDs, leere/

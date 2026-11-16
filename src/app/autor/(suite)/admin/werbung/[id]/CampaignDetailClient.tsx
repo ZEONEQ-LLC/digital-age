@@ -23,6 +23,9 @@ import { PLACEMENTS, isPlacementCode, type PlacementCode } from "@/lib/ads/place
 import { isHex, resolveTheme } from "@/lib/ads/creativeTheme";
 import { TEXT_LIMITS } from "@/lib/ads/mediaKit";
 import { UTM_CAMPAIGN_MAX, buildTrackedUrl, hasOwnUtmParams, isValidUtmCampaign, slugCampaign } from "@/lib/ads/utm";
+import {
+  MAX_ADS, NEWSLETTER_AD_NEED, NEWSLETTER_COUNT_RULE_DU, describeCreative, pickNewsletterCreative,
+} from "@/lib/newsletter/ads";
 import ModuleCard from "@/components/module/ModuleCard";
 import CreativeImageUploader, { formatHint, type CreativeImage } from "@/components/module/CreativeImageUploader";
 import {
@@ -141,6 +144,10 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
   const [copiedRow, setCopiedRow] = useState<string | null>(null);
   const utmEnabledId = useId();
   const utmCampaignId = useId();
+  // Newsletter (PR 214): Kampagne fuer neue Ausgaben vorschlagen.
+  const [inNewsletter, setInNewsletter] = useState(c.in_newsletter);
+  const inNewsletterId = useId();
+  const newsletterCreative = pickNewsletterCreative(detail.creatives);
   const utmLocked = RUNNING.includes(c.status) && !!c.utm_campaign;
   const utmSuggestion = slugCampaign(name);
   const utmKennung = utmCampaign.trim();
@@ -416,6 +423,7 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
     name, is_house: isHouse, advertiser_id: isHouse ? null : advertiserId || null,
     price_chf: isHouse || !priceChf ? null : Number(priceChf), weight: Number(weight), notes,
     utm_enabled: utmEnabled, utm_campaign: utmKennung || null,
+    in_newsletter: inNewsletter,
   });
 
   // «So sehen die Links aus»: eine Zeile pro aktivem Kreativ und Platzierung;
@@ -570,6 +578,37 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
           </>
         )}
         <p style={{ ...help, margin: 0 }}>{COUNT_RULE_DU}</p>
+        {stats.newsletter && (
+          <div style={{ borderTop: "1px solid var(--da-border)", paddingTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+            <span style={{ ...labelStyle, marginBottom: 0 }}>
+              Newsletter · {formatCount(stats.newsletter.sends)} Zustellungen · {formatCount(stats.newsletter.clicks)} Klicks
+            </span>
+            <div style={{ overflowX: "auto" }}>
+              <table className="cd-table">
+                <thead>
+                  <tr>
+                    <th style={th}>Ausgabe</th>
+                    <th style={{ ...th, textAlign: "right" }}>Zustellungen</th>
+                    <th style={{ ...th, textAlign: "right" }}>Klicks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.newsletter.issues.map((i) => (
+                    <tr key={i.issueId}>
+                      <td style={{ ...td, color: "var(--da-text)" }}>
+                        <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>{i.sentAt ? formatDate(i.sentAt) : "—"}</span>
+                        <span style={{ color: "var(--da-muted)" }}> · {i.subject}</span>
+                      </td>
+                      <td style={{ ...td, textAlign: "right", fontFamily: "var(--da-font-mono)" }}>{formatCount(i.sends)}</td>
+                      <td style={{ ...td, textAlign: "right", fontFamily: "var(--da-font-mono)" }}>{formatCount(i.clicks)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p style={{ ...help, margin: 0 }}>{NEWSLETTER_COUNT_RULE_DU}</p>
+          </div>
+        )}
       </div>
 
       {/* Stammdaten */}
@@ -709,6 +748,31 @@ export default function CampaignDetailClient({ detail, advertisers, placements, 
               </div>
             )}
             <p style={{ ...help, margin: 0 }}>Gespeichert bleibt die saubere Ziel-URL. Die Parameter entstehen erst beim Ausliefern, auch in der Vorschau mit ?vorschau=.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Newsletter (PR 214) — nur Kundenkampagnen. House laesst sich im Entwurf von Hand waehlen. */}
+      {!isHouse && (
+        <div style={{ ...card, display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={sectionTitle}>Newsletter</div>
+          <label htmlFor={inNewsletterId} style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--da-text)", fontSize: 14, cursor: "pointer" }}>
+            <input id={inNewsletterId} type="checkbox" checked={inNewsletter} onChange={(e) => setInNewsletter(e.target.checked)} />
+            Im Newsletter zeigen
+          </label>
+          <p style={{ color: newsletterCreative ? "var(--da-text)" : "var(--da-orange)", fontSize: 14, margin: 0 }}>
+            {newsletterCreative
+              ? `Im Newsletter erscheint: ${describeCreative(newsletterCreative)}.`
+              : `Noch kein passendes Motiv. Es braucht ${NEWSLETTER_AD_NEED}.`}
+          </p>
+          <p style={help}>
+            Mit dem Häkchen wird die Kampagne für jede neue Ausgabe vorgeschlagen, solange sie live ist und eine Buchung läuft.
+            Pro Ausgabe stehen höchstens {MAX_ADS} Anzeigen; gibt es mehr Kampagnen, kommt zuerst, wer zuletzt seltener dran war.
+            Ob die Anzeige in einer Ausgabe steht, entscheidest du im Entwurf unter «Newsletter-Ausgaben». Sie ist als «Anzeige»
+            gekennzeichnet, der Link trägt utm_medium=email und utm_content=newsletter.
+          </p>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button type="button" style={btnPrimary} disabled={pending || !utmValid} onClick={() => run(() => updateCampaign(c.id, campaignPayload()))}>Newsletter speichern</button>
           </div>
         </div>
       )}

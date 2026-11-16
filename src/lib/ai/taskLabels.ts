@@ -16,4 +16,5 @@ export const TASK_LABELS: Record<AiTask, string> = {
   newsletter_draft: "Newsletter-Entwurf",
   platform_research: "KI-Plattformen prüfen",
   prompt_generation: "Prompts der KI-Redaktion",
+  showcase_draft: "Showcase-Entwurf aus dem Fragebogen",
 };

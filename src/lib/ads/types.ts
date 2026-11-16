@@ -195,6 +195,9 @@ export type CampaignInput = {
   // Tracking: UTM-Parameter beim Ausliefern (utm.ts). House: immer aus.
   utm_enabled?: boolean;
   utm_campaign?: string | null;
+  // Fuer den Newsletter vorschlagen (PR 214). Nur Kundenkampagnen; fehlt das
+  // Feld, bleibt der gespeicherte Wert.
+  in_newsletter?: boolean;
 };
 
 export type BookingInput = {

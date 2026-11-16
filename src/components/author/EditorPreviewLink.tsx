@@ -9,6 +9,7 @@ import {
   previewWhatsapp,
 } from "@/lib/articles/preview";
 import {
+  confirmPreviewApproval,
   createPreviewLink,
   getPreviewLink,
   revokePreviewLink,
@@ -18,7 +19,10 @@ import {
 // Vorschau-Link im Tab «Vorschau» (nur Redaktion): erstellen, kopieren, per
 // E-Mail oder WhatsApp weitergeben, sperren, und die Rueckmeldung lesen
 // (Freigabe oder Aenderungswunsch). EditorPreviewLink holt und aendert den
-// Link, PreviewLinkView zeigt ihn.
+// Link, PreviewLinkView zeigt ihn. Seit S3b: Wurde der Beitrag nach einer
+// Freigabe nur noch in Kleinigkeiten geaendert, kann die Redaktion die
+// Freigabe auf die aktuelle Fassung uebertragen (Unternehmensbeitraege lassen
+// sich sonst nicht publizieren).
 //
 // Gestaltung: ein Band zwischen zwei Linien, keine Karte. Die Rueckmeldung
 // steht an einer farbigen Linie links wie die Interessenbindung am Artikel.
@@ -87,6 +91,15 @@ export default function EditorPreviewLink({ articleId, title, published, dirty, 
         if (window.confirm("Link sperren? Wer ihn hat, sieht den Beitrag danach nicht mehr.")) run(() => revokePreviewLink(articleId));
       }}
       onCopy={copy}
+      onConfirm={() => {
+        if (
+          window.confirm(
+            "Freigabe auf die aktuelle Fassung übertragen?\n\nNur bestätigen, wenn sich seit der Freigabe nichts Wesentliches geändert hat (Tippfehler, Tags, Bildbeschreibung). Bei inhaltlichen Änderungen bitte nochmals zur Freigabe schicken.",
+          )
+        ) {
+          run(() => confirmPreviewApproval(articleId));
+        }
+      }}
     />
   );
 }
@@ -103,9 +116,10 @@ type ViewProps = {
   onCreate: () => void;
   onRevoke: () => void;
   onCopy: () => void;
+  onConfirm?: () => void;
 };
 
-export function PreviewLinkView({ info, origin, title, published, dirty, pending, copied, error, onCreate, onRevoke, onCopy }: ViewProps) {
+export function PreviewLinkView({ info, origin, title, published, dirty, pending, copied, error, onCreate, onRevoke, onCopy, onConfirm }: ViewProps) {
   const url = info ? `${origin}${info.path}` : "";
   const st = info?.status;
   return (
@@ -192,9 +206,23 @@ export function PreviewLinkView({ info, origin, title, published, dirty, pending
               <strong>Freigegeben am {formatDecisionTime(st.at)} von {st.by}.</strong>{" "}
               {st.stale
                 ? "Der Beitrag wurde seither geändert: Die Freigabe gilt für die frühere Fassung."
-                : published ? "" : "Du kannst den Beitrag jetzt publizieren."}
+                : published
+                  ? ""
+                  : st.confirmedAt
+                    ? `Die Redaktion hat die Freigabe am ${formatDecisionTime(st.confirmedAt)} auf diese Fassung übertragen. Du kannst den Beitrag jetzt publizieren.`
+                    : "Du kannst den Beitrag jetzt publizieren."}
               {st.note && <span>{st.note}</span>}
             </p>
+          )}
+          {st && st.kind === "approved" && st.stale && !published && onConfirm && (
+            <div className="epl__row">
+              <button type="button" className="epl__btn" disabled={pending || dirty} onClick={onConfirm}>
+                Freigabe gilt auch für diese Fassung
+              </button>
+              <span className="epl__text">
+                {dirty ? "Zuerst speichern." : "Nur bei Kleinigkeiten (Tippfehler, Tags, Bildbeschreibung). Sonst den Link nochmals schicken."}
+              </span>
+            </div>
           )}
           {st && st.kind === "changes" && (
             <p className="epl__state epl__state--warn">

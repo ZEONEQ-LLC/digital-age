@@ -1345,6 +1345,116 @@ Die festen Apple-Pfade `/apple-touch-icon.png` und
 bestehendes Home-Bildschirm-Lesezeichen behaelt sein altes Icon, bis es
 geloescht und neu angelegt wird.
 
+### Anzeigen im Newsletter (PR 214)
+
+Wunsch Ali 16.11.2026: Werbung der Werbepartner im Newsletter. Eine Anzeige
+ist die Momentaufnahme einer Kampagne in `newsletter_issues.sections.ads`
+(hoechstens zwei pro Ausgabe), gekennzeichnet als «Anzeige» (House: «In
+eigener Sache») in einer abgesetzten Flaeche.
+
+- **Regeln** (rein, getestet): `src/lib/newsletter/ads.ts`. Format: Bild
+  300 x 250 (das Rectangle der Sidebar, auch in doppelter Aufloesung) oder
+  Text-Anzeige; andere Bildformate passen nicht in eine Mail.
+  `pickNewsletterCreative` waehlt das Motiv (Bild vor Text, Desktop vor
+  Mobile), `adSlots` den Platz (nach dem ersten Block, die zweite weiter
+  unten), `orderAdProposals` die Reihenfolge (wer zuletzt seltener dran war).
+- **Kein eigener Werbeplatz im Katalog.** `ad_placements`, Buchungen und
+  `ad_stats_daily` bleiben die Website. Vorgeschlagen wird eine
+  Kundenkampagne, wenn sie auf «Live» steht, eine laufende Buchung hat
+  (`isRunningNow`) und das Haekchen `ad_campaigns.in_newsletter` traegt
+  (Kampagnenseite, Block «Newsletter»). Im Entwurf laesst sich jede Kampagne
+  auf «Live» von Hand waehlen.
+- **Der Server baut die Aufnahme, nie der Browser** (`adsApi.ts`,
+  `resolveAds`): beim Speichern, in der Vorschau, im Test und nochmals beim
+  Versand. Vom Browser zaehlt nur, welche Kampagnen in welcher Reihenfolge.
+  Ist eine Kampagne beim Versand nicht mehr live oder ohne Motiv, startet der
+  Versand nicht.
+- **Zaehlung**: Zustellungen stehen in der Ausgabe (`delivered_count`),
+  Klicks in `newsletter_ad_clicks` (Summe pro Ausgabe und Kampagne, keine
+  Kennung der Person). Der Link in der Mail ist signiert und nennt nur
+  Ausgabe und Kampagne (`adToken.ts`, Kern testbar in `adTokenCore.ts`); die
+  Route `/api/module/weiter` liest das Ziel aus der versendeten Ausgabe
+  (kein offener Redirect) und zaehlt ueber die RPC `newsletter_ad_click`
+  (nur service_role, nur fuer versendete Ausgaben mit dieser Kampagne).
+  Nicht gezaehlt: Bots, prefetch, HEAD, ueber dem IP-Limit
+  (`newsletter_ad_click`, 20 pro Stunde). Vorschau und Test verlinken direkt.
+- **Zahlen getrennt von der Website**: Eine zugestellte Mail ist keine
+  Einblendung. `getCampaignStats` liefert `newsletter` (je Ausgabe
+  Zustellungen und Klicks) neben den Website-Zahlen; Kampagnenseite,
+  Kunden-Vorschau und Abschlussbericht zeigen sie als eigenen Block.
+- UTM der Anzeige: `utm_source=digital-age`, `utm_medium=email`,
+  `utm_content=newsletter` (`buildNewsletterAdUrl`).
+- Offen (Entscheid Ali): Newsletter-Anzeige in die Mediadaten und ins
+  Komplettpaket aufnehmen oder einzeln verkaufen. Bis dahin steht dort nichts.
+
+### Newsletter: Autorinnen und Autoren automatisch, Rubrik als utm_content (PR 214)
+
+Wunsch Ali 16.11.2026: Wer fuer digital age schreibt, bekommt den Newsletter
+automatisch.
+
+- **Wer**: Autorenprofile mit Konto (`authors.user_id` gesetzt), jede Rolle.
+  Profile ohne Konto (Gast aus einem Pitch, Kontaktperson eines Unternehmens
+  im Showcase) nie: Sie haben keine Einladung angenommen.
+- **Wie** (`src/lib/newsletter/authorSync.ts` rein und getestet,
+  `authorSubscribers.ts` mit dem Service-Client): Abgleich beim Erstellen
+  eines Entwurfs und nochmals vor dem Versand. Kein Cron, kein Trigger. Neue
+  Zeilen tragen `source = 'author'`, `author_id` und als Nachweis einen festen
+  Text in `consent_text`.
+- **Abgemeldet bleibt abgemeldet**: Eine Zeile mit `author_id` wird nie neu
+  angelegt, auch nicht nach einer neuen Adresse im Profil. Eine abgemeldete
+  Adresse wird nur verknuepft, nie wieder aktiv. Eine unbestaetigte Anmeldung
+  einer Autorin gilt mit dem Abgleich als bestaetigt.
+- Die Fusszeile der Mail sagt deshalb «abonniert hast oder für digital age
+  schreibst». Nicht auf «abonniert» zurueckkuerzen.
+- **UTM**: Links im Newsletter tragen seit PR 195 `utm_source=newsletter`,
+  `utm_medium=email`, `utm_campaign=newsletter-<Datum>`; neu dazu
+  `utm_content` mit der Rubrik (`UTM_CONTENT` in `issue.ts`: artikel, news,
+  alle-news, hype-check, prompt, podcast). Die Lesestatistik zaehlt solche
+  Aufrufe unter «E-Mail und Newsletter».
+
+### Showcase S3b: Entwurf aus dem Fragebogen, Freigabe (PR 214)
+
+Aus einer Einreichung (S3a) entsteht der Beitrag. Die Redaktion klickt unter
+`/autor/admin/startups#showcase` «Entwurf erzeugen», sieht ihn im Editor
+durch, schickt ihn zur Freigabe und publiziert nach der Freigabe.
+
+- **Entwurf** (`src/lib/showcase/draft.ts` rein und getestet,
+  `draftActions.ts` "use server"): KI-Task `showcase_draft` (Standard Sonnet
+  5.5, Strategie editierbar). Fragen beantwortet: Die KI schreibt den Beitrag
+  nur aus den Antworten. Eigener Text: Er bleibt woertlich, die KI liefert nur
+  Titel, Abstract und drei LinkedIn-Texte. Name und E-Mail der Kontaktperson
+  gehen nicht an die KI. Faellt die KI aus, entsteht der Entwurf aus den
+  Antworten ohne Bearbeitung.
+- **Im Code geprueft, nicht nur im Prompt verlangt**: fremde Links werden zu
+  Text (`enforceAllowedLinks`, E5), Begriffe rund um ein Investitionsangebot
+  werden gemeldet (`investmentFindings`, E6), das Zitat muss woertlich
+  drinstehen, dazu Laenge und Werbeton. Ergebnis: `draft_notes` an der
+  Einreichung, sichtbar in der Verwaltung.
+- **Kein Tiptap-Paste**: Markdown geht durch `pitchToDocument` (dieselbe
+  Pipeline wie Pitch -> Entwurf). Autor:in ist die Kontaktperson als
+  Gast-Profil ohne Login (`src/lib/guestAuthor.ts`, gemeinsam mit dem Pitch).
+  Ein Entwurf pro Einreichung; zum Neuerzeugen den Entwurf im Editor loeschen.
+- **Freigabe = Vorschau-Link aus PR 212**, nichts Neues gebaut.
+  `sendShowcaseDraftReady` schickt den Link (Mail «Entwurf bereit»), das
+  Unternehmen gibt auf `/vorschau/artikel/<token>` frei oder wuenscht
+  Aenderungen.
+- **Publizieren nur mit Freigabe** (`companyApprovalBlocker` in
+  `articles/preview.ts`, geprueft in `publishArticle`): Gilt fuer jeden
+  Unternehmensbeitrag beim ersten Publizieren, auch fuer von Hand angelegte.
+  Die Freigabe gilt fuer genau eine Fassung (Pruefsumme). Nach Kleinigkeiten
+  kann die Redaktion sie im Tab «Vorschau» auf die aktuelle Fassung
+  uebertragen (`confirmPreviewApproval`, wer und wann steht in
+  `article_preview_links.editor_confirmed_*`). Abstract und Bildbeschreibung
+  gehoeren zur Fassung: Ohne sie laesst sich der Entwurf nicht senden.
+- **«Beitrag ist online»** (`onlineNotice.ts`): einmal beim ersten
+  Publizieren an die Kontaktadresse, mit Teilen-Link (UTM fuer LinkedIn) und
+  den LinkedIn-Texten, statt der allgemeinen Autoren-Mail. Die Mail kuendigt
+  Zahlen nach 30 Tagen an: Der Bericht kommt mit S4, bis dahin von Hand.
+- **Wortlaut** angepasst, weil die KI von digital age den Entwurf schreibt:
+  Die feste Zeile sagt «Kein redaktioneller Beitrag» (vorher «Nicht von der
+  Redaktion verfasst»), der Schlusssatz und die Regelseite nennen Fragebogen,
+  KI-Unterstuetzung und Freigabe. Diese Texte muessen wahr bleiben.
+
 ### Sitemap ueber eine Route mit fester CDN-Lebensdauer (PR 213)
 
 `/sitemap.xml` kommt nicht mehr aus `app/sitemap.ts`, sondern aus der Route
@@ -1374,8 +1484,7 @@ Die Redaktion laedt ein Unternehmen aus dem Verzeichnis zum Showcase ein. Es
 bekommt einen Link mit Token (`/showcase/mitmachen/<token>`, ohne Login),
 beantwortet den Fragebogen (Anhang B der Uebergabe vom 13.11.2026), laedt
 Logo und Bild hoch, bestaetigt seine Profildaten und gibt sein Einverstaendnis.
-Der KI-Entwurf und die Freigabe folgen in S3b (Baustein: Vorschau-Link aus
-PR 212, nicht neu bauen).
+Der KI-Entwurf und die Freigabe sind seit PR 214 gebaut (S3b, Abschnitt oben).
 
 - **Regeln und Pruefung** (rein, getestet): `src/lib/showcase/questionnaire.ts`
   (Fragen, Grenzen, Profil-Abgleich, Bot-Signale, Zustand der Einladung,

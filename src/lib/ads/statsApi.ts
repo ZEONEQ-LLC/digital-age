@@ -3,6 +3,8 @@ import { utmContentFor } from "@/lib/ads/utm";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { parsePeriod } from "@/lib/ads/types";
+import type { NewsletterAdStats } from "@/lib/newsletter/ads";
+import { getNewsletterAdStats } from "@/lib/newsletter/adsApi";
 
 // Lesepfade fuer den Kundenreport (J6). Der Client wird uebergeben: SSR-Client
 // im Admin (RLS: Editor liest), Service-Client auf /vorschau/[token].
@@ -27,6 +29,10 @@ export type CampaignStats = {
   periodTo: string | null;    // ISO, null = offen
   daysElapsed: number;        // Laufzeit-Tage bisher (Zuercher Tage, min 0)
   daysTotal: number | null;   // null = offen
+  // Anzeigen im Newsletter (PR 214): Zustellungen und Klicks je Ausgabe.
+  // Getrennt von den Zahlen oben: Eine zugestellte Mail ist keine
+  // Einblendung, die CTR der Website bleibt unberuehrt. null = stand nie drin.
+  newsletter: NewsletterAdStats | null;
 };
 
 export type CampaignStatsRow = {
@@ -70,12 +76,13 @@ type StatRow = {
 };
 
 export async function getCampaignStats(supabase: Sb, campaignId: string, days = 30): Promise<CampaignStats> {
-  const [{ data: rows }, { data: bookings }] = await Promise.all([
+  const [{ data: rows }, { data: bookings }, newsletter] = await Promise.all([
     supabase
       .from("ad_stats_daily")
       .select("placement_id, day, impressions, clicks, placement:ad_placements(label)")
       .eq("campaign_id", campaignId),
     supabase.from("ad_bookings").select("period").eq("campaign_id", campaignId).is("archived_at", null),
+    getNewsletterAdStats(supabase, campaignId),
   ]);
   const stats = (rows ?? []) as unknown as StatRow[];
 
@@ -135,7 +142,7 @@ export async function getCampaignStats(supabase: Sb, campaignId: string, days = 
 
   return {
     impressions, clicks, ctr: ctrOf(impressions, clicks), byPlacement, series, seriesEndsAtCampaignEnd: ended,
-    periodFrom, periodTo, daysElapsed, daysTotal,
+    periodFrom, periodTo, daysElapsed, daysTotal, newsletter,
   };
 }
 

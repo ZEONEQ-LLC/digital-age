@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { inviteAuthorFromPitch, type PitchInviteOutcome } from "@/lib/inviteActions";
 import { renderBlockDocumentToMarkdown } from "@/lib/blockDocumentMarkdown";
 import { isArticleSlugConflict, slugFromTitle } from "@/lib/articleSlug";
-import { authorSlugFromName, escapeIlike } from "@/lib/authorSlug";
+import { createGuestAuthor, findAuthorByEmail } from "@/lib/guestAuthor";
 import { pitchCategorySlug, pitchToDocument, pitchWebsite } from "@/lib/pitch/draftFromPitch";
 import type { Json } from "@/lib/database.types";
 import { FormError, guardMessage } from "@/lib/actionResult";
@@ -77,58 +77,6 @@ export type PitchDraftResult =
     }
   | { ok: false; message: string };
 
-type Sb = Awaited<ReturnType<typeof createClient>>;
-type PitchAuthorInput = {
-  author_name: string;
-  author_email: string;
-  author_role: string | null;
-  author_bio: string;
-  author_website: string | null;
-};
-
-async function findAuthorByEmail(supabase: Sb, email: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("authors")
-    .select("id")
-    .ilike("email", escapeIlike(email.trim()))
-    .order("user_id", { ascending: true, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
-  return data?.id ?? null;
-}
-
-// Gast-Autor: role=external, ohne Login, Muster insertAuthorPlaceholder.
-async function createGuestAuthor(supabase: Sb, pitch: PitchAuthorInput): Promise<string> {
-  const email = pitch.author_email.trim();
-  const base = authorSlugFromName(pitch.author_name.trim() || email.split("@")[0]);
-  const website = pitchWebsite(pitch.author_website);
-  let slug = base;
-  for (let i = 0; i < 5; i++) {
-    const { data, error } = await supabase
-      .from("authors")
-      .insert({
-        email,
-        display_name: pitch.author_name.trim(),
-        slug,
-        role: "external",
-        bio: pitch.author_bio.trim() || null,
-        job_title: pitch.author_role?.trim() || null,
-        social_links: website ? { website } : null,
-      })
-      .select("id")
-      .single();
-    if (!error) return data.id;
-    if (error.code !== "23505") throw error;
-    if (error.message.includes("authors_email_key")) {
-      const existing = await findAuthorByEmail(supabase, email);
-      if (existing) return existing;
-      throw error;
-    }
-    slug = `${base}-${Math.random().toString(36).slice(2, 6)}`;
-  }
-  throw new Error("Kein freier Slug für den Gast-Autor.");
-}
-
 // Pitch -> Artikel-Entwurf: Volltext durch die MD-Cleanup-Pipeline, Gast-Autor
 // per E-Mail finden oder anlegen, Pitch verknuepfen und auf «akzeptiert» setzen.
 // Status-Wechsel versenden keine Mail; nur die optionale Einladung tut das.
@@ -167,8 +115,17 @@ export async function createDraftFromPitch(
     const category = categories.find((c) => c.slug === categorySlug);
     if (!category) return { ok: false, message: `Kategorie ${categorySlug} nicht gefunden.` };
 
+    // Gast-Autor: role=external, ohne Login (guestAuthor.ts).
     const existingAuthor = await findAuthorByEmail(supabase, pitch.author_email);
-    const authorId = existingAuthor ?? (await createGuestAuthor(supabase, pitch));
+    const authorId =
+      existingAuthor ??
+      (await createGuestAuthor(supabase, {
+        name: pitch.author_name,
+        email: pitch.author_email,
+        jobTitle: pitch.author_role,
+        bio: pitch.author_bio,
+        website: pitchWebsite(pitch.author_website),
+      }));
 
     const title = pitch.title.trim();
     const { doc, warnings } = pitchToDocument(pitch.body_md, title);

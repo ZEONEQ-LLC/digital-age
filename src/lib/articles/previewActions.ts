@@ -115,6 +115,39 @@ export async function revokePreviewLink(articleId: string): Promise<LinkResult> 
   }
 }
 
+// Freigabe auf die aktuelle Fassung uebertragen (S3b). Fuer Kleinigkeiten nach
+// der Freigabe: Tippfehler, Tags, Bildbeschreibung. Wer das wann getan hat,
+// steht in der Zeile. Bei inhaltlichen Aenderungen gehoert der Beitrag
+// nochmals zum Unternehmen.
+export async function confirmPreviewApproval(articleId: string): Promise<LinkResult> {
+  try {
+    if (!UUID_RE.test(articleId)) return { ok: false, error: "Beitrag nicht gefunden." };
+    const { supabase, editorId } = await requireEditor();
+    const [link, { data: article }] = await Promise.all([
+      getActivePreviewLink(supabase, articleId),
+      supabase.from("articles").select("*").eq("id", articleId).maybeSingle(),
+    ]);
+    if (!article) return { ok: false, error: "Beitrag nicht gefunden." };
+    if (!link || link.decision !== "approved") return { ok: false, error: "Es gibt keine Freigabe, die sich übertragen liesse." };
+    const { data: updated, error } = await supabase
+      .from("article_preview_links")
+      .update({
+        decided_fingerprint: previewFingerprint(article),
+        editor_confirmed_at: new Date().toISOString(),
+        editor_confirmed_by: editorId,
+      })
+      .eq("id", link.id)
+      .eq("decision", "approved")
+      .is("revoked_at", null)
+      .select("*")
+      .maybeSingle();
+    if (error || !updated) return { ok: false, error: "Die Freigabe liess sich nicht übertragen." };
+    return { ok: true, link: toInfo(updated, article) };
+  } catch (e) {
+    return { ok: false, error: errorText(e) };
+  }
+}
+
 // ── Rueckmeldung ueber den Link (ohne Login) ──────────────────────────────
 
 export type PreviewResponseResult = { ok: true } | { ok: false; error: string };
@@ -159,6 +192,9 @@ export async function respondToPreview(token: string, input: PreviewResponseInpu
         decided_by: checked.value.name,
         decision_note: checked.value.note,
         decided_fingerprint: previewFingerprint(article),
+        // Eine neue Rueckmeldung gilt fuer die Fassung, die jetzt zu sehen ist.
+        editor_confirmed_at: null,
+        editor_confirmed_by: null,
       })
       .eq("id", link.id)
       .is("revoked_at", null);

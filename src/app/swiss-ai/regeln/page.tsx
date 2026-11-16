@@ -140,8 +140,11 @@ export default function SwissAiRulesPage() {
               erscheint auch in Listen und in der Suche.
             </p>
             <p>
-              Die Redaktion prüft jeden Beitrag auf Verständlichkeit, Kennzeichnung und offensichtliche Fehler und lehnt
-              reine Werbung ab. Sie verfasst die Beiträge nicht. Beiträge enthalten keine Aufforderung zum Investieren.
+              Inhalt und Aussagen eines Beitrags stammen vom Unternehmen. Liefert es keinen eigenen Text, erstellen wir
+              aus seinen Antworten auf einen Fragebogen mit KI-Unterstützung einen Entwurf. Jeder Beitrag erscheint erst,
+              wenn das Unternehmen ihn freigegeben hat. Die Redaktion prüft jeden Beitrag auf Verständlichkeit,
+              Kennzeichnung und offensichtliche Fehler und lehnt reine Werbung ab. Beiträge enthalten keine Aufforderung
+              zum Investieren.
               Links in Showcase-Beiträgen sind für Suchmaschinen als gesponsert ausgezeichnet. Anzeigen von Dritten
               stehen in diesen Beiträgen keine.
             </p>

@@ -158,10 +158,10 @@ section("seo_review — proposedText + Einfuege-Anker im Schema (Iteration 2)");
 
 section("Prompt-IDs + Code-Defaults (Registry, generalisiert)");
 {
-  ok("11 Prompt-IDs (inkl. abstract_generate, highlight_suggestions, image_alt, hero_proposals, social_posts, newsletter_draft, platform_research, prompt_generation)", EDITABLE_PROMPT_IDS.length === 11);
+  ok("12 Prompt-IDs (inkl. abstract_generate, highlight_suggestions, image_alt, hero_proposals, social_posts, newsletter_draft, platform_research, prompt_generation, showcase_draft)", EDITABLE_PROMPT_IDS.length === 12);
   ok("IDs korrekt",
     EDITABLE_PROMPT_IDS.join(",") ===
-      "seo_keyword_candidates,seo_derive,seo_review,abstract_generate,highlight_suggestions,image_alt,hero_proposals,social_posts,newsletter_draft,platform_research,prompt_generation");
+      "seo_keyword_candidates,seo_derive,seo_review,abstract_generate,highlight_suggestions,image_alt,hero_proposals,social_posts,newsletter_draft,platform_research,prompt_generation,showcase_draft");
   for (const id of EDITABLE_PROMPT_IDS) {
     const def = EDITABLE_DEFAULT_STRATEGIES[id];
     ok(`Default fuer ${id} nicht leer`, typeof def === "string" && def.trim().length > 0);

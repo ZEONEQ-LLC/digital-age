@@ -69,9 +69,11 @@ export function validatePreviewResponse(input: PreviewResponseInput): PreviewRes
 
 // Stand der Rueckmeldung. `stale`: Der Beitrag wurde nach der Rueckmeldung
 // geaendert, sie gilt fuer eine fruehere Fassung.
+// `confirmedAt`: Die Redaktion hat eine Freigabe auf eine spaetere Fassung
+// uebertragen (nur Kleinigkeiten geaendert), sonst null.
 export type PreviewDecisionStatus =
   | { kind: "none" }
-  | { kind: PreviewDecision; at: string; by: string; note: string | null; stale: boolean };
+  | { kind: PreviewDecision; at: string; by: string; note: string | null; stale: boolean; confirmedAt: string | null };
 
 export function previewDecisionStatus(
   link: {
@@ -80,6 +82,7 @@ export function previewDecisionStatus(
     decided_by: string | null;
     decision_note: string | null;
     decided_fingerprint: string | null;
+    editor_confirmed_at?: string | null;
   },
   currentFingerprint: string,
 ): PreviewDecisionStatus {
@@ -90,7 +93,25 @@ export function previewDecisionStatus(
     by: link.decided_by ?? "",
     note: link.decision_note,
     stale: link.decided_fingerprint !== currentFingerprint,
+    confirmedAt: link.decision === "approved" ? link.editor_confirmed_at ?? null : null,
   };
+}
+
+// Showcase S3b: Ein Unternehmensbeitrag erscheint erst, wenn das Unternehmen
+// die aktuelle Fassung freigegeben hat. Gilt beim ersten Publizieren; der
+// Aufrufer (publishArticle) entscheidet, wann die Regel greift. null = frei.
+// `status` null = es gibt keinen Vorschau-Link.
+export function companyApprovalBlocker(status: PreviewDecisionStatus | null): string | null {
+  if (!status || status.kind === "none") {
+    return "Publizieren nicht möglich: Das Unternehmen hat den Beitrag noch nicht freigegeben. Bitte den Entwurf zur Freigabe schicken (Tab «Vorschau» oder Startups → Showcase).";
+  }
+  if (status.kind === "changes") {
+    return "Publizieren nicht möglich: Das Unternehmen wünscht Änderungen. Bitte überarbeiten und nochmals zur Freigabe schicken.";
+  }
+  if (status.stale) {
+    return "Publizieren nicht möglich: Der Beitrag wurde nach der Freigabe geändert. Im Tab «Vorschau» nochmals zur Freigabe schicken oder die Freigabe für diese Fassung bestätigen.";
+  }
+  return null;
 }
 
 // «15.11.2026, 14:05» in Schweizer Zeit (Server und Browser gleich).

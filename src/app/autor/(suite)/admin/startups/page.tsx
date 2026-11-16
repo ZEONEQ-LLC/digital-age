@@ -7,6 +7,10 @@ import AdminStartupsClient from "./AdminStartupsClient";
 import ShowcaseInvitesAdmin from "./ShowcaseInvitesAdmin";
 import type { ContactView, RequestView } from "./StartupContactAdmin";
 
+// «Entwurf erzeugen» (Showcase S3b) ruft die KI auf und schreibt einen ganzen
+// Beitrag: Die Server Action dieser Seite darf bis zu fuenf Minuten laufen.
+export const maxDuration = 300;
+
 // Kontakte und Anfragen (nur Metadaten) fuer «Kontakt aufnehmen»; RLS: Editoren.
 async function loadContactData(): Promise<{ contacts: ContactView[]; requests: RequestView[] }> {
   const supabase = await createClient();

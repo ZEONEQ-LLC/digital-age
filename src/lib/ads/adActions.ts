@@ -269,6 +269,7 @@ export async function createCampaign(input: CampaignInput): Promise<ActionResult
         status: "draft",
         utm_enabled: utm.utm_enabled,
         utm_campaign: utm.utm_campaign,
+        in_newsletter: !input.is_house && input.in_newsletter === true,
       })
       .select("id")
       .single();
@@ -310,6 +311,7 @@ export async function updateCampaign(id: string, input: CampaignInput): Promise<
         notes: input.notes || null,
         utm_enabled: utm.utm_enabled,
         utm_campaign: utm.utm_campaign,
+        ...(input.in_newsletter === undefined ? {} : { in_newsletter: !isHouse && input.in_newsletter }),
       })
       .eq("id", id);
     if (error) return { ok: false, error: mapDbError(error) };

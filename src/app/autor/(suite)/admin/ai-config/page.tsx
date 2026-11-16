@@ -24,6 +24,7 @@ const PROMPT_LABELS: Record<EditablePromptId, string> = {
   newsletter_draft: "Newsletter-Entwurf",
   platform_research: "KI-Plattformen prüfen (wöchentlich, mit Websuche)",
   prompt_generation: "Prompts der KI-Redaktion (wöchentlich)",
+  showcase_draft: "Showcase — Entwurf aus dem Fragebogen",
 };
 
 // Visuelle Gruppierung der Tasks auf dieser Seite. Reihenfolge im Array =
@@ -61,6 +62,11 @@ const TASK_GROUPS: TaskGroup[] = [
     id: "newsletter",
     label: "Newsletter",
     tasks: ["newsletter_draft"],
+  },
+  {
+    id: "showcase",
+    label: "Showcase",
+    tasks: ["showcase_draft"],
   },
   {
     id: "jobs",
