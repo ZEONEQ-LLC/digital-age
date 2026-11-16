@@ -1945,6 +1945,7 @@ export type Database = {
       }
       newsletter_subscribers: {
         Row: {
+          author_id: string | null
           confirmation_expires_at: string
           confirmation_token: string | null
           confirmed_at: string | null
@@ -1962,6 +1963,7 @@ export type Database = {
           user_agent: string | null
         }
         Insert: {
+          author_id?: string | null
           confirmation_expires_at?: string
           confirmation_token?: string | null
           confirmed_at?: string | null
@@ -1979,6 +1981,7 @@ export type Database = {
           user_agent?: string | null
         }
         Update: {
+          author_id?: string | null
           confirmation_expires_at?: string
           confirmation_token?: string | null
           confirmed_at?: string | null
@@ -1995,7 +1998,15 @@ export type Database = {
           updated_at?: string
           user_agent?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "newsletter_subscribers_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "authors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pages: {
         Row: {
