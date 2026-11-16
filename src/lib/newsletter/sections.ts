@@ -15,6 +15,12 @@ import {
   type Assessment,
 } from "@/lib/newsTicker/assessment";
 import { PICK_TEASER_MAX, type IssueHype, type IssueNews, type IssuePick } from "@/lib/newsletter/issue";
+import { clipAtSentence } from "@/lib/textClip";
+
+// Ersatztext ohne KI (Prompt, Podcast, Artikel): am letzten ganzen Satz enden
+// statt mitten im Satz mit « …» (PR 215). Etwas unter der Feldgrenze, damit
+// die Redaktion noch ergaenzen kann.
+export const FALLBACK_TEASER_CHARS = 260;
 
 export const NEWS_SELECT = "id, title, teaser, source_name, generated_at, assessment, importance";
 export const PROMPT_SELECT = "id, slug, title, category, difficulty, context, status, published_at";
@@ -54,7 +60,8 @@ export type PodcastRow = {
 
 const LANG: Record<string, string> = { de: "Deutsch", en: "Englisch", fr: "Französisch", it: "Italienisch" };
 
-// Auf Wortgrenze kuerzen, mit « …».
+// Auf Wortgrenze kuerzen, mit « …». Nur noch fuer Titel (Betreff ohne KI);
+// Fliesstext kuerzt clipAtSentence.
 export function shortenText(text: string, max: number): string {
   const t = text.replace(/\s+/g, " ").trim();
   if (t.length <= max) return t;
@@ -116,7 +123,7 @@ export function promptToPick(r: PromptRow, teaser?: string): IssuePick {
     id: r.id,
     slug: r.slug,
     title: r.title,
-    teaser: teaser?.trim() || shortenText(r.context, 200),
+    teaser: teaser?.trim() || clipAtSentence(r.context, FALLBACK_TEASER_CHARS),
     label: `${label(PROMPT_CATEGORIES, r.category)} · ${label(PROMPT_DIFFICULTIES, r.difficulty)}`,
     coverUrl: null,
   };
@@ -128,7 +135,7 @@ export function podcastToPick(r: PodcastRow, siteUrl: string, teaser?: string): 
     id: r.id,
     slug: r.slug,
     title: r.title,
-    teaser: (teaser?.trim() || shortenText(r.description ?? "", 200)).slice(0, PICK_TEASER_MAX),
+    teaser: (teaser?.trim() || clipAtSentence(r.description ?? "", FALLBACK_TEASER_CHARS)).slice(0, PICK_TEASER_MAX),
     label: [r.podcast_category, LANG[r.language] ?? r.language].filter(Boolean).join(" · "),
     coverUrl: cover.startsWith("/") ? `${siteUrl}${cover}` : cover || null,
   };

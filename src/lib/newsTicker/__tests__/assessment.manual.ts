@@ -48,6 +48,10 @@ console.log("=== parseAssessment ===");
   ok("Array → null", parseAssessment([1, 2]) === null);
   const long = parseAssessment({ ...full, warum: "Wort ".repeat(100) });
   ok(`Warum auf ${MAX_WARUM} Zeichen`, !!long && long.assessment.warum.length <= MAX_WARUM && long.assessment.warum.endsWith("…"));
+  const slightly = "Für Industrieunternehmen mit Zulieferern in Elektronik und Antrieben berührt die Abhängigkeit von seltenen Erden direkt Beschaffung und Preisrisiken; ein deutscher Umbau der Lieferketten wirkt auf Schweizer Zulieferer zurück.";
+  ok("ein etwas zu langer Satz bleibt ganz", slightly.length > 220 && parseAssessment({ ...full, warum: slightly })?.assessment.warum === slightly);
+  const two = parseAssessment({ ...full, warum: `${"Der erste Satz ist lang und erklärt die Sache in vielen Worten, damit er weit reicht und weiter reicht. ".repeat(2)}${"Dann folgt ein Satz, der über die Grenze hinausläuft und nicht mehr ganz hineinpasst ".repeat(3)}` });
+  ok("über der Grenze: Ende am ganzen Satz, keine Auslassung", !!two && two.assessment.warum.endsWith("weiter reicht.") && two.assessment.warum.length <= MAX_WARUM, two?.assessment.warum);
   ok("Eszett wird ss", parseAssessment({ ...full, warum: "Grosse Folgen für die Strasse, ß und mehr." })?.assessment.warum.includes("ß") === false);
 }
 

@@ -4,6 +4,7 @@ import { useId, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { unwrapAction } from "@/lib/actionResult";
 import { MAX_ADS, NEWSLETTER_AD_FORMAT, adLabel, type IssueAd } from "@/lib/newsletter/ads";
+import { endsCutOff } from "@/lib/textClip";
 import {
   HYPE_TEXT_MAX,
   ISSUE_STATUS_LABEL,
@@ -320,6 +321,16 @@ function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandi
   const patch = { subject, intro, items, sections };
   const usedNews = new Set([...sections.news.map((n) => n.newsId), sections.hype?.newsId].filter(Boolean));
   const newsOptions = newsCandidates.filter((n) => !usedNews.has(n.newsId)).map(newsOption);
+
+  // Texte, die mitten im Satz mit « …» enden (PR 215): vor dem Versand zeigen.
+  const cutOff = [
+    ...(endsCutOff(intro) ? ["Einleitung"] : []),
+    ...items.filter((it) => endsCutOff(it.teaser)).map((it) => `«${it.title}»`),
+    ...sections.news.filter((n) => endsCutOff(n.why)).map((n) => `«${n.title}» (Warum wichtig)`),
+    ...(sections.hype && endsCutOff(sections.hype.text) ? ["Hype-Check"] : []),
+    ...(sections.prompt && endsCutOff(sections.prompt.teaser) ? ["Prompt der Woche"] : []),
+    ...(sections.podcast && endsCutOff(sections.podcast.teaser) ? ["Podcast-Tipp"] : []),
+  ];
 
   const adOptions = adCandidates.filter((c) => !sections.ads.some((a) => a.campaignId === c.ad.campaignId)).map(adOption);
 
@@ -641,6 +652,12 @@ function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandi
           />
         )}
       </div>
+
+      {!sending && cutOff.length > 0 && (
+        <div className="nl-note nl-note--warn">
+          Endet mitten im Satz mit «…»: {cutOff.join(", ")}. Bitte den Satz zu Ende schreiben oder kürzen.
+        </div>
+      )}
 
       {notice && <div className={notice.kind === "ok" ? "nl-note nl-note--ok" : "nl-note nl-note--err"} role={notice.kind === "err" ? "alert" : "status"}>{notice.text}</div>}
 
