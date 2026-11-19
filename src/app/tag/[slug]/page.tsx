@@ -14,6 +14,7 @@ import type { Database } from "@/lib/database.types";
 import { buildListingMetadata } from "@/lib/listingMetadata";
 import { buildBreadcrumbJsonLd, buildItemListJsonLd } from "@/lib/jsonLd";
 import { getBaseUrl } from "@/lib/siteUrl";
+import { tagIsIndexable } from "@/lib/tagIndex";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
@@ -42,11 +43,21 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!tag) {
     return { title: "Tag nicht gefunden — digital-age" };
   }
-  return buildListingMetadata({
+  const [rows, showcaseArticles] = await Promise.all([
+    getArticlesByTagSlug(slug, 50),
+    getShowcaseArticlesByTagSlug(slug, 10),
+  ]);
+  const metadata = buildListingMetadata({
     path: `/tag/${tag.slug}`,
     title: `#${tag.name} — Artikel zum Thema`,
     description: `Alle Artikel zum Thema ${tag.name} auf digital-age.ch — kuratierte Übersicht für Entscheider und Praktiker in der DACH-Region.`,
   });
+  // Duenne Tag-Seiten nicht in den Index, Links darauf weiter verfolgen
+  // (Regel und Schwelle in src/lib/tagIndex.ts, Sitemap filtert gleich).
+  if (!tagIsIndexable(rows.length + showcaseArticles.length)) {
+    metadata.robots = { index: false, follow: true };
+  }
+  return metadata;
 }
 
 export default async function TagPage({ params }: PageProps) {

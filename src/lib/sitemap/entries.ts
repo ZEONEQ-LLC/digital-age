@@ -2,6 +2,7 @@ import { editorialOnly } from "@/lib/contentType";
 import type { MetadataRoute } from "next";
 import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getBaseUrl } from "@/lib/siteUrl";
+import { tagIsIndexable } from "@/lib/tagIndex";
 import type { Database } from "@/lib/database.types";
 
 // Eintraege der Sitemap. Ausgeliefert wird sie von der Route
@@ -215,14 +216,22 @@ async function fetchTagEntries(
   base: string,
 ): Promise<MetadataRoute.Sitemap> {
   try {
-    const { data, error } = await supabase
-      .from("tags")
-      .select("slug, updated_at");
-    if (error) {
-      console.error("[sitemap] tags error:", error.message);
+    // Nur Tags ab TAG_INDEX_MIN_ARTICLES publizierten Beitraegen: Die
+    // anderen Tag-Seiten stehen auf noindex (src/lib/tagIndex.ts).
+    const [{ data, error }, { data: counts, error: countError }] = await Promise.all([
+      supabase.from("tags").select("slug, updated_at"),
+      supabase.rpc("get_top_tags", { limit_count: 10000 }),
+    ]);
+    if (error || countError) {
+      console.error("[sitemap] tags error:", (error ?? countError)?.message);
       return [];
     }
-    return (data ?? []).map((t) => ({
+    const indexable = new Set(
+      (counts ?? [])
+        .filter((c) => tagIsIndexable(Number(c.article_count)))
+        .map((c) => c.slug),
+    );
+    return (data ?? []).filter((t) => indexable.has(t.slug)).map((t) => ({
       url: `${base}/tag/${t.slug}`,
       lastModified: t.updated_at ? new Date(t.updated_at) : undefined,
       changeFrequency: "weekly" as const,
