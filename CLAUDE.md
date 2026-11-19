@@ -1345,6 +1345,23 @@ Die festen Apple-Pfade `/apple-touch-icon.png` und
 bestehendes Home-Bildschirm-Lesezeichen behaelt sein altes Icon, bis es
 geloescht und neu angelegt wird.
 
+### Indexierung: duenne Seiten ausserhalb von Google (PR 217, PR 218)
+
+Search Console (Daten 13.11.2026): 44 indexiert, 183 nicht. Regeln, damit
+Google nur Seiten mit eigenem Inhalt sieht. Seite und Sitemap nutzen jeweils
+dieselbe Funktion, sie duerfen sich nie widersprechen.
+- **Tag-Seiten** (`src/lib/tagIndex.ts`): ab drei publizierten Beitraegen
+  (redaktionell und Showcase, gezaehlt wie `get_top_tags`), sonst
+  `noindex, follow` und nicht in der Sitemap.
+- **Verzeichniseintraege** (`src/lib/startupIndex.ts`, Entscheid Ali
+  19.11.2026): erst wenn `verified_at` gesetzt ist und die Beschreibung
+  mindestens 600 Zeichen hat. Die Seite bleibt fuer Besucher erreichbar; baut
+  ein Unternehmen seinen Eintrag aus, kommt er von selbst zurueck.
+- **Vercel-Alias** (`src/lib/vercelAlias.ts`, im Proxy): Antworten auf
+  `*.vercel.app` tragen `X-Robots-Tag: noindex, follow`. Der Alias bleibt fuer
+  Notfaelle (Login) erreichbar, er stand aber als zweite Kopie im Suchindex.
+- Claude hat keinen eigenen Zugang zu Search Console: Exporte kommen von Ali.
+
 ### Anzeigen im Newsletter (PR 214)
 
 Wunsch Ali 16.11.2026: Werbung der Werbepartner im Newsletter. Eine Anzeige

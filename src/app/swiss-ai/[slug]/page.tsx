@@ -11,6 +11,7 @@ import {
   lookupFundingStage,
 } from "@/lib/mappers/startupMappers";
 import { buildListingMetadata } from "@/lib/listingMetadata";
+import { startupIsIndexable } from "@/lib/startupIndex";
 import { buildBreadcrumbJsonLd } from "@/lib/jsonLd";
 import { getBaseUrl } from "@/lib/siteUrl";
 import { createPublicClient } from "@/lib/supabase/public";
@@ -50,7 +51,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const { slug } = await params;
   const row = await getStartupBySlug(slug);
   if (!row) return { title: "Startup nicht gefunden — digital-age" };
-  return buildListingMetadata({
+  const metadata = buildListingMetadata({
     path: `/swiss-ai/${slug}`,
     title: `${row.name} — Swiss AI · digital age`,
     description: truncateForMeta(
@@ -58,6 +59,10 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
         `${row.name} im kuratierten Swiss-AI-Verzeichnis von digital-age.ch — Standort, Branche und Profil eines Schweizer KI-Unternehmens.`,
     ),
   });
+  if (!startupIsIndexable(row)) {
+    metadata.robots = { index: false, follow: true };
+  }
+  return metadata;
 }
 
 function formatDate(s: string | null): string | null {
