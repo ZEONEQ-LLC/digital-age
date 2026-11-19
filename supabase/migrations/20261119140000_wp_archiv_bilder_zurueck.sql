@@ -34,7 +34,7 @@ insert into wp_archiv_bloecke (slug, pos, block) values
       ('european-ai-act-unternehmen', 3,
        $j${"id": "bl-1784055733142-96", "type": "paragraph", "content": "PDF herunterladen: [What does the European AI Act mean for your business?](/downloads/archiv/What-does-the-European-AI-Act-mean-for-your-business.pdf)"}$j$::jsonb),
       ('4-insights-redesign-banking-ai', 30,
-       $j${"id": "mb1778766904745-29", "type": "paragraph", "content": "Could be also interesting: [Unlocking the Future: Ways AI and Automation Solve Workforce Demographic Challenges](/artikel/embracing-ai-and-automation)"}$j$::jsonb),
+       $j${"id": "mb1778766904745-29", "type": "paragraph", "content": "Could be also interesting: [[embracing-ai-and-automation]](Unlocking the Future: Ways AI and Automation Solve Workforce Demographic Challenges)"}$j$::jsonb),
       ('ki-benchmark', 135,
        $j${"id": "bl-1783429147716-bh", "type": "heading", "level": 2, "content": "Detaillierte Auswertungen und Grundlagen"}$j$::jsonb),
       ('ki-benchmark', 136,
