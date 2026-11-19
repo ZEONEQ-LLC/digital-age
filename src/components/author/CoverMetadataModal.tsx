@@ -250,7 +250,7 @@ export default function CoverMetadataModal({
                         fontFamily: "inherit",
                       }}
                     >
-                      {altGenBusy ? "⏳ Generiere…" : "✨ ALT generieren"}
+                      {altGenBusy ? "Generiere…" : "ALT generieren"}
                     </button>
                   )}
                   <span className="cmm-pflicht">Pflicht beim Publish</span>

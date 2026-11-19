@@ -17,7 +17,7 @@ export default function Page() {
 
       <section style={{ maxWidth: "900px", margin: "0 auto", padding: "64px var(--gutter)" }}>
         <div style={{ textAlign: "center", marginBottom: "48px" }}>
-          <p style={{ color: "var(--da-green)", fontSize: "13px", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "16px" }}>📬 Newsletter</p>
+          <p style={{ color: "var(--da-green)", fontSize: "13px", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "16px" }}>Newsletter</p>
           <h1 style={{ color: "var(--da-text)", fontSize: "clamp(36px, 5vw, 56px)", fontWeight: 700, lineHeight: 1.15, marginBottom: "20px", fontFamily: "var(--da-font-display)" }}>
             KI & Future Tech – <span style={{ color: "var(--da-green)" }}>direkt in deine Inbox.</span>
           </h1>
@@ -29,13 +29,13 @@ export default function Page() {
         {/* Value Props */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "24px", marginBottom: "48px" }}>
           {[
-            { icon: "📰", title: "Top-Artikel", desc: "Die 5 wichtigsten KI-News der Woche auf den Punkt gebracht." },
-            { icon: "🇨🇭", title: "Swiss AI Spotlight", desc: "Ein neues Schweizer KI-Unternehmen pro Ausgabe im Fokus." },
-            { icon: "🎯", title: "Kuratierte Prompts", desc: "Ein getesteter Prompt den du sofort anwenden kannst." },
-            { icon: "💡", title: "Tools & Insights", desc: "Neue Plattformen und praktische Einsichten für den Business-Alltag." },
+            { title: "Top-Artikel", desc: "Die 5 wichtigsten KI-News der Woche auf den Punkt gebracht." },
+            { title: "Swiss AI Spotlight", desc: "Ein neues Schweizer KI-Unternehmen pro Ausgabe im Fokus." },
+            { title: "Kuratierte Prompts", desc: "Ein getesteter Prompt den du sofort anwenden kannst." },
+            { title: "Tools & Insights", desc: "Neue Plattformen und praktische Einsichten für den Business-Alltag." },
           ].map((v, i) => (
             <div key={i} style={{ backgroundColor: "var(--da-card)", border: "1px solid var(--da-border)", borderRadius: "8px", padding: "24px" }}>
-              <div style={{ fontSize: "28px", marginBottom: "12px" }}>{v.icon}</div>
+              <div style={{ color: "var(--da-green)", fontFamily: "var(--da-font-mono)", fontSize: "12px", fontWeight: 700, letterSpacing: "0.08em", marginBottom: "12px" }}>{String(i + 1).padStart(2, "0")}</div>
               <h3 style={{ color: "var(--da-text)", fontSize: "16px", fontWeight: 600, marginBottom: "8px" }}>{v.title}</h3>
               <p style={{ color: "var(--da-muted)", fontSize: "14px", lineHeight: 1.6 }}>{v.desc}</p>
             </div>

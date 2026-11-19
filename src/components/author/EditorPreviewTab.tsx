@@ -12,6 +12,7 @@ import {
   type PreviewViewportId,
 } from "@/lib/articles/preview";
 import EditorPreviewLink from "@/components/author/EditorPreviewLink";
+import ExternalArrow from "@/components/icons/ExternalArrow";
 
 // Tab «Vorschau» im Editor. Zeigt den Beitrag in der echten Ansicht der
 // publizierten Seite: Die Entwurfsseite (/vorschau/artikel/entwurf/<id>) laeuft
@@ -109,7 +110,7 @@ export default function EditorPreviewTab({ articleId, title, isEditor, published
           {dirty ? <>So erscheint der Beitrag, <b>mit den ungespeicherten Änderungen</b></> : "So erscheint der Beitrag (gespeicherter Stand)"}
         </span>
         <a className="epv__open" href={draftPreviewPath(articleId)} target="_blank" rel="noopener">
-          Gespeicherten Stand in neuem Tab öffnen ↗
+          Gespeicherten Stand in neuem Tab öffnen<ExternalArrow />
         </a>
       </div>
 

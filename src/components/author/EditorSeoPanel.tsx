@@ -142,7 +142,7 @@ function AiButton({
         opacity: isDisabled ? (loading ? 0.85 : 0.6) : 1,
       }}
     >
-      {loading ? "⏳" : "✨"} AI
+      {loading ? "AI …" : "AI"}
     </button>
   );
 }
@@ -734,7 +734,7 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
               gap: 8,
             }}
           >
-            {keywordPending ? "⏳ Generiere Keyword-Kandidaten…" : "✨ SEO generieren"}
+            {keywordPending ? "Generiere Keyword-Kandidaten…" : "SEO generieren"}
           </button>
           {keywordError && (
             <p
@@ -814,7 +814,7 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
                 opacity: keywordPending || pipelinePending ? 0.6 : 1,
               }}
             >
-              {keywordPending ? "⏳ Generiere…" : "Alle verwerfen → neue Vorschläge"}
+              {keywordPending ? "Generiere…" : "Alle verwerfen → neue Vorschläge"}
             </button>
             {rejectedKeywords.length > 0 && (
               <span style={{ color: "var(--da-muted-soft)", fontSize: 11, fontFamily: "var(--da-font-mono)" }}>
@@ -835,7 +835,7 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
             fontFamily: "var(--da-font-mono)",
           }}
         >
-          ⏳ Leite SEO-Felder aus dem Keyword ab…
+          Leite SEO-Felder aus dem Keyword ab…
         </p>
       )}
       {pipelineError && !pipelinePending && (
@@ -1134,7 +1134,7 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
               gap: 8,
             }}
           >
-            {reviewPending ? "⏳ Analysiere…" : "✨ Analysieren"}
+            {reviewPending ? "Analysiere…" : "Analysieren"}
           </button>
           {reviewError && (
             <p
@@ -1191,7 +1191,6 @@ const EditorSeoPanel = forwardRef<EditorSeoPanelHandle, EditorSeoPanelProps>(
                   alignItems: "flex-start",
                 }}
               >
-                <span style={{ fontSize: 18, lineHeight: 1.2 }}>✨</span>
                 <p
                   style={{
                     color: "var(--da-text)",

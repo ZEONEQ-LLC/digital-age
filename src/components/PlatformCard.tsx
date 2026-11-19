@@ -18,7 +18,7 @@ export const hostingColor = (h: Hosting): string =>
   h === "CH" ? "var(--da-green)" : h === "EU" ? "var(--da-orange)" : h === "CN" ? "#ff8e8e" : "var(--da-muted-soft)";
 
 export const hostingLabel = (h: Hosting): string =>
-  h === "CH" ? "🇨🇭 Schweiz" : h === "EU" ? "🇪🇺 EU" : h === "CN" ? "🇨🇳 China" : "🌐 USA";
+  h === "CH" ? "Schweiz" : h === "EU" ? "EU" : h === "CN" ? "China" : "USA";
 
 // Hinweis bei Anbietern aus China (Entscheid Ali 13.11.2026: aufnehmen,
 // gekennzeichnet): Daten unterliegen chinesischem Recht.

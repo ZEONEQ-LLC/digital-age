@@ -12,6 +12,7 @@ import {
   type PlatformInput,
 } from "@/lib/platforms/adminActions";
 import { PLATFORM_CATEGORIES, PLATFORM_HOSTINGS } from "@/lib/platforms/research";
+import ExternalArrow from "@/components/icons/ExternalArrow";
 
 export type PlatformAdminView = {
   id: string;
@@ -250,7 +251,7 @@ export default function KiPlattformenAdminClient({ platforms, runs, changes, loa
                     {c.reason && <div className="kp-reason">{c.reason}</div>}
                     {c.sources.length > 0 && (
                       <div className="kp-sources">
-                        {c.sources.map((s) => <a key={s} href={s} target="_blank" rel="noreferrer">{host(s)} ↗</a>)}
+                        {c.sources.map((s) => <a key={s} href={s} target="_blank" rel="noreferrer">{host(s)}<ExternalArrow /></a>)}
                       </div>
                     )}
                   </div>

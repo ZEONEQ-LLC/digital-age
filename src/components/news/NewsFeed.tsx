@@ -24,6 +24,7 @@ import {
   type NewsFilters,
 } from "@/lib/newsFilter";
 import { ASSESSMENT_DIMENSIONS, LEVEL_LABEL, assessmentHighlights, type Assessment } from "@/lib/newsTicker/assessment";
+import ExternalArrow from "@/components/icons/ExternalArrow";
 
 // Meldungen von /news mit Filtern (Newsticker-Stil seit PR 198, Einordnung
 // seit PR 199, Filter seit PR 202). Client-Komponente: Der Server rendert die
@@ -79,6 +80,8 @@ const CSS = `
         .nw-meter i.on { background: var(--da-green); }
         .nw-ass-v { color: var(--da-text-strong); font-size: 12px; white-space: nowrap; }
         .nw-ass-note { color: var(--da-muted-soft); font-size: 12px; margin: 8px 0 0; }
+        .nw-ass-note a { color: var(--da-muted); text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+        .nw-ass-note a:hover { color: var(--da-green); }
 @media (max-width: 640px) {
           .nw-item { grid-template-columns: 46px minmax(0, 1fr); column-gap: 10px; }
           .nw-time { font-size: 14px; }
@@ -318,7 +321,7 @@ export default function NewsFeed({ items, nowIso, intro }: { items: NewsItem[]; 
                   {it.assessment && <AssessmentDetails a={it.assessment} />}
                   <p className="nw-meta">
                     <a className="nw-src" href={it.sourceUrl} target="_blank" rel="noopener noreferrer">
-                      {it.sourceName} ↗
+                      {it.sourceName}<ExternalArrow />
                     </a>
                     {it.category && NEWS_CATEGORY_LABEL[it.category] && (
                       <>
@@ -361,7 +364,10 @@ function AssessmentDetails({ a }: { a: Assessment }) {
           </div>
         ))}
       </div>
-      <p className="nw-ass-note">{a.by === "editor" ? "Von der Redaktion eingeordnet." : "Einschätzung der KI auf Basis der Meldung."}</p>
+      <p className="nw-ass-note">
+        {a.by === "editor" ? "Von der Redaktion eingeordnet." : "Einschätzung der KI auf Basis der Meldung."}{" "}
+        <a href="#einordnung">So ordnen wir ein</a>
+      </p>
     </div>
   );
 }

@@ -64,7 +64,7 @@ export default function CompanyRow({ company, accent = "var(--da-green)" }: Comp
           </div>
         </div>
         <div className="crow__tagline">{company.tagline}</div>
-        <span className="crow__status">🇨🇭 {company.swiss_status_label}</span>
+        <span className="crow__status">{company.swiss_status_label}</span>
         <span className="crow__industry">{company.industry}</span>
         <span className="crow__emp">{company.employee_range_label}</span>
       </Link>

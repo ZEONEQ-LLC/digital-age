@@ -175,7 +175,7 @@ export default function DesignTest() {
           <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--sp-3)", alignItems: "center" }}>
             <button className="da-btn da-btn--primary">Primary CTA</button>
             <button className="da-btn da-btn--secondary">Secondary</button>
-            <button className="da-btn da-btn--ai">✨ AI Action</button>
+            <button className="da-btn da-btn--ai">AI Action</button>
             <button className="da-btn da-btn--ghost">Ghost</button>
             <button className="da-btn da-btn--primary da-btn--sm">Primary · sm</button>
             <button className="da-btn da-btn--secondary da-btn--sm">Secondary · sm</button>

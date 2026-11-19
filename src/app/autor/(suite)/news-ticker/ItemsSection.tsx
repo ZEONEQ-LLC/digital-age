@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { unwrapAction } from "@/lib/actionResult";
 import { resetNewsItemAssessment, saveNewsItemReview, setNewsItemStatus } from "@/lib/newsTickerActions";
 import { ASSESSMENT_DIMENSIONS, IMPORTANCE_LABEL, LEVEL_LABEL, type AssessmentKey, type Importance, type Level } from "@/lib/newsTicker/assessment";
+import ExternalArrow from "@/components/icons/ExternalArrow";
 
 // Abschnitt «Meldungen und Einordnung» (PR 199): die letzten Meldungen mit
 // der Einordnung der KI. Die Redaktion kann sie korrigieren (gilt dann als
@@ -180,7 +181,7 @@ export default function ItemsSection({ items }: { items: AdminNewsItem[] }) {
                   </label>
                   <div className="ni-form__actions">
                     <button type="submit" className="ni-btn" disabled={busy !== null}>{busy === `e-${it.id}` ? "Speichere…" : "Speichern"}</button>
-                    <a href={it.sourceUrl} target="_blank" rel="noopener noreferrer" className="ni-link ni-link--muted">Quelle öffnen ↗</a>
+                    <a href={it.sourceUrl} target="_blank" rel="noopener noreferrer" className="ni-link ni-link--muted">Quelle öffnen<ExternalArrow /></a>
                   </div>
                 </form>
               )}

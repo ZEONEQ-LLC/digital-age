@@ -18,7 +18,7 @@ type Platform = {
 const PLATFORMS: Platform[] = [
   { id: "spotify",       name: "Spotify",         icon: "♫" },
   { id: "applePodcasts", name: "Apple Podcasts",  icon: "◈" },
-  { id: "youtube",       name: "YouTube",         icon: "▶" },
+  { id: "youtube",       name: "YouTube",         icon: "►" },
   { id: "soundcloud",    name: "SoundCloud",      icon: "❯" },
   { id: "audible",       name: "Audible",         icon: "▤" },
 ];

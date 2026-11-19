@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { AuthorChip } from "@/types/authorVM";
+import ExternalArrow from "@/components/icons/ExternalArrow";
 
 type NavItem = { id: string; label: string; href: string; icon: string };
 
@@ -20,18 +21,18 @@ const adminItems: NavItem[] = [
   { id: "admin-freigaben", label: "Freigaben", href: "/autor/freigaben", icon: "✓" },
   { id: "admin-articles", label: "Alle Artikel",   href: "/autor/admin/artikel",     icon: "▦" },
   { id: "admin-pages",   label: "Seiten",        href: "/autor/seiten",            icon: "▢" },
-  { id: "admin-news-ticker", label: "News-Ticker", href: "/autor/news-ticker", icon: "📰" },
+  { id: "admin-news-ticker", label: "News-Ticker", href: "/autor/news-ticker", icon: "▥" },
   { id: "admin-authors", label: "Autoren",      href: "/autor/admin/autoren",     icon: "◌" },
-  { id: "admin-invites", label: "Einladungen",  href: "/autor/admin/einladungen", icon: "✉" },
+  { id: "admin-invites", label: "Einladungen",  href: "/autor/admin/einladungen", icon: "⊕" },
   { id: "admin-prompts",  label: "Prompts Admin",  href: "/autor/admin/prompts",  icon: "❖" },
   { id: "admin-startups", label: "Startups", href: "/autor/admin/startups", icon: "⊞" },
   { id: "admin-plattformen", label: "KI-Plattformen", href: "/autor/admin/ki-plattformen", icon: "◇" },
   { id: "admin-werbung", label: "Werbung", href: "/autor/admin/werbung", icon: "◧" },
   { id: "admin-tags",     label: "Tags",     href: "/autor/admin/tags",     icon: "#" },
-  { id: "admin-newsletter", label: "Newsletter", href: "/autor/admin/newsletter", icon: "✉" },
+  { id: "admin-newsletter", label: "Newsletter", href: "/autor/admin/newsletter", icon: "≡" },
   { id: "admin-nachrichten", label: "Nachrichten", href: "/autor/admin/nachrichten", icon: "✎" },
   { id: "admin-pitches", label: "Pitches", href: "/autor/admin/pitches", icon: "✦" },
-  { id: "admin-ai-config", label: "AI-Konfiguration", href: "/autor/admin/ai-config", icon: "✨" },
+  { id: "admin-ai-config", label: "AI-Konfiguration", href: "/autor/admin/ai-config", icon: "◈" },
 ];
 
 type AuthorSidebarProps = {
@@ -234,7 +235,7 @@ export default function AuthorSidebar({ author }: AuthorSidebarProps) {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <span style={{ fontSize: 11 }}>↗</span> Zur Website
+            Zur Website<ExternalArrow />
           </Link>
         </div>
       </nav>

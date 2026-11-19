@@ -4,6 +4,7 @@ import Link from "next/link";
 import ArticleListRow, { type ListArticle } from "@/components/ArticleListRow";
 import { SWISS_STATUSES } from "@/lib/mappers/startupMappers";
 import { AFFILIATION_LABEL, RULES_PATH } from "@/lib/startupTrust";
+import ExternalArrow from "@/components/icons/ExternalArrow";
 
 // Bausteine der Unternehmensbeitraege (Showcase, S2b). Entscheid Ali
 // 15.11.2026: Variante B «Bühne», ausdruecklich ohne KI-Schablonen-Look.
@@ -130,7 +131,7 @@ export function CompanyAbout({ company }: { company: ShowcaseCompanyView }) {
         </Link>
         {company.website && /^https?:\/\//i.test(company.website) && (
           <a href={company.website} rel="sponsored noopener" target="_blank">
-            Website des Unternehmens <span aria-hidden>↗</span>
+            Website des Unternehmens<ExternalArrow />
           </a>
         )}
       </p>

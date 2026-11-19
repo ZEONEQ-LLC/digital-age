@@ -13,7 +13,7 @@
 //
 // Positionsbasiertes Source-Mapping (Variante A): `[^N]` zeigt auf
 // `sources[N-1]`. Lücken in der Numerierung werden mit Placeholder
-// `{ text: "⚠ Quelle ergänzen" }` aufgefüllt, damit die N-Werte stabil
+// `{ text: "Quelle ergänzen" }` aufgefüllt, damit die N-Werte stabil
 // bleiben und der Autor die Lücken sieht.
 //
 // Idempotenz-Schutz: Wenn keine Sources-Sektion gefunden wurde,
@@ -374,7 +374,7 @@ export function normalizeStarItalics(md: string): string {
 }
 
 // Variante A: sources[]-Länge = max(N), Lücken bekommen den Placeholder
-// "⚠ Quelle ergänzen" (sichtbarer Handlungs-Hinweis im UI). Wenn die Map
+// "Quelle ergänzen" (sichtbarer Handlungs-Hinweis im UI). Wenn die Map
 // leer ist, kommt ein leeres Array raus.
 export function buildSourcesArray(
   sourcesMap: Map<number, { text: string; url?: string }>,
@@ -387,7 +387,7 @@ export function buildSourcesArray(
     if (hit) {
       out.push({ id: newId(n), text: hit.text, ...(hit.url ? { url: hit.url } : {}) });
     } else {
-      out.push({ id: newId(n), text: "⚠ Quelle ergänzen" });
+      out.push({ id: newId(n), text: "Quelle ergänzen" });
     }
   }
   return out;
