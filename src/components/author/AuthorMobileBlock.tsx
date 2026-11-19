@@ -62,7 +62,6 @@ export default function AuthorMobileBlock() {
         }
       `}</style>
       <div className="a-mblock">
-        <div className="a-mblock__icon" aria-hidden>🖥️</div>
         <h1 className="a-mblock__title">
           Autor-Bereich nur auf Tablet oder Desktop
         </h1>

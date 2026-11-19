@@ -85,7 +85,7 @@ export default function SwissAIStrip({ items, href = "/swiss-ai" }: SwissAIStrip
         <header className="swiss-header">
           <div className="swiss-header__title">
             <span className="swiss-header__bar" />
-            <h2 className="swiss-header__h2">🇨🇭 Swiss AI Spotlight</h2>
+            <h2 className="swiss-header__h2">Swiss AI Spotlight</h2>
           </div>
           <Link href={href} className="swiss-header__more">Alle ansehen →</Link>
         </header>
@@ -93,7 +93,7 @@ export default function SwissAIStrip({ items, href = "/swiss-ai" }: SwissAIStrip
         <div className="swiss-strip">
           {items.map((item) => (
             <Link key={item.name} href={item.href ?? href} className="swiss-card">
-              <div className="swiss-card__tag">🇨🇭 {item.statusLabel ?? "Swiss AI"}</div>
+              <div className="swiss-card__tag">{item.statusLabel ?? "Swiss AI"}</div>
               <div className="swiss-card__name">{item.name}</div>
               <div className="swiss-card__meta">{item.industry} · {item.city}</div>
               {item.affiliated && <div className="swiss-card__aff">{AFFILIATION_LABEL}</div>}

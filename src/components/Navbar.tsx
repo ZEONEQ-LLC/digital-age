@@ -67,7 +67,7 @@ export default function Navbar() {
             <Link href="/ki-im-business">KI & Business</Link>
             <Link href="/future-tech">Future Tech</Link>
             <Link href="/news">News</Link>
-            <Link href="/swiss-ai" style={{ color: "var(--da-green)", fontWeight: 600 }}>🇨🇭 Swiss AI</Link>
+            <Link href="/swiss-ai" style={{ color: "var(--da-green)", fontWeight: 600 }}>Swiss AI</Link>
             <div className="nav-dropdown">
               <button className="nav-dropdown-btn" onClick={() => setToolsOpen(!toolsOpen)}>
                 Tools & Ressources
@@ -86,7 +86,7 @@ export default function Navbar() {
             <Link href="/suche" className="nav-search" aria-label="Suche" title="Suche">
               <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="7" strokeWidth={2} /><path strokeLinecap="round" strokeWidth={2} d="M20 20l-3.5-3.5" /></svg>
             </Link>
-            <Link href="/newsletter" style={{ color: "var(--da-text-strong)", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>📬 Newsletter</Link>
+            <Link href="/newsletter" style={{ color: "var(--da-text-strong)", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>Newsletter</Link>
             <Link href="/login" style={{ color: "var(--da-text-strong)", textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>Login</Link>
             <button className="nav-lang">DE / EN</button>
             <Link href="/artikel-pitchen" className="nav-cta">Publizieren</Link>
@@ -125,9 +125,9 @@ export default function Navbar() {
           <Link href="/ki-im-business" style={{ color: "var(--da-text)", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>KI & Business</Link>
           <Link href="/future-tech" style={{ color: "var(--da-text)", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>Future Tech</Link>
           <Link href="/news" style={{ color: "var(--da-text)", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>News</Link>
-          <Link href="/swiss-ai" style={{ color: "var(--da-green)", textDecoration: "none", fontSize: "16px", fontWeight: 600, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>🇨🇭 Swiss AI</Link>
+          <Link href="/swiss-ai" style={{ color: "var(--da-green)", textDecoration: "none", fontSize: "16px", fontWeight: 600, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>Swiss AI</Link>
           <Link href="/login" style={{ color: "var(--da-text)", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>Login</Link>
-          <Link href="/newsletter" style={{ color: "var(--da-text)", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>📬 Newsletter</Link>
+          <Link href="/newsletter" style={{ color: "var(--da-text)", textDecoration: "none", fontSize: "16px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }} onClick={() => setMenuOpen(false)}>Newsletter</Link>
           <span style={{ color: "var(--da-muted)", fontSize: "14px", fontWeight: 500, padding: "14px 0", borderBottom: "1px solid var(--da-card)", display: "block" }}>Tools & Ressources</span>
           <Link href="/ki-plattformen" style={{ color: "var(--da-muted)", fontSize: "13px", padding: "8px 0 8px 12px", display: "block", textDecoration: "none" }} onClick={() => setMenuOpen(false)}>KI-Plattformen</Link>
           <Link href="/ai-prompts" style={{ color: "var(--da-muted)", fontSize: "13px", padding: "8px 0 8px 12px", display: "block", textDecoration: "none" }} onClick={() => setMenuOpen(false)}>GenAI Prompts</Link>

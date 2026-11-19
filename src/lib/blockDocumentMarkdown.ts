@@ -60,7 +60,7 @@ function renderBlock(b: Block): string {
     }
     case "disclaimer": {
       const link = b.linkText && b.linkUrl ? ` → ${b.linkText}` : "";
-      return `> ⚠ ${b.text}${link}`;
+      return `> Hinweis: ${b.text}${link}`;
     }
     case "internalArticleCard":
       return `→ Verwandter Artikel: ${b.cachedTitle} (/artikel/${b.articleSlug})`;

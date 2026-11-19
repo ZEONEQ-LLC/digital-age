@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import ExternalArrow from "@/components/icons/ExternalArrow";
 
 export type TickerItem = {
   id: string;
@@ -249,17 +250,6 @@ export default function NewsTickerClient({ items, speed }: Props) {
                 onClick={() => setSelected(item)}
                 aria-label={`News-Item öffnen: ${item.title}`}
               >
-                <span
-                  style={{
-                    color: "var(--da-purple)",
-                    fontSize: 11,
-                    lineHeight: 1,
-                  }}
-                  title="AI-generiert aus externer Quelle"
-                  aria-hidden
-                >
-                  ✨
-                </span>
                 <span style={{ color: "var(--da-green)", fontWeight: 600, fontSize: "11px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
                   {labelFor(item.category)}
                 </span>
@@ -311,7 +301,6 @@ function NewsItemModal({ item, onClose }: { item: TickerItem; onClose: () => voi
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ color: "var(--da-purple)", fontSize: 14, lineHeight: 1 }} aria-hidden>✨</span>
           <span
             style={{
               color: "var(--da-green)",
@@ -370,7 +359,7 @@ function NewsItemModal({ item, onClose }: { item: TickerItem; onClose: () => voi
               textUnderlineOffset: 3,
             }}
           >
-            Original lesen bei {item.source_name} ↗
+            Original lesen bei {item.source_name}<ExternalArrow />
           </a>
           <button
             type="button"

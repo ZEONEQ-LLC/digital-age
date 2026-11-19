@@ -97,7 +97,7 @@ export default function SettingsSection({ initial }: Props) {
             fontWeight: 600,
           }}
         >
-          ⏸ Ticker ist aktuell pausiert — auf der Public-Seite wird nichts angezeigt, Refresh-Läufe werden übersprungen.
+          Ticker ist aktuell pausiert — auf der Public-Seite wird nichts angezeigt, Refresh-Läufe werden übersprungen.
         </div>
       )}
 

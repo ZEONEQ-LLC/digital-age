@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import RenameTagModal from "@/components/admin/RenameTagModal";
 import MergeTagModal from "@/components/admin/MergeTagModal";
 import DeleteTagModal from "@/components/admin/DeleteTagModal";
+import ExternalArrow from "@/components/icons/ExternalArrow";
 
 export type AdminTagRow = {
   id: string;
@@ -368,8 +369,9 @@ export default function AdminTagsClient({ initialRows }: Props) {
                         href={`/tag/${row.slug}`}
                         target="_blank"
                         className="tags-adm-view"
+                        aria-label={`Tag-Seite ${row.name} öffnen`}
                       >
-                        ↗
+                        <ExternalArrow size="0.9em" />
                       </Link>
                     </td>
                     <td className="tags-adm-td tags-adm-td--slug">{row.slug}</td>

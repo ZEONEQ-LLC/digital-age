@@ -105,7 +105,7 @@ function PreviewCard({ data }: { data: FormData }) {
         <>
           <div className="ein-prev__status">
             <span className="ein-prev__dot" style={{ background: swiss.color }} />
-            <span className="ein-prev__status-text" style={{ color: swiss.color }}>🇨🇭 {swiss.label}</span>
+            <span className="ein-prev__status-text" style={{ color: swiss.color }}>{swiss.label}</span>
           </div>
           <h3 className="ein-prev__name">
             {data.name || <span className="ein-prev__placeholder">Unternehmensname</span>}
@@ -114,7 +114,7 @@ function PreviewCard({ data }: { data: FormData }) {
             {data.tagline || <span className="ein-prev__placeholder">Tagline erscheint hier...</span>}
           </p>
           <div className="ein-prev__meta">
-            {data.city && <span className="ein-prev__chip">📍 {data.city}</span>}
+            {data.city && <span className="ein-prev__chip">{data.city}</span>}
             <span className="ein-prev__chip ein-prev__chip--green">{data.industry}</span>
             <span className="ein-prev__chip ein-prev__chip--mono">
               {EMPLOYEE_RANGES.find((r) => r.code === data.employee_range)?.label} MA
@@ -566,7 +566,7 @@ export default function EinreichenPage() {
                             <label key={s.code} className={`ein-radio${active ? " ein-radio--on" : ""}`} style={{ borderColor: active ? s.color : undefined }}>
                               <input type="radio" name="status" checked={active} onChange={() => update("swiss_status", s.code)} style={{ accentColor: s.color }} />
                               <div>
-                                <div className="ein-radio__name" style={{ color: s.color }}>🇨🇭 {s.label}</div>
+                                <div className="ein-radio__name" style={{ color: s.color }}>{s.label}</div>
                                 <div className="ein-radio__desc">{s.description}</div>
                               </div>
                             </label>

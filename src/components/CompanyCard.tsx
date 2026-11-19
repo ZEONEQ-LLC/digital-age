@@ -95,7 +95,7 @@ export default function CompanyCard({ company, accent = "var(--da-green)" }: Com
           <div>
             <div className="cc__status">
               <span className="cc__status-dot" />
-              <span className="cc__status-text">🇨🇭 {company.swiss_status_label}</span>
+              <span className="cc__status-text">{company.swiss_status_label}</span>
             </div>
             {company.is_open_to_investment && <div className="cc__inv">{INVESTOR_LABEL}</div>}
           </div>
@@ -104,7 +104,7 @@ export default function CompanyCard({ company, accent = "var(--da-green)" }: Com
         <p className="cc__tagline">{company.tagline}</p>
         {company.affiliation_note && <p className="cc__aff" title={company.affiliation_note}>{AFFILIATION_LABEL}</p>}
         <div className="cc__meta">
-          <span className="cc__chip cc__chip--city">📍 {company.city}</span>
+          <span className="cc__chip cc__chip--city">{company.city}</span>
           <span className="cc__chip cc__chip--industry">{company.industry}</span>
           <span className="cc__chip cc__chip--emp">{company.employee_range_label} MA</span>
         </div>

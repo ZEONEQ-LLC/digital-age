@@ -43,7 +43,7 @@ export default function HeroStage({ views, viewId, onView, playing, onTogglePlay
           </div>
           <div className="hs-transport">
             <button type="button" className="hs-icon-btn" aria-label={playing ? "Pause" : "Abspielen"} onClick={onTogglePlay}>
-              <span aria-hidden="true">{playing ? "❚❚" : "▶"}</span>
+              <span aria-hidden="true">{playing ? "❚❚" : "►"}</span>
             </button>
             <input
               type="range" min={0} max={1000} defaultValue={0} ref={scrubRef} aria-label="Position in der Schleife"

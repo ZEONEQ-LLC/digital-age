@@ -90,7 +90,7 @@ export default function RefreshSection({ lastRefreshLabel, lastStats, latestItem
           }}
         >
           {pending
-            ? "⏳ Lade Feeds und generiere Items… (kann 1–2 Minuten dauern)"
+            ? "Lade Feeds und generiere Items… (kann 1–2 Minuten dauern)"
             : "Jetzt aktualisieren"}
         </button>
 
@@ -134,7 +134,7 @@ function StatsBox({ stats, title }: { stats: RefreshStats; title: string }) {
           fontWeight: 600,
         }}
       >
-        ⏸ Ticker ist pausiert — kein Refresh ausgeführt.
+        Ticker ist pausiert — kein Refresh ausgeführt.
       </div>
     );
   }

@@ -280,7 +280,7 @@ export default async function StartupDetailPage({ params }: { params: Params }) 
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="sd-head-meta">
-              <span className="sd-badge sd-badge--swiss">🇨🇭 {swiss.badge}</span>
+              <span className="sd-badge sd-badge--swiss">{swiss.badge}</span>
               {isFeatured && <Link href={`${RULES_PATH}#spotlight`} className="sd-badge sd-badge--feat" title="Was bedeutet Spotlight?">Spotlight</Link>}
               {row.open_to_investment && <Link href={`${RULES_PATH}#investoren`} className="sd-badge sd-badge--inv" title={`Was bedeutet «${INVESTOR_LABEL}»?`}>{INVESTOR_LABEL}</Link>}
             </div>
@@ -312,7 +312,7 @@ export default async function StartupDetailPage({ params }: { params: Params }) 
             </div>
             <div className="sd-fact">
               <p className="sd-fact__label">Sitz</p>
-              <p className="sd-fact__value">📍 {row.city}</p>
+              <p className="sd-fact__value">{row.city}</p>
             </div>
             <div className="sd-fact">
               <p className="sd-fact__label">Gegründet</p>

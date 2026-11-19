@@ -1969,7 +1969,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
                   marginBottom: 14,
                 }}
               >
-                ⏳ Generiere Highlight-Vorschläge…
+                Generiere Highlight-Vorschläge…
               </div>
             )}
             {highlightError && (
@@ -2005,7 +2005,7 @@ export default function EditorClient({ article, revisions, categories, isEditor,
                 role="status"
                 style={{ color: "var(--da-muted)", fontFamily: "var(--da-font-mono)", fontSize: 13, marginBottom: 14 }}
               >
-                ⏳ Generiere Bild-ALT-Texte…
+                Generiere Bild-ALT-Texte…
               </div>
             )}
             {imageAltNotice && !imageAltBusy && (

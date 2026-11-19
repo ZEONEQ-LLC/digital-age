@@ -598,15 +598,16 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
                   <span
                     className="tiptap-button-icon"
                     style={{
-                      fontSize: 14,
+                      fontSize: 11,
+                      fontWeight: 700,
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      width: 18,
+                      minWidth: 18,
                       height: 18,
                     }}
                   >
-                    ✨
+                    AI
                   </span>
                 </Button>
               )}
@@ -621,15 +622,16 @@ const TiptapBodyEditor = forwardRef<TiptapBodyEditorHandle, Props>(
                   <span
                     className="tiptap-button-icon"
                     style={{
-                      fontSize: 14,
+                      fontSize: 11,
+                      fontWeight: 700,
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      width: 18,
+                      minWidth: 18,
                       height: 18,
                     }}
                   >
-                    🖼
+                    ALT
                   </span>
                 </Button>
               )}
