@@ -1695,6 +1695,15 @@ die sich per Daten-Migration erledigen lassen
   Umzugsskript (Phase 8e) suchte nur `https://`-Adressen. Im Web-Archiv liegen
   sie nicht. Die entfernten Bloecke stehen in
   `claude code workresults/PR211-entfernte-bloecke.json`.
+  **PR 220:** Aus dem WordPress-Backup (`migration/wp-content-uploads/`, lokal,
+  nicht im Repo) sind die neun Bilder und vier Downloads zurueck. Die Dateien
+  liegen statisch unter `public/images/archiv/` und `public/downloads/archiv/`
+  (relative URLs in `body_blocks`; ein Storage-Upload braeuchte den
+  Service-Role-Key). Bilder sind auf 16:9 gepolstert, weil der Bildblock
+  `object-fit: cover` in 16:9 zeigt; die hochformatige Wertschoepfungskette
+  ist in zwei Spalten gesetzt. Die drei `blob:`-Bilder fehlen auch im Backup.
+  `Testing-2.0.pdf` (agentic-ai-in-banking) bleibt draussen: Es enthaelt die
+  Privatadresse des Autors.
 - **Tote Datei-Links** (PDF, XLSX, JPEG aus WordPress) entfernt bzw. entlinkt;
   **rohe Adressen** frueher eingebetteter Player (SoundCloud, Vimeo) sind jetzt
   Links.
