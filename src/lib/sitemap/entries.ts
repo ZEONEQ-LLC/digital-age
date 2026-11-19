@@ -3,6 +3,7 @@ import type { MetadataRoute } from "next";
 import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getBaseUrl } from "@/lib/siteUrl";
 import { tagIsIndexable } from "@/lib/tagIndex";
+import { startupIsIndexable } from "@/lib/startupIndex";
 import type { Database } from "@/lib/database.types";
 
 // Eintraege der Sitemap. Ausgeliefert wird sie von der Route
@@ -320,16 +321,18 @@ async function fetchStartupEntries(
 ): Promise<MetadataRoute.Sitemap> {
   // /swiss-ai/<slug>. RLS lässt anon nur published+featured durch
   // (siehe ai_startups_public_read).
+  // Nur ausgebaute, bestaetigte Eintraege (startupIsIndexable), gleiche
+  // Regel wie das robots-Meta auf der Detailseite.
   try {
     const { data, error } = await supabase
       .from("ai_startups")
-      .select("slug, updated_at, status")
+      .select("slug, updated_at, status, verified_at, description")
       .in("status", ["published", "featured"]);
     if (error) {
       console.error("[sitemap] startups error:", error.message);
       return [];
     }
-    return (data ?? []).map((s) => ({
+    return (data ?? []).filter(startupIsIndexable).map((s) => ({
       url: `${base}/swiss-ai/${s.slug}`,
       lastModified: s.updated_at ? new Date(s.updated_at) : undefined,
       changeFrequency: "monthly" as const,
