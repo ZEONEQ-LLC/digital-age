@@ -1167,6 +1167,7 @@ export type Database = {
           src_search: number
           src_social: number
           views: number
+          website_clicks: number
         }
         Insert: {
           article_id: string
@@ -1187,6 +1188,7 @@ export type Database = {
           src_search?: number
           src_social?: number
           views?: number
+          website_clicks?: number
         }
         Update: {
           article_id?: string
@@ -1207,6 +1209,7 @@ export type Database = {
           src_search?: number
           src_social?: number
           views?: number
+          website_clicks?: number
         }
         Relationships: [
           {
@@ -2234,6 +2237,7 @@ export type Database = {
           invited_by: string | null
           invitee_email: string | null
           invitee_name: string | null
+          kit_token: string
           linkedin_texts: Json
           links: Json
           logo_applied_at: string | null
@@ -2244,6 +2248,7 @@ export type Database = {
           profile_changes: Json
           reminded_at: string | null
           reply_by: string | null
+          report_sent_at: string | null
           startup_id: string
           status: string
           submitted_at: string | null
@@ -2272,6 +2277,7 @@ export type Database = {
           invited_by?: string | null
           invitee_email?: string | null
           invitee_name?: string | null
+          kit_token?: string
           linkedin_texts?: Json
           links?: Json
           logo_applied_at?: string | null
@@ -2282,6 +2288,7 @@ export type Database = {
           profile_changes?: Json
           reminded_at?: string | null
           reply_by?: string | null
+          report_sent_at?: string | null
           startup_id: string
           status?: string
           submitted_at?: string | null
@@ -2310,6 +2317,7 @@ export type Database = {
           invited_by?: string | null
           invitee_email?: string | null
           invitee_name?: string | null
+          kit_token?: string
           linkedin_texts?: Json
           links?: Json
           logo_applied_at?: string | null
@@ -2320,6 +2328,7 @@ export type Database = {
           profile_changes?: Json
           reminded_at?: string | null
           reply_by?: string | null
+          report_sent_at?: string | null
           startup_id?: string
           status?: string
           submitted_at?: string | null

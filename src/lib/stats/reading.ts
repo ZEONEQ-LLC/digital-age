@@ -25,7 +25,7 @@ export type DepthMark = (typeof DEPTH_MARKS)[number];
 export const READ_SOURCES = ["search", "social", "mail", "ai", "internal", "direct", "other"] as const;
 export type ReadSource = (typeof READ_SOURCES)[number];
 
-export const READ_ACTIONS = ["share", "listen"] as const;
+export const READ_ACTIONS = ["share", "listen", "website"] as const;
 export type ReadAction = (typeof READ_ACTIONS)[number];
 
 // Eine Meldung deckt hoechstens eine Viertelstunde ab (die RPC begrenzt gleich).

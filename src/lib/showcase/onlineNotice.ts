@@ -5,6 +5,7 @@ import type { Database } from "@/lib/database.types";
 import { SITE_URL } from "@/lib/newsletter/mail";
 import { showcaseShareUrl } from "@/lib/showcase/draft";
 import { sendShowcaseOnlineMail } from "@/lib/showcase/mail";
+import { kitUrl } from "@/lib/showcase/kit";
 import { firstName } from "@/lib/showcase/questionnaire";
 
 // Showcase S3b: «Beitrag ist online» an das Unternehmen, einmal beim ersten
@@ -19,7 +20,7 @@ export async function sendShowcaseOnlineNotice(
 ): Promise<boolean> {
   const { data: sub, error } = await supabase
     .from("showcase_submissions")
-    .select("id, contact_name, contact_email, linkedin_texts, online_sent_at")
+    .select("id, contact_name, contact_email, linkedin_texts, online_sent_at, kit_token")
     .eq("article_id", article.id)
     .maybeSingle();
   if (error) {
@@ -40,6 +41,7 @@ export async function sendShowcaseOnlineNotice(
     shareUrl: showcaseShareUrl(SITE_URL, article.slug),
     profileUrl: startup ? `${SITE_URL}/swiss-ai/${startup.slug}` : `${SITE_URL}/swiss-ai`,
     linkedin,
+    kitUrl: kitUrl(SITE_URL, sub.kit_token),
   });
   if (!sent.ok) {
     console.error("[showcase:online] Mail nicht versandt:", sent.error);

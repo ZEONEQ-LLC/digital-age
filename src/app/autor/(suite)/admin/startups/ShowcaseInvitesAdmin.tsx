@@ -15,6 +15,7 @@ import {
 } from "@/lib/showcase/adminActions";
 import { createShowcaseDraft, sendShowcaseDraftReady } from "@/lib/showcase/draftActions";
 import type { AdminSubmission, InvitableStartup } from "@/lib/showcase/inviteApi";
+import { KIT_PATH } from "@/lib/showcase/kit";
 import {
   PROFILE_LABELS,
   QUESTIONS,
@@ -570,7 +571,9 @@ function DraftBlock({
           Publiziert am {dayTime(d.publishedAt)}.{" "}
           {s.online_sent_at
             ? `«Beitrag ist online» mit den Texten zum Teilen ging am ${dayTime(s.online_sent_at)} an ${s.contact_email}.`
-            : "Die Mail «Beitrag ist online» ist nicht verschickt worden."}
+            : "Die Mail «Beitrag ist online» ist nicht verschickt worden."}{" "}
+          <a href={`${KIT_PATH}/${s.kit_token}`} target="_blank" rel="noopener">Teilen-Paket öffnen</a>
+          {s.report_sent_at ? ` · Bericht nach 30 Tagen versandt am ${dayTime(s.report_sent_at)}.` : ""}
         </p>
       ) : a.kind === "approved" ? (
         <p className={`sia-state-line ${a.stale ? "sia-state-line--warn" : "sia-state-line--ok"}`}>

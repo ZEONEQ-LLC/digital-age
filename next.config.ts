@@ -22,6 +22,11 @@ type RedirectEntry = {
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["claude-box.orb.local"],
+  // Teilen-Bild der Showcase-Beitraege liest Schriften und Logo per readFile
+  // (Showcase S4); ausdruecklich mitliefern, damit die Funktion sie findet.
+  outputFileTracingIncludes: {
+    "/showcase/[slug]/teilen-bild": ["./assets/fonts/*.ttf", "./public/images/digital age Logo green dark bg.png", "./public/images/startups/**"],
+  },
   env: {
     NEXT_PUBLIC_APP_VERSION: packageJson.version,
     NEXT_PUBLIC_BUILD_TIME: buildTime,
