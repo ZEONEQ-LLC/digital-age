@@ -4,6 +4,7 @@ import PageTitle from "@/components/author/PageTitle";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_COVER_URL } from "@/lib/coverImage";
 import { loadAdCandidates } from "@/lib/newsletter/adsApi";
+import { loadShowcaseCandidates } from "@/lib/newsletter/showcaseApi";
 import { getAuthorSubscriberCounts } from "@/lib/newsletter/authorSubscribers";
 import { isIssueStatus, sanitizeItems, sanitizeSections, type IssueItem } from "@/lib/newsletter/issue";
 import {
@@ -24,7 +25,8 @@ import NewsletterIssuesClient, { type AdCandidateView, type IssueView, type News
 // Server-Teil: offene Ausgabe, Verlauf, Zahl der bestaetigten Abonnenten und
 // Kandidaten fuer «Artikel hinzufuegen» sowie (PR 203) fuer die Rubriken:
 // News der letzten 21 Tage (nach Einordnung), Prompts und Podcasts, seit
-// PR 214 auch die Kampagnen fuer «Anzeigen» (adsApi.ts). Editor-Gate ueber
+// PR 214 auch die Kampagnen fuer «Anzeigen» (adsApi.ts), seit Showcase S4b
+// die publizierten Unternehmensbeitraege (showcaseApi.ts). Editor-Gate ueber
 // das Admin-Layout, RLS (newsletter_issues_editor_*) zusaetzlich.
 
 export const dynamic = "force-dynamic";
@@ -61,7 +63,7 @@ function shortDate(iso: string): string {
 export default async function NewsletterIssuesPage() {
   const supabase = await createClient();
   const since = candidatesSince();
-  const [{ data: issues, error }, { count: confirmed }, { data: recent }, { data: newsData }, { data: promptData }, { data: podcastData }, adRows] = await Promise.all([
+  const [{ data: issues, error }, { count: confirmed }, { data: recent }, { data: newsData }, { data: promptData }, { data: podcastData }, adRows, showcaseCandidates] = await Promise.all([
     supabase.from("newsletter_issues").select("*").neq("status", "discarded").order("created_at", { ascending: false }).limit(30),
     supabase.from("newsletter_subscribers").select("id", { count: "exact", head: true }).eq("status", "confirmed"),
     // Kandidaten: nur redaktionelle Artikel.
@@ -81,6 +83,7 @@ export default async function NewsletterIssuesPage() {
     supabase.from("podcasts").select(PODCAST_SELECT).eq("is_published", true)
       .order("recommended_at", { ascending: false }).limit(40),
     loadAdCandidates(supabase),
+    loadShowcaseCandidates(supabase),
   ]);
   // Autorinnen und Autoren mit Konto bekommen den Newsletter automatisch
   // (PR 214). Eingetragen wird beim Erstellen eines Entwurfs und vor dem Versand.
@@ -160,6 +163,7 @@ export default async function NewsletterIssuesPage() {
           promptCandidates={promptCandidates}
           podcastCandidates={podcastCandidates}
           adCandidates={adCandidates}
+          showcaseCandidates={showcaseCandidates}
         />
       )}
     </>

@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { render } from "@react-email/render";
 import { Resend } from "resend";
 import NewsletterIssue from "@/emails/NewsletterIssue";
+import { resolveShowcase } from "@/lib/newsletter/showcaseApi";
 import { resolveAds } from "@/lib/newsletter/adsApi";
 import { adClickUrl } from "@/lib/newsletter/adToken";
 import { syncAuthorSubscribers } from "@/lib/newsletter/authorSubscribers";
@@ -101,8 +102,10 @@ export async function sendIssueTest(issueId: string, to: string): Promise<{ ok: 
   const issue = data as IssueRow;
   const items = sanitizeItems(issue.items);
   const stored = sanitizeSections(issue.sections);
-  // Anzeigen im Test mit dem aktuellen Stand der Kampagnen, ohne Zaehl-Link.
-  const sections = { ...stored, ads: (await resolveAds(svc, stored.ads)).ads };
+  // Anzeigen im Test mit dem aktuellen Stand der Kampagnen, ohne Zaehl-Link;
+  // «Aus dem Showcase» mit dem aktuellen Stand der Artikel.
+  const [testAds, testShowcase] = await Promise.all([resolveAds(svc, stored.ads), resolveShowcase(svc, stored.showcase)]);
+  const sections = { ...stored, showcase: testShowcase.entries, ads: testAds.ads };
   try {
     const html = personalize(await renderIssueHtml({ subject: issue.subject, intro: issue.intro, items, sections }, { date: new Date(), test: true }), "test");
     const res = await s.resend.emails.send({ from: s.from, replyTo: s.replyTo, to, subject: `[Test] ${issue.subject}`, html });
@@ -152,6 +155,19 @@ export async function sendIssueToSubscribers(issueId: string, editorId: string):
         };
       }
       sections = { ...sections, ads: resolved.ads };
+    }
+    // «Aus dem Showcase»: nur publizierte Unternehmensbeitraege, Kennzeichnung
+    // aus dem Artikel. Ist einer zurueckgezogen, startet der Versand nicht.
+    if (sections.showcase.length > 0) {
+      const resolved = await resolveShowcase(svc, sections.showcase);
+      if (resolved.missing.length > 0) {
+        const names = resolved.missing.map((e) => `«${e.title}»`).join(", ");
+        return {
+          ok: false,
+          error: `Der Showcase-Beitrag ${names} ist nicht mehr publiziert. Bitte im Entwurf entfernen und erneut senden.`,
+        };
+      }
+      sections = { ...sections, showcase: resolved.entries };
     }
     // Status zuerst (nur aus draft): Ein zweiter Klick findet «sending» und setzt fort.
     startedAt = new Date();

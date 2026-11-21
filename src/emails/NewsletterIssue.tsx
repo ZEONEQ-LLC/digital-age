@@ -8,12 +8,14 @@ import {
   hasSections,
   trackedArticleUrl,
   trackedNewsUrl,
+  trackedShowcaseUrl,
   trackedUrl,
   type IssueItem,
   type IssuePick,
   type IssueSections,
   type UtmContent,
 } from "@/lib/newsletter/issue";
+import { showcaseLine, type IssueShowcase } from "@/lib/newsletter/showcase";
 
 // Woechentlicher Newsletter (PR 195): Einleitung, dann pro Artikel Bild,
 // Rubrik, Titel, Kurztext und Link (mit UTM fuer GA4). Seit PR 203 danach die
@@ -155,6 +157,41 @@ function AdBlock({ ad, href }: { ad: IssueAd; href: string }) {
           <More href={href}>{ad.cta || "Mehr erfahren"} →</More>
         </>
       )}
+    </Section>
+  );
+}
+
+// Showcase: gerahmt (Anzeigen haben Hintergrund, Redaktion nichts), Kopf und
+// Hinweis innerhalb des Rahmens, damit die Kennzeichnung beim Eintrag bleibt.
+function ShowcaseBlock({ entries, siteUrl, campaign }: { entries: IssueShowcase[]; siteUrl: string; campaign: string }) {
+  return (
+    <Section className="showcase-box" style={{ border: "1px solid #d4d4d8", borderRadius: 6, margin: "40px 0 0", padding: "20px 18px 22px" }}>
+      <h2 className="heading" style={{ color: TEXT, fontFamily: FONT_DISPLAY, fontSize: 19, fontWeight: 700, lineHeight: 1.3, margin: "0 0 4px", letterSpacing: "-0.01em" }}>
+        Aus dem Showcase
+      </h2>
+      <p className="text-muted" style={{ color: MUTED, fontFamily: FONT_BODY, fontSize: 13, lineHeight: 1.5, margin: 0 }}>
+        Beiträge von Unternehmen aus dem Swiss-AI-Verzeichnis, als solche gekennzeichnet. Kein redaktioneller Inhalt.
+      </p>
+      {entries.map((e, i) => {
+        const href = trackedShowcaseUrl(siteUrl, e.slug, campaign);
+        return (
+          <Section
+            key={e.articleId}
+            className={i > 0 ? "divider" : undefined}
+            style={{ margin: "18px 0 0", padding: i > 0 ? "18px 0 0" : 0, borderTop: i > 0 ? "1px solid #e4e4e7" : "none" }}
+          >
+            <p
+              className="text-muted"
+              style={{ color: MUTED, fontFamily: FONT_MONO, fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", margin: "0 0 8px" }}
+            >
+              {showcaseLine(e)}
+            </p>
+            <EntryTitle href={href}>{e.title}</EntryTitle>
+            <Body>{e.teaser}</Body>
+            <More href={href}>Zum Beitrag →</More>
+          </Section>
+        );
+      })}
     </Section>
   );
 }
@@ -322,6 +359,8 @@ export default function NewsletterIssue(p: NewsletterIssueProps) {
           {adsAfter(i)}
         </Fragment>
       ))}
+
+      {s.showcase.length > 0 && <ShowcaseBlock entries={s.showcase} siteUrl={p.siteUrl} campaign={p.campaign} />}
 
       <Section style={{ margin: "40px 0 0" }}>
         <Paragraph muted small>

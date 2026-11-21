@@ -23,6 +23,7 @@ import {
   type IssueSections,
   type IssueStatus,
 } from "@/lib/newsletter/issue";
+import { MAX_SHOWCASE, SHOWCASE_TEASER_MAX, showcaseLine, type IssueShowcase } from "@/lib/newsletter/showcase";
 import {
   createIssueNow,
   discardIssue,
@@ -37,8 +38,11 @@ import {
 // Rubriken News, Hype-Check, Prompt der Woche und Podcast-Tipp (je
 // bearbeiten, entfernen, aus einer Liste waehlen). Seit PR 214 mit «Anzeigen»:
 // laufende Kampagnen der Werbepartner, vorgeschlagen oder von Hand gewaehlt.
+// Seit Showcase S4b mit «Aus dem Showcase»: publizierte Unternehmensbeitraege,
+// hoechstens zwei, Kennzeichnung und Firma kommen beim Speichern vom Server.
 
 export type NewsCandidate = IssueNews & { date: string; importance: number | null };
+export type ShowcaseCandidate = IssueShowcase & { date: string };
 
 export type IssueView = {
   id: string;
@@ -80,6 +84,7 @@ type Candidates = {
   promptCandidates: IssuePick[];
   podcastCandidates: IssuePick[];
   adCandidates: AdCandidateView[];
+  showcaseCandidates: ShowcaseCandidate[];
 };
 
 type Props = Candidates & { issues: IssueView[]; confirmedCount: number };
@@ -298,7 +303,7 @@ function adOption(c: AdCandidateView): { value: string; text: string } {
   return { value: c.ad.campaignId, text: `${who} · ${c.ad.name} (${flags})` };
 }
 
-function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandidates, podcastCandidates, adCandidates, onPreview }: Candidates & {
+function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandidates, podcastCandidates, adCandidates, showcaseCandidates, onPreview }: Candidates & {
   issue: IssueView;
   confirmedCount: number;
   onPreview: (html: string, title: string) => void;
@@ -330,7 +335,22 @@ function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandi
     ...(sections.hype && endsCutOff(sections.hype.text) ? ["Hype-Check"] : []),
     ...(sections.prompt && endsCutOff(sections.prompt.teaser) ? ["Prompt der Woche"] : []),
     ...(sections.podcast && endsCutOff(sections.podcast.teaser) ? ["Podcast-Tipp"] : []),
+    ...sections.showcase.filter((e) => endsCutOff(e.teaser)).map((e) => `«${e.title}» (Aus dem Showcase)`),
   ];
+
+  const showcaseOptions = showcaseCandidates
+    .filter((c) => !sections.showcase.some((e) => e.articleId === c.articleId))
+    .map((c) => ({ value: c.articleId, text: `${c.company} · ${c.title} (${[c.label, c.date].filter(Boolean).join(", ")})` }));
+
+  function moveShowcase(index: number, delta: -1 | 1) {
+    setSections((s) => {
+      const target = index + delta;
+      if (target < 0 || target >= s.showcase.length) return s;
+      const showcase = [...s.showcase];
+      [showcase[index], showcase[target]] = [showcase[target], showcase[index]];
+      return { ...s, showcase };
+    });
+  }
 
   const adOptions = adCandidates.filter((c) => !sections.ads.some((a) => a.campaignId === c.ad.campaignId)).map(adOption);
 
@@ -372,19 +392,24 @@ function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandi
   }
 
   // Meldung nach dem Speichern. Eine Anzeige, deren Kampagne nicht mehr live
-  // ist oder kein passendes Motiv mehr hat, nimmt der Server heraus.
-  function savedText(dropped: number): string {
-    if (dropped === 0) return "Gespeichert.";
-    return dropped === 1
-      ? "Gespeichert. Eine Anzeige ist nicht mehr verfügbar und wurde entfernt."
-      : `Gespeichert. ${dropped} Anzeigen sind nicht mehr verfügbar und wurden entfernt.`;
+  // ist oder kein passendes Motiv mehr hat, nimmt der Server heraus; ebenso
+  // einen Showcase-Beitrag, der nicht mehr publiziert ist.
+  type Dropped = { droppedAds: number; droppedShowcase: number };
+  function savedText({ droppedAds, droppedShowcase }: Dropped): string {
+    const parts: string[] = [];
+    if (droppedAds > 0) {
+      parts.push(droppedAds === 1 ? "Eine Anzeige ist nicht mehr verfügbar und wurde entfernt." : `${droppedAds} Anzeigen sind nicht mehr verfügbar und wurden entfernt.`);
+    }
+    if (droppedShowcase > 0) {
+      parts.push(droppedShowcase === 1 ? "Ein Showcase-Beitrag ist nicht mehr publiziert und wurde entfernt." : `${droppedShowcase} Showcase-Beiträge sind nicht mehr publiziert und wurden entfernt.`);
+    }
+    return ["Gespeichert.", ...parts].join(" ");
   }
 
-  // Speichert, falls noetig. Rueckgabe: Anzahl Anzeigen, die der Server dabei
-  // herausgenommen hat.
-  async function saveIfDirty(): Promise<number> {
-    if (!dirty) return 0;
-    return unwrapAction(await saveIssue(issue.id, patch)).droppedAds;
+  // Speichert, falls noetig. Rueckgabe: was der Server dabei herausgenommen hat.
+  async function saveIfDirty(): Promise<Dropped> {
+    if (!dirty) return { droppedAds: 0, droppedShowcase: 0 };
+    return unwrapAction(await saveIssue(issue.id, patch));
   }
 
   function move(index: number, delta: -1 | 1) {
@@ -601,6 +626,62 @@ function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandi
       />
 
       <div className="nl-field nl-sec">
+        <span className="nl-label">Aus dem Showcase ({sections.showcase.length}/{MAX_SHOWCASE})</span>
+        <p className="nl-sec-hint">
+          Publizierte Unternehmensbeiträge, in der Mail als eigener, gerahmter Block am Ende. Nie unter «Neu auf digital age».
+          Kennzeichnung und Firma kommen aus dem Beitrag. Vorgeschlagen werden die seit der letzten Ausgabe erschienenen.
+        </p>
+        <div className="nl-items">
+          {sections.showcase.length === 0 && <p className="nl-empty">Kein Showcase-Beitrag. Der Block erscheint nicht im Newsletter.</p>}
+          {sections.showcase.map((e, i) => (
+            <div key={e.articleId} className="nl-item nl-item--text">
+              <div>
+                <div className="nl-item-meta">{showcaseLine(e)}</div>
+                <a className="nl-item-title" href={`/showcase/${e.slug}`} target="_blank" rel="noopener">{e.title}</a>
+                <label className="nl-label" style={smallLabel}>
+                  <span>Kurztext</span>
+                  <Counter value={e.teaser} max={SHOWCASE_TEASER_MAX} />
+                </label>
+                <textarea
+                  className="nl-textarea"
+                  rows={2}
+                  aria-label={`Kurztext zu ${e.title}`}
+                  value={e.teaser}
+                  disabled={locked}
+                  onChange={(ev) => setSections((s) => ({ ...s, showcase: s.showcase.map((x, j) => (j === i ? { ...x, teaser: ev.target.value } : x)) }))}
+                />
+              </div>
+              <Tools
+                index={i}
+                count={sections.showcase.length}
+                locked={locked}
+                label={e.title}
+                onMove={moveShowcase}
+                onRemove={() => setSections((s) => ({ ...s, showcase: s.showcase.filter((x) => x.articleId !== e.articleId) }))}
+              />
+            </div>
+          ))}
+        </div>
+        {!sending && sections.showcase.length < MAX_SHOWCASE && (
+          <AddRow
+            label="Showcase-Beitrag hinzufügen"
+            placeholder="Publizierten Unternehmensbeitrag hinzufügen …"
+            empty="Keine weiteren publizierten Unternehmensbeiträge"
+            options={showcaseOptions}
+            locked={locked}
+            button="Hinzufügen"
+            onAdd={(id) => {
+              const c = showcaseCandidates.find((x) => x.articleId === id);
+              if (c) {
+                const entry: IssueShowcase = { articleId: c.articleId, slug: c.slug, title: c.title, teaser: c.teaser, company: c.company, label: c.label };
+                setSections((s) => ({ ...s, showcase: [...s.showcase, entry] }));
+              }
+            }}
+          />
+        )}
+      </div>
+
+      <div className="nl-field nl-sec">
         <span className="nl-label">Anzeigen ({sections.ads.length}/{MAX_ADS})</span>
         <p className="nl-sec-hint">
           Stehen zwischen den Rubriken, gekennzeichnet als «Anzeige»: die erste nach dem ersten Block, die zweite weiter unten.
@@ -668,7 +749,7 @@ function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandi
           </button>
         ) : (
           <>
-            <button type="button" className="nl-btn" disabled={locked || !dirty} onClick={() => run(async () => savedText(unwrapAction(await saveIssue(issue.id, patch)).droppedAds))}>
+            <button type="button" className="nl-btn" disabled={locked || !dirty} onClick={() => run(async () => savedText(unwrapAction(await saveIssue(issue.id, patch))))}>
               {dirty ? "Speichern" : "Gespeichert"}
             </button>
             <button
@@ -713,9 +794,13 @@ function Editor({ issue, confirmedCount, candidates, newsCandidates, promptCandi
                 const noTest = issue.testSentAt ? "" : "\n\nHinweis: Für diesen Entwurf wurde noch kein Test verschickt.";
                 if (!confirm(`Newsletter «${subject.trim()}» jetzt an ${confirmedCount} Empfänger:innen senden (Abonnent:innen sowie Autorinnen und Autoren)? Das lässt sich nicht zurücknehmen.${noTest}`)) return;
                 run(async () => {
-                  // Faellt beim Speichern eine Anzeige weg, wird nicht still ohne sie versendet.
-                  if ((await saveIfDirty()) > 0) {
+                  // Faellt beim Speichern etwas weg, wird nicht still ohne es versendet.
+                  const dropped = await saveIfDirty();
+                  if (dropped.droppedAds > 0) {
                     throw new Error("Nicht gesendet: Eine Anzeige ist nicht mehr verfügbar und wurde aus dem Entwurf genommen. Bitte den Entwurf ansehen und nochmals senden.");
+                  }
+                  if (dropped.droppedShowcase > 0) {
+                    throw new Error("Nicht gesendet: Ein Showcase-Beitrag ist nicht mehr publiziert und wurde aus dem Entwurf genommen. Bitte den Entwurf ansehen und nochmals senden.");
                   }
                   return unwrapAction(await sendIssueNow(issue.id)).message;
                 });
@@ -814,6 +899,7 @@ export default function NewsletterIssuesClient({ issues, confirmedCount, ...list
                     <td>{i.subject}</td>
                     <td className="nl-num">
                       {i.items.length} Artikel{i.sections.news.length > 0 ? ` · ${i.sections.news.length} News` : ""}
+                      {i.sections.showcase.length > 0 ? ` · ${i.sections.showcase.length} Showcase` : ""}
                       {i.sections.ads.length > 0 ? ` · ${i.sections.ads.length} ${i.sections.ads.length === 1 ? "Anzeige" : "Anzeigen"}` : ""}
                     </td>
                     <td className="nl-num">{i.recipients ?? "—"}</td>

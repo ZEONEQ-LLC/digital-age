@@ -1465,7 +1465,31 @@ Teilen und Zahlen nach 30 Tagen. Regeln rein und getestet in
   haben weder Paket noch Bericht.
 - Datenschutzerklaerung: Absatz `bl-lesestatistik-2026-11` nennt die
   Website-Klicks und die Weitergabe der Summen an das Unternehmen.
-- Noch offen aus S4: Rubrik «Aus dem Showcase» im Newsletter (eigener PR).
+- Die Newsletter-Rubrik kam als S4b (unten).
+
+### Showcase S4b: Rubrik «Aus dem Showcase» im Newsletter
+
+Unternehmensbeitraege stehen nie unter «Neu auf digital age» (dort nur
+`editorialOnly`), sondern in einem eigenen Block am Ende der Mail, hoechstens
+zwei (`MAX_SHOWCASE`, Uebergabe 4.5 / E2).
+
+- **Daten:** `newsletter_issues.sections.showcase` (jsonb, keine Migration),
+  Typ `IssueShowcase` in `src/lib/newsletter/showcase.ts` (rein, Test
+  `__tests__/showcase.manual.ts`). Ohne Firma oder gueltige Kennzeichnung
+  faellt ein Eintrag weg.
+- **Server baut den Eintrag** (`showcaseApi.ts`, wie die Anzeigen): Titel,
+  Slug, Firma (`ai_startups.name`) und Kennzeichnung (`contentTypeLabel`,
+  «Unternehmensbeitrag» oder «Publireportage») kommen beim Speichern, in
+  Vorschau, Test und Versand immer aus dem Artikel. Vom Browser zaehlen nur
+  Auswahl, Reihenfolge und Kurztext.
+- **Entwurfs-Job** schlaegt die im Zeitraum publizierten Unternehmensbeitraege
+  vor (neueste zuerst). Kurztext-Ersatz: Abstract, am Satzende gekuerzt.
+- **Versand** bricht ab, wenn ein Eintrag nicht mehr publiziert ist (keine
+  stille Ausgabe ohne ihn); Speichern nimmt ihn heraus und meldet es.
+- **Mail:** gerahmter Block (Anzeigen haben Hintergrund, Redaktion nichts),
+  Kopf «Aus dem Showcase» mit Hinweis «Kein redaktioneller Inhalt», pro
+  Eintrag die Zeile «Unternehmensbeitrag von …». Link auf `/showcase/<slug>`
+  mit `utm_content=showcase`.
 
 ### Showcase S3b: Entwurf aus dem Fragebogen, Freigabe (PR 214)
 

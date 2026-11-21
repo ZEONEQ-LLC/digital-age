@@ -13,6 +13,7 @@ export type IssueItem = {
 };
 
 import { sanitizeAds, type IssueAd } from "@/lib/newsletter/ads";
+import { sanitizeShowcase, type IssueShowcase } from "@/lib/newsletter/showcase";
 
 // Rubriken neben den Artikeln (Wunsch Ali 13.11.2026, PR 203), gespeichert in
 // newsletter_issues.sections. Jede Rubrik ist im Entwurf editierbar und
@@ -49,12 +50,16 @@ export type IssueSections = {
   hype: IssueHype | null;
   prompt: IssuePick | null;
   podcast: IssuePick | null;
+  // «Aus dem Showcase» (S4b, showcase.ts): Unternehmensbeitraege, eigener
+  // gekennzeichneter Block, hoechstens zwei. Zaehlt fuer hasSections, aber
+  // nicht als Inhalt fuer validateForSend (Artikel oder News bleiben Pflicht).
+  showcase: IssueShowcase[];
   // Anzeigen (PR 214, ads.ts): Momentaufnahmen der Kampagnen, vom Server
   // gebaut. Keine Rubrik: zaehlen nicht fuer hasSections und validateForSend.
   ads: IssueAd[];
 };
 
-export const EMPTY_SECTIONS: IssueSections = { news: [], hype: null, prompt: null, podcast: null, ads: [] };
+export const EMPTY_SECTIONS: IssueSections = { news: [], hype: null, prompt: null, podcast: null, showcase: [], ads: [] };
 
 export type IssueStatus = "draft" | "sending" | "sent" | "discarded";
 
@@ -137,7 +142,7 @@ function pickOf(raw: unknown): IssuePick | null {
 // Eintraege, News ohne Dubletten und hoechstens MAX_NEWS, Texte gekuerzt.
 // Alte Ausgaben ohne Rubriken ('{}') ergeben EMPTY_SECTIONS.
 export function sanitizeSections(raw: unknown): IssueSections {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...EMPTY_SECTIONS, news: [], ads: [] };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...EMPTY_SECTIONS, news: [], showcase: [], ads: [] };
   const o = raw as Record<string, unknown>;
   const news: IssueNews[] = [];
   const seen = new Set<string>();
@@ -167,11 +172,11 @@ export function sanitizeSections(raw: unknown): IssueSections {
     const title = str(h.title, 300);
     if (newsId && title) hype = { newsId, title, text: str(h.text, HYPE_TEXT_MAX), source: str(h.source, 120), anchor: anchorOf(h.anchor) };
   }
-  return { news, hype, prompt: pickOf(o.prompt), podcast: pickOf(o.podcast), ads: sanitizeAds(o.ads) };
+  return { news, hype, prompt: pickOf(o.prompt), podcast: pickOf(o.podcast), showcase: sanitizeShowcase(o.showcase), ads: sanitizeAds(o.ads) };
 }
 
 export function hasSections(s: IssueSections): boolean {
-  return s.news.length > 0 || s.hype !== null || s.prompt !== null || s.podcast !== null;
+  return s.news.length > 0 || s.hype !== null || s.prompt !== null || s.podcast !== null || s.showcase.length > 0;
 }
 
 export type IssueValidation = { ok: true } | { ok: false; error: string };
@@ -189,6 +194,8 @@ export function validateForSend(issue: { subject: string; items: IssueItem[]; se
   if (s.hype && s.hype.text.trim() === "") return { ok: false, error: "Text zum Hype-Check fehlt." };
   if (s.prompt && s.prompt.teaser.trim() === "") return { ok: false, error: "Kurztext zum Prompt der Woche fehlt." };
   if (s.podcast && s.podcast.teaser.trim() === "") return { ok: false, error: "Kurztext zum Podcast-Tipp fehlt." };
+  const noShowcaseText = s.showcase.find((e) => e.teaser.trim() === "");
+  if (noShowcaseText) return { ok: false, error: `Kurztext fehlt bei «${noShowcaseText.title}» (Aus dem Showcase).` };
   return { ok: true };
 }
 
@@ -218,6 +225,7 @@ export const UTM_CONTENT = {
   hype: "hype-check",
   prompt: "prompt",
   podcast: "podcast",
+  showcase: "showcase",
 } as const;
 export type UtmContent = (typeof UTM_CONTENT)[keyof typeof UTM_CONTENT];
 
@@ -229,6 +237,11 @@ export function trackedUrl(siteUrl: string, path: string, campaign: string, hash
 
 export function trackedArticleUrl(siteUrl: string, slug: string, campaign: string): string {
   return trackedUrl(siteUrl, `/artikel/${encodeURIComponent(slug)}`, campaign, "", UTM_CONTENT.article);
+}
+
+// Unternehmensbeitraege stehen unter /showcase/<slug> (articlePath).
+export function trackedShowcaseUrl(siteUrl: string, slug: string, campaign: string): string {
+  return trackedUrl(siteUrl, `/showcase/${encodeURIComponent(slug)}`, campaign, "", UTM_CONTENT.showcase);
 }
 
 // News verlinken auf /news (mit Einordnung und Kehrseite), nicht direkt auf

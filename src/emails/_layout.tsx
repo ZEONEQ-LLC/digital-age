@@ -25,6 +25,7 @@ import type { ReactNode } from "react";
 //   .cta-button   — Primary-Action-Button
 //   .accent-link  — Inline-Akzent-Links (z.B. „.ch" im Logo)
 //   .card-box     — neutrale Info-Karte (z.B. Podcast-Vorschau)
+//   .showcase-box — gerahmter Block «Aus dem Showcase» (Newsletter)
 //   .hint-box     — Box für „Achtung"-Hinweise
 //   .hint-strong  — Headline innerhalb hint-box
 //   .hint-text    — Body innerhalb hint-box
@@ -87,6 +88,7 @@ const HEAD_CSS = `
     .footer-text a { color: #c4c4c8 !important; }
     .url-text { color: #dcd6f7 !important; }
     .divider { border-color: #3f3f46 !important; }
+    .showcase-box { border-color: #52525b !important; }
   }
 `;
 

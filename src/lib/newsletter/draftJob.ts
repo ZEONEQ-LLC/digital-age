@@ -15,6 +15,7 @@ import { callLLMForAuthor } from "@/lib/ai/systemCall";
 import { resolveSystemAuthorId } from "@/lib/ai/systemAuthor";
 import { DEFAULT_COVER_URL } from "@/lib/coverImage";
 import { proposeAds } from "@/lib/newsletter/adsApi";
+import { proposeShowcase } from "@/lib/newsletter/showcaseApi";
 import { syncAuthorSubscribers } from "@/lib/newsletter/authorSubscribers";
 import { MAX_ITEMS, nextPeriod, sanitizeItems, sanitizeSections, type IssueItem, type IssueSections } from "@/lib/newsletter/issue";
 import { SITE_URL } from "@/lib/newsletter/mail";
@@ -128,7 +129,7 @@ export async function createNewsletterDraft(opts: {
   const period = nextPeriod(last?.period_to ?? null, now);
 
   // Nur redaktionelle Artikel: Unternehmensbeitraege stehen nie unter «Neu
-  // auf digital age» (eigene Rubrik folgt mit S4).
+  // auf digital age», sondern im Block «Aus dem Showcase» (S4b, unten).
   const { data: rows, error: artErr } = await editorialOnly(
     svc
       .from("articles")
@@ -255,11 +256,21 @@ export async function createNewsletterDraft(opts: {
   } catch (err) {
     console.error("[newsletter:draft] Anzeigen nicht lesbar:", err);
   }
+  // «Aus dem Showcase» (S4b): im Zeitraum erschienene Unternehmensbeitraege,
+  // hoechstens zwei, Kurztext aus dem freigegebenen Abstract (keine KI: Der
+  // Text ist mit dem Unternehmen abgestimmt). Sie allein ergeben keinen Entwurf.
+  let showcase: IssueSections["showcase"] = [];
+  try {
+    showcase = await proposeShowcase(svc, fromIso, toIso);
+  } catch (err) {
+    console.error("[newsletter:draft] Showcase nicht lesbar:", err);
+  }
   const sections: IssueSections = sanitizeSections({
     news: pickedNews.map(newsToSection),
     hype: hypeRow && parsed?.hype ? newsToHype(hypeRow, parsed.hype.text) : null,
     prompt: promptRow ? promptToPick(promptRow, parsed?.prompt?.teaser) : null,
     podcast: podcastRow ? podcastToPick(podcastRow, SITE_URL, parsed?.podcast?.teaser) : null,
+    showcase,
     ads,
   });
 
