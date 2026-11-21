@@ -108,6 +108,12 @@ const CSS = `
           /* Scrollbalken in den Spaltenabstand schieben (Rueckmeldung Ali:
              zu nah an den Zahlen); die Inhaltsbreite bleibt 220 px. */
           margin-right: -20px; padding-right: 20px;
+          /* Laeuft die Leiste am Ende der Liste aus, nicht mitten in einer
+             Zeile hart abschneiden (Rueckmeldung Ali 21.11.2026): unten
+             ausblenden, mit Luft, damit die letzte Zeile sonst voll lesbar ist. */
+          padding-bottom: var(--sp-10);
+          -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--sp-10)), transparent);
+          mask-image: linear-gradient(to bottom, #000 calc(100% - var(--sp-10)), transparent);
         }
         .nf-clear {
           display: flex; align-items: baseline; justify-content: space-between; gap: 10px; width: 100%;
@@ -158,7 +164,7 @@ const CSS = `
         .nf-empty { color: var(--da-muted); font-size: 15px; padding: var(--sp-6) 0; }
         @media (max-width: 1024px) {
           .nf-grid { grid-template-columns: minmax(0, 1fr); gap: var(--sp-8); }
-          .nf-aside { gap: var(--sp-3); position: static; max-height: none; overflow: visible; margin-right: 0; padding-right: 0; }
+          .nf-aside { gap: var(--sp-3); position: static; max-height: none; overflow: visible; margin-right: 0; padding-right: 0; padding-bottom: 0; -webkit-mask-image: none; mask-image: none; }
           .nf-clear { display: none; }
           .nf-bar .nf-reset { display: inline; }
           .nf-toggle { display: flex; }
@@ -179,7 +185,7 @@ function groupByDay(items: NewsItem[]): [string, NewsItem[]][] {
   return Array.from(map.entries());
 }
 
-export default function NewsFeed({ items, nowIso, intro }: { items: NewsItem[]; nowIso: string; intro?: ReactNode }) {
+export default function NewsFeed({ items, nowIso, intro, outro }: { items: NewsItem[]; nowIso: string; intro?: ReactNode; outro?: ReactNode }) {
   const now = useMemo(() => new Date(nowIso), [nowIso]);
   const [filters, setFilters] = useState<NewsFilters>(NO_FILTERS);
   const [open, setOpen] = useState(false);
@@ -336,6 +342,7 @@ export default function NewsFeed({ items, nowIso, intro }: { items: NewsItem[]; 
           </section>
         );
       })}
+      {outro}
       </div>
     </div>
   );
