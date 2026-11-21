@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { FormError, runAction, type ActionResult } from "@/lib/actionResult";
 import { resolveAds } from "@/lib/newsletter/adsApi";
 import { createNewsletterDraft } from "@/lib/newsletter/draftJob";
+import { resolveShowcase } from "@/lib/newsletter/showcaseApi";
 import {
   INTRO_MAX,
   SUBJECT_MAX,
@@ -45,7 +46,7 @@ async function loadOpenDraft(id: string) {
 export async function saveIssue(
   id: string,
   patch: IssuePatch,
-): Promise<ActionResult<{ items: IssueItem[]; sections: IssueSections; droppedAds: number }>> {
+): Promise<ActionResult<{ items: IssueItem[]; sections: IssueSections; droppedAds: number; droppedShowcase: number }>> {
   return runAction("newsletter.saveIssue", async () => {
     await requireEditor();
     const subject = patch.subject.replace(/\s+/g, " ").trim();
@@ -59,7 +60,9 @@ export async function saveIssue(
     // Reihenfolge. Inhalt und Ziel kommen aus der Kampagne (adsApi.ts).
     const wanted = sanitizeSections(patch.sections);
     const resolved = await resolveAds(supabase, wanted.ads);
-    const sections = { ...wanted, ads: resolved.ads };
+    // «Aus dem Showcase»: Titel, Firma und Kennzeichnung aus dem Artikel.
+    const showcase = await resolveShowcase(supabase, wanted.showcase);
+    const sections = { ...wanted, showcase: showcase.entries, ads: resolved.ads };
     const { error } = await supabase
       .from("newsletter_issues")
       .update({ subject, intro, items, sections, edited_at: new Date().toISOString() })
@@ -67,7 +70,7 @@ export async function saveIssue(
       .eq("status", "draft");
     if (error) throw error;
     revalidatePath(PAGE);
-    return { items, sections, droppedAds: resolved.missing.length };
+    return { items, sections, droppedAds: resolved.missing.length, droppedShowcase: showcase.missing.length };
   });
 }
 
@@ -119,7 +122,12 @@ export async function renderIssuePreview(patch: IssuePatch, sent = false): Promi
   return runAction("newsletter.renderIssuePreview", async () => {
     await requireEditor();
     const wanted = sanitizeSections(patch.sections);
-    const sections = sent ? wanted : { ...wanted, ads: (await resolveAds(await createClient(), wanted.ads)).ads };
+    let sections = wanted;
+    if (!sent) {
+      const supabase = await createClient();
+      const [ads, showcase] = await Promise.all([resolveAds(supabase, wanted.ads), resolveShowcase(supabase, wanted.showcase)]);
+      sections = { ...wanted, showcase: showcase.entries, ads: ads.ads };
+    }
     return renderIssueHtml(
       {
         subject: patch.subject.trim() || "(Betreff fehlt)",
