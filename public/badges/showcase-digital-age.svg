@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="64" viewBox="0 0 220 64" role="img" aria-label="Im Showcase von digital age">
+  <rect x="0.5" y="0.5" width="219" height="63" rx="6" fill="#1c1c1e" stroke="#3a3a3c"/>
+  <rect x="16" y="16" width="3" height="32" fill="#32ff7e"/>
+  <text x="30" y="28" fill="#a1a1aa" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="600" letter-spacing="1.4">IM SHOWCASE VON</text>
+  <text x="29" y="48" fill="#f5f5f7" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="700" letter-spacing="-0.3">digital <tspan fill="#32ff7e">age</tspan></text>
+</svg>

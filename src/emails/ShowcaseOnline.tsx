@@ -2,7 +2,8 @@ import Layout, { CtaButton, Heading, Paragraph, UrlFallback } from "./_layout";
 
 // Showcase S3b: «Beitrag ist online» an das Unternehmen, einmal beim ersten
 // Publizieren. Mit dem Link zum Teilen (UTM fuer LinkedIn) und den drei
-// vorbereiteten LinkedIn-Texten. Das Paket mit Bild und Badge folgt mit S4.
+// vorbereiteten LinkedIn-Texten. Seit S4 mit dem Link zum Teilen-Paket (Bild,
+// Texte, Links pro Kanal, Badge, Zahlen).
 
 export type ShowcaseOnlineProps = {
   firstName: string;
@@ -14,6 +15,8 @@ export type ShowcaseOnlineProps = {
   shareUrl: string;
   profileUrl: string;
   linkedin: string[];
+  // Teilen-Paket /showcase/teilen/<kit_token>; null = nicht verfuegbar.
+  kitUrl: string | null;
 };
 
 export const SHOWCASE_ONLINE_SUBJECT = "Euer Beitrag im Showcase ist online";
@@ -36,7 +39,7 @@ function PostText({ index, text, shareUrl }: { index: number; text: string; shar
   );
 }
 
-export default function ShowcaseOnline({ firstName, company, title, url, shareUrl, profileUrl, linkedin }: ShowcaseOnlineProps) {
+export default function ShowcaseOnline({ firstName, company, title, url, shareUrl, profileUrl, linkedin, kitUrl }: ShowcaseOnlineProps) {
   return (
     <Layout previewText={`«${title}» ist erschienen. Hier sind der Link und die Texte zum Teilen.`}>
       <Heading>Euer Beitrag ist online</Heading>
@@ -49,6 +52,12 @@ export default function ShowcaseOnline({ firstName, company, title, url, shareUr
       <Paragraph>
         Er ist mit eurem <a href={profileUrl} className="accent-link" style={{ color: "#16a34a" }}>Profil im Verzeichnis</a> verknüpft und als Unternehmensbeitrag gekennzeichnet.
       </Paragraph>
+      {kitUrl && (
+        <Paragraph>
+          Alles zum Teilen liegt auf einer Seite: das Bild für LinkedIn, die Texte, Links für eure Website und euren Newsletter, ein Badge und die Zahlen bis gestern.{" "}
+          <a href={kitUrl} className="accent-link" style={{ color: "#16a34a" }}>Teilen-Paket öffnen</a>
+        </Paragraph>
+      )}
       {linkedin.length > 0 ? (
         <>
           <Paragraph>

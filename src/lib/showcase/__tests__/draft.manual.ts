@@ -189,10 +189,11 @@ async function mails(): Promise<void> {
   eq("Betreff erster Versand", showcaseDraftReadySubject(false, false), "Euer Beitrag im Showcase: Entwurf zur Freigabe");
   eq("Betreff zweiter Versand als Test", showcaseDraftReadySubject(true, true), "[Test] Euer Beitrag im Showcase: überarbeiteter Entwurf");
   const share = showcaseShareUrl("https://digital-age.ch", "vertraege-pruefen");
-  const online = await render(ShowcaseOnline({ firstName: "Anna", company: "Beispiel AI AG", title: "Verträge prüfen", url: "https://digital-age.ch/showcase/vertraege-pruefen", shareUrl: share, profileUrl: "https://digital-age.ch/swiss-ai/beispiel-ai", linkedin: ["Erster Text #KI", "Zweiter Text"] }));
+  const online = await render(ShowcaseOnline({ firstName: "Anna", company: "Beispiel AI AG", title: "Verträge prüfen", url: "https://digital-age.ch/showcase/vertraege-pruefen", shareUrl: share, profileUrl: "https://digital-age.ch/swiss-ai/beispiel-ai", linkedin: ["Erster Text #KI", "Zweiter Text"], kitUrl: "https://digital-age.ch/showcase/teilen/abc" }));
   ok("Online: Beitrag, Profil und beide Texte", online.includes("https://digital-age.ch/showcase/vertraege-pruefen") && online.includes("swiss-ai/beispiel-ai") && online.includes("Erster Text #KI") && online.includes("Zweiter Text"));
   ok("Online: Teilen-Link mit Kennung bei jedem Text", (online.match(/utm_source=linkedin/g) ?? []).length >= 2);
-  const plain = await render(ShowcaseOnline({ firstName: "Anna", company: "Beispiel AI AG", title: "T", url: "https://digital-age.ch/showcase/t", shareUrl: share, profileUrl: "https://digital-age.ch/swiss-ai/x", linkedin: [] }));
+  ok("Online: Link zum Teilen-Paket", online.includes("https://digital-age.ch/showcase/teilen/abc"));
+  const plain = await render(ShowcaseOnline({ firstName: "Anna", company: "Beispiel AI AG", title: "T", url: "https://digital-age.ch/showcase/t", shareUrl: share, profileUrl: "https://digital-age.ch/swiss-ai/x", linkedin: [], kitUrl: null }));
   ok("Online ohne LinkedIn-Texte: nur der Link", plain.includes("utm_source=linkedin") && !plain.includes("Text 1"));
 }
 

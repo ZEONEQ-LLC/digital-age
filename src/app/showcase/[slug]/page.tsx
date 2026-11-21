@@ -11,6 +11,7 @@ import {
   showcaseToListRow,
 } from "@/lib/showcaseApi";
 import { getPodcastsByArticleSlug } from "@/lib/podcastApi";
+import { teaserImagePath } from "@/lib/showcase/kit";
 import { getBaseUrl } from "@/lib/siteUrl";
 import { createPublicClient } from "@/lib/supabase/public";
 
@@ -40,7 +41,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const article = await getShowcaseArticleBySlug(slug);
   if (!article) return {};
-  return buildArticleMetadata(article, getBaseUrl(), `${SHOWCASE_PATH}/${article.slug}`);
+  const base = getBaseUrl();
+  const meta = buildArticleMetadata(article, base, `${SHOWCASE_PATH}/${article.slug}`);
+  // Teilen-Bild mit Kennzeichnung (Showcase S4) statt Cover oder eigenem Bild.
+  const image = { url: `${base}${teaserImagePath(article.slug)}`, width: 1200, height: 630, alt: `${article.title}: ${article.startup.name} im Showcase von digital age` };
+  return {
+    ...meta,
+    openGraph: { ...meta.openGraph, images: [image] },
+    twitter: { ...meta.twitter, images: [image] },
+  };
 }
 
 export default async function ShowcaseArticlePage({ params }: PageProps) {

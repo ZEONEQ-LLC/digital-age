@@ -6,6 +6,7 @@ import { Resend } from "resend";
 import ShowcaseDraftReady, { showcaseDraftReadySubject, type ShowcaseDraftReadyProps } from "@/emails/ShowcaseDraftReady";
 import ShowcaseInvite, { showcaseInviteSubject, type ShowcaseInviteProps } from "@/emails/ShowcaseInvite";
 import ShowcaseOnline, { SHOWCASE_ONLINE_SUBJECT, type ShowcaseOnlineProps } from "@/emails/ShowcaseOnline";
+import ShowcaseReport, { showcaseReportSubject, type ShowcaseReportProps } from "@/emails/ShowcaseReport";
 import ShowcaseReceived, { SHOWCASE_RECEIVED_SUBJECT, type ShowcaseReceivedProps } from "@/emails/ShowcaseReceived";
 import ShowcaseSubmitted, { showcaseSubmittedSubject, type ShowcaseSubmittedProps } from "@/emails/ShowcaseSubmitted";
 
@@ -14,7 +15,7 @@ import ShowcaseSubmitted, { showcaseSubmittedSubject, type ShowcaseSubmittedProp
 
 type SendResult = { ok: true } | { ok: false; error: string };
 
-async function send(args: { to: string; subject: string; html: string; context: string }): Promise<SendResult> {
+async function send(args: { to: string; subject: string; html: string; context: string; bcc?: string }): Promise<SendResult> {
   const key = process.env.RESEND_API_KEY;
   const from = process.env.NEWSLETTER_FROM_EMAIL;
   if (!key || !from) return { ok: false, error: "RESEND_API_KEY oder NEWSLETTER_FROM_EMAIL fehlt" };
@@ -25,6 +26,7 @@ async function send(args: { to: string; subject: string; html: string; context: 
       to: args.to,
       subject: args.subject,
       html: args.html,
+      ...(args.bcc ? { bcc: args.bcc } : {}),
       ...(replyTo ? { replyTo } : {}),
     });
     if (result.error) {
@@ -99,6 +101,18 @@ export async function sendShowcaseOnlineMail(to: string, props: ShowcaseOnlinePr
     return await send({ to, subject: SHOWCASE_ONLINE_SUBJECT, html, context: "online" });
   } catch (err) {
     console.error("[showcase:online] render failed:", err);
+    return { ok: false, error: err instanceof Error ? err.message : "unknown" };
+  }
+}
+
+// S4: Bericht nach 30 Tagen an das Unternehmen, Blindkopie an die Redaktion.
+export async function sendShowcaseReportMail(to: string, props: ShowcaseReportProps): Promise<SendResult> {
+  try {
+    const html = await render(ShowcaseReport(props));
+    const bcc = process.env.NEWSLETTER_REPLY_TO?.trim();
+    return await send({ to, subject: showcaseReportSubject(props.title), html, context: "report", ...(bcc && bcc.toLowerCase() !== to.toLowerCase() ? { bcc } : {}) });
+  } catch (err) {
+    console.error("[showcase:report] render failed:", err);
     return { ok: false, error: err instanceof Error ? err.message : "unknown" };
   }
 }

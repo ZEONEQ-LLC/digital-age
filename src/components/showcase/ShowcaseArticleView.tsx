@@ -17,6 +17,8 @@ import InlineText from "@/components/InlineText";
 import ListenButton from "@/components/ListenButton";
 import ReadingProgress from "@/components/ReadingProgress";
 import ReadingMeter from "@/components/article/ReadingMeter";
+import WebsiteClickSignal from "@/components/showcase/WebsiteClickSignal";
+import { companyHost } from "@/lib/showcase/kit";
 import ShareButtons from "@/components/ShareButtons";
 import TableOfContents from "@/components/TableOfContents";
 import {
@@ -75,6 +77,7 @@ export default function ShowcaseArticleView({ article, moreHeading, moreRows, ba
   const company = article.startup;
   const label = contentTypeLabel(article) ?? "Unternehmensbeitrag";
   const dateLabel = preview?.dateLabel ?? formatDateDE(article.published_at);
+  const websiteHost = companyHost(article.startup.website);
   const path = `${SHOWCASE_PATH}/${article.slug}`;
   const url = `${baseUrl}${path}`;
   const doc = resolveBlockDocument(article);
@@ -110,6 +113,7 @@ export default function ShowcaseArticleView({ article, moreHeading, moreRows, ba
       <ReadingProgress />
       {/* Lesestatistik: nur auf der publizierten Seite, nie in der Vorschau. */}
       {!preview && <ReadingMeter articleId={article.id} readingMinutes={article.reading_minutes} />}
+      {!preview && websiteHost && <WebsiteClickSignal host={websiteHost} />}
       <ArticleHeadStyles />
       <ShowcaseStyles />
 

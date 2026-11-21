@@ -1429,6 +1429,44 @@ automatisch.
   alle-news, hype-check, prompt, podcast). Die Lesestatistik zaehlt solche
   Aufrufe unter «E-Mail und Newsletter».
 
+### Showcase S4: Teilen-Paket, Website-Klicks, Bericht nach 30 Tagen (PR 223)
+
+Was die Einladung und die Mail «Beitrag ist online» versprechen: Material zum
+Teilen und Zahlen nach 30 Tagen. Regeln rein und getestet in
+`src/lib/showcase/kit.ts` (Test `__tests__/kit.manual.ts`).
+
+- **Teilen-Bild** `/showcase/<slug>/teilen-bild` (Route mit `next/og`,
+  1200 x 630): Kennzeichnung, Titel, Logo und Name des Unternehmens. Steht als
+  og:image und twitter:image auf jedem Unternehmensbeitrag, auch wenn der
+  Editor ein eigenes Teilen-Bild gesetzt hat (die Kennzeichnung soll beim
+  Teilen sichtbar bleiben). Schriften als statische TTF in `assets/fonts/`
+  (Satori liest kein WOFF2), in `outputFileTracingIncludes` eingetragen.
+  Logos nur PNG oder JPEG (Satori kann kein WebP), sonst die Initiale.
+- **Teilen-Paket** `/showcase/teilen/<kit_token>` (chromefrei, noindex, in
+  robots.txt gesperrt, Service-Client): Zahlen bis gestern, Bild zum
+  Herunterladen, LinkedIn-Texte, ein Link pro Kanal (`kitShareUrl`: LinkedIn,
+  Website, E-Mail mit eigener UTM-Kennung), Badge
+  `public/badges/showcase-digital-age.svg` mit HTML-Schnipsel. Ansicht ohne
+  Datenzugriff in `KitView.tsx` (Mock-Route zur Sichtpruefung moeglich).
+  `showcase_submissions.kit_token` ist ein eigener Zugang, getrennt vom
+  Fragebogen-Token. Die Mail «Beitrag ist online» verlinkt das Paket, die
+  Verwaltung unter `/autor/admin/startups#showcase` ebenso.
+- **Website-Klicks**: Aktion `website` in der Lesestatistik (Spalte
+  `article_stats_daily.website_clicks`, RPC `article_stats_record`).
+  `WebsiteClickSignal` haengt nur im publizierten Unternehmensbeitrag und
+  meldet jeden Klick auf einen Link zum Host der Firmen-Website (auch
+  Subdomains, auch im Text); der Zaehler nimmt hoechstens einen pro Aufruf.
+  Die Autorenstatistik zeigt die Spalte (noch) nicht.
+- **Bericht nach 30 Tagen** (`reportJob.ts`, im Cron `/api/module/daily`):
+  30 Zuercher Kalendertage ab dem Erscheinen, Versand am Tag danach an die
+  Kontaktadresse der Einreichung, Blindkopie an die Redaktion, einmal
+  (`report_sent_at`), Wiederholung bei Fehler bis 14 Tage danach. Nur fuer
+  Beitraege aus einer Einreichung; von Hand angelegte Unternehmensbeitraege
+  haben weder Paket noch Bericht.
+- Datenschutzerklaerung: Absatz `bl-lesestatistik-2026-11` nennt die
+  Website-Klicks und die Weitergabe der Summen an das Unternehmen.
+- Noch offen aus S4: Rubrik «Aus dem Showcase» im Newsletter (eigener PR).
+
 ### Showcase S3b: Entwurf aus dem Fragebogen, Freigabe (PR 214)
 
 Aus einer Einreichung (S3a) entsteht der Beitrag. Die Redaktion klickt unter

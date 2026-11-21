@@ -13,7 +13,7 @@ export default function robots(): MetadataRoute.Robots {
     return {
       // /vorschau und /showcase/mitmachen: nur ueber einen Token-Link
       // erreichbar, nie indexieren.
-      rules: [{ userAgent: "*", allow: "/", disallow: ["/vorschau/", "/showcase/mitmachen/"] }],
+      rules: [{ userAgent: "*", allow: "/", disallow: ["/vorschau/", "/showcase/mitmachen/", "/showcase/teilen/"] }],
       sitemap: `${getBaseUrl()}/sitemap.xml`,
     };
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { runEndReports } from "@/lib/ads/endReportJob";
 import { runExpiryWarnings } from "@/lib/ads/expiryJob";
+import { runShowcaseReports } from "@/lib/showcase/reportJob";
 
 // Taeglicher Cron (vercel.json "0 5 * * *"): Ablaufwarnungen 7 Tage vor
 // Buchungsende (J7) und Abschlussberichte am Morgen nach dem Kampagnenende
@@ -24,8 +25,10 @@ export async function GET(request: Request) {
   try {
     const expiry = await runExpiryWarnings();
     const endReports = await runEndReports();
+    // Showcase S4: Bericht nach 30 Tagen an die Unternehmen.
+    const showcaseReports = await runShowcaseReports();
     // Bisherige Felder (checked/sent/failed) bleiben die der Ablaufwarnung.
-    return NextResponse.json({ ok: true, ...expiry, endReports }, { headers: NO_STORE });
+    return NextResponse.json({ ok: true, ...expiry, endReports, showcaseReports }, { headers: NO_STORE });
   } catch (err) {
     console.error("[module:daily] run failed:", err);
     return NextResponse.json({ ok: false, error: "run failed" }, { status: 500, headers: NO_STORE });
