@@ -185,7 +185,7 @@ function groupByDay(items: NewsItem[]): [string, NewsItem[]][] {
   return Array.from(map.entries());
 }
 
-export default function NewsFeed({ items, nowIso, intro, outro }: { items: NewsItem[]; nowIso: string; intro?: ReactNode; outro?: ReactNode }) {
+export default function NewsFeed({ items, nowIso, intro }: { items: NewsItem[]; nowIso: string; intro?: ReactNode }) {
   const now = useMemo(() => new Date(nowIso), [nowIso]);
   const [filters, setFilters] = useState<NewsFilters>(NO_FILTERS);
   const [open, setOpen] = useState(false);
@@ -342,7 +342,6 @@ export default function NewsFeed({ items, nowIso, intro, outro }: { items: NewsI
           </section>
         );
       })}
-      {outro}
       </div>
     </div>
   );
@@ -373,7 +372,17 @@ function AssessmentDetails({ a }: { a: Assessment }) {
       </div>
       <p className="nw-ass-note">
         {a.by === "editor" ? "Von der Redaktion eingeordnet." : "Einschätzung der KI auf Basis der Meldung."}{" "}
-        <a href="#einordnung">So ordnen wir ein</a>
+        {/* Springt zur Erklaerung ueber der Liste; direkt oeffnen, denn bei
+            unveraendertem Hash feuert kein hashchange (NewsMethod.tsx). */}
+        <a
+          href="#einordnung"
+          onClick={() => {
+            const el = document.getElementById("einordnung");
+            if (el instanceof HTMLDetailsElement) el.open = true;
+          }}
+        >
+          Was heisst das?
+        </a>
       </p>
     </div>
   );
